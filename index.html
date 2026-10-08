@@ -1404,6 +1404,7 @@
             <span style="color: var(--text-muted); margin: 0 1px;">|</span>
             <span style="color: var(--danger);"><i class="fas fa-times"></i> <span id="stat-wrong">0</span></span>
           </div>
+          <!-- Learning Element: Hot Streak Visualizer -->
           <div class="micro-pill" id="streak-pill" style="display:none; color: var(--streak-fire);"><i
               class="fas fa-fire"></i> <span id="streak-count">0</span></div>
           <div class="micro-pill" id="exam-stats-pill" style="display: none; color: var(--current-primary);"><i
@@ -1432,8 +1433,9 @@
       <button class="btn-dock-secondary" id="dock-prev-btn" onclick="goToPrevCard()"><i class="fas fa-arrow-left"></i>
         Prev</button>
       <button class="btn-dock-secondary" id="dock-lifeline-btn" onclick="useLifeline()"
-        style="display:none; color: var(--current-primary);"><i class="fas fa-magic"></i> 50/50 (<span
-          id="lifeline-count">3</span>)</button>
+        style="display:none; color: var(--current-primary); white-space: nowrap; flex-wrap: nowrap; padding: 13px 5px;">
+        <i class="fas fa-magic"></i> 50:50 <span style="background: var(--current-primary); color: #fff; padding: 2px 7px; border-radius: 8px; font-size: 10px; margin-left: 5px; font-weight: 900;" id="lifeline-count">3</span>
+      </button>
       <button class="btn-dock-primary" id="dock-next-btn" onclick="goToNextCard()">Next <i
           class="fas fa-arrow-right"></i></button>
     </div>
@@ -1501,6 +1503,7 @@
     const TIME_FRACTION = 5;
     const LIFELINE_TOTAL = 3;
 
+    // Multi-subject tracking
     let currentSelectedSubject = null;
     let topic = "";
     let initialQuestions = [];
@@ -1516,6 +1519,7 @@
     let isFinishScreen = false;
     let awaitingAcknowledgment = false;
 
+    // REFINED THEMES
     const THEMES = ['default', 'hacker', 'sunset', 'paper', 'academic'];
     let currentThemeIdx = 0;
     let previousThemeIdx = 0;
@@ -1531,6 +1535,7 @@
     let userAnswers = {};
     let localLocks = {};
 
+    // CBT EXAM ENGINE STATES
     let examAnswers = {};
     let examQuestionStates = {};
     let isExamSubmitted = false;
@@ -1546,6 +1551,7 @@
     let totalSessionElapsed = 0;
     let countdownSeconds = 0;
 
+    // View Routing architecture 
     function switchScreen(screenId) {
       ['mobile-subject-screen', 'mobile-home-screen', 'study-interface-wrapper', 'exam-instructions-screen'].forEach(id => {
         const el = document.getElementById(id);
@@ -1553,6 +1559,7 @@
       });
     }
 
+    // Elegant Toast Notification System
     function showToast(msg, icon = 'info-circle', color = 'var(--current-primary)') {
       const container = document.getElementById('toast-container');
       const toast = document.createElement('div');
@@ -1568,6 +1575,7 @@
       }, 2500);
     }
 
+    // Keyboard Accessibility Support
     document.addEventListener('keydown', (e) => {
       if (!sessionActive || isFinishScreen || document.getElementById('exitConfirmOverlay').style.display === 'flex') return;
 
@@ -1597,17 +1605,16 @@
       }
     });
 
+    // Anti-Cheat (Proctoring) Mechanisms for Exam Mode
     document.addEventListener('copy', (e) => {
       if (sessionActive && studyModeType === 'exam' && !isExamSubmitted) {
         e.preventDefault();
         showToast("Copying is disabled during active exams.", "shield-alt", "var(--warning)");
       }
     });
-
     document.addEventListener('contextmenu', (e) => {
       if (sessionActive && studyModeType === 'exam' && !isExamSubmitted) e.preventDefault();
     });
-
     document.addEventListener('visibilitychange', () => {
       if (sessionActive && studyModeType === 'exam' && !isExamSubmitted && document.hidden) {
         cheatWarnings++;
@@ -1615,6 +1622,9 @@
       }
     });
 
+    // =========================================================
+    // 📚 1. SUBJECT SCREEN CONTROLLER
+    // =========================================================
     window.onload = () => {
       switchScreen('mobile-subject-screen');
       fetchSubjectsList();
@@ -1709,6 +1719,9 @@
       fetchSubjectsList();
     }
 
+    // =========================================================
+    // 🏠 2. TOPIC SCREEN CONTROLLER (Folder > Subfolder Hierarchy)
+    // =========================================================
     function fetchTopicsListForCurrentSubject() {
       if (!currentSelectedSubject) return;
       const icon = document.getElementById('refresh-topics-icon');
@@ -1975,6 +1988,9 @@
       fetchTopicsListForCurrentSubject();
     }
 
+    // =========================================================
+    // ⚙️ SETUP & STUDY ENGINE CONTROLLER
+    // =========================================================
     function renderSetupScreen() {
       const container = document.getElementById('study-container');
       document.getElementById('session-stats-group').style.display = 'none';
@@ -2521,12 +2537,33 @@
     }
 
     function handleMistake(q) {
-      if (!mistakesQueue.some(m => m.globalIndex === q.globalIndex)) mistakesQueue.push(q);
-      if (studyModeType !== 'exam') {
+      // गलत सवाल को mistakesQueue में डाल दें (अगर पहले से नहीं है)
+      if (!mistakesQueue.some(m => m.globalIndex === q.globalIndex)) {
+        mistakesQueue.push(q);
+      }
+      
+      // बीच में सवाल घुसाने (Looping) का लॉजिक सिर्फ Flashcard मोड में रहेगा
+      if (studyModeType === 'flashcard') {
         const cloned = JSON.parse(JSON.stringify(q));
         cloned._id = Math.random().toString(36).substr(2, 9);
         questions.splice(currentIndex + 4, 0, cloned);
       }
+    }
+
+    function startMistakesReview() {
+      awaitingAcknowledgment = false;
+      
+      // मौजूदा सवालों की लिस्ट को सिर्फ गलत सवालों (Mistakes) से बदल दें
+      questions = JSON.parse(JSON.stringify(mistakesQueue));
+      
+      // नई ID दें ताकि पुराने लॉक हटाए जा सकें
+      questions.forEach(q => { q._id = Math.random().toString(36).substr(2, 9); });
+      
+      mistakesQueue = []; // अगले राउंड के लिए लिस्ट खाली करें
+      currentIndex = 0;
+      
+      showToast("Reviewing Mistakes Round", "redo-alt", "var(--warning)");
+      showCard();
     }
 
     // Spaced Repetition Logic for Flashcards
@@ -2563,20 +2600,48 @@
 
     function useLifeline() {
       const localId = questions[currentIndex]._id;
-      if (studyModeType !== 'quiz' || lifelinesRemaining <= 0 || localLocks[localId] !== undefined) return;
+      // चेक करें कि लाइफलाइन बची है या नहीं, या इसी सवाल पर पहले इस्तेमाल तो नहीं हो चुकी
+      if (studyModeType !== 'quiz' || lifelinesRemaining <= 0 || localLocks[localId] !== undefined || questions[currentIndex].lifelineUsed) return;
+      
+      questions[currentIndex].lifelineUsed = true; // इस सवाल के लिए लाइफलाइन लॉक कर दें
       const q = questions[currentIndex];
+      
       let wrongIndices = [];
       q.options.forEach((_, i) => { if (i != q.correctIndex) wrongIndices.push(i); });
       wrongIndices = shuffleArray(wrongIndices).slice(0, 2);
+      
       const optionCards = document.querySelectorAll('.touch-option-card');
-      wrongIndices.forEach(idx => { if (optionCards[idx]) optionCards[idx].classList.add('eliminated'); });
+      wrongIndices.forEach(idx => { 
+        if (optionCards[idx]) {
+          optionCards[idx].classList.add('eliminated');
+          optionCards[idx].style.opacity = '0.15'; // ग़लत ऑप्शंस को पूरी तरह धुंधला कर दें
+          optionCards[idx].style.transform = 'scale(0.95)';
+        } 
+      });
+      
       lifelinesRemaining--;
       playSfx('magic');
       updateLiveTelemetry();
+      updateDockButtons(); // बटन का स्टेटस तुरंत अपडेट करें
     }
 
     function updateDockButtons() {
       if (studyModeType === 'exam' && !isExamReview) return;
+
+      const lifeBtn = document.getElementById('dock-lifeline-btn');
+      if (lifeBtn && studyModeType === 'quiz') {
+        const localId = questions[currentIndex]._id;
+        const isAnswered = localLocks[localId] !== undefined;
+        const isUsedHere = questions[currentIndex].lifelineUsed === true;
+        
+        if (lifelinesRemaining <= 0 || isAnswered || isUsedHere) {
+          lifeBtn.style.opacity = '0.35'; 
+          lifeBtn.style.pointerEvents = 'none'; 
+        } else {
+          lifeBtn.style.opacity = '1';
+          lifeBtn.style.pointerEvents = 'auto'; 
+        }
+      }
 
       const indices = getFilteredIndices();
       const hasPrev = indices.some(i => i < currentIndex);
@@ -2596,19 +2661,24 @@
       }
 
       nextBtn.style.color = '#fff';
-      nextBtn.onclick = goToNextCard;
-
+      
       if (!hasNext) {
         if (studyModeType === 'read' || mistakesQueue.length === 0) {
+          // जब सब सही हों या रीड मोड हो
           nextBtn.innerHTML = `Finish <i class="fas fa-flag-checkered"></i>`;
           nextBtn.style.background = 'var(--success)';
+          nextBtn.onclick = finishSessionScreen;
         } else {
-          nextBtn.innerHTML = `Results <i class="fas fa-chart-pie"></i>`;
-          nextBtn.style.background = 'var(--current-primary)';
+          // ✨ नया लॉजिक: अगर गलतियाँ बची हैं
+          nextBtn.innerHTML = `Review Mistakes <i class="fas fa-redo"></i>`;
+          nextBtn.style.background = 'var(--warning)';
+          nextBtn.style.color = '#000';
+          nextBtn.onclick = startMistakesReview;
         }
       } else {
         nextBtn.innerHTML = `Next <i class="fas fa-arrow-right"></i>`;
         nextBtn.style.background = 'var(--current-primary)';
+        nextBtn.onclick = goToNextCard;
       }
     }
 
@@ -2641,8 +2711,9 @@
       }
 
       const fillBar = document.getElementById('study-progress-fill');
-      if (fillBar && globalQuestions.length > 0) {
-        const percent = Math.round(((currentIndex + 1) / globalQuestions.length) * 100);
+      if (fillBar && questions.length > 0) {
+        // globalQuestions की जगह questions.length इस्तेमाल करें
+        const percent = Math.round(((currentIndex + 1) / questions.length) * 100);
         fillBar.style.width = percent + '%';
       }
 
@@ -2976,6 +3047,7 @@
         const osc = globalAudioCtx.createOscillator();
         const gain = globalAudioCtx.createGain();
         osc.connect(gain); gain.connect(globalAudioCtx.destination);
+        
         if (t === 'tick') {
           osc.frequency.setValueAtTime(600, now);
           gain.gain.setValueAtTime(0.08, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
@@ -2985,9 +3057,13 @@
           gain.gain.setValueAtTime(0.15, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
           osc.start(now); osc.stop(now + 0.4);
         } else if (t === 'wrong') {
-          osc.type = 'sawtooth'; osc.frequency.setValueAtTime(200, now);
-          gain.gain.setValueAtTime(0.2, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
-          osc.start(now); osc.stop(now + 0.25);
+          // Modern Soft Descending Error Tone
+          osc.type = 'triangle'; 
+          osc.frequency.setValueAtTime(300, now);
+          osc.frequency.exponentialRampToValueAtTime(100, now + 0.35);
+          gain.gain.setValueAtTime(0.15, now); 
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+          osc.start(now); osc.stop(now + 0.35);
         } else if (t === 'magic') {
           osc.frequency.setValueAtTime(800, now);
           osc.frequency.exponentialRampToValueAtTime(1200, now + 0.2);
