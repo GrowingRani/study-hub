@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
- <base target="_top">
+  <base target="_top">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   
@@ -249,100 +249,170 @@
       align-items: center;
     }
 
-    /* 📁 4. ACCORDION / FOLDER GROUPING CSS */
-    .sheet-group-wrapper {
-      margin-bottom: 12px;
-      animation: fadeSlideIn 0.3s ease forwards;
+    /* =========================================================
+       📁 4. PRO HIERARCHICAL FOLDER & TOPIC CARDS
+       ========================================================= */
+    .folder-node-wrapper {
+      margin-bottom: 10px;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
-    .sheet-group-header {
-      background: var(--bg-card);
+
+    .folder-header-card {
+      background: linear-gradient(135deg, var(--bg-surface), var(--bg-card));
       border: 1px solid var(--border-subtle);
-      border-radius: 14px;
-      padding: 14px 18px;
+      border-radius: 16px;
+      padding: 13px 16px;
       display: flex;
       justify-content: space-between;
       align-items: center;
       cursor: pointer;
       box-shadow: var(--shadow-soft);
-      font-weight: 800;
-      color: var(--current-primary);
-      transition: all 0.2s ease;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.25s ease;
     }
-    .sheet-group-header:active {
-      transform: scale(0.98);
+    .folder-header-card::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 0;
+      height: 100%; width: 4px;
+      background: var(--current-primary);
+      opacity: 0.8;
+      border-radius: 4px;
     }
-    .sheet-group-header .group-info {
+    .folder-header-card:active {
+      transform: scale(0.985);
+      border-color: var(--border-glow);
+    }
+
+    .subfolder-header-card {
+      background: rgba(255, 255, 255, 0.02);
+      border-left: 3px solid var(--warning);
+      border-radius: 14px;
+      margin-bottom: 8px;
+    }
+    .subfolder-header-card::before { display: none; }
+
+    .folder-title-row {
       display: flex;
-      flex-direction: column;
-      gap: 4px;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
     }
-    .sheet-group-header .group-title {
-      font-size: 15px;
-      color: var(--text-main);
-    }
-    .sheet-group-header .group-meta {
-      font-size: 11px;
-      color: var(--text-sub);
-      font-weight: 600;
-    }
-    .sheet-group-icon {
-      transition: transform 0.3s ease;
+    .folder-icon-bubble {
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
       background: var(--current-light);
-      width: 30px;
-      height: 30px;
-      border-radius: 50%;
+      color: var(--current-primary);
       display: flex;
       align-items: center;
       justify-content: center;
-      color: var(--current-primary);
+      font-size: 15px;
+      flex-shrink: 0;
+      transition: transform 0.2s ease;
     }
-    .sheet-group-wrapper.open .sheet-group-icon {
-      transform: rotate(180deg);
-    }
-    
-    .sheet-group-content {
-      display: none;
-      flex-direction: column;
-      gap: 10px;
-      padding: 12px 0 0 12px;
-      border-left: 2px dashed var(--border-subtle);
-      margin-left: 14px;
-    }
-    .sheet-group-wrapper.open .sheet-group-content {
-      display: flex;
-      animation: fadeSlideIn 0.3s ease;
+    .subfolder-icon-bubble {
+      width: 32px;
+      height: 32px;
+      background: rgba(251, 191, 36, 0.12);
+      color: var(--warning);
+      font-size: 13px;
     }
 
-    .mobile-topic-card {
+    .folder-text-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      min-width: 0;
+    }
+    .folder-name-text {
+      font-size: 14.5px;
+      font-weight: 800;
+      color: var(--text-main);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      letter-spacing: 0.2px;
+    }
+    .folder-count-pill {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-sub);
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .folder-chevron-pill {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: rgba(128, 128, 128, 0.08);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      font-size: 11px;
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.2s;
+    }
+    .folder-node-wrapper.open > .folder-header-card .folder-chevron-pill {
+      transform: rotate(180deg);
+      background: var(--current-light);
+      color: var(--current-primary);
+    }
+
+    .folder-children-drawer {
+      display: none;
+      flex-direction: column;
+      gap: 8px;
+      padding: 10px 0 4px 16px;
+      margin-left: 12px;
+      border-left: 2px dashed var(--border-subtle);
+      animation: fadeSlideIn 0.25s ease forwards;
+    }
+    .folder-node-wrapper.open > .folder-children-drawer {
+      display: flex;
+    }
+
+    .pro-topic-card {
       background: var(--bg-card);
       border: 1px solid var(--border-subtle);
-      border-radius: 18px;
-      padding: 16px 18px;
+      border-radius: 14px;
+      padding: 12px 14px;
       display: flex;
       align-items: center;
       justify-content: space-between;
       cursor: pointer;
       box-shadow: var(--shadow-soft);
-      transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
-      position: relative;
-      overflow: hidden;
+      transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
     }
-    .mobile-topic-card::before {
-      content: '';
-      position: absolute;
-      top: 0; left: 0;
-      width: 4px; height: 100%;
-      background: var(--current-primary);
-      opacity: 0.8;
-    }
-    .mobile-topic-card:active {
+    .pro-topic-card:active {
       transform: scale(0.975);
       border-color: var(--current-primary);
-      box-shadow: 0 0 20px var(--current-light);
+      box-shadow: 0 0 16px var(--current-light);
+    }
+    .pro-topic-card .topic-name {
+      font-size: 13.5px;
+      font-weight: 700;
+      color: var(--text-main);
+      line-height: 1.35;
+    }
+    .pro-topic-card .launch-pill-btn {
+      background: var(--current-light);
+      color: var(--current-primary);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 5px 9px;
+      font-size: 11px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      flex-shrink: 0;
     }
 
     .topic-meta-left { display: flex; flex-direction: column; gap: 4px; max-width: 82%; }
-    .topic-name { font-size: 14.5px; font-weight: 700; color: var(--text-main); line-height: 1.35; }
     .topic-badges-row { display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: var(--text-sub); }
     .topic-count-pill {
       background: var(--current-light);
@@ -350,17 +420,6 @@
       border-radius: 6px;
       font-weight: 600;
       color: var(--current-primary);
-    }
-    .topic-action-chevron {
-      width: 32px;
-      height: 32px;
-      border-radius: 50%;
-      background: rgba(128, 128, 128, 0.1);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--text-sub);
-      font-size: 12px;
     }
 
     /* 📖 3. STUDY ENGINE VIEWPORT */
@@ -798,7 +857,7 @@
     /* UPDATED: ELEGANT LEARNING TOAST NOTIFICATIONS FOR MOBILE */
     #toast-container { 
       position: fixed; 
-      bottom: 100px; /* Moved to bottom to avoid notch and header overlap */
+      bottom: 100px; 
       left: 50%; 
       transform: translateX(-50%); 
       z-index: 9999; 
@@ -1037,10 +1096,10 @@
     let isFinishScreen = false;
     let awaitingAcknowledgment = false;
 
-    // REFINED THEMES (Removed Ocean, Dracula, Void)
+    // REFINED THEMES
     const THEMES = ['default', 'hacker', 'sunset', 'paper', 'academic'];
     let currentThemeIdx = 0;
-    let previousThemeIdx = 0; // For restoring theme after mock exam
+    let previousThemeIdx = 0;
 
     let globalQuestions = [];
     let questions = [];
@@ -1055,7 +1114,7 @@
     
     // CBT EXAM ENGINE STATES
     let examAnswers = {}; 
-    let examQuestionStates = {}; // Unvisited, visited_unanswered, answered, marked_review, answered_marked_review
+    let examQuestionStates = {};
     let isExamSubmitted = false;
     let isExamReview = false;
     let cheatWarnings = 0;
@@ -1077,13 +1136,11 @@
       });
     }
 
-    // Elegant Toast Notification System (Learning Utility)
+    // Elegant Toast Notification System
     function showToast(msg, icon = 'info-circle', color = 'var(--current-primary)') {
       const container = document.getElementById('toast-container');
       const toast = document.createElement('div');
       toast.className = 'app-toast';
-      
-      // Update transform cleanup to slide down out of view when removing
       toast.innerHTML = `<i class="fas fa-${icon}" style="color: ${color}; margin-right: 6px;"></i> ${msg}`;
       container.appendChild(toast);
       
@@ -1095,23 +1152,20 @@
       }, 2500);
     }
 
-    // Keyboard Accessibility Support (Utility)
+    // Keyboard Accessibility Support
     document.addEventListener('keydown', (e) => {
       if (!sessionActive || isFinishScreen || document.getElementById('exitConfirmOverlay').style.display === 'flex') return;
       
-      // Arrow navigation (Disabled for exams to enforce dock usage)
       if (studyModeType !== 'exam') {
           if (e.key === 'ArrowRight') goToNextCard();
           if (e.key === 'ArrowLeft') goToPrevCard();
       }
       
-      // Flashcard flipping
       if (studyModeType === 'flashcard' && e.code === 'Space') {
         e.preventDefault();
         flipFlashcard(!isCardFlipped);
       }
       
-      // Option Selection (1-4 or A-D)
       if (studyModeType === 'quiz' || (studyModeType === 'exam' && !isExamSubmitted)) {
         if (['1','2','3','4','a','b','c','d'].includes(e.key.toLowerCase())) {
           let idx;
@@ -1238,7 +1292,7 @@
     }
 
     // =========================================================
-    // 🏠 2. TOPIC SCREEN CONTROLLER
+    // 🏠 2. TOPIC SCREEN CONTROLLER (Folder > Subfolder Hierarchy)
     // =========================================================
     function fetchTopicsListForCurrentSubject() {
       if (!currentSelectedSubject) return;
@@ -1273,7 +1327,7 @@
     function renderMobileHome(topics) {
       const container = document.getElementById('topic-list-container');
       const countTag = document.getElementById('topic-count-tag');
-      
+
       if (!topics || topics.length === 0) {
         container.innerHTML = `<div style="text-align: center; color: var(--danger); padding: 40px 20px;">No topics found in Index_DB for this subject.</div>`;
         if (countTag) countTag.innerText = "0 Topics";
@@ -1281,84 +1335,145 @@
       }
 
       if (countTag) countTag.innerText = `${topics.length} Topics`;
-      
-      // 1. Group topics by 'sheetName'
-      const groupedTopics = {};
+
+      // Multi-level Tree Parser (Root Folder -> Subfolders -> Questions)
+      const tree = {};
+
       topics.forEach(t => {
-        // Agar backend sheetName pass nahi karta, toh 'General Topics' group bana dega
-        const groupName = t.sheetName || 'General Topics'; 
-        if (!groupedTopics[groupName]) {
-          groupedTopics[groupName] = [];
+        let rawPath = t.sheetName || 'General Practice';
+        let segments = rawPath.split(/[\/>]/).map(s => s.trim()).filter(Boolean);
+        
+        let rootFolder = segments[0] || 'General Practice';
+        let subFolder = segments.length > 1 ? segments.slice(1).join(' / ') : null;
+
+        if (!tree[rootFolder]) {
+          tree[rootFolder] = { directItems: [], subFolders: {} };
         }
-        groupedTopics[groupName].push(t);
+
+        if (subFolder) {
+          if (!tree[rootFolder].subFolders[subFolder]) {
+            tree[rootFolder].subFolders[subFolder] = [];
+          }
+          tree[rootFolder].subFolders[subFolder].push(t);
+        } else {
+          tree[rootFolder].directItems.push(t);
+        }
       });
 
-      // 2. Build Accordion UI
       let html = '';
-      let groupIndex = 0;
+      let folderCounter = 0;
 
-      for (const [sheetName, groupItems] of Object.entries(groupedTopics)) {
+      for (const [folderName, folderData] of Object.entries(tree)) {
+        folderCounter++;
+        const totalSetsInFolder = folderData.directItems.length + 
+          Object.values(folderData.subFolders).reduce((acc, curr) => acc + curr.length, 0);
+
+        const subFolderCount = Object.keys(folderData.subFolders).length;
+        const metaSubtitle = subFolderCount > 0 
+          ? `${subFolderCount} Sub-folders • ${totalSetsInFolder} Question Sets` 
+          : `${totalSetsInFolder} Question Sets`;
+
         html += `
-          <div class="sheet-group-wrapper" id="group-wrapper-${groupIndex}" style="opacity: 0; animation-delay: ${groupIndex * 0.05}s; animation: fadeSlideIn 0.3s ease forwards;">
-            
-            <!-- Folder Header -->
-            <div class="sheet-group-header" onclick="toggleSheetGroup(${groupIndex})">
-              <div class="group-info">
-                <div class="group-title"><i class="fas fa-folder-open" style="margin-right: 6px; color: var(--warning);"></i> ${sheetName}</div>
-                <div class="group-meta">${groupItems.length} Question Sets</div>
-              </div>
-              <div class="sheet-group-icon"><i class="fas fa-chevron-down"></i></div>
-            </div>
-
-            <!-- Folder Content (Question Sets) -->
-            <div class="sheet-group-content" id="group-content-${groupIndex}">
-        `;
-
-        // Render Cards inside the folder
-        groupItems.forEach((t) => {
-          html += `
-            <div class="mobile-topic-card" onclick="launchStudySession('${t.title.replace(/'/g, "\\'")}', '${t.spreadsheetId}')">
-              <div class="topic-meta-left">
-                <div class="topic-name">${t.title}</div>
-                <div class="topic-badges-row">
-                  <span class="topic-count-pill"><i class="far fa-file-alt"></i> ${t.count} Qs</span>
-                  <span>• Tap to Launch</span>
+          <div class="folder-node-wrapper" id="folder-node-${folderCounter}">
+            <div class="folder-header-card" onclick="toggleFolderNode('folder-node-${folderCounter}')">
+              <div class="folder-title-row">
+                <div class="folder-icon-bubble"><i class="fas fa-folder"></i></div>
+                <div class="folder-text-meta">
+                  <span class="folder-name-text">${folderName}</span>
+                  <span class="folder-count-pill">${metaSubtitle}</span>
                 </div>
               </div>
-              <div class="topic-action-chevron"><i class="fas fa-play" style="font-size: 10px;"></i></div>
+              <div class="folder-chevron-pill"><i class="fas fa-chevron-down"></i></div>
             </div>
-          `;
+
+            <div class="folder-children-drawer">
+        `;
+
+        // Direct Sets inside root folder
+        folderData.directItems.forEach(t => {
+          html += renderTopicCardHtml(t);
         });
 
-        html += `</div></div>`; // Close content and wrapper
-        groupIndex++;
+        // Nested Sub-folders
+        for (const [subName, subItems] of Object.entries(folderData.subFolders)) {
+          folderCounter++;
+          html += `
+            <div class="folder-node-wrapper" id="folder-node-${folderCounter}">
+              <div class="folder-header-card subfolder-header-card" onclick="toggleFolderNode('folder-node-${folderCounter}')">
+                <div class="folder-title-row">
+                  <div class="folder-icon-bubble subfolder-icon-bubble"><i class="fas fa-folder-open"></i></div>
+                  <div class="folder-text-meta">
+                    <span class="folder-name-text" style="font-size:13.5px;">${subName}</span>
+                    <span class="folder-count-pill">${subItems.length} Question Sets</span>
+                  </div>
+                </div>
+                <div class="folder-chevron-pill"><i class="fas fa-chevron-down"></i></div>
+              </div>
+
+              <div class="folder-children-drawer" style="border-left-color: rgba(251, 191, 36, 0.3);">
+          `;
+
+          subItems.forEach(t => {
+            html += renderTopicCardHtml(t);
+          });
+
+          html += `</div></div>`;
+        }
+
+        html += `</div></div>`;
       }
 
       container.innerHTML = html;
     }
 
-    // Function to toggle accordion open/close
-    function toggleSheetGroup(index) {
-      const wrapper = document.getElementById(`group-wrapper-${index}`);
-      wrapper.classList.toggle('open');
+    function renderTopicCardHtml(t) {
+      const safeTitle = t.title.replace(/'/g, "\\'");
+      return `
+        <div class="pro-topic-card mobile-topic-card" onclick="launchStudySession('${safeTitle}', '${t.spreadsheetId}')">
+          <div class="topic-meta-left">
+            <div class="topic-name">${t.title}</div>
+            <div class="topic-badges-row">
+              <span class="topic-count-pill"><i class="far fa-file-alt"></i> ${t.count} Qs</span>
+              <span>• Tap to Open</span>
+            </div>
+          </div>
+          <div class="launch-pill-btn">
+            <span>Play</span>
+            <i class="fas fa-play" style="font-size: 9px;"></i>
+          </div>
+        </div>
+      `;
+    }
+
+    function toggleFolderNode(nodeId) {
+      const node = document.getElementById(nodeId);
+      if (node) {
+        node.classList.toggle('open');
+      }
     }
 
     function filterMobileTopics() {
       const term = document.getElementById('mobile-topic-search').value.toLowerCase().trim();
       const cards = document.querySelectorAll('.mobile-topic-card');
       let visible = 0;
+
       cards.forEach(c => {
         const text = c.innerText.toLowerCase();
         const show = text.includes(term);
         c.style.display = show ? 'flex' : 'none';
+        
         if (show) {
           visible++;
-          if(term.length > 0) {
-             const wrapper = c.closest('.sheet-group-wrapper');
-             if(wrapper) wrapper.classList.add('open');
+          if (term.length > 0) {
+            let parentNode = c.closest('.folder-node-wrapper');
+            while (parentNode) {
+              parentNode.classList.add('open');
+              parentNode = parentNode.parentElement.closest('.folder-node-wrapper');
+            }
           }
         }
       });
+
       const countTag = document.getElementById('topic-count-tag');
       if (countTag) countTag.innerText = `${visible} Topics`;
     }
@@ -1474,7 +1589,6 @@
               </div>
             </div>
 
-            <!-- Removed 3 Themes, Re-indexed remaining 5 -->
             <div class="toggle-row-setting">
               <span style="font-size:12.5px; font-weight:700;"><i class="fas fa-palette" style="color:var(--success);"></i> Theme</span>
               <div class="theme-bubbles-row">
@@ -1521,7 +1635,7 @@
 
       if (studyModeType === 'exam') {
         previousThemeIdx = currentThemeIdx;
-        changeTheme(3); // 3 is now the 'Paper' theme for exams
+        changeTheme(3);
         document.getElementById('exam-agree-checkbox').checked = false;
         switchScreen('exam-instructions-screen');
         return;
@@ -1531,7 +1645,7 @@
     }
 
     function cancelExamInstructions() {
-      changeTheme(previousThemeIdx); // Restore original theme
+      changeTheme(previousThemeIdx);
       switchScreen('study-interface-wrapper');
       renderSetupScreen();
     }
@@ -1550,17 +1664,15 @@
       
       globalQuestions = JSON.parse(JSON.stringify(initialQuestions));
       
-      // 🚨 BULLETPROOF FIX: Convert correctIndex to Number explicitly to avoid String vs Integer mismatch
       globalQuestions.forEach((q, idx) => { 
         q._id = Math.random().toString(36).substr(2, 9); 
         q.globalIndex = idx; 
-        q.correctIndex = Number(q.correctIndex); // Converts e.g., "2" -> 2
+        q.correctIndex = Number(q.correctIndex);
       });
 
       if (isShuffleEnabled) {
         globalQuestions = shuffleArray(globalQuestions);
         globalQuestions.forEach(q => {
-          // Changed === to == just for double safety, though Number() handles the typing.
           let opts = q.options.map((text, idx) => ({ text, isCorrect: idx == q.correctIndex }));
           opts = shuffleArray(opts);
           q.options = opts.map(o => o.text);
@@ -1677,7 +1789,6 @@
     function showCard() {
       isCardFlipped = false;
       
-      // Initialize exam palette state on first visit
       if (studyModeType === 'exam' && !isExamSubmitted) {
          const q = questions[currentIndex];
          const globalId = globalQuestions[q.globalIndex]._id;
@@ -1761,7 +1872,7 @@
         const label = String.fromCharCode(65 + i);
         let stateClass = '';
         if (isAnswered) {
-          if (i == q.correctIndex) stateClass = 'correct'; // Updated to loose equality
+          if (i == q.correctIndex) stateClass = 'correct';
           else if (i == localAns) stateClass = 'wrong';
         }
         optionsHtml += `
@@ -1794,7 +1905,6 @@
       let optionsHtml = '';
 
       if (!isExamReview) {
-        // ACTUAL EXAM TAKING VIEW (Animations Removed for focus)
         q.options.forEach((opt, i) => {
           const label = String.fromCharCode(65 + i);
           const isSelected = selectedChoice === i;
@@ -1814,14 +1924,13 @@
           <div class="options-stack">${optionsHtml}</div>
         `;
       } else {
-        // EXAM REVIEW VIEW (INSPECT PAPER)
-        const isCorrect = selectedChoice == q.correctIndex; // Updated to loose equality
+        const isCorrect = selectedChoice == q.correctIndex;
         const isUnattempted = selectedChoice === undefined;
 
         q.options.forEach((opt, i) => {
           const label = String.fromCharCode(65 + i);
           let stateClass = '';
-          if (i == q.correctIndex) stateClass = 'correct'; // Updated to loose equality
+          if (i == q.correctIndex) stateClass = 'correct';
           else if (i === selectedChoice) stateClass = 'wrong';
           optionsHtml += `
             <div class="touch-option-card ${stateClass}" style="pointer-events: none; opacity: 1;">
@@ -1862,13 +1971,12 @@
       const q = questions[currentIndex];
       const globalId = globalQuestions[q.globalIndex]._id;
 
-      if (selectedIdx == correctIdx) { // Updated to loose equality
+      if (selectedIdx == correctIdx) {
         if (userAnswers[globalId] === undefined) userAnswers[globalId] = 'correct';
         element.classList.add('correct');
         currentStreak++;
         playSfx('correct');
         
-        // Gamification
         if (currentStreak === 3) showToast("3 in a row! You're on fire! 🔥", "fire", "var(--streak-fire)");
         if (currentStreak === 5) showToast("5 in a row! Unstoppable! 🚀", "rocket", "var(--purple)");
       } else {
@@ -1899,7 +2007,6 @@
       const q = questions[currentIndex];
       const globalId = globalQuestions[q.globalIndex]._id;
       
-      // Toggle selection visually (does not permanently save state until button pressed)
       if (examAnswers[globalId] === selectedIdx) delete examAnswers[globalId];
       else examAnswers[globalId] = selectedIdx;
 
@@ -2008,7 +2115,7 @@
     }
 
     function updateDockButtons() {
-      if (studyModeType === 'exam' && !isExamReview) return; // Dock logic strictly disabled for exams
+      if (studyModeType === 'exam' && !isExamReview) return;
       
       const indices = getFilteredIndices();
       const hasPrev = indices.some(i => i < currentIndex);
@@ -2081,7 +2188,6 @@
       if (studyModeType === 'read') return;
 
       if (studyModeType === 'exam' && !isExamSubmitted) {
-        // Count explicitly saved answers
         let savedCount = 0;
         for (let key in examQuestionStates) {
           if (examQuestionStates[key] === 'answered' || examQuestionStates[key] === 'answered_marked_review') savedCount++;
@@ -2102,7 +2208,6 @@
       const lifeCount = document.getElementById('lifeline-count');
       if (lifeCount) lifeCount.innerText = lifelinesRemaining;
 
-      // Update Streak Gamification
       const streakPill = document.getElementById('streak-pill');
       if (currentStreak >= 3) {
         streakPill.style.display = 'inline-flex';
@@ -2143,15 +2248,13 @@
         if (q.globalIndex === questions[currentIndex].globalIndex) node.classList.add('active-node');
 
         if (studyModeType === 'exam' && !isExamSubmitted) {
-          // Formal Exam Palette Logic
           const state = examQuestionStates[globalId];
           if (state === 'answered') node.classList.add('exam-node-answered');
           else if (state === 'visited_unanswered') node.classList.add('exam-node-unanswered');
           else if (state === 'marked_review') node.classList.add('exam-node-review');
           else if (state === 'answered_marked_review') node.classList.add('exam-node-answered-review');
-          else node.classList.add('exam-node-unvisited'); // Default unvisited
+          else node.classList.add('exam-node-unvisited');
         } else {
-          // Standard Quiz Palette Logic
           if (userAnswers[globalId] === 'correct') node.classList.add('node-correct');
           else if (userAnswers[globalId] === 'wrong') node.classList.add('node-wrong');
         }
@@ -2190,17 +2293,15 @@
 
       mistakesQueue = [];
       
-      // Formal Evaluation Engine
       globalQuestions.forEach(q => {
         const globalId = q._id;
         const state = examQuestionStates[globalId];
         const choice = examAnswers[globalId];
 
-        // Evaluate ONLY if explicitly saved as answered or answered_marked_review
         const isEvaluable = (state === 'answered' || state === 'answered_marked_review');
 
         if (isEvaluable && choice !== undefined) {
-            if (choice == q.correctIndex) userAnswers[globalId] = 'correct'; // Updated to loose equality
+            if (choice == q.correctIndex) userAnswers[globalId] = 'correct';
             else { userAnswers[globalId] = 'wrong'; mistakesQueue.push(q); }
         } else {
             userAnswers[globalId] = 'unattempted';
@@ -2236,7 +2337,6 @@
       const secs = totalSessionElapsed % 60;
       const timeStr = `${mins}m ${secs < 10 ? '0' : ''}${secs}s`;
       
-      // Deeper Analytics Calculations
       const penaltyMarks = (wrong * 0.25).toFixed(2);
       const netMarks = (correct * 1.0 - penaltyMarks).toFixed(2);
       const avgTimeSecs = totalAttempted > 0 ? Math.round(totalSessionElapsed / totalQs) : 0;
@@ -2248,7 +2348,6 @@
       let title = studyModeType === 'exam' ? 'Exam Analysis 📊' : 'Deck Completed! 🏆';
       let sub = studyModeType === 'exam' ? `Performance breakdown based on your final submission.` : `You've completed this study cycle.`;
 
-      // REDESIGNED ACTION BUTTONS
       let actionButtonsHtml = '';
       if (studyModeType === 'exam') {
         actionButtonsHtml = `
@@ -2322,7 +2421,6 @@
           </div>
         `;
       } else {
-        // Standard Learning/Quiz Mode Analysis
         statsGridHtml = `
           <div class="mode-select-grid" style="grid-template-columns: repeat(2, 1fr); gap:10px; margin-bottom: 16px;">
             <div class="mode-app-card" style="padding:16px;">
@@ -2355,7 +2453,7 @@
       requestAnimationFrame(() => {
         setTimeout(() => {
           if (accuracy >= 80 && studyModeType !== 'exam') {
-            triggerConfetti(); // Confetti is suppressed for Mock Exams for a serious tone
+            triggerConfetti();
           }
         }, 150);
       });
@@ -2365,7 +2463,7 @@
       isExamReview = true;
       currentIndex = 0;
       isFinishScreen = false;
-      document.getElementById('mobile-dock-row').style.display = 'flex'; // Standard dock for reviewing
+      document.getElementById('mobile-dock-row').style.display = 'flex';
       showCard();
     }
 
@@ -2380,7 +2478,7 @@
       document.getElementById('exitConfirmOverlay').style.display = 'none';
       if (sessionTimerInterval) clearInterval(sessionTimerInterval);
       sessionActive = false;
-      if (studyModeType === 'exam') changeTheme(previousThemeIdx); // Restore original theme
+      if (studyModeType === 'exam') changeTheme(previousThemeIdx);
       renderSetupScreen();
     }
 
@@ -2411,7 +2509,7 @@
 
     function playSfx(t) {
       if (!soundEnabled || !globalAudioCtx) return;
-      if (studyModeType === 'exam' && !isExamReview) return; // Strict Silence during active exam
+      if (studyModeType === 'exam' && !isExamReview) return;
       try {
         const now = globalAudioCtx.currentTime;
         const osc = globalAudioCtx.createOscillator();
