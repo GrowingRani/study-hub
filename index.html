@@ -13,9 +13,9 @@
   <meta name="apple-mobile-web-app-title" content="Study Hub">
   <meta name="application-name" content="Study Hub">
 
-  <!-- Web App Manifest (Creates the native app-like shortcut) -->
+  <!-- Web App Manifest (Updated with new circular logo) -->
   <link rel="manifest"
-    href="data:application/manifest+json;charset=utf-8,%7B%0A%20%20%22name%22%3A%20%22Study%20Hub%22%2C%0A%20%20%22short_name%22%3A%20%22StudyHub%22%2C%0A%20%20%22start_url%22%3A%20%22.%22%2C%0A%20%20%22display%22%3A%20%22standalone%22%2C%0A%20%20%22background_color%22%3A%20%22%23090d16%22%2C%0A%20%20%22theme_color%22%3A%20%22%23090d16%22%2C%0A%20%20%22icons%22%3A%20%5B%0A%20%20%20%20%7B%0A%20%20%20%20%20%20%22src%22%3A%20%22https%3A%2F%2Fi.ibb.co%2FrRx1LBzd%2Fmylogo.png%22%2C%0A%20%20%20%20%20%20%22sizes%22%3A%20%22192x192%20512x512%22%2C%0A%20%20%20%20%20%20%22type%22%3A%20%22image%2Fpng%22%0A%20%20%20%20%7D%0A%20%20%5D%0A%7D">
+    href="data:application/manifest+json;charset=utf-8,%7B%0A%20%20%22name%22%3A%20%22Study%20Hub%22%2C%0A%20%20%22short_name%22%3A%20%22StudyHub%22%2C%0A%20%20%22start_url%22%3A%20%22.%22%2C%0A%20%20%22display%22%3A%20%22standalone%22%2C%0A%20%20%22background_color%22%3A%20%22%23090d16%22%2C%0A%20%20%22theme_color%22%3A%20%22%23090d16%22%2C%0A%20%20%22icons%22%3A%20%5B%0A%20%20%20%20%7B%0A%20%20%20%20%20%20%22src%22%3A%20%22https%3A%2F%2Fi.ibb.co%2Fv4nL7ZTV%2Fstudylogo.png%22%2C%0A%20%20%20%20%20%20%22sizes%22%3A%20%22192x192%20512x512%22%2C%0A%20%20%20%20%20%20%22type%22%3A%20%22image%2Fpng%22%0A%20%20%20%20%7D%0A%20%20%5D%0A%7D">
 
   <!-- PWA & Theme Settings -->
   <meta name="theme-color" content="#090d16" id="meta-theme-color">
@@ -245,15 +245,12 @@
       width: 40px;
       height: 40px;
       border-radius: 50%;
-      /* परफेक्ट गोल शेप */
       background: transparent;
-      /* फालतू बैकग्राउंड हटाएं ताकि कोनों का स्पेस खत्म हो */
       display: flex;
       align-items: center;
       justify-content: center;
       overflow: hidden;
       box-shadow: 0 0 16px var(--current-light);
-      /* मॉडर्न सर्कुलर ग्लो */
       border: 1.5px solid var(--border-subtle);
       flex-shrink: 0;
     }
@@ -265,7 +262,6 @@
       object-fit: cover;
       display: block;
       transform: scale(1.05);
-      /* इमेज को किनारों तक फ्लश फिट करने के लिए */
     }
 
     body.theme-paper .brand-icon,
@@ -742,7 +738,7 @@
     }
 
     #mode-read .mode-icon-circle {
-      background: rgba(16, 185, 129, 0.15);
+      background: rgba(168, 85, 129, 0.15);
       color: var(--success);
     }
 
@@ -1639,19 +1635,17 @@
       if (icon) icon.classList.add('fa-spin');
       document.getElementById('offline-subjects-tag').style.display = 'none';
 
-      // 1. Instant Cache Render (बिना किसी लोडिंग स्पिनर के तुरंत डेटा दिखाओ)
       const cached = localStorage.getItem('studyHub_cached_subjects');
       if (cached) {
         renderSubjectList(JSON.parse(cached));
       }
 
-      // 2. Background Network Sync (बैकग्राउंड में नया डेटा फेच करो)
       fetch(API_URL + "?action=getSubjects")
         .then(response => response.json())
         .then(subjects => {
           if (icon) icon.classList.remove('fa-spin');
-          localStorage.setItem('studyHub_cached_subjects', JSON.stringify(subjects));
-          renderSubjectList(subjects); // ताज़ा डेटा से स्क्रीन रिफ्रेश
+          try { localStorage.setItem('studyHub_cached_subjects', JSON.stringify(subjects)); } catch(e){}
+          renderSubjectList(subjects);
         })
         .catch(err => {
           if (icon) icon.classList.remove('fa-spin');
@@ -1734,7 +1728,6 @@
       const cacheKey = `studyHub_cached_topics_${currentSelectedSubject.id}`;
       const cached = localStorage.getItem(cacheKey);
 
-      // 1. Instant Cache Render
       if (cached) {
         renderMobileHome(JSON.parse(cached));
       } else {
@@ -1742,12 +1735,11 @@
           `<div style="text-align: center; padding: 60px 20px; color: var(--text-sub);"><i class="fas fa-circle-notch fa-spin fa-2x" style="color: var(--current-primary); margin-bottom: 14px;"></i><br>Loading Topics...</div>`;
       }
 
-      // 2. Background Sync
       fetch(API_URL + "?action=getTopics&sheetId=" + encodeURIComponent(currentSelectedSubject.id))
         .then(response => response.json())
         .then(topics => {
           if (icon) icon.classList.remove('fa-spin');
-          localStorage.setItem(cacheKey, JSON.stringify(topics));
+          try { localStorage.setItem(cacheKey, JSON.stringify(topics)); } catch(e){}
           renderMobileHome(topics);
         })
         .catch(err => {
@@ -1771,7 +1763,6 @@
 
       if (countTag) countTag.innerText = `${topics.length} Topics`;
 
-      // Multi-level Tree Parser (Root Folder -> Subfolders -> Questions)
       const tree = {};
 
       topics.forEach(t => {
@@ -1824,12 +1815,10 @@
             <div class="folder-children-drawer">
         `;
 
-        // Direct Sets inside root folder
         folderData.directItems.forEach(t => {
           html += renderTopicCardHtml(t);
         });
 
-        // Nested Sub-folders
         for (const [subName, subItems] of Object.entries(folderData.subFolders)) {
           folderCounter++;
           html += `
@@ -1859,26 +1848,6 @@
       }
 
       container.innerHTML = html;
-
-      // 🚀 स्मार्ट बैकग्राउंड प्री-फ़ेचर: यूज़र के क्लिक करने से पहले ही सवाल डाउनलोड कर लो
-      setTimeout(() => {
-        topics.forEach((t, index) => {
-          const sheetId = t.spreadsheetId || (currentSelectedSubject ? currentSelectedSubject.id : '');
-          const cacheKey = `studyHub_cached_deck_${sheetId}_${t.title}`;
-          
-          // अगर पहले से कैश में नहीं है, तो एक-एक करके बैकग्राउंड में फेच करो
-          if (!localStorage.getItem(cacheKey)) {
-            setTimeout(() => {
-              fetch(API_URL + "?action=getQuestions&topic=" + encodeURIComponent(t.title) + "&sheetId=" + encodeURIComponent(sheetId))
-                .then(res => res.json())
-                .then(data => {
-                  localStorage.setItem(cacheKey, JSON.stringify(data));
-                })
-                .catch(() => {});
-            }, index * 800); // सर्वर पर लोड न पड़े इसलिए 800ms के गैप पर फेच
-          }
-        });
-      }, 500);
     }
 
     function renderTopicCardHtml(t) {
@@ -1945,7 +1914,6 @@
       const cacheKey = `studyHub_cached_deck_${targetSheetId}_${selectedTopic}`;
       const cached = localStorage.getItem(cacheKey);
 
-      // 1. इंस्टेंट रेंडर (लोकल कैश या काउंट से)
       if (cached) {
         initialQuestions = JSON.parse(cached);
       } else {
@@ -1954,20 +1922,25 @@
 
       renderSetupScreen();
 
-      // 2. बैकग्राउंड सिंक (बिना स्क्रीन को री-एनिमेट या ब्लिंक किए)
       fetch(API_URL + "?action=getQuestions&topic=" + encodeURIComponent(selectedTopic) + "&sheetId=" + encodeURIComponent(targetSheetId))
         .then(response => response.json())
         .then(questionsData => {
-          localStorage.setItem(cacheKey, JSON.stringify(questionsData));
+          try { localStorage.setItem(cacheKey, JSON.stringify(questionsData)); } catch(e){}
           initialQuestions = questionsData;
-          
-          // पूरी स्क्रीन फिर से बनाने के बजाय केवल टाइम और संख्या वाला बैज अपडेट करें
+
           if (!sessionActive && !isFinishScreen) {
             const metaBadge = document.getElementById('setup-meta-badge');
             if (metaBadge) {
               const count = questionsData.length;
               const mins = Math.ceil(count / TIME_FRACTION);
               metaBadge.innerHTML = `<i class="fas fa-clock"></i> ~${mins} mins (${count} Qs)`;
+            }
+
+            const heroBtn = document.getElementById('hero-launch-btn');
+            if (heroBtn) {
+              heroBtn.style.opacity = '1';
+              heroBtn.style.cursor = 'pointer';
+              heroBtn.innerHTML = `<span>Begin Session</span> <i class="fas fa-play"></i>`;
             }
           }
         })
@@ -1990,118 +1963,6 @@
     // =========================================================
     // ⚙️ SETUP & STUDY ENGINE CONTROLLER
     // =========================================================
-    function renderMobileHome(topics) {
-      const container = document.getElementById('topic-list-container');
-      const countTag = document.getElementById('topic-count-tag');
-
-      if (!topics || topics.length === 0) {
-        container.innerHTML = `<div style="text-align: center; color: var(--danger); padding: 40px 20px;">No topics found in Index_DB for this subject.</div>`;
-        if (countTag) countTag.innerText = "0 Topics";
-        return;
-      }
-
-      if (countTag) countTag.innerText = `${topics.length} Topics`;
-
-      // Multi-level Tree Parser (Root Folder -> Subfolders -> Questions)
-      const tree = {};
-
-      topics.forEach(t => {
-        let rawPath = t.sheetName || 'General Practice';
-        let segments = rawPath.split(/[\/>]/).map(s => s.trim()).filter(Boolean);
-
-        let rootFolder = segments[0] || 'General Practice';
-        let subFolder = segments.length > 1 ? segments.slice(1).join(' / ') : null;
-
-        if (!tree[rootFolder]) {
-          tree[rootFolder] = { directItems: [], subFolders: {} };
-        }
-
-        if (subFolder) {
-          if (!tree[rootFolder].subFolders[subFolder]) {
-            tree[rootFolder].subFolders[subFolder] = [];
-          }
-          tree[rootFolder].subFolders[subFolder].push(t);
-        } else {
-          tree[rootFolder].directItems.push(t);
-        }
-      });
-
-      let html = '';
-      let folderCounter = 0;
-
-      for (const [folderName, folderData] of Object.entries(tree)) {
-        folderCounter++;
-        const totalSetsInFolder = folderData.directItems.length +
-          Object.values(folderData.subFolders).reduce((acc, curr) => acc + curr.length, 0);
-
-        const subFolderCount = Object.keys(folderData.subFolders).length;
-        const metaSubtitle = subFolderCount > 0
-          ? `${subFolderCount} Sub-folders • ${totalSetsInFolder} Question Sets`
-          : `${totalSetsInFolder} Question Sets`;
-
-        html += `
-          <div class="folder-node-wrapper" id="folder-node-${folderCounter}">
-            <div class="folder-header-card" onclick="toggleFolderNode('folder-node-${folderCounter}')">
-              <div class="folder-title-row">
-                <div class="folder-icon-bubble"><i class="fas fa-folder"></i></div>
-                <div class="folder-text-meta">
-                  <span class="folder-name-text">${folderName}</span>
-                  <span class="folder-count-pill">${metaSubtitle}</span>
-                </div>
-              </div>
-              <div class="folder-chevron-pill"><i class="fas fa-chevron-down"></i></div>
-            </div>
-
-            <div class="folder-children-drawer">
-        `;
-
-        folderData.directItems.forEach(t => {
-          html += renderTopicCardHtml(t);
-        });
-
-        for (const [subName, subItems] of Object.entries(folderData.subFolders)) {
-          folderCounter++;
-          html += `
-            <div class="folder-node-wrapper" id="folder-node-${folderCounter}">
-              <div class="folder-header-card subfolder-header-card" onclick="toggleFolderNode('folder-node-${folderCounter}')">
-                <div class="folder-title-row">
-                  <div class="folder-icon-bubble subfolder-icon-bubble"><i class="fas fa-folder-open"></i></div>
-                  <div class="folder-text-meta">
-                    <span class="folder-name-text" style="font-size:13.5px;">${subName}</span>
-                    <span class="folder-count-pill">${subItems.length} Question Sets</span>
-                  </div>
-                </div>
-                <div class="folder-chevron-pill"><i class="fas fa-chevron-down"></i></div>
-              </div>
-
-              <div class="folder-children-drawer" style="border-left-color: rgba(251, 191, 36, 0.3);">
-          `;
-
-          subItems.forEach(t => {
-            html += renderTopicCardHtml(t);
-          });
-
-          html += `</div></div>`;
-        }
-
-        html += `</div></div>`;
-      }
-
-      container.innerHTML = html;
-    }
-
-    function selectMode(m) { studyModeType = m; renderSetupScreen(); }
-    function toggleSetting(s, v) { if (s === 'shuffle') isShuffleEnabled = v; if (s === 'insight') isInsightEnabled = v; renderSetupScreen(); }
-    function selectBatchSize(v) { selectedBatchSize = v; renderSetupScreen(); }
-    function changeTheme(idx) {
-      currentThemeIdx = idx;
-      document.body.className = idx > 0 ? 'theme-' + THEMES[idx] : '';
-
-      const themeColors = ['#090d16', '#020802', '#120505', '#f1f5f9', '#fdf6e3'];
-      document.getElementById('meta-theme-color').content = themeColors[idx];
-
-      if (!sessionActive && !isFinishScreen) renderSetupScreen();
-    }
     function renderSetupScreen() {
       const container = document.getElementById('study-container');
       document.getElementById('session-stats-group').style.display = 'none';
@@ -2113,6 +1974,7 @@
 
       const qCount = initialQuestions ? initialQuestions.length : 0;
       const mins = Math.ceil(qCount / TIME_FRACTION);
+      const isReady = initialQuestions && initialQuestions.length > 0 && initialQuestions[0] !== null;
 
       container.innerHTML = `
         <div class="setup-sheet-shell">
@@ -2185,12 +2047,25 @@
             </div>
           </div>
 
-          <button class="btn-launch-hero" onclick="startSession()">
-            <span>Begin Session</span>
-            <i class="fas fa-play"></i>
+          <button class="btn-launch-hero" id="hero-launch-btn" onclick="startSession()" style="${!isReady ? 'opacity: 0.75; cursor: wait;' : ''}">
+            <span>${isReady ? 'Begin Session' : 'Loading Questions...'}</span>
+            <i class="fas ${isReady ? 'fa-play' : 'fa-circle-notch fa-spin'}"></i>
           </button>
         </div>
       `;
+    }
+
+    function selectMode(m) { studyModeType = m; renderSetupScreen(); }
+    function toggleSetting(s, v) { if (s === 'shuffle') isShuffleEnabled = v; if (s === 'insight') isInsightEnabled = v; renderSetupScreen(); }
+    function selectBatchSize(v) { selectedBatchSize = v; renderSetupScreen(); }
+    function changeTheme(idx) {
+      currentThemeIdx = idx;
+      document.body.className = idx > 0 ? 'theme-' + THEMES[idx] : '';
+
+      const themeColors = ['#090d16', '#020802', '#120505', '#f1f5f9', '#fdf6e3'];
+      document.getElementById('meta-theme-color').content = themeColors[idx];
+
+      if (!sessionActive && !isFinishScreen) renderSetupScreen();
     }
 
     function shuffleArray(arr) {
@@ -2202,7 +2077,6 @@
     }
 
     function startSession() {
-      // अगर डेटा अभी भी 1-2 सेकंड के लिए डाउनलोड हो रहा है
       if (!initialQuestions || initialQuestions.length === 0 || initialQuestions[0] === null) {
         showToast("Questions load ho rahe hain, bas 1 second...", "circle-notch fa-spin", "var(--warning)");
         return;
