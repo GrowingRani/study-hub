@@ -1,29 +1,33 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <base target="_top">
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+
   <!-- Favicon and Homescreen Icons -->
-  <link rel="icon" type="image/png" sizes="192x192" href="https://i.ibb.co/rRx1LBzd/mylogo.png">
-  <link rel="apple-touch-icon" href="https://i.ibb.co/rRx1LBzd/mylogo.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="https://i.ibb.co/v4nL7ZTV/studylogo.png">
+  <link rel="apple-touch-icon" href="https://i.ibb.co/v4nL7ZTV/studylogo.png">
   <meta name="apple-mobile-web-app-title" content="Study Hub">
   <meta name="application-name" content="Study Hub">
 
   <!-- Web App Manifest (Creates the native app-like shortcut) -->
-  <link rel="manifest" href="data:application/manifest+json;charset=utf-8,%7B%0A%20%20%22name%22%3A%20%22Study%20Hub%22%2C%0A%20%20%22short_name%22%3A%20%22StudyHub%22%2C%0A%20%20%22start_url%22%3A%20%22.%22%2C%0A%20%20%22display%22%3A%20%22standalone%22%2C%0A%20%20%22background_color%22%3A%20%22%23090d16%22%2C%0A%20%20%22theme_color%22%3A%20%22%23090d16%22%2C%0A%20%20%22icons%22%3A%20%5B%0A%20%20%20%20%7B%0A%20%20%20%20%20%20%22src%22%3A%20%22https%3A%2F%2Fi.ibb.co%2FrRx1LBzd%2Fmylogo.png%22%2C%0A%20%20%20%20%20%20%22sizes%22%3A%20%22192x192%20512x512%22%2C%0A%20%20%20%20%20%20%22type%22%3A%20%22image%2Fpng%22%0A%20%20%20%20%7D%0A%20%20%5D%0A%7D">
+  <link rel="manifest"
+    href="data:application/manifest+json;charset=utf-8,%7B%0A%20%20%22name%22%3A%20%22Study%20Hub%22%2C%0A%20%20%22short_name%22%3A%20%22StudyHub%22%2C%0A%20%20%22start_url%22%3A%20%22.%22%2C%0A%20%20%22display%22%3A%20%22standalone%22%2C%0A%20%20%22background_color%22%3A%20%22%23090d16%22%2C%0A%20%20%22theme_color%22%3A%20%22%23090d16%22%2C%0A%20%20%22icons%22%3A%20%5B%0A%20%20%20%20%7B%0A%20%20%20%20%20%20%22src%22%3A%20%22https%3A%2F%2Fi.ibb.co%2FrRx1LBzd%2Fmylogo.png%22%2C%0A%20%20%20%20%20%20%22sizes%22%3A%20%22192x192%20512x512%22%2C%0A%20%20%20%20%20%20%22type%22%3A%20%22image%2Fpng%22%0A%20%20%20%20%7D%0A%20%20%5D%0A%7D">
 
   <!-- PWA & Theme Settings -->
   <meta name="theme-color" content="#090d16" id="meta-theme-color">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="mobile-web-app-capable" content="yes">
-  
+
   <!-- External Fonts & Icons -->
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-  
+  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600;700;800;900&display=swap"
+    rel="stylesheet">
+
   <style>
     :root {
       --bg-core: #070a12;
@@ -32,47 +36,80 @@
       --bg-glass: rgba(255, 255, 255, 0.03);
       --border-subtle: rgba(255, 255, 255, 0.08);
       --border-glow: rgba(56, 189, 248, 0.35);
-      
+
       --text-main: #f8fafc;
       --text-sub: #94a3b8;
       --text-muted: #64748b;
-      
+
       --current-primary: #38bdf8;
       --current-light: rgba(56, 189, 248, 0.14);
-      --success: #10b981; 
-      --danger: #f43f5e;  
+      --success: #10b981;
+      --danger: #f43f5e;
       --warning: #fbbf24;
       --purple: #a855f7;
       --streak-fire: #ff9800;
 
       --safe-top: env(safe-area-inset-top, 0px);
       --safe-bottom: env(safe-area-inset-bottom, 0px);
-      
+
       --shadow-soft: 0 4px 14px rgba(0, 0, 0, 0.25);
       --shadow-heavy: 0 20px 40px rgba(0, 0, 0, 0.4);
     }
 
     /* Retained Themes Only */
-    body.theme-hacker { --bg-core: #020802; --bg-surface: #061406; --current-primary: #39ff14; --current-light: rgba(57, 255, 20, 0.15); --border-glow: rgba(57, 255, 20, 0.4); }
-    body.theme-sunset { --bg-core: #120505; --bg-surface: #240a0a; --current-primary: #ff5722; --current-light: rgba(255, 87, 34, 0.15); --border-glow: rgba(255, 87, 34, 0.4); }
-    
-    /* Academic/Paper Light Themes */
-    body.theme-paper { 
-      --bg-core: #f1f5f9; --bg-surface: #ffffff; --bg-card: #ffffff; 
-      --text-main: #0f172a; --text-sub: #475569; --text-muted: #94a3b8; 
-      --border-subtle: #cbd5e1; --border-glow: rgba(2, 132, 199, 0.2); 
-      --current-primary: #0284c7; --current-light: rgba(2, 132, 199, 0.1);
-      --shadow-soft: 0 4px 12px rgba(0, 0, 0, 0.05); --shadow-heavy: 0 12px 24px rgba(0, 0, 0, 0.08);
-    }
-    body.theme-academic { 
-      --bg-core: #fdf6e3; --bg-surface: #eee8d5; --bg-card: #fdf6e3; 
-      --text-main: #073642; --text-sub: #586e75; --text-muted: #93a1a1; 
-      --border-subtle: #d3c6a6; --border-glow: rgba(181, 137, 0, 0.2); 
-      --current-primary: #b58900; --current-light: rgba(181, 137, 0, 0.12);
-      --shadow-soft: 0 4px 12px rgba(0, 0, 0, 0.04); --shadow-heavy: 0 12px 24px rgba(0, 0, 0, 0.06);
+    body.theme-hacker {
+      --bg-core: #020802;
+      --bg-surface: #061406;
+      --current-primary: #39ff14;
+      --current-light: rgba(57, 255, 20, 0.15);
+      --border-glow: rgba(57, 255, 20, 0.4);
     }
 
-    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    body.theme-sunset {
+      --bg-core: #120505;
+      --bg-surface: #240a0a;
+      --current-primary: #ff5722;
+      --current-light: rgba(255, 87, 34, 0.15);
+      --border-glow: rgba(255, 87, 34, 0.4);
+    }
+
+    /* Academic/Paper Light Themes */
+    body.theme-paper {
+      --bg-core: #f1f5f9;
+      --bg-surface: #ffffff;
+      --bg-card: #ffffff;
+      --text-main: #0f172a;
+      --text-sub: #475569;
+      --text-muted: #94a3b8;
+      --border-subtle: #cbd5e1;
+      --border-glow: rgba(2, 132, 199, 0.2);
+      --current-primary: #0284c7;
+      --current-light: rgba(2, 132, 199, 0.1);
+      --shadow-soft: 0 4px 12px rgba(0, 0, 0, 0.05);
+      --shadow-heavy: 0 12px 24px rgba(0, 0, 0, 0.08);
+    }
+
+    body.theme-academic {
+      --bg-core: #fdf6e3;
+      --bg-surface: #eee8d5;
+      --bg-card: #fdf6e3;
+      --text-main: #073642;
+      --text-sub: #586e75;
+      --text-muted: #93a1a1;
+      --border-subtle: #d3c6a6;
+      --border-glow: rgba(181, 137, 0, 0.2);
+      --current-primary: #b58900;
+      --current-light: rgba(181, 137, 0, 0.12);
+      --shadow-soft: 0 4px 12px rgba(0, 0, 0, 0.04);
+      --shadow-heavy: 0 12px 24px rgba(0, 0, 0, 0.06);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
 
     body {
       font-family: 'Google Sans', -apple-system, sans-serif;
@@ -96,18 +133,36 @@
       width: 100%;
       background: var(--bg-core);
       position: absolute;
-      top: 0; left: 0;
+      top: 0;
+      left: 0;
     }
-    
+
     @keyframes fadeSlideIn {
-      from { opacity: 0; transform: translateY(15px); }
-      to { opacity: 1; transform: translateY(0); }
+      from {
+        opacity: 0;
+        transform: translateY(15px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
-    
+
     @keyframes popIn {
-      0% { transform: scale(0.5); opacity: 0; }
-      70% { transform: scale(1.1); }
-      100% { transform: scale(1); opacity: 1; }
+      0% {
+        transform: scale(0.5);
+        opacity: 0;
+      }
+
+      70% {
+        transform: scale(1.1);
+      }
+
+      100% {
+        transform: scale(1);
+        opacity: 1;
+      }
     }
 
     .ambient-glow-top {
@@ -125,7 +180,9 @@
     }
 
     /* 📚 1. SUBJECT SELECTION WINDOW */
-    #mobile-subject-screen { z-index: 15; }
+    #mobile-subject-screen {
+      z-index: 15;
+    }
 
     .subject-card {
       background: var(--bg-card);
@@ -141,13 +198,17 @@
       position: relative;
       overflow: hidden;
     }
+
     .subject-card::before {
       content: '';
       position: absolute;
-      top: 0; left: 0;
-      width: 5px; height: 100%;
+      top: 0;
+      left: 0;
+      width: 5px;
+      height: 100%;
       background: linear-gradient(180deg, var(--current-primary), transparent);
     }
+
     .subject-card:active {
       transform: scale(0.975);
       border-color: var(--current-primary);
@@ -155,7 +216,9 @@
     }
 
     /* 📱 2. TOPIC SCREEN */
-    #mobile-home-screen { z-index: 10; }
+    #mobile-home-screen {
+      z-index: 10;
+    }
 
     .app-nav-header {
       padding: calc(var(--safe-top) + 16px) 20px 14px 20px;
@@ -172,23 +235,55 @@
       z-index: 20;
     }
 
-    .brand-cluster { display: flex; align-items: center; gap: 12px; }
+    .brand-cluster {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
     .brand-icon {
       width: 40px;
       height: 40px;
-      border-radius: 12px;
-      background: linear-gradient(135deg, var(--current-primary), transparent);
-      color: #fff;
+      border-radius: 50%;
+      /* परफेक्ट गोल शेप */
+      background: transparent;
+      /* फालतू बैकग्राउंड हटाएं ताकि कोनों का स्पेस खत्म हो */
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 18px;
-      box-shadow: 0 4px 14px var(--current-light);
+      overflow: hidden;
+      box-shadow: 0 0 16px var(--current-light);
+      /* मॉडर्न सर्कुलर ग्लो */
+      border: 1.5px solid var(--border-subtle);
+      flex-shrink: 0;
     }
-    body.theme-paper .brand-icon, body.theme-academic .brand-icon { color: #fff; }
 
-    .brand-title { font-size: 19px; font-weight: 800; letter-spacing: 0.2px; }
-    .brand-sub { font-size: 11px; font-weight: 600; color: var(--text-sub); }
+    .brand-icon img {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      object-fit: cover;
+      display: block;
+      transform: scale(1.05);
+      /* इमेज को किनारों तक फ्लश फिट करने के लिए */
+    }
+
+    body.theme-paper .brand-icon,
+    body.theme-academic .brand-icon {
+      color: #fff;
+    }
+
+    .brand-title {
+      font-size: 19px;
+      font-weight: 800;
+      letter-spacing: 0.2px;
+    }
+
+    .brand-sub {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-sub);
+    }
 
     .nav-btn-circle {
       width: 36px;
@@ -203,9 +298,17 @@
       cursor: pointer;
       transition: all 0.2s ease;
     }
-    .nav-btn-circle:active { transform: scale(0.92); color: var(--current-primary); border-color: var(--current-primary); }
 
-    .search-shelf { padding: 14px 18px 6px 18px; }
+    .nav-btn-circle:active {
+      transform: scale(0.92);
+      color: var(--current-primary);
+      border-color: var(--current-primary);
+    }
+
+    .search-shelf {
+      padding: 14px 18px 6px 18px;
+    }
+
     .search-box-pill {
       background: var(--bg-surface);
       border: 1px solid var(--border-subtle);
@@ -214,8 +317,9 @@
       display: flex;
       align-items: center;
       gap: 10px;
-      box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
     }
+
     .search-box-pill input {
       background: transparent;
       border: none;
@@ -225,7 +329,10 @@
       font-family: inherit;
       width: 100%;
     }
-    .search-box-pill input::placeholder { color: var(--text-muted); }
+
+    .search-box-pill input::placeholder {
+      color: var(--text-muted);
+    }
 
     .dashboard-scroll-body {
       flex: 1;
@@ -235,7 +342,10 @@
       flex-direction: column;
       gap: 10px;
     }
-    .dashboard-scroll-body::-webkit-scrollbar { display: none; }
+
+    .dashboard-scroll-body::-webkit-scrollbar {
+      display: none;
+    }
 
     .section-headline {
       font-size: 11px;
@@ -271,15 +381,19 @@
       overflow: hidden;
       transition: all 0.25s ease;
     }
+
     .folder-header-card::before {
       content: '';
       position: absolute;
-      left: 0; top: 0;
-      height: 100%; width: 4px;
+      left: 0;
+      top: 0;
+      height: 100%;
+      width: 4px;
       background: var(--current-primary);
       opacity: 0.8;
       border-radius: 4px;
     }
+
     .folder-header-card:active {
       transform: scale(0.985);
       border-color: var(--border-glow);
@@ -291,7 +405,10 @@
       border-radius: 14px;
       margin-bottom: 8px;
     }
-    .subfolder-header-card::before { display: none; }
+
+    .subfolder-header-card::before {
+      display: none;
+    }
 
     .folder-title-row {
       display: flex;
@@ -299,6 +416,7 @@
       gap: 12px;
       min-width: 0;
     }
+
     .folder-icon-bubble {
       width: 38px;
       height: 38px;
@@ -312,6 +430,7 @@
       flex-shrink: 0;
       transition: transform 0.2s ease;
     }
+
     .subfolder-icon-bubble {
       width: 32px;
       height: 32px;
@@ -326,6 +445,7 @@
       gap: 3px;
       min-width: 0;
     }
+
     .folder-name-text {
       font-size: 14.5px;
       font-weight: 800;
@@ -335,6 +455,7 @@
       text-overflow: ellipsis;
       letter-spacing: 0.2px;
     }
+
     .folder-count-pill {
       font-size: 11px;
       font-weight: 600;
@@ -356,7 +477,8 @@
       font-size: 11px;
       transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.2s;
     }
-    .folder-node-wrapper.open > .folder-header-card .folder-chevron-pill {
+
+    .folder-node-wrapper.open>.folder-header-card .folder-chevron-pill {
       transform: rotate(180deg);
       background: var(--current-light);
       color: var(--current-primary);
@@ -371,7 +493,8 @@
       border-left: 2px dashed var(--border-subtle);
       animation: fadeSlideIn 0.25s ease forwards;
     }
-    .folder-node-wrapper.open > .folder-children-drawer {
+
+    .folder-node-wrapper.open>.folder-children-drawer {
       display: flex;
     }
 
@@ -387,17 +510,20 @@
       box-shadow: var(--shadow-soft);
       transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
     }
+
     .pro-topic-card:active {
       transform: scale(0.975);
       border-color: var(--current-primary);
       box-shadow: 0 0 16px var(--current-light);
     }
+
     .pro-topic-card .topic-name {
       font-size: 13.5px;
       font-weight: 700;
       color: var(--text-main);
       line-height: 1.35;
     }
+
     .pro-topic-card .launch-pill-btn {
       background: var(--current-light);
       color: var(--current-primary);
@@ -412,8 +538,21 @@
       flex-shrink: 0;
     }
 
-    .topic-meta-left { display: flex; flex-direction: column; gap: 4px; max-width: 82%; }
-    .topic-badges-row { display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: var(--text-sub); }
+    .topic-meta-left {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      max-width: 82%;
+    }
+
+    .topic-badges-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11.5px;
+      color: var(--text-sub);
+    }
+
     .topic-count-pill {
       background: var(--current-light);
       padding: 2px 8px;
@@ -423,8 +562,13 @@
     }
 
     /* 📖 3. STUDY ENGINE VIEWPORT */
-    #study-interface-wrapper { z-index: 100; }
-    #exam-instructions-screen { z-index: 90; }
+    #study-interface-wrapper {
+      z-index: 100;
+    }
+
+    #exam-instructions-screen {
+      z-index: 90;
+    }
 
     .study-app-bar {
       padding: calc(var(--safe-top) + 12px) 16px 12px 16px;
@@ -455,8 +599,16 @@
       cursor: pointer;
       transition: all 0.2s;
     }
-    .nav-action-icon:active { transform: scale(0.9); }
-    .nav-action-icon.star-active { color: var(--warning); border-color: rgba(251, 191, 36, 0.4); background: rgba(251, 191, 36, 0.12); }
+
+    .nav-action-icon:active {
+      transform: scale(0.9);
+    }
+
+    .nav-action-icon.star-active {
+      color: var(--warning);
+      border-color: rgba(251, 191, 36, 0.4);
+      background: rgba(251, 191, 36, 0.12);
+    }
 
     .header-center-info {
       flex: 1;
@@ -467,6 +619,7 @@
       align-items: center;
       gap: 2px;
     }
+
     .app-bar-topic-title {
       font-size: 13px;
       font-weight: 800;
@@ -476,7 +629,12 @@
       text-overflow: ellipsis;
       max-width: 180px;
     }
-    .telemetry-pills-row { display: flex; align-items: center; gap: 6px; }
+
+    .telemetry-pills-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
 
     .micro-pill {
       font-size: 10.5px;
@@ -498,6 +656,7 @@
       position: relative;
       z-index: 20;
     }
+
     .progress-track-fill {
       height: 100%;
       width: 0%;
@@ -515,7 +674,10 @@
       position: relative;
       z-index: 10;
     }
-    .study-canvas-viewport::-webkit-scrollbar { display: none; }
+
+    .study-canvas-viewport::-webkit-scrollbar {
+      display: none;
+    }
 
     .setup-sheet-shell {
       background: var(--bg-surface);
@@ -548,12 +710,16 @@
       cursor: pointer;
       transition: all 0.2s ease;
     }
+
     .mode-app-card.active {
       border-color: var(--current-primary);
       background: var(--current-light);
       box-shadow: 0 0 16px var(--current-light);
     }
-    .mode-app-card:active { transform: scale(0.96); }
+
+    .mode-app-card:active {
+      transform: scale(0.96);
+    }
 
     .mode-icon-circle {
       width: 44px;
@@ -564,10 +730,26 @@
       justify-content: center;
       font-size: 18px;
     }
-    #mode-quiz .mode-icon-circle { background: var(--current-light); color: var(--current-primary); }
-    #mode-flashcard .mode-icon-circle { background: rgba(168, 85, 247, 0.15); color: #a855f7; }
-    #mode-read .mode-icon-circle { background: rgba(16, 185, 129, 0.15); color: var(--success); }
-    #mode-exam .mode-icon-circle { background: rgba(244, 63, 94, 0.15); color: var(--danger); }
+
+    #mode-quiz .mode-icon-circle {
+      background: var(--current-light);
+      color: var(--current-primary);
+    }
+
+    #mode-flashcard .mode-icon-circle {
+      background: rgba(168, 85, 247, 0.15);
+      color: #a855f7;
+    }
+
+    #mode-read .mode-icon-circle {
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--success);
+    }
+
+    #mode-exam .mode-icon-circle {
+      background: rgba(244, 63, 94, 0.15);
+      color: var(--danger);
+    }
 
     .toggle-row-setting {
       background: rgba(128, 128, 128, 0.05);
@@ -579,7 +761,14 @@
       align-items: center;
     }
 
-    .segmented-pills { display: flex; gap: 4px; background: rgba(128, 128, 128, 0.2); padding: 3px; border-radius: 8px; }
+    .segmented-pills {
+      display: flex;
+      gap: 4px;
+      background: rgba(128, 128, 128, 0.2);
+      padding: 3px;
+      border-radius: 8px;
+    }
+
     .seg-pill-btn {
       padding: 4px 10px;
       font-size: 11px;
@@ -588,11 +777,33 @@
       border-radius: 6px;
       cursor: pointer;
     }
-    .seg-pill-btn.active { background: var(--current-primary); color: #fff; }
 
-    .theme-bubbles-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
-    .theme-bubble { width: 22px; height: 22px; border-radius: 50%; cursor: pointer; border: 2px solid rgba(128,128,128,0.5); }
-    .theme-bubble.active { border-color: var(--text-main); transform: scale(1.15); box-shadow: 0 0 8px var(--current-primary); }
+    .seg-pill-btn.active {
+      background: var(--current-primary);
+      color: #fff;
+    }
+
+    .theme-bubbles-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .theme-bubble {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 2px solid rgba(128, 128, 128, 0.5);
+    }
+
+    .theme-bubble.active {
+      border-color: var(--text-main);
+      transform: scale(1.15);
+      box-shadow: 0 0 8px var(--current-primary);
+    }
 
     .btn-launch-hero {
       background: linear-gradient(135deg, var(--current-primary), transparent);
@@ -610,7 +821,10 @@
       cursor: pointer;
       box-shadow: 0 10px 24px -6px var(--current-light);
     }
-    .btn-launch-hero:active { transform: scale(0.97); }
+
+    .btn-launch-hero:active {
+      transform: scale(0.97);
+    }
 
     .question-headline {
       font-size: 16px;
@@ -622,7 +836,12 @@
       letter-spacing: 0.15px;
     }
 
-    .options-stack { display: flex; flex-direction: column; gap: 11px; margin-bottom: 16px; }
+    .options-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 11px;
+      margin-bottom: 16px;
+    }
 
     .touch-option-card {
       background: var(--bg-card);
@@ -637,11 +856,17 @@
       box-shadow: var(--shadow-soft);
       color: var(--text-main);
     }
-    
+
     @media (hover: hover) {
-      .touch-option-card:hover { transform: translateX(4px); border-color: var(--current-primary); }
+      .touch-option-card:hover {
+        transform: translateX(4px);
+        border-color: var(--current-primary);
+      }
     }
-    .touch-option-card:active { transform: scale(0.98); }
+
+    .touch-option-card:active {
+      transform: scale(0.98);
+    }
 
     .touch-option-card.correct {
       background: rgba(16, 185, 129, 0.15) !important;
@@ -649,19 +874,24 @@
       color: var(--text-main) !important;
       box-shadow: 0 0 16px rgba(16, 185, 129, 0.3) !important;
     }
+
     .touch-option-card.wrong {
       background: rgba(244, 63, 94, 0.15) !important;
       border-color: var(--danger) !important;
       color: var(--text-main) !important;
       box-shadow: 0 0 16px rgba(244, 63, 94, 0.3) !important;
     }
+
     .touch-option-card.exam-selected {
       background: var(--current-light) !important;
       border-color: var(--current-primary) !important;
       box-shadow: 0 0 16px var(--current-light) !important;
     }
 
-    .touch-option-card.eliminated { opacity: 0.25; pointer-events: none; }
+    .touch-option-card.eliminated {
+      opacity: 0.25;
+      pointer-events: none;
+    }
 
     .choice-badge-circle {
       min-width: 28px;
@@ -678,9 +908,24 @@
       margin-right: 12px;
       flex-shrink: 0;
     }
-    .touch-option-card.correct .choice-badge-circle { background: var(--success); color: #fff; border-color: var(--success); }
-    .touch-option-card.wrong .choice-badge-circle { background: var(--danger); color: #fff; border-color: var(--danger); }
-    .touch-option-card.exam-selected .choice-badge-circle { background: var(--current-primary); color: #fff; border-color: var(--current-primary); }
+
+    .touch-option-card.correct .choice-badge-circle {
+      background: var(--success);
+      color: #fff;
+      border-color: var(--success);
+    }
+
+    .touch-option-card.wrong .choice-badge-circle {
+      background: var(--danger);
+      color: #fff;
+      border-color: var(--danger);
+    }
+
+    .touch-option-card.exam-selected .choice-badge-circle {
+      background: var(--current-primary);
+      color: #fff;
+      border-color: var(--current-primary);
+    }
 
     .solution-insight-card {
       background: var(--bg-card);
@@ -695,7 +940,10 @@
       box-shadow: var(--shadow-soft);
       animation: fadeSlideIn 0.4s ease forwards;
     }
-    .solution-insight-card.wrong-accent { border-left-color: var(--warning); }
+
+    .solution-insight-card.wrong-accent {
+      border-left-color: var(--warning);
+    }
 
     .flashcard-mobile-panel {
       background: var(--bg-card);
@@ -714,7 +962,8 @@
 
     .mobile-bottom-dock {
       position: fixed;
-      bottom: 0; left: 0;
+      bottom: 0;
+      left: 0;
       width: 100%;
       background: var(--bg-surface);
       opacity: 0.95;
@@ -743,7 +992,10 @@
       cursor: pointer;
       transition: background 0.2s, transform 0.1s;
     }
-    .btn-dock-secondary:active { transform: scale(0.96); }
+
+    .btn-dock-secondary:active {
+      transform: scale(0.96);
+    }
 
     .btn-dock-primary {
       flex: 2;
@@ -762,12 +1014,20 @@
       box-shadow: 0 6px 16px var(--current-light);
       transition: background 0.2s, transform 0.1s;
     }
-    .btn-dock-primary:active { transform: scale(0.96); }
-    body.theme-academic .btn-dock-primary, body.theme-paper .btn-dock-primary { color: #fff; }
+
+    .btn-dock-primary:active {
+      transform: scale(0.96);
+    }
+
+    body.theme-academic .btn-dock-primary,
+    body.theme-paper .btn-dock-primary {
+      color: #fff;
+    }
 
     .palette-drawer-mobile {
       position: fixed;
-      top: 0; right: -320px;
+      top: 0;
+      right: -320px;
       width: 300px;
       height: 100%;
       background: var(--bg-surface);
@@ -780,7 +1040,10 @@
       flex-direction: column;
       transition: right 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
     }
-    .palette-drawer-mobile.open { right: 0; }
+
+    .palette-drawer-mobile.open {
+      right: 0;
+    }
 
     .palette-grid-scroll {
       display: grid;
@@ -789,7 +1052,10 @@
       overflow-y: auto;
       padding-bottom: 20px;
     }
-    .palette-grid-scroll::-webkit-scrollbar { display: none; }
+
+    .palette-grid-scroll::-webkit-scrollbar {
+      display: none;
+    }
 
     .grid-node {
       height: 44px;
@@ -805,30 +1071,97 @@
       position: relative;
       cursor: pointer;
     }
-    
+
     /* Standard Quiz/Flashcard Palette Colors */
-    .grid-node.active-node { border-color: var(--current-primary); color: var(--current-primary); box-shadow: 0 0 10px var(--current-light); }
-    .grid-node.node-correct { background: rgba(16, 185, 129, 0.15); border-color: var(--success); color: var(--success); }
-    .grid-node.node-wrong { background: rgba(244, 63, 94, 0.15); border-color: var(--danger); color: var(--danger); }
-    
+    .grid-node.active-node {
+      border-color: var(--current-primary);
+      color: var(--current-primary);
+      box-shadow: 0 0 10px var(--current-light);
+    }
+
+    .grid-node.node-correct {
+      background: rgba(16, 185, 129, 0.15);
+      border-color: var(--success);
+      color: var(--success);
+    }
+
+    .grid-node.node-wrong {
+      background: rgba(244, 63, 94, 0.15);
+      border-color: var(--danger);
+      color: var(--danger);
+    }
+
     /* Competitive Exam Specific Palette Colors */
-    .exam-node-unvisited { background: #e2e8f0; border-color: #cbd5e1; color: #64748b; }
-    .theme-paper .exam-node-unvisited { background: #f1f5f9; border-color: #cbd5e1; color: #64748b; }
-    body:not(.theme-paper):not(.theme-academic) .exam-node-unvisited { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); color: #fff; }
+    .exam-node-unvisited {
+      background: #e2e8f0;
+      border-color: #cbd5e1;
+      color: #64748b;
+    }
 
-    .exam-node-unanswered { background: rgba(244, 63, 94, 0.15) !important; border-color: var(--danger) !important; color: var(--danger) !important; } 
-    .exam-node-answered { background: rgba(16, 185, 129, 0.15) !important; border-color: var(--success) !important; color: var(--success) !important; }
-    .exam-node-review { background: rgba(168, 85, 247, 0.15) !important; border-color: var(--purple) !important; color: var(--purple) !important; } 
-    .exam-node-answered-review { background: rgba(168, 85, 247, 0.15) !important; border-color: var(--purple) !important; color: var(--purple) !important; position: relative; }
-    .exam-node-answered-review::after { content: ''; position: absolute; bottom: 3px; right: 3px; width: 8px; height: 8px; border-radius: 50%; background: var(--success); border: 1px solid var(--purple); }
+    .theme-paper .exam-node-unvisited {
+      background: #f1f5f9;
+      border-color: #cbd5e1;
+      color: #64748b;
+    }
 
-    .grid-node .star-indicator { position: absolute; top: 3px; right: 3px; font-size: 8px; color: var(--warning); }
+    body:not(.theme-paper):not(.theme-academic) .exam-node-unvisited {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.2);
+      color: #fff;
+    }
+
+    .exam-node-unanswered {
+      background: rgba(244, 63, 94, 0.15) !important;
+      border-color: var(--danger) !important;
+      color: var(--danger) !important;
+    }
+
+    .exam-node-answered {
+      background: rgba(16, 185, 129, 0.15) !important;
+      border-color: var(--success) !important;
+      color: var(--success) !important;
+    }
+
+    .exam-node-review {
+      background: rgba(168, 85, 247, 0.15) !important;
+      border-color: var(--purple) !important;
+      color: var(--purple) !important;
+    }
+
+    .exam-node-answered-review {
+      background: rgba(168, 85, 247, 0.15) !important;
+      border-color: var(--purple) !important;
+      color: var(--purple) !important;
+      position: relative;
+    }
+
+    .exam-node-answered-review::after {
+      content: '';
+      position: absolute;
+      bottom: 3px;
+      right: 3px;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--success);
+      border: 1px solid var(--purple);
+    }
+
+    .grid-node .star-indicator {
+      position: absolute;
+      top: 3px;
+      right: 3px;
+      font-size: 8px;
+      color: var(--warning);
+    }
 
     .overlay-backdrop {
       position: fixed;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      background: rgba(0,0,0, 0.6);
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.6);
       backdrop-filter: blur(8px);
       -webkit-backdrop-filter: blur(8px);
       z-index: 2000;
@@ -837,6 +1170,7 @@
       justify-content: center;
       padding: 24px;
     }
+
     .modal-floating-card {
       background: var(--bg-surface);
       border: 1px solid var(--border-subtle);
@@ -850,34 +1184,68 @@
     }
 
     /* UPDATED: FIXED CONFETTI POSITION FOR MOBILE */
-    #confetti-canvas-box { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 9999; overflow: hidden; display: none; }
-    .confetti-flake { position: absolute; top: -30px; font-size: 20px; animation: fallAnim linear forwards; }
-    @keyframes fallAnim { to { transform: translateY(105vh) rotate(720deg); opacity: 0; } }
+    #confetti-canvas-box {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 9999;
+      overflow: hidden;
+      display: none;
+    }
+
+    .confetti-flake {
+      position: absolute;
+      top: -30px;
+      font-size: 20px;
+      animation: fallAnim linear forwards;
+    }
+
+    @keyframes fallAnim {
+      to {
+        transform: translateY(105vh) rotate(720deg);
+        opacity: 0;
+      }
+    }
 
     /* UPDATED: ELEGANT LEARNING TOAST NOTIFICATIONS FOR MOBILE */
-    #toast-container { 
-      position: fixed; 
-      bottom: 100px; 
-      left: 50%; 
-      transform: translateX(-50%); 
-      z-index: 9999; 
-      display: flex; 
-      flex-direction: column; 
-      gap: 8px; 
-      pointer-events: none; 
+    #toast-container {
+      position: fixed;
+      bottom: 100px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
     }
-    .app-toast { 
-      background: var(--bg-surface); 
-      border: 1px solid var(--border-subtle); 
-      color: var(--text-main); 
-      padding: 12px 20px; 
-      border-radius: 12px; 
-      font-size: 13px; 
-      font-weight: 700; 
-      box-shadow: var(--shadow-heavy); 
-      animation: fadeSlideUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; 
+
+    .app-toast {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-main);
+      padding: 12px 20px;
+      border-radius: 12px;
+      font-size: 13px;
+      font-weight: 700;
+      box-shadow: var(--shadow-heavy);
+      animation: fadeSlideUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
     }
-    @keyframes fadeSlideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+    @keyframes fadeSlideUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
   </style>
 </head>
 
@@ -891,30 +1259,36 @@
   <div id="mobile-subject-screen" class="view-container">
     <div class="app-nav-header">
       <div class="brand-cluster">
-        <div class="brand-icon"><img src="https://i.ibb.co/rRx1LBzd/mylogo.png" style="width: 40px; height: 40px; border-radius: 12px; object-fit: cover; box-shadow: 0 4px 14px rgba(56, 189, 248, 0.3); margin-right: 0px; margin-left: 0px;" alt="Study Hub Logo"></div>
+        <div class="brand-icon">
+          <img src="https://i.ibb.co/v4nL7ZTV/studylogo.png" alt="Study Hub Logo">
+        </div>
         <div>
           <div class="brand-title">Study Hub</div>
           <div class="brand-sub">Select Subject Vault</div>
         </div>
       </div>
-      <button class="nav-btn-circle" onclick="fetchSubjectsList()" title="Refresh"><i class="fas fa-sync-alt" id="refresh-subjects-icon"></i></button>
+      <button class="nav-btn-circle" onclick="fetchSubjectsList()" title="Refresh"><i class="fas fa-sync-alt"
+          id="refresh-subjects-icon"></i></button>
     </div>
 
     <div class="search-shelf">
       <div class="search-box-pill">
         <i class="fas fa-search" style="color: var(--text-muted); font-size: 13px;"></i>
-        <input type="text" id="mobile-subject-search" placeholder="Search subject (e.g. History)..." oninput="filterMobileSubjects()">
+        <input type="text" id="mobile-subject-search" placeholder="Search subject (e.g. History)..."
+          oninput="filterMobileSubjects()">
       </div>
     </div>
 
     <div class="dashboard-scroll-body">
       <div class="section-headline">
-        <span>Available Subjects <span id="offline-subjects-tag" style="display:none; color:var(--warning); font-size:9px;">(Offline)</span></span>
+        <span>Available Subjects <span id="offline-subjects-tag"
+            style="display:none; color:var(--warning); font-size:9px;">(Offline)</span></span>
         <span id="subject-count-tag" style="color: var(--current-primary);">0 Subjects</span>
       </div>
       <div id="subject-list-container" style="display: flex; flex-direction: column; gap: 10px;">
         <div style="text-align: center; padding: 60px 20px; color: var(--text-sub);">
-          <i class="fas fa-circle-notch fa-spin fa-2x" style="color: var(--current-primary); margin-bottom: 14px;"></i><br>Connecting to Master Registry...
+          <i class="fas fa-circle-notch fa-spin fa-2x"
+            style="color: var(--current-primary); margin-bottom: 14px;"></i><br>Connecting to Master Registry...
         </div>
       </div>
     </div>
@@ -926,30 +1300,35 @@
   <div id="mobile-home-screen" class="view-container">
     <div class="app-nav-header">
       <div class="brand-cluster">
-        <button class="nav-btn-circle" onclick="returnToSubjects()" style="margin-right: 4px;" title="Back to Subjects"><i class="fas fa-arrow-left"></i></button>
+        <button class="nav-btn-circle" onclick="returnToSubjects()" style="margin-right: 4px;"
+          title="Back to Subjects"><i class="fas fa-arrow-left"></i></button>
         <div>
           <div class="brand-title" id="active-subject-header-title">Topics</div>
           <div class="brand-sub" id="active-subject-header-sub">Subject Syllabus</div>
         </div>
       </div>
-      <button class="nav-btn-circle" onclick="fetchTopicsListForCurrentSubject()" title="Refresh"><i class="fas fa-sync-alt" id="refresh-topics-icon"></i></button>
+      <button class="nav-btn-circle" onclick="fetchTopicsListForCurrentSubject()" title="Refresh"><i
+          class="fas fa-sync-alt" id="refresh-topics-icon"></i></button>
     </div>
 
     <div class="search-shelf">
       <div class="search-box-pill">
         <i class="fas fa-search" style="color: var(--text-muted); font-size: 13px;"></i>
-        <input type="text" id="mobile-topic-search" placeholder="Search topics in this subject..." oninput="filterMobileTopics()">
+        <input type="text" id="mobile-topic-search" placeholder="Search topics in this subject..."
+          oninput="filterMobileTopics()">
       </div>
     </div>
 
     <div class="dashboard-scroll-body">
       <div class="section-headline">
-        <span>Syllabus Topics <span id="offline-topics-tag" style="display:none; color:var(--warning); font-size:9px;">(Offline)</span></span>
+        <span>Syllabus Topics <span id="offline-topics-tag"
+            style="display:none; color:var(--warning); font-size:9px;">(Offline)</span></span>
         <span id="topic-count-tag" style="color: var(--current-primary);">0 Topics</span>
       </div>
       <div id="topic-list-container" style="display: flex; flex-direction: column; gap: 10px;">
         <div style="text-align: center; padding: 60px 20px; color: var(--text-sub);">
-          <i class="fas fa-circle-notch fa-spin fa-2x" style="color: var(--current-primary); margin-bottom: 14px;"></i><br>Loading Subject Topics...
+          <i class="fas fa-circle-notch fa-spin fa-2x"
+            style="color: var(--current-primary); margin-bottom: 14px;"></i><br>Loading Subject Topics...
         </div>
       </div>
     </div>
@@ -961,32 +1340,54 @@
   <div id="exam-instructions-screen" class="view-container">
     <div class="app-nav-header">
       <div class="brand-cluster">
-        <button class="nav-btn-circle" onclick="cancelExamInstructions()" title="Back"><i class="fas fa-arrow-left"></i></button>
+        <button class="nav-btn-circle" onclick="cancelExamInstructions()" title="Back"><i
+            class="fas fa-arrow-left"></i></button>
         <div class="brand-title">Exam Instructions</div>
       </div>
     </div>
     <div class="dashboard-scroll-body" style="background: var(--bg-surface);">
-      <div class="solution-insight-card" style="border-left-color: var(--current-primary); margin-top: 0; pointer-events: none;">
-          <b style="font-size: 16px;"><i class="fas fa-clipboard-list"></i> Please read carefully:</b><br><br>
-          1. Total duration of the examination is strictly based on the number of questions.<br>
-          2. The countdown timer at the top right will display the time remaining. Exam auto-submits when time expires.<br>
-          3. <b>Marking Scheme:</b> +1.00 for correct, -0.25 for incorrect answers.<br>
-          4. <b>Palette Legend:</b><br>
-          <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:8px;">
-             <div style="display:flex; align-items:center; font-size:11px; gap:6px;"><div class="grid-node exam-node-unvisited" style="width:24px; height:24px; font-size:10px;">1</div> Not Visited</div>
-             <div style="display:flex; align-items:center; font-size:11px; gap:6px;"><div class="grid-node exam-node-unanswered" style="width:24px; height:24px; font-size:10px;">2</div> Not Answered</div>
-             <div style="display:flex; align-items:center; font-size:11px; gap:6px;"><div class="grid-node exam-node-answered" style="width:24px; height:24px; font-size:10px;">3</div> Answered</div>
-             <div style="display:flex; align-items:center; font-size:11px; gap:6px;"><div class="grid-node exam-node-review" style="width:24px; height:24px; font-size:10px;">4</div> Marked for Review</div>
-             <div style="display:flex; align-items:center; font-size:11px; gap:6px;"><div class="grid-node exam-node-answered-review" style="width:24px; height:24px; font-size:10px;">5</div> Answered & Marked</div>
+      <div class="solution-insight-card"
+        style="border-left-color: var(--current-primary); margin-top: 0; pointer-events: none;">
+        <b style="font-size: 16px;"><i class="fas fa-clipboard-list"></i> Please read carefully:</b><br><br>
+        1. Total duration of the examination is strictly based on the number of questions.<br>
+        2. The countdown timer at the top right will display the time remaining. Exam auto-submits when time
+        expires.<br>
+        3. <b>Marking Scheme:</b> +1.00 for correct, -0.25 for incorrect answers.<br>
+        4. <b>Palette Legend:</b><br>
+        <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:8px;">
+          <div style="display:flex; align-items:center; font-size:11px; gap:6px;">
+            <div class="grid-node exam-node-unvisited" style="width:24px; height:24px; font-size:10px;">1</div> Not
+            Visited
           </div>
-          <br>5. <b>Evaluation Rule:</b> "Answered" and "Answered & Marked for Review" will be considered for final evaluation.<br>
-          <br>6. <b>Anti-Cheat:</b> Copying text or switching browser tabs will be recorded as a violation.
+          <div style="display:flex; align-items:center; font-size:11px; gap:6px;">
+            <div class="grid-node exam-node-unanswered" style="width:24px; height:24px; font-size:10px;">2</div> Not
+            Answered
+          </div>
+          <div style="display:flex; align-items:center; font-size:11px; gap:6px;">
+            <div class="grid-node exam-node-answered" style="width:24px; height:24px; font-size:10px;">3</div> Answered
+          </div>
+          <div style="display:flex; align-items:center; font-size:11px; gap:6px;">
+            <div class="grid-node exam-node-review" style="width:24px; height:24px; font-size:10px;">4</div> Marked for
+            Review
+          </div>
+          <div style="display:flex; align-items:center; font-size:11px; gap:6px;">
+            <div class="grid-node exam-node-answered-review" style="width:24px; height:24px; font-size:10px;">5</div>
+            Answered & Marked
+          </div>
+        </div>
+        <br>5. <b>Evaluation Rule:</b> "Answered" and "Answered & Marked for Review" will be considered for final
+        evaluation.<br>
+        <br>6. <b>Anti-Cheat:</b> Copying text or switching browser tabs will be recorded as a violation.
       </div>
       <div style="margin-top:20px; display:flex; align-items:flex-start; gap:12px; padding: 0 10px;">
-          <input type="checkbox" id="exam-agree-checkbox" style="width:22px; height:22px; margin-top:2px; flex-shrink: 0; accent-color: var(--current-primary);">
-          <label for="exam-agree-checkbox" style="font-size:13px; color:var(--text-sub); line-height:1.5;">I have read and understood the instructions. I agree that in case of not adhering to instructions, I may be disqualified.</label>
+        <input type="checkbox" id="exam-agree-checkbox"
+          style="width:22px; height:22px; margin-top:2px; flex-shrink: 0; accent-color: var(--current-primary);">
+        <label for="exam-agree-checkbox" style="font-size:13px; color:var(--text-sub); line-height:1.5;">I have read and
+          understood the instructions. I agree that in case of not adhering to instructions, I may be
+          disqualified.</label>
       </div>
-      <button class="btn-launch-hero" style="margin-top:24px;" onclick="checkExamAgreementAndStart()">I am ready to begin</button>
+      <button class="btn-launch-hero" style="margin-top:24px;" onclick="checkExamAgreementAndStart()">I am ready to
+        begin</button>
     </div>
   </div>
 
@@ -994,53 +1395,75 @@
        📖 3. FULLSCREEN STUDY ENGINE PORTAL
        ========================================================= -->
   <div id="study-interface-wrapper" class="view-container">
-    
+
     <div class="study-app-bar">
       <button class="nav-action-icon" onclick="returnToSetup()" title="Back"><i class="fas fa-arrow-left"></i></button>
-      
+
       <div class="header-center-info">
         <span class="app-bar-topic-title" id="header-topic">Topic</span>
         <div class="telemetry-pills-row" id="session-stats-group" style="display: none;">
-          <div class="micro-pill" style="color: #c084fc;" id="master-timer-pill"><i class="fas fa-stopwatch"></i> <span id="master-timer">00:00</span></div>
+          <div class="micro-pill" style="color: #c084fc;" id="master-timer-pill"><i class="fas fa-stopwatch"></i> <span
+              id="master-timer">00:00</span></div>
           <div class="micro-pill" id="accuracy-timer-pill">
             <span style="color: var(--success);"><i class="fas fa-check"></i> <span id="stat-correct">0</span></span>
             <span style="color: var(--text-muted); margin: 0 1px;">|</span>
             <span style="color: var(--danger);"><i class="fas fa-times"></i> <span id="stat-wrong">0</span></span>
           </div>
           <!-- Learning Element: Hot Streak Visualizer -->
-          <div class="micro-pill" id="streak-pill" style="display:none; color: var(--streak-fire);"><i class="fas fa-fire"></i> <span id="streak-count">0</span></div>
-          <div class="micro-pill" id="exam-stats-pill" style="display: none; color: var(--current-primary);"><i class="fas fa-edit"></i> <span id="stat-exam-attempted">0</span>/<span id="stat-exam-total">0</span></div>
+          <div class="micro-pill" id="streak-pill" style="display:none; color: var(--streak-fire);"><i
+              class="fas fa-fire"></i> <span id="streak-count">0</span></div>
+          <div class="micro-pill" id="exam-stats-pill" style="display: none; color: var(--current-primary);"><i
+              class="fas fa-edit"></i> <span id="stat-exam-attempted">0</span>/<span id="stat-exam-total">0</span></div>
         </div>
       </div>
 
       <div style="display: flex; align-items: center; gap: 6px;">
-        <button class="nav-action-icon" id="star-card-btn" onclick="toggleCurrentStar()"><i class="far fa-star"></i></button>
-        <button id="exam-submit-header-btn" style="display:none; background:var(--danger); color:#fff; border:none; padding:8px 12px; border-radius:10px; font-weight:800; font-size:11.5px; box-shadow:0 4px 10px rgba(244,63,94,0.3);" onclick="promptSubmitExam()">SUBMIT</button>
-        <button class="nav-action-icon" id="palette-toggle-btn" onclick="togglePaletteDrawer()"><i class="fas fa-th"></i></button>
+        <button class="nav-action-icon" id="star-card-btn" onclick="toggleCurrentStar()"><i
+            class="far fa-star"></i></button>
+        <button id="exam-submit-header-btn"
+          style="display:none; background:var(--danger); color:#fff; border:none; padding:8px 12px; border-radius:10px; font-weight:800; font-size:11.5px; box-shadow:0 4px 10px rgba(244,63,94,0.3);"
+          onclick="promptSubmitExam()">SUBMIT</button>
+        <button class="nav-action-icon" id="palette-toggle-btn" onclick="togglePaletteDrawer()"><i
+            class="fas fa-th"></i></button>
       </div>
     </div>
 
-    <div class="progress-track-rail"><div class="progress-track-fill" id="study-progress-fill"></div></div>
+    <div class="progress-track-rail">
+      <div class="progress-track-fill" id="study-progress-fill"></div>
+    </div>
     <div class="study-canvas-viewport" id="study-container"></div>
 
     <!-- General Purpose Dock -->
     <div class="mobile-bottom-dock" id="mobile-dock-row" style="display: none;">
-      <button class="btn-dock-secondary" id="dock-prev-btn" onclick="goToPrevCard()"><i class="fas fa-arrow-left"></i> Prev</button>
-      <button class="btn-dock-secondary" id="dock-lifeline-btn" onclick="useLifeline()" style="display:none; color: var(--current-primary);"><i class="fas fa-magic"></i> 50/50 (<span id="lifeline-count">3</span>)</button>
-      <button class="btn-dock-primary" id="dock-next-btn" onclick="goToNextCard()">Next <i class="fas fa-arrow-right"></i></button>
+      <button class="btn-dock-secondary" id="dock-prev-btn" onclick="goToPrevCard()"><i class="fas fa-arrow-left"></i>
+        Prev</button>
+      <button class="btn-dock-secondary" id="dock-lifeline-btn" onclick="useLifeline()"
+        style="display:none; color: var(--current-primary);"><i class="fas fa-magic"></i> 50/50 (<span
+          id="lifeline-count">3</span>)</button>
+      <button class="btn-dock-primary" id="dock-next-btn" onclick="goToNextCard()">Next <i
+          class="fas fa-arrow-right"></i></button>
     </div>
 
     <!-- Standardized Exam Mode Dock -->
-    <div class="mobile-bottom-dock" id="exam-dock-row" style="display: none; padding: 10px 14px calc(var(--safe-bottom) + 10px) 14px; gap: 8px;">
-      <button class="btn-dock-secondary" onclick="examClearResponse()" style="flex: 1; font-size: 11px; padding: 12px 2px;">Clear</button>
-      <button class="btn-dock-secondary" onclick="examMarkReviewNext()" style="flex: 1.5; font-size: 11px; padding: 12px 2px; background: rgba(168, 85, 247, 0.1); color: var(--purple); border-color: var(--purple);">Mark & Next</button>
-      <button class="btn-dock-primary" onclick="examSaveNext()" style="flex: 1.5; font-size: 11px; padding: 12px 2px; background: var(--success); box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);">Save & Next</button>
+    <div class="mobile-bottom-dock" id="exam-dock-row"
+      style="display: none; padding: 10px 14px calc(var(--safe-bottom) + 10px) 14px; gap: 8px;">
+      <button class="btn-dock-secondary" onclick="examClearResponse()"
+        style="flex: 1; font-size: 11px; padding: 12px 2px;">Clear</button>
+      <button class="btn-dock-secondary" onclick="examMarkReviewNext()"
+        style="flex: 1.5; font-size: 11px; padding: 12px 2px; background: rgba(168, 85, 247, 0.1); color: var(--purple); border-color: var(--purple);">Mark
+        & Next</button>
+      <button class="btn-dock-primary" onclick="examSaveNext()"
+        style="flex: 1.5; font-size: 11px; padding: 12px 2px; background: var(--success); box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);">Save
+        & Next</button>
     </div>
 
     <div class="palette-drawer-mobile" id="paletteDrawer">
-      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-subtle); padding-bottom: 12px;">
-        <span style="font-weight: 800; font-size: 13px; text-transform: uppercase;"><i class="fas fa-th"></i> Grid Overview</span>
-        <i class="fas fa-times" style="cursor: pointer; padding: 4px; color: var(--text-sub); font-size: 16px;" onclick="togglePaletteDrawer()"></i>
+      <div
+        style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-subtle); padding-bottom: 12px;">
+        <span style="font-weight: 800; font-size: 13px; text-transform: uppercase;"><i class="fas fa-th"></i> Grid
+          Overview</span>
+        <i class="fas fa-times" style="cursor: pointer; padding: 4px; color: var(--text-sub); font-size: 16px;"
+          onclick="togglePaletteDrawer()"></i>
       </div>
       <div class="palette-filters" id="paletteFilterContainer" style="display: flex; gap: 6px; margin: 12px 0;"></div>
       <div class="palette-grid-scroll" id="paletteGrid"></div>
@@ -1050,22 +1473,26 @@
       <div class="modal-floating-card">
         <i class="fas fa-exclamation-circle" style="font-size: 40px; color: var(--warning); margin-bottom: 12px;"></i>
         <h3 style="font-size: 18px; font-weight: 800; margin-bottom: 8px;">Leave Session?</h3>
-        <p style="font-size: 13px; color: var(--text-sub); margin-bottom: 22px;">Current batch progress will not be saved.</p>
+        <p style="font-size: 13px; color: var(--text-sub); margin-bottom: 22px;">Current batch progress will not be
+          saved.</p>
         <div style="display: flex; gap: 10px;">
           <button class="btn-dock-secondary" onclick="cancelReturnToSetup()">Resume</button>
-          <button class="btn-dock-primary" style="background: var(--danger); color: #fff;" onclick="executeReturnToSetup()">Exit Session</button>
+          <button class="btn-dock-primary" style="background: var(--danger); color: #fff;"
+            onclick="executeReturnToSetup()">Exit Session</button>
         </div>
       </div>
     </div>
 
     <div class="overlay-backdrop" id="examSubmitOverlay">
       <div class="modal-floating-card">
-        <i class="fas fa-file-signature" style="font-size: 40px; color: var(--current-primary); margin-bottom: 12px;"></i>
+        <i class="fas fa-file-signature"
+          style="font-size: 40px; color: var(--current-primary); margin-bottom: 12px;"></i>
         <h3 style="font-size: 18px; font-weight: 800; margin-bottom: 8px;">Submit Exam Paper?</h3>
         <p id="exam-submit-stats-text" style="font-size: 13px; color: var(--text-sub); margin-bottom: 22px;"></p>
         <div style="display: flex; gap: 10px;">
           <button class="btn-dock-secondary" onclick="cancelSubmitExam()">Review</button>
-          <button class="btn-dock-primary" style="background: var(--success);" onclick="executeSubmitExam()">Confirm Submit</button>
+          <button class="btn-dock-primary" style="background: var(--success);" onclick="executeSubmitExam()">Confirm
+            Submit</button>
         </div>
       </div>
     </div>
@@ -1111,9 +1538,9 @@
 
     let userAnswers = {};
     let localLocks = {};
-    
+
     // CBT EXAM ENGINE STATES
-    let examAnswers = {}; 
+    let examAnswers = {};
     let examQuestionStates = {};
     let isExamSubmitted = false;
     let isExamReview = false;
@@ -1143,7 +1570,7 @@
       toast.className = 'app-toast';
       toast.innerHTML = `<i class="fas fa-${icon}" style="color: ${color}; margin-right: 6px;"></i> ${msg}`;
       container.appendChild(toast);
-      
+
       setTimeout(() => {
         toast.style.opacity = '0';
         toast.style.transform = 'translateY(10px)';
@@ -1155,19 +1582,19 @@
     // Keyboard Accessibility Support
     document.addEventListener('keydown', (e) => {
       if (!sessionActive || isFinishScreen || document.getElementById('exitConfirmOverlay').style.display === 'flex') return;
-      
+
       if (studyModeType !== 'exam') {
-          if (e.key === 'ArrowRight') goToNextCard();
-          if (e.key === 'ArrowLeft') goToPrevCard();
+        if (e.key === 'ArrowRight') goToNextCard();
+        if (e.key === 'ArrowLeft') goToPrevCard();
       }
-      
+
       if (studyModeType === 'flashcard' && e.code === 'Space') {
         e.preventDefault();
         flipFlashcard(!isCardFlipped);
       }
-      
+
       if (studyModeType === 'quiz' || (studyModeType === 'exam' && !isExamSubmitted)) {
-        if (['1','2','3','4','a','b','c','d'].includes(e.key.toLowerCase())) {
+        if (['1', '2', '3', '4', 'a', 'b', 'c', 'd'].includes(e.key.toLowerCase())) {
           let idx;
           if (e.key >= '1' && e.key <= '4') {
             idx = parseInt(e.key) - 1;
@@ -1184,49 +1611,53 @@
 
     // Anti-Cheat (Proctoring) Mechanisms for Exam Mode
     document.addEventListener('copy', (e) => {
-        if (sessionActive && studyModeType === 'exam' && !isExamSubmitted) {
-            e.preventDefault();
-            showToast("Copying is disabled during active exams.", "shield-alt", "var(--warning)");
-        }
+      if (sessionActive && studyModeType === 'exam' && !isExamSubmitted) {
+        e.preventDefault();
+        showToast("Copying is disabled during active exams.", "shield-alt", "var(--warning)");
+      }
     });
     document.addEventListener('contextmenu', (e) => {
-        if (sessionActive && studyModeType === 'exam' && !isExamSubmitted) e.preventDefault();
+      if (sessionActive && studyModeType === 'exam' && !isExamSubmitted) e.preventDefault();
     });
     document.addEventListener('visibilitychange', () => {
-        if (sessionActive && studyModeType === 'exam' && !isExamSubmitted && document.hidden) {
-            cheatWarnings++;
-            showToast(`Warning: Tab switching is recorded! (Violation #${cheatWarnings})`, "exclamation-triangle", "var(--danger)");
-        }
+      if (sessionActive && studyModeType === 'exam' && !isExamSubmitted && document.hidden) {
+        cheatWarnings++;
+        showToast(`Warning: Tab switching is recorded! (Violation #${cheatWarnings})`, "exclamation-triangle", "var(--danger)");
+      }
     });
 
     // =========================================================
     // 📚 1. SUBJECT SCREEN CONTROLLER
     // =========================================================
-    window.onload = () => { 
-        switchScreen('mobile-subject-screen');
-        fetchSubjectsList(); 
+    window.onload = () => {
+      switchScreen('mobile-subject-screen');
+      fetchSubjectsList();
     };
 
     function fetchSubjectsList() {
       const icon = document.getElementById('refresh-subjects-icon');
       if (icon) icon.classList.add('fa-spin');
       document.getElementById('offline-subjects-tag').style.display = 'none';
-      
+
+      // 1. Instant Cache Render (बिना किसी लोडिंग स्पिनर के तुरंत डेटा दिखाओ)
+      const cached = localStorage.getItem('studyHub_cached_subjects');
+      if (cached) {
+        renderSubjectList(JSON.parse(cached));
+      }
+
+      // 2. Background Network Sync (बैकग्राउंड में नया डेटा फेच करो)
       fetch(API_URL + "?action=getSubjects")
         .then(response => response.json())
         .then(subjects => {
           if (icon) icon.classList.remove('fa-spin');
           localStorage.setItem('studyHub_cached_subjects', JSON.stringify(subjects));
-          renderSubjectList(subjects);
+          renderSubjectList(subjects); // ताज़ा डेटा से स्क्रीन रिफ्रेश
         })
         .catch(err => {
           if (icon) icon.classList.remove('fa-spin');
-          const cached = localStorage.getItem('studyHub_cached_subjects');
-          if (cached) {
-            document.getElementById('offline-subjects-tag').style.display = 'inline';
-            renderSubjectList(JSON.parse(cached));
-          } else {
-            document.getElementById('subject-list-container').innerHTML = `<div style="text-align: center; color: var(--danger); padding: 40px 20px;">Connection Error: ${err.message}. No offline cache available.</div>`;
+          if (!cached) {
+            document.getElementById('subject-list-container').innerHTML =
+              `<div style="text-align:center; color:var(--danger); padding:40px 20px;">Connection Error: ${err.message}</div>`;
           }
         });
     }
@@ -1234,7 +1665,7 @@
     function renderSubjectList(subjects) {
       const container = document.getElementById('subject-list-container');
       const countTag = document.getElementById('subject-count-tag');
-      
+
       if (!subjects || subjects.length === 0) {
         container.innerHTML = `<div style="text-align: center; color: var(--danger); padding: 40px 20px;">No subjects registered in Master_Registry.</div>`;
         if (countTag) countTag.innerText = "0 Subjects";
@@ -1278,7 +1709,7 @@
     function selectSubject(subjectName, spreadsheetId) {
       currentSelectedSubject = { name: subjectName, id: spreadsheetId };
       switchScreen('mobile-home-screen');
-      
+
       document.getElementById('active-subject-header-title').innerText = subjectName;
       document.getElementById('active-subject-header-sub').innerText = "Select Topic to Practice";
 
@@ -1299,12 +1730,19 @@
       const icon = document.getElementById('refresh-topics-icon');
       if (icon) icon.classList.add('fa-spin');
       document.getElementById('offline-topics-tag').style.display = 'none';
-      
-      const container = document.getElementById('topic-list-container');
-      container.innerHTML = `<div style="text-align: center; padding: 60px 20px; color: var(--text-sub);"><i class="fas fa-circle-notch fa-spin fa-2x" style="color: var(--current-primary); margin-bottom: 14px;"></i><br>Loading Topics...</div>`;
-      
-      const cacheKey = `studyHub_cached_topics_${currentSelectedSubject.id}`;
 
+      const cacheKey = `studyHub_cached_topics_${currentSelectedSubject.id}`;
+      const cached = localStorage.getItem(cacheKey);
+
+      // 1. Instant Cache Render
+      if (cached) {
+        renderMobileHome(JSON.parse(cached));
+      } else {
+        document.getElementById('topic-list-container').innerHTML =
+          `<div style="text-align: center; padding: 60px 20px; color: var(--text-sub);"><i class="fas fa-circle-notch fa-spin fa-2x" style="color: var(--current-primary); margin-bottom: 14px;"></i><br>Loading Topics...</div>`;
+      }
+
+      // 2. Background Sync
       fetch(API_URL + "?action=getTopics&sheetId=" + encodeURIComponent(currentSelectedSubject.id))
         .then(response => response.json())
         .then(topics => {
@@ -1314,12 +1752,9 @@
         })
         .catch(err => {
           if (icon) icon.classList.remove('fa-spin');
-          const cached = localStorage.getItem(cacheKey);
-          if (cached) {
-            document.getElementById('offline-topics-tag').style.display = 'inline';
-            renderMobileHome(JSON.parse(cached));
-          } else {
-             container.innerHTML = `<div style="text-align: center; color: var(--danger); padding: 40px 20px;">Connection Error: ${err.message}</div>`;
+          if (!cached) {
+            document.getElementById('topic-list-container').innerHTML =
+              `<div style="text-align:center; color:var(--danger); padding:40px 20px;">Connection Error: ${err.message}</div>`;
           }
         });
     }
@@ -1342,7 +1777,7 @@
       topics.forEach(t => {
         let rawPath = t.sheetName || 'General Practice';
         let segments = rawPath.split(/[\/>]/).map(s => s.trim()).filter(Boolean);
-        
+
         let rootFolder = segments[0] || 'General Practice';
         let subFolder = segments.length > 1 ? segments.slice(1).join(' / ') : null;
 
@@ -1365,12 +1800,12 @@
 
       for (const [folderName, folderData] of Object.entries(tree)) {
         folderCounter++;
-        const totalSetsInFolder = folderData.directItems.length + 
+        const totalSetsInFolder = folderData.directItems.length +
           Object.values(folderData.subFolders).reduce((acc, curr) => acc + curr.length, 0);
 
         const subFolderCount = Object.keys(folderData.subFolders).length;
-        const metaSubtitle = subFolderCount > 0 
-          ? `${subFolderCount} Sub-folders • ${totalSetsInFolder} Question Sets` 
+        const metaSubtitle = subFolderCount > 0
+          ? `${subFolderCount} Sub-folders • ${totalSetsInFolder} Question Sets`
           : `${totalSetsInFolder} Question Sets`;
 
         html += `
@@ -1424,16 +1859,38 @@
       }
 
       container.innerHTML = html;
+
+      // 🚀 स्मार्ट बैकग्राउंड प्री-फ़ेचर: यूज़र के क्लिक करने से पहले ही सवाल डाउनलोड कर लो
+      setTimeout(() => {
+        topics.forEach((t, index) => {
+          const sheetId = t.spreadsheetId || (currentSelectedSubject ? currentSelectedSubject.id : '');
+          const cacheKey = `studyHub_cached_deck_${sheetId}_${t.title}`;
+          
+          // अगर पहले से कैश में नहीं है, तो एक-एक करके बैकग्राउंड में फेच करो
+          if (!localStorage.getItem(cacheKey)) {
+            setTimeout(() => {
+              fetch(API_URL + "?action=getQuestions&topic=" + encodeURIComponent(t.title) + "&sheetId=" + encodeURIComponent(sheetId))
+                .then(res => res.json())
+                .then(data => {
+                  localStorage.setItem(cacheKey, JSON.stringify(data));
+                })
+                .catch(() => {});
+            }, index * 800); // सर्वर पर लोड न पड़े इसलिए 800ms के गैप पर फेच
+          }
+        });
+      }, 500);
     }
 
     function renderTopicCardHtml(t) {
       const safeTitle = t.title.replace(/'/g, "\\'");
+      const sheetId = t.spreadsheetId || (currentSelectedSubject ? currentSelectedSubject.id : '');
+      const count = t.count || 0;
       return `
-        <div class="pro-topic-card mobile-topic-card" onclick="launchStudySession('${safeTitle}', '${t.spreadsheetId}')">
+        <div class="pro-topic-card mobile-topic-card" onclick="launchStudySession('${safeTitle}', '${sheetId}', ${count})">
           <div class="topic-meta-left">
             <div class="topic-name">${t.title}</div>
             <div class="topic-badges-row">
-              <span class="topic-count-pill"><i class="far fa-file-alt"></i> ${t.count} Qs</span>
+              <span class="topic-count-pill"><i class="far fa-file-alt"></i> ${count} Qs</span>
               <span>• Tap to Open</span>
             </div>
           </div>
@@ -1461,7 +1918,7 @@
         const text = c.innerText.toLowerCase();
         const show = text.includes(term);
         c.style.display = show ? 'flex' : 'none';
-        
+
         if (show) {
           visible++;
           if (term.length > 0) {
@@ -1478,30 +1935,45 @@
       if (countTag) countTag.innerText = `${visible} Topics`;
     }
 
-    function launchStudySession(selectedTopic, sheetId) {
+    function launchStudySession(selectedTopic, sheetId, qCount = 0) {
       topic = selectedTopic;
+      const targetSheetId = (sheetId && sheetId !== 'undefined') ? sheetId : (currentSelectedSubject ? currentSelectedSubject.id : '');
+
       switchScreen('study-interface-wrapper');
       document.getElementById('header-topic').innerText = selectedTopic;
-      
-      const container = document.getElementById('study-container');
-      container.innerHTML = `<div style="text-align: center; padding: 80px 20px; color: var(--text-sub);"><i class="fas fa-circle-notch fa-spin fa-2x" style="color: var(--current-primary); margin-bottom: 14px;"></i><br><b style="color:var(--text-main);">Loading Cards...</b></div>`;
 
-      const cacheKey = `studyHub_cached_deck_${sheetId}`;
+      const cacheKey = `studyHub_cached_deck_${targetSheetId}_${selectedTopic}`;
+      const cached = localStorage.getItem(cacheKey);
 
-      fetch(API_URL + "?action=getQuestions&topic=" + encodeURIComponent(selectedTopic) + "&sheetId=" + encodeURIComponent(sheetId))
+      // 1. इंस्टेंट रेंडर (लोकल कैश या काउंट से)
+      if (cached) {
+        initialQuestions = JSON.parse(cached);
+      } else {
+        initialQuestions = new Array(Number(qCount) || 0).fill(null);
+      }
+
+      renderSetupScreen();
+
+      // 2. बैकग्राउंड सिंक (बिना स्क्रीन को री-एनिमेट या ब्लिंक किए)
+      fetch(API_URL + "?action=getQuestions&topic=" + encodeURIComponent(selectedTopic) + "&sheetId=" + encodeURIComponent(targetSheetId))
         .then(response => response.json())
         .then(questionsData => {
           localStorage.setItem(cacheKey, JSON.stringify(questionsData));
           initialQuestions = questionsData;
-          renderSetupScreen();
+          
+          // पूरी स्क्रीन फिर से बनाने के बजाय केवल टाइम और संख्या वाला बैज अपडेट करें
+          if (!sessionActive && !isFinishScreen) {
+            const metaBadge = document.getElementById('setup-meta-badge');
+            if (metaBadge) {
+              const count = questionsData.length;
+              const mins = Math.ceil(count / TIME_FRACTION);
+              metaBadge.innerHTML = `<i class="fas fa-clock"></i> ~${mins} mins (${count} Qs)`;
+            }
+          }
         })
         .catch(err => {
-          const cached = localStorage.getItem(cacheKey);
-          if (cached) {
-            initialQuestions = JSON.parse(cached);
-            renderSetupScreen();
-          } else {
-            container.innerHTML = `<div style="text-align: center; color: var(--danger); padding: 40px;">Error Loading Deck: ${err.message}. No offline cache.</div>`;
+          if (!cached) {
+            showToast("Connecting error: " + err.message, "exclamation-circle", "var(--danger)");
           }
         });
     }
@@ -1518,6 +1990,118 @@
     // =========================================================
     // ⚙️ SETUP & STUDY ENGINE CONTROLLER
     // =========================================================
+    function renderMobileHome(topics) {
+      const container = document.getElementById('topic-list-container');
+      const countTag = document.getElementById('topic-count-tag');
+
+      if (!topics || topics.length === 0) {
+        container.innerHTML = `<div style="text-align: center; color: var(--danger); padding: 40px 20px;">No topics found in Index_DB for this subject.</div>`;
+        if (countTag) countTag.innerText = "0 Topics";
+        return;
+      }
+
+      if (countTag) countTag.innerText = `${topics.length} Topics`;
+
+      // Multi-level Tree Parser (Root Folder -> Subfolders -> Questions)
+      const tree = {};
+
+      topics.forEach(t => {
+        let rawPath = t.sheetName || 'General Practice';
+        let segments = rawPath.split(/[\/>]/).map(s => s.trim()).filter(Boolean);
+
+        let rootFolder = segments[0] || 'General Practice';
+        let subFolder = segments.length > 1 ? segments.slice(1).join(' / ') : null;
+
+        if (!tree[rootFolder]) {
+          tree[rootFolder] = { directItems: [], subFolders: {} };
+        }
+
+        if (subFolder) {
+          if (!tree[rootFolder].subFolders[subFolder]) {
+            tree[rootFolder].subFolders[subFolder] = [];
+          }
+          tree[rootFolder].subFolders[subFolder].push(t);
+        } else {
+          tree[rootFolder].directItems.push(t);
+        }
+      });
+
+      let html = '';
+      let folderCounter = 0;
+
+      for (const [folderName, folderData] of Object.entries(tree)) {
+        folderCounter++;
+        const totalSetsInFolder = folderData.directItems.length +
+          Object.values(folderData.subFolders).reduce((acc, curr) => acc + curr.length, 0);
+
+        const subFolderCount = Object.keys(folderData.subFolders).length;
+        const metaSubtitle = subFolderCount > 0
+          ? `${subFolderCount} Sub-folders • ${totalSetsInFolder} Question Sets`
+          : `${totalSetsInFolder} Question Sets`;
+
+        html += `
+          <div class="folder-node-wrapper" id="folder-node-${folderCounter}">
+            <div class="folder-header-card" onclick="toggleFolderNode('folder-node-${folderCounter}')">
+              <div class="folder-title-row">
+                <div class="folder-icon-bubble"><i class="fas fa-folder"></i></div>
+                <div class="folder-text-meta">
+                  <span class="folder-name-text">${folderName}</span>
+                  <span class="folder-count-pill">${metaSubtitle}</span>
+                </div>
+              </div>
+              <div class="folder-chevron-pill"><i class="fas fa-chevron-down"></i></div>
+            </div>
+
+            <div class="folder-children-drawer">
+        `;
+
+        folderData.directItems.forEach(t => {
+          html += renderTopicCardHtml(t);
+        });
+
+        for (const [subName, subItems] of Object.entries(folderData.subFolders)) {
+          folderCounter++;
+          html += `
+            <div class="folder-node-wrapper" id="folder-node-${folderCounter}">
+              <div class="folder-header-card subfolder-header-card" onclick="toggleFolderNode('folder-node-${folderCounter}')">
+                <div class="folder-title-row">
+                  <div class="folder-icon-bubble subfolder-icon-bubble"><i class="fas fa-folder-open"></i></div>
+                  <div class="folder-text-meta">
+                    <span class="folder-name-text" style="font-size:13.5px;">${subName}</span>
+                    <span class="folder-count-pill">${subItems.length} Question Sets</span>
+                  </div>
+                </div>
+                <div class="folder-chevron-pill"><i class="fas fa-chevron-down"></i></div>
+              </div>
+
+              <div class="folder-children-drawer" style="border-left-color: rgba(251, 191, 36, 0.3);">
+          `;
+
+          subItems.forEach(t => {
+            html += renderTopicCardHtml(t);
+          });
+
+          html += `</div></div>`;
+        }
+
+        html += `</div></div>`;
+      }
+
+      container.innerHTML = html;
+    }
+
+    function selectMode(m) { studyModeType = m; renderSetupScreen(); }
+    function toggleSetting(s, v) { if (s === 'shuffle') isShuffleEnabled = v; if (s === 'insight') isInsightEnabled = v; renderSetupScreen(); }
+    function selectBatchSize(v) { selectedBatchSize = v; renderSetupScreen(); }
+    function changeTheme(idx) {
+      currentThemeIdx = idx;
+      document.body.className = idx > 0 ? 'theme-' + THEMES[idx] : '';
+
+      const themeColors = ['#090d16', '#020802', '#120505', '#f1f5f9', '#fdf6e3'];
+      document.getElementById('meta-theme-color').content = themeColors[idx];
+
+      if (!sessionActive && !isFinishScreen) renderSetupScreen();
+    }
     function renderSetupScreen() {
       const container = document.getElementById('study-container');
       document.getElementById('session-stats-group').style.display = 'none';
@@ -1534,7 +2118,7 @@
         <div class="setup-sheet-shell">
           <div style="display:flex; justify-content:space-between; align-items:center;">
             <span style="font-size:12px; font-weight:800; color:var(--current-primary); text-transform:uppercase;"><i class="fas fa-sliders-h"></i> Session Setup</span>
-            <span style="font-size:12px; color:var(--text-sub); font-weight:600;"><i class="fas fa-clock"></i> ~${mins} mins (${qCount} Qs)</span>
+            <span id="setup-meta-badge" style="font-size:12px; color:var(--text-sub); font-weight:600;"><i class="fas fa-clock"></i> ~${mins} mins (${qCount} Qs)</span>
           </div>
 
           <div class="mode-select-grid">
@@ -1609,19 +2193,6 @@
       `;
     }
 
-    function selectMode(m) { studyModeType = m; renderSetupScreen(); }
-    function toggleSetting(s, v) { if (s==='shuffle') isShuffleEnabled=v; if (s==='insight') isInsightEnabled=v; renderSetupScreen(); }
-    function selectBatchSize(v) { selectedBatchSize = v; renderSetupScreen(); }
-    function changeTheme(idx) {
-      currentThemeIdx = idx;
-      document.body.className = idx > 0 ? 'theme-' + THEMES[idx] : '';
-      
-      const themeColors = ['#090d16', '#020802', '#120505', '#f1f5f9', '#fdf6e3'];
-      document.getElementById('meta-theme-color').content = themeColors[idx];
-      
-      if(!sessionActive && !isFinishScreen) renderSetupScreen();
-    }
-
     function shuffleArray(arr) {
       for (let i = arr.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -1631,7 +2202,11 @@
     }
 
     function startSession() {
-      if (!initialQuestions || initialQuestions.length === 0) return;
+      // अगर डेटा अभी भी 1-2 सेकंड के लिए डाउनलोड हो रहा है
+      if (!initialQuestions || initialQuestions.length === 0 || initialQuestions[0] === null) {
+        showToast("Questions load ho rahe hain, bas 1 second...", "circle-notch fa-spin", "var(--warning)");
+        return;
+      }
 
       if (studyModeType === 'exam') {
         previousThemeIdx = currentThemeIdx;
@@ -1661,12 +2236,12 @@
 
     function beginExamActual() {
       unlockAudioContext();
-      
+
       globalQuestions = JSON.parse(JSON.stringify(initialQuestions));
-      
-      globalQuestions.forEach((q, idx) => { 
-        q._id = Math.random().toString(36).substr(2, 9); 
-        q.globalIndex = idx; 
+
+      globalQuestions.forEach((q, idx) => {
+        q._id = Math.random().toString(36).substr(2, 9);
+        q.globalIndex = idx;
         q.correctIndex = Number(q.correctIndex);
       });
 
@@ -1684,13 +2259,13 @@
       currentBatchIndex = 0;
       userAnswers = {};
       localLocks = {};
-      
+
       examAnswers = {};
       examQuestionStates = {};
       isExamSubmitted = false;
       isExamReview = false;
       cheatWarnings = 0;
-      
+
       awaitingAcknowledgment = false;
       totalSessionElapsed = 0;
       countdownSeconds = Math.ceil((globalQuestions.length / TIME_FRACTION) * 60);
@@ -1705,7 +2280,7 @@
       const masterTimerPill = document.getElementById('master-timer-pill');
       const lifeBtn = document.getElementById('dock-lifeline-btn');
       const streakPill = document.getElementById('streak-pill');
-      
+
       const genDock = document.getElementById('mobile-dock-row');
       const examDock = document.getElementById('exam-dock-row');
 
@@ -1788,15 +2363,15 @@
 
     function showCard() {
       isCardFlipped = false;
-      
+
       if (studyModeType === 'exam' && !isExamSubmitted) {
-         const q = questions[currentIndex];
-         const globalId = globalQuestions[q.globalIndex]._id;
-         if (!examQuestionStates[globalId]) {
-             examQuestionStates[globalId] = 'visited_unanswered';
-         }
+        const q = questions[currentIndex];
+        const globalId = globalQuestions[q.globalIndex]._id;
+        if (!examQuestionStates[globalId]) {
+          examQuestionStates[globalId] = 'visited_unanswered';
+        }
       }
-      
+
       updateLiveTelemetry();
       populatePaletteGrid();
 
@@ -1942,7 +2517,7 @@
         });
 
         let verdictTag = isCorrect ? `<i class="fas fa-check-circle" style="color:var(--success);"></i> Correct (+1.00)` : (isUnattempted ? `<i class="fas fa-minus-circle" style="color:var(--text-muted);"></i> Skipped (0.00)` : `<i class="fas fa-times-circle" style="color:var(--danger);"></i> Incorrect (-0.25)`);
-        
+
         let borderColor = isCorrect ? 'var(--success)' : (isUnattempted ? 'var(--text-muted)' : 'var(--danger)');
         let bgColor = isCorrect ? 'rgba(16, 185, 129, 0.05)' : (isUnattempted ? 'rgba(148, 163, 184, 0.05)' : 'rgba(244, 63, 94, 0.05)');
 
@@ -1976,7 +2551,7 @@
         element.classList.add('correct');
         currentStreak++;
         playSfx('correct');
-        
+
         if (currentStreak === 3) showToast("3 in a row! You're on fire! 🔥", "fire", "var(--streak-fire)");
         if (currentStreak === 5) showToast("5 in a row! Unstoppable! 🚀", "rocket", "var(--purple)");
       } else {
@@ -1987,9 +2562,9 @@
         if (extraBox) extraBox.classList.add('wrong-accent');
         currentStreak = 0;
         playSfx('wrong');
-        
+
         handleMistake(q);
-        
+
         if (isInsightEnabled && q.extraInfo) {
           awaitingAcknowledgment = true;
         }
@@ -2006,13 +2581,13 @@
       if (isExamSubmitted) return;
       const q = questions[currentIndex];
       const globalId = globalQuestions[q.globalIndex]._id;
-      
+
       if (examAnswers[globalId] === selectedIdx) delete examAnswers[globalId];
       else examAnswers[globalId] = selectedIdx;
 
       renderExamCard(currentIndex);
     }
-    
+
     function examSaveNext() {
       const q = questions[currentIndex];
       const globalId = globalQuestions[q.globalIndex]._id;
@@ -2023,7 +2598,7 @@
 
       goToNextCardExamFlow();
     }
-    
+
     function examMarkReviewNext() {
       const q = questions[currentIndex];
       const globalId = globalQuestions[q.globalIndex]._id;
@@ -2034,23 +2609,23 @@
 
       goToNextCardExamFlow();
     }
-    
+
     function examClearResponse() {
       const q = questions[currentIndex];
       const globalId = globalQuestions[q.globalIndex]._id;
       delete examAnswers[globalId];
       examQuestionStates[globalId] = 'visited_unanswered';
-      
+
       renderExamCard(currentIndex);
       populatePaletteGrid();
     }
-    
+
     function goToNextCardExamFlow() {
       let indices = getFilteredIndices();
       let nextIndex = indices.find(i => i > currentIndex);
-      if (nextIndex !== undefined) { 
-        currentIndex = nextIndex; 
-        showCard(); 
+      if (nextIndex !== undefined) {
+        currentIndex = nextIndex;
+        showCard();
       } else {
         togglePaletteDrawer();
         showToast("End of questions. Please review the palette.", "info-circle", "var(--current-primary)");
@@ -2072,19 +2647,19 @@
     function scoreFlashcard(level) {
       const q = questions[currentIndex];
       const globalId = globalQuestions[q.globalIndex]._id;
-      
+
       if (level === 'hard') {
         if (userAnswers[globalId] === undefined) userAnswers[globalId] = 'wrong';
         const cloned = JSON.parse(JSON.stringify(q));
         cloned._id = Math.random().toString(36).substr(2, 9);
-        questions.splice(currentIndex + 2, 0, cloned); 
+        questions.splice(currentIndex + 2, 0, cloned);
         showToast("Added back to queue for quick review", "sync", "var(--danger)");
       } else if (level === 'good') {
         if (userAnswers[globalId] === undefined) userAnswers[globalId] = 'correct';
         playSfx('correct');
         const cloned = JSON.parse(JSON.stringify(q));
         cloned._id = Math.random().toString(36).substr(2, 9);
-        questions.splice(currentIndex + 5, 0, cloned); 
+        questions.splice(currentIndex + 5, 0, cloned);
         showToast("We'll ask this again later", "layer-group", "var(--warning)");
       } else {
         if (userAnswers[globalId] === undefined) userAnswers[globalId] = 'correct';
@@ -2116,7 +2691,7 @@
 
     function updateDockButtons() {
       if (studyModeType === 'exam' && !isExamReview) return;
-      
+
       const indices = getFilteredIndices();
       const hasPrev = indices.some(i => i < currentIndex);
       const hasNext = indices.some(i => i > currentIndex);
@@ -2162,9 +2737,9 @@
       awaitingAcknowledgment = false;
       let indices = getFilteredIndices();
       let nextIndex = indices.find(i => i > currentIndex);
-      if (nextIndex !== undefined) { 
-        currentIndex = nextIndex; 
-        showCard(); 
+      if (nextIndex !== undefined) {
+        currentIndex = nextIndex;
+        showCard();
       } else {
         finishSessionScreen();
       }
@@ -2279,11 +2854,11 @@
       for (let key in examQuestionStates) {
         if (examQuestionStates[key] === 'answered' || examQuestionStates[key] === 'answered_marked_review') savedCount++;
       }
-      
+
       document.getElementById('exam-submit-stats-text').innerHTML = `Attempted & Saved: <b>${savedCount}</b> / ${globalQuestions.length}<br>Unattempted: <b>${globalQuestions.length - savedCount}</b> Qs<br><span style="font-size:11px; color:var(--text-muted);">Marking: +1.00 Correct | -0.25 Wrong</span>`;
       document.getElementById('examSubmitOverlay').style.display = 'flex';
     }
-    
+
     function cancelSubmitExam() { document.getElementById('examSubmitOverlay').style.display = 'none'; }
 
     function executeSubmitExam() {
@@ -2292,7 +2867,7 @@
       if (sessionTimerInterval) clearInterval(sessionTimerInterval);
 
       mistakesQueue = [];
-      
+
       globalQuestions.forEach(q => {
         const globalId = q._id;
         const state = examQuestionStates[globalId];
@@ -2301,13 +2876,13 @@
         const isEvaluable = (state === 'answered' || state === 'answered_marked_review');
 
         if (isEvaluable && choice !== undefined) {
-            if (choice == q.correctIndex) userAnswers[globalId] = 'correct';
-            else { userAnswers[globalId] = 'wrong'; mistakesQueue.push(q); }
+          if (choice == q.correctIndex) userAnswers[globalId] = 'correct';
+          else { userAnswers[globalId] = 'wrong'; mistakesQueue.push(q); }
         } else {
-            userAnswers[globalId] = 'unattempted';
+          userAnswers[globalId] = 'unattempted';
         }
       });
-      
+
       finishSessionScreen();
     }
 
@@ -2323,7 +2898,7 @@
 
       const container = document.getElementById('study-container');
       let correct = 0; let wrong = 0;
-      
+
       globalQuestions.forEach(q => {
         if (userAnswers[q._id] === 'correct') correct++;
         if (userAnswers[q._id] === 'wrong') wrong++;
@@ -2333,14 +2908,14 @@
       const totalAttempted = correct + wrong;
       const unattempted = totalQs - totalAttempted;
       const accuracy = totalAttempted > 0 ? Math.round((correct / totalAttempted) * 100) : 0;
-      const mins = Math.floor(totalSessionElapsed / 60); 
+      const mins = Math.floor(totalSessionElapsed / 60);
       const secs = totalSessionElapsed % 60;
       const timeStr = `${mins}m ${secs < 10 ? '0' : ''}${secs}s`;
-      
+
       const penaltyMarks = (wrong * 0.25).toFixed(2);
       const netMarks = (correct * 1.0 - penaltyMarks).toFixed(2);
       const avgTimeSecs = totalAttempted > 0 ? Math.round(totalSessionElapsed / totalQs) : 0;
-      
+
       const correctPct = (correct / totalQs) * 100;
       const wrongPct = (wrong / totalQs) * 100;
       const skipPct = (unattempted / totalQs) * 100;
@@ -2471,9 +3046,9 @@
       if (isFinishScreen || !sessionActive) returnToHome();
       else document.getElementById('exitConfirmOverlay').style.display = 'flex';
     }
-    
+
     function cancelReturnToSetup() { document.getElementById('exitConfirmOverlay').style.display = 'none'; }
-    
+
     function executeReturnToSetup() {
       document.getElementById('exitConfirmOverlay').style.display = 'none';
       if (sessionTimerInterval) clearInterval(sessionTimerInterval);
@@ -2496,7 +3071,7 @@
           box.appendChild(el);
         }
         setTimeout(() => { box.style.display = 'none'; box.innerHTML = ''; }, 4500);
-      } catch(e) {}
+      } catch (e) { }
     }
 
     function unlockAudioContext() {
@@ -2533,8 +3108,9 @@
           gain.gain.setValueAtTime(0.1, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
           osc.start(now); osc.stop(now + 0.3);
         }
-      } catch(e) {}
+      } catch (e) { }
     }
   </script>
 </body>
+
 </html>
