@@ -1,0 +1,2442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+ <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  
+  <!-- Favicon and Homescreen Icons -->
+  <link rel="icon" type="image/png" sizes="192x192" href="https://i.ibb.co/rRx1LBzd/mylogo.png">
+  <link rel="apple-touch-icon" href="https://i.ibb.co/rRx1LBzd/mylogo.png">
+  <meta name="apple-mobile-web-app-title" content="Study Hub">
+  <meta name="application-name" content="Study Hub">
+
+  <!-- Web App Manifest (Creates the native app-like shortcut) -->
+  <link rel="manifest" href="data:application/manifest+json;charset=utf-8,%7B%0A%20%20%22name%22%3A%20%22Study%20Hub%22%2C%0A%20%20%22short_name%22%3A%20%22StudyHub%22%2C%0A%20%20%22start_url%22%3A%20%22.%22%2C%0A%20%20%22display%22%3A%20%22standalone%22%2C%0A%20%20%22background_color%22%3A%20%22%23090d16%22%2C%0A%20%20%22theme_color%22%3A%20%22%23090d16%22%2C%0A%20%20%22icons%22%3A%20%5B%0A%20%20%20%20%7B%0A%20%20%20%20%20%20%22src%22%3A%20%22https%3A%2F%2Fi.ibb.co%2FrRx1LBzd%2Fmylogo.png%22%2C%0A%20%20%20%20%20%20%22sizes%22%3A%20%22192x192%20512x512%22%2C%0A%20%20%20%20%20%20%22type%22%3A%20%22image%2Fpng%22%0A%20%20%20%20%7D%0A%20%20%5D%0A%7D">
+
+  <!-- PWA & Theme Settings -->
+  <meta name="theme-color" content="#090d16" id="meta-theme-color">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <!-- External Fonts & Icons -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg-core: #070a12;
+      --bg-surface: #0e1424;
+      --bg-card: rgba(19, 27, 46, 0.7);
+      --bg-glass: rgba(255, 255, 255, 0.03);
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-glow: rgba(56, 189, 248, 0.35);
+      
+      --text-main: #f8fafc;
+      --text-sub: #94a3b8;
+      --text-muted: #64748b;
+      
+      --current-primary: #38bdf8;
+      --current-light: rgba(56, 189, 248, 0.14);
+      --success: #10b981; 
+      --danger: #f43f5e;  
+      --warning: #fbbf24;
+      --purple: #a855f7;
+      --streak-fire: #ff9800;
+
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+      
+      --shadow-soft: 0 4px 14px rgba(0, 0, 0, 0.25);
+      --shadow-heavy: 0 20px 40px rgba(0, 0, 0, 0.4);
+    }
+
+    /* Retained Themes Only */
+    body.theme-hacker { --bg-core: #020802; --bg-surface: #061406; --current-primary: #39ff14; --current-light: rgba(57, 255, 20, 0.15); --border-glow: rgba(57, 255, 20, 0.4); }
+    body.theme-sunset { --bg-core: #120505; --bg-surface: #240a0a; --current-primary: #ff5722; --current-light: rgba(255, 87, 34, 0.15); --border-glow: rgba(255, 87, 34, 0.4); }
+    
+    /* Academic/Paper Light Themes */
+    body.theme-paper { 
+      --bg-core: #f1f5f9; --bg-surface: #ffffff; --bg-card: #ffffff; 
+      --text-main: #0f172a; --text-sub: #475569; --text-muted: #94a3b8; 
+      --border-subtle: #cbd5e1; --border-glow: rgba(2, 132, 199, 0.2); 
+      --current-primary: #0284c7; --current-light: rgba(2, 132, 199, 0.1);
+      --shadow-soft: 0 4px 12px rgba(0, 0, 0, 0.05); --shadow-heavy: 0 12px 24px rgba(0, 0, 0, 0.08);
+    }
+    body.theme-academic { 
+      --bg-core: #fdf6e3; --bg-surface: #eee8d5; --bg-card: #fdf6e3; 
+      --text-main: #073642; --text-sub: #586e75; --text-muted: #93a1a1; 
+      --border-subtle: #d3c6a6; --border-glow: rgba(181, 137, 0, 0.2); 
+      --current-primary: #b58900; --current-light: rgba(181, 137, 0, 0.12);
+      --shadow-soft: 0 4px 12px rgba(0, 0, 0, 0.04); --shadow-heavy: 0 12px 24px rgba(0, 0, 0, 0.06);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      font-family: 'Google Sans', -apple-system, sans-serif;
+      background-color: var(--bg-core);
+      color: var(--text-main);
+      height: 100vh;
+      width: 100vw;
+      overflow: hidden;
+      user-select: none;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      transition: background-color 0.4s ease, color 0.4s ease;
+    }
+
+    /* Screen Transitions & Animations */
+    .view-container {
+      display: none;
+      flex-direction: column;
+      height: 100%;
+      width: 100%;
+      background: var(--bg-core);
+      position: absolute;
+      top: 0; left: 0;
+    }
+    
+    @keyframes fadeSlideIn {
+      from { opacity: 0; transform: translateY(15px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    @keyframes popIn {
+      0% { transform: scale(0.5); opacity: 0; }
+      70% { transform: scale(1.1); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    .ambient-glow-top {
+      position: absolute;
+      top: -120px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 340px;
+      height: 340px;
+      background: radial-gradient(circle, var(--current-light) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+      filter: blur(40px);
+      transition: background 0.5s ease;
+    }
+
+    /* 📚 1. SUBJECT SELECTION WINDOW */
+    #mobile-subject-screen { z-index: 15; }
+
+    .subject-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 18px;
+      padding: 16px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      box-shadow: var(--shadow-soft);
+      transition: all 0.25s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    .subject-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0;
+      width: 5px; height: 100%;
+      background: linear-gradient(180deg, var(--current-primary), transparent);
+    }
+    .subject-card:active {
+      transform: scale(0.975);
+      border-color: var(--current-primary);
+      box-shadow: 0 0 16px var(--current-light);
+    }
+
+    /* 📱 2. TOPIC SCREEN */
+    #mobile-home-screen { z-index: 10; }
+
+    .app-nav-header {
+      padding: calc(var(--safe-top) + 16px) 20px 14px 20px;
+      background: var(--bg-surface);
+      opacity: 0.95;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 20;
+    }
+
+    .brand-cluster { display: flex; align-items: center; gap: 12px; }
+    .brand-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--current-primary), transparent);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      box-shadow: 0 4px 14px var(--current-light);
+    }
+    body.theme-paper .brand-icon, body.theme-academic .brand-icon { color: #fff; }
+
+    .brand-title { font-size: 19px; font-weight: 800; letter-spacing: 0.2px; }
+    .brand-sub { font-size: 11px; font-weight: 600; color: var(--text-sub); }
+
+    .nav-btn-circle {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-sub);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .nav-btn-circle:active { transform: scale(0.92); color: var(--current-primary); border-color: var(--current-primary); }
+
+    .search-shelf { padding: 14px 18px 6px 18px; }
+    .search-box-pill {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 14px;
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+    }
+    .search-box-pill input {
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--text-main);
+      font-size: 13.5px;
+      font-family: inherit;
+      width: 100%;
+    }
+    .search-box-pill input::placeholder { color: var(--text-muted); }
+
+    .dashboard-scroll-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px 18px calc(var(--safe-bottom) + 30px) 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .dashboard-scroll-body::-webkit-scrollbar { display: none; }
+
+    .section-headline {
+      font-size: 11px;
+      font-weight: 800;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      margin: 10px 4px 4px 4px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* 📁 4. ACCORDION / FOLDER GROUPING CSS */
+    .sheet-group-wrapper {
+      margin-bottom: 12px;
+      animation: fadeSlideIn 0.3s ease forwards;
+    }
+    .sheet-group-header {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 14px;
+      padding: 14px 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      box-shadow: var(--shadow-soft);
+      font-weight: 800;
+      color: var(--current-primary);
+      transition: all 0.2s ease;
+    }
+    .sheet-group-header:active {
+      transform: scale(0.98);
+    }
+    .sheet-group-header .group-info {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .sheet-group-header .group-title {
+      font-size: 15px;
+      color: var(--text-main);
+    }
+    .sheet-group-header .group-meta {
+      font-size: 11px;
+      color: var(--text-sub);
+      font-weight: 600;
+    }
+    .sheet-group-icon {
+      transition: transform 0.3s ease;
+      background: var(--current-light);
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--current-primary);
+    }
+    .sheet-group-wrapper.open .sheet-group-icon {
+      transform: rotate(180deg);
+    }
+    
+    .sheet-group-content {
+      display: none;
+      flex-direction: column;
+      gap: 10px;
+      padding: 12px 0 0 12px;
+      border-left: 2px dashed var(--border-subtle);
+      margin-left: 14px;
+    }
+    .sheet-group-wrapper.open .sheet-group-content {
+      display: flex;
+      animation: fadeSlideIn 0.3s ease;
+    }
+
+    .mobile-topic-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 18px;
+      padding: 16px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      box-shadow: var(--shadow-soft);
+      transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+      position: relative;
+      overflow: hidden;
+    }
+    .mobile-topic-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0;
+      width: 4px; height: 100%;
+      background: var(--current-primary);
+      opacity: 0.8;
+    }
+    .mobile-topic-card:active {
+      transform: scale(0.975);
+      border-color: var(--current-primary);
+      box-shadow: 0 0 20px var(--current-light);
+    }
+
+    .topic-meta-left { display: flex; flex-direction: column; gap: 4px; max-width: 82%; }
+    .topic-name { font-size: 14.5px; font-weight: 700; color: var(--text-main); line-height: 1.35; }
+    .topic-badges-row { display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: var(--text-sub); }
+    .topic-count-pill {
+      background: var(--current-light);
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-weight: 600;
+      color: var(--current-primary);
+    }
+    .topic-action-chevron {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: rgba(128, 128, 128, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-sub);
+      font-size: 12px;
+    }
+
+    /* 📖 3. STUDY ENGINE VIEWPORT */
+    #study-interface-wrapper { z-index: 100; }
+    #exam-instructions-screen { z-index: 90; }
+
+    .study-app-bar {
+      padding: calc(var(--safe-top) + 12px) 16px 12px 16px;
+      background: var(--bg-surface);
+      opacity: 0.95;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      position: relative;
+      z-index: 20;
+    }
+
+    .nav-action-icon {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-sub);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .nav-action-icon:active { transform: scale(0.9); }
+    .nav-action-icon.star-active { color: var(--warning); border-color: rgba(251, 191, 36, 0.4); background: rgba(251, 191, 36, 0.12); }
+
+    .header-center-info {
+      flex: 1;
+      min-width: 0;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }
+    .app-bar-topic-title {
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--text-main);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 180px;
+    }
+    .telemetry-pills-row { display: flex; align-items: center; gap: 6px; }
+
+    .micro-pill {
+      font-size: 10.5px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 12px;
+      background: rgba(128, 128, 128, 0.1);
+      border: 1px solid var(--border-subtle);
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      color: var(--text-main);
+    }
+
+    .progress-track-rail {
+      width: 100%;
+      height: 3.5px;
+      background: var(--border-subtle);
+      position: relative;
+      z-index: 20;
+    }
+    .progress-track-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--current-primary), #34d399);
+      box-shadow: 0 0 10px var(--current-primary);
+      transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .study-canvas-viewport {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 18px calc(var(--safe-bottom) + 90px) 18px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      z-index: 10;
+    }
+    .study-canvas-viewport::-webkit-scrollbar { display: none; }
+
+    .setup-sheet-shell {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 24px;
+      padding: 20px 16px;
+      box-shadow: var(--shadow-heavy);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      animation: fadeSlideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .mode-select-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+
+    .mode-app-card {
+      background: var(--bg-card);
+      border: 1.5px solid var(--border-subtle);
+      border-radius: 18px;
+      padding: 14px 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 6px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .mode-app-card.active {
+      border-color: var(--current-primary);
+      background: var(--current-light);
+      box-shadow: 0 0 16px var(--current-light);
+    }
+    .mode-app-card:active { transform: scale(0.96); }
+
+    .mode-icon-circle {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+    #mode-quiz .mode-icon-circle { background: var(--current-light); color: var(--current-primary); }
+    #mode-flashcard .mode-icon-circle { background: rgba(168, 85, 247, 0.15); color: #a855f7; }
+    #mode-read .mode-icon-circle { background: rgba(16, 185, 129, 0.15); color: var(--success); }
+    #mode-exam .mode-icon-circle { background: rgba(244, 63, 94, 0.15); color: var(--danger); }
+
+    .toggle-row-setting {
+      background: rgba(128, 128, 128, 0.05);
+      border: 1px solid var(--border-subtle);
+      border-radius: 14px;
+      padding: 10px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .segmented-pills { display: flex; gap: 4px; background: rgba(128, 128, 128, 0.2); padding: 3px; border-radius: 8px; }
+    .seg-pill-btn {
+      padding: 4px 10px;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-sub);
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .seg-pill-btn.active { background: var(--current-primary); color: #fff; }
+
+    .theme-bubbles-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+    .theme-bubble { width: 22px; height: 22px; border-radius: 50%; cursor: pointer; border: 2px solid rgba(128,128,128,0.5); }
+    .theme-bubble.active { border-color: var(--text-main); transform: scale(1.15); box-shadow: 0 0 8px var(--current-primary); }
+
+    .btn-launch-hero {
+      background: linear-gradient(135deg, var(--current-primary), transparent);
+      background-color: var(--current-primary);
+      color: #fff;
+      border: none;
+      padding: 15px;
+      border-radius: 16px;
+      font-size: 15px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      cursor: pointer;
+      box-shadow: 0 10px 24px -6px var(--current-light);
+    }
+    .btn-launch-hero:active { transform: scale(0.97); }
+
+    .question-headline {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-main);
+      line-height: 1.6;
+      margin-bottom: 20px;
+      white-space: pre-line;
+      letter-spacing: 0.15px;
+    }
+
+    .options-stack { display: flex; flex-direction: column; gap: 11px; margin-bottom: 16px; }
+
+    .touch-option-card {
+      background: var(--bg-card);
+      border: 1.5px solid var(--border-subtle);
+      border-radius: 16px;
+      padding: 14px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+      box-shadow: var(--shadow-soft);
+      color: var(--text-main);
+    }
+    
+    @media (hover: hover) {
+      .touch-option-card:hover { transform: translateX(4px); border-color: var(--current-primary); }
+    }
+    .touch-option-card:active { transform: scale(0.98); }
+
+    .touch-option-card.correct {
+      background: rgba(16, 185, 129, 0.15) !important;
+      border-color: var(--success) !important;
+      color: var(--text-main) !important;
+      box-shadow: 0 0 16px rgba(16, 185, 129, 0.3) !important;
+    }
+    .touch-option-card.wrong {
+      background: rgba(244, 63, 94, 0.15) !important;
+      border-color: var(--danger) !important;
+      color: var(--text-main) !important;
+      box-shadow: 0 0 16px rgba(244, 63, 94, 0.3) !important;
+    }
+    .touch-option-card.exam-selected {
+      background: var(--current-light) !important;
+      border-color: var(--current-primary) !important;
+      box-shadow: 0 0 16px var(--current-light) !important;
+    }
+
+    .touch-option-card.eliminated { opacity: 0.25; pointer-events: none; }
+
+    .choice-badge-circle {
+      min-width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: rgba(128, 128, 128, 0.1);
+      border: 1px solid var(--border-subtle);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 800;
+      color: var(--text-sub);
+      margin-right: 12px;
+      flex-shrink: 0;
+    }
+    .touch-option-card.correct .choice-badge-circle { background: var(--success); color: #fff; border-color: var(--success); }
+    .touch-option-card.wrong .choice-badge-circle { background: var(--danger); color: #fff; border-color: var(--danger); }
+    .touch-option-card.exam-selected .choice-badge-circle { background: var(--current-primary); color: #fff; border-color: var(--current-primary); }
+
+    .solution-insight-card {
+      background: var(--bg-card);
+      border-left: 4px solid var(--current-primary);
+      border-radius: 12px;
+      padding: 14px 16px;
+      font-size: 13.5px;
+      line-height: 1.6;
+      color: var(--text-main);
+      margin-top: 14px;
+      white-space: pre-line;
+      box-shadow: var(--shadow-soft);
+      animation: fadeSlideIn 0.4s ease forwards;
+    }
+    .solution-insight-card.wrong-accent { border-left-color: var(--warning); }
+
+    .flashcard-mobile-panel {
+      background: var(--bg-card);
+      border: 1.5px solid var(--border-subtle);
+      border-radius: 22px;
+      padding: 34px 20px;
+      min-height: 280px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      box-shadow: var(--shadow-heavy);
+      cursor: pointer;
+      animation: fadeSlideIn 0.3s ease;
+    }
+
+    .mobile-bottom-dock {
+      position: fixed;
+      bottom: 0; left: 0;
+      width: 100%;
+      background: var(--bg-surface);
+      opacity: 0.95;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-top: 1px solid var(--border-subtle);
+      padding: 12px 18px calc(var(--safe-bottom) + 12px) 18px;
+      display: flex;
+      gap: 10px;
+      z-index: 50;
+    }
+
+    .btn-dock-secondary {
+      flex: 1;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-sub);
+      padding: 13px;
+      border-radius: 14px;
+      font-weight: 700;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+    }
+    .btn-dock-secondary:active { transform: scale(0.96); }
+
+    .btn-dock-primary {
+      flex: 2;
+      background: var(--current-primary);
+      border: none;
+      color: #fff;
+      padding: 13px;
+      border-radius: 14px;
+      font-weight: 800;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      cursor: pointer;
+      box-shadow: 0 6px 16px var(--current-light);
+      transition: background 0.2s, transform 0.1s;
+    }
+    .btn-dock-primary:active { transform: scale(0.96); }
+    body.theme-academic .btn-dock-primary, body.theme-paper .btn-dock-primary { color: #fff; }
+
+    .palette-drawer-mobile {
+      position: fixed;
+      top: 0; right: -320px;
+      width: 300px;
+      height: 100%;
+      background: var(--bg-surface);
+      opacity: 0.98;
+      backdrop-filter: blur(20px);
+      border-left: 1px solid var(--border-subtle);
+      z-index: 1000;
+      padding: calc(var(--safe-top) + 16px) 16px 20px 16px;
+      display: flex;
+      flex-direction: column;
+      transition: right 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+    .palette-drawer-mobile.open { right: 0; }
+
+    .palette-grid-scroll {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      overflow-y: auto;
+      padding-bottom: 20px;
+    }
+    .palette-grid-scroll::-webkit-scrollbar { display: none; }
+
+    .grid-node {
+      height: 44px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13.5px;
+      font-weight: 800;
+      color: var(--text-sub);
+      position: relative;
+      cursor: pointer;
+    }
+    
+    /* Standard Quiz/Flashcard Palette Colors */
+    .grid-node.active-node { border-color: var(--current-primary); color: var(--current-primary); box-shadow: 0 0 10px var(--current-light); }
+    .grid-node.node-correct { background: rgba(16, 185, 129, 0.15); border-color: var(--success); color: var(--success); }
+    .grid-node.node-wrong { background: rgba(244, 63, 94, 0.15); border-color: var(--danger); color: var(--danger); }
+    
+    /* Competitive Exam Specific Palette Colors */
+    .exam-node-unvisited { background: #e2e8f0; border-color: #cbd5e1; color: #64748b; }
+    .theme-paper .exam-node-unvisited { background: #f1f5f9; border-color: #cbd5e1; color: #64748b; }
+    body:not(.theme-paper):not(.theme-academic) .exam-node-unvisited { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); color: #fff; }
+
+    .exam-node-unanswered { background: rgba(244, 63, 94, 0.15) !important; border-color: var(--danger) !important; color: var(--danger) !important; } 
+    .exam-node-answered { background: rgba(16, 185, 129, 0.15) !important; border-color: var(--success) !important; color: var(--success) !important; }
+    .exam-node-review { background: rgba(168, 85, 247, 0.15) !important; border-color: var(--purple) !important; color: var(--purple) !important; } 
+    .exam-node-answered-review { background: rgba(168, 85, 247, 0.15) !important; border-color: var(--purple) !important; color: var(--purple) !important; position: relative; }
+    .exam-node-answered-review::after { content: ''; position: absolute; bottom: 3px; right: 3px; width: 8px; height: 8px; border-radius: 50%; background: var(--success); border: 1px solid var(--purple); }
+
+    .grid-node .star-indicator { position: absolute; top: 3px; right: 3px; font-size: 8px; color: var(--warning); }
+
+    .overlay-backdrop {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0, 0.6);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      z-index: 2000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .modal-floating-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 24px;
+      padding: 24px 20px;
+      width: 100%;
+      max-width: 360px;
+      text-align: center;
+      box-shadow: var(--shadow-heavy);
+      animation: fadeSlideIn 0.3s ease;
+    }
+
+    /* UPDATED: FIXED CONFETTI POSITION FOR MOBILE */
+    #confetti-canvas-box { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 9999; overflow: hidden; display: none; }
+    .confetti-flake { position: absolute; top: -30px; font-size: 20px; animation: fallAnim linear forwards; }
+    @keyframes fallAnim { to { transform: translateY(105vh) rotate(720deg); opacity: 0; } }
+
+    /* UPDATED: ELEGANT LEARNING TOAST NOTIFICATIONS FOR MOBILE */
+    #toast-container { 
+      position: fixed; 
+      bottom: 100px; /* Moved to bottom to avoid notch and header overlap */
+      left: 50%; 
+      transform: translateX(-50%); 
+      z-index: 9999; 
+      display: flex; 
+      flex-direction: column; 
+      gap: 8px; 
+      pointer-events: none; 
+    }
+    .app-toast { 
+      background: var(--bg-surface); 
+      border: 1px solid var(--border-subtle); 
+      color: var(--text-main); 
+      padding: 12px 20px; 
+      border-radius: 12px; 
+      font-size: 13px; 
+      font-weight: 700; 
+      box-shadow: var(--shadow-heavy); 
+      animation: fadeSlideUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; 
+    }
+    @keyframes fadeSlideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
+</head>
+
+<body>
+  <div class="ambient-glow-top"></div>
+  <div id="toast-container"></div>
+
+  <!-- =========================================================
+       📚 1. SUBJECT SELECTION WINDOW (LAUNCHPAD)
+       ========================================================= -->
+  <div id="mobile-subject-screen" class="view-container">
+    <div class="app-nav-header">
+      <div class="brand-cluster">
+        <div class="brand-icon"><img src="https://i.ibb.co/rRx1LBzd/mylogo.png" style="width: 40px; height: 40px; border-radius: 12px; object-fit: cover; box-shadow: 0 4px 14px rgba(56, 189, 248, 0.3); margin-right: 0px; margin-left: 0px;" alt="Study Hub Logo"></div>
+        <div>
+          <div class="brand-title">Study Hub</div>
+          <div class="brand-sub">Select Subject Vault</div>
+        </div>
+      </div>
+      <button class="nav-btn-circle" onclick="fetchSubjectsList()" title="Refresh"><i class="fas fa-sync-alt" id="refresh-subjects-icon"></i></button>
+    </div>
+
+    <div class="search-shelf">
+      <div class="search-box-pill">
+        <i class="fas fa-search" style="color: var(--text-muted); font-size: 13px;"></i>
+        <input type="text" id="mobile-subject-search" placeholder="Search subject (e.g. History)..." oninput="filterMobileSubjects()">
+      </div>
+    </div>
+
+    <div class="dashboard-scroll-body">
+      <div class="section-headline">
+        <span>Available Subjects <span id="offline-subjects-tag" style="display:none; color:var(--warning); font-size:9px;">(Offline)</span></span>
+        <span id="subject-count-tag" style="color: var(--current-primary);">0 Subjects</span>
+      </div>
+      <div id="subject-list-container" style="display: flex; flex-direction: column; gap: 10px;">
+        <div style="text-align: center; padding: 60px 20px; color: var(--text-sub);">
+          <i class="fas fa-circle-notch fa-spin fa-2x" style="color: var(--current-primary); margin-bottom: 14px;"></i><br>Connecting to Master Registry...
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================
+       🏠 2. TOPIC SELECTION WINDOW (INSIDE SELECTED SUBJECT)
+       ========================================================= -->
+  <div id="mobile-home-screen" class="view-container">
+    <div class="app-nav-header">
+      <div class="brand-cluster">
+        <button class="nav-btn-circle" onclick="returnToSubjects()" style="margin-right: 4px;" title="Back to Subjects"><i class="fas fa-arrow-left"></i></button>
+        <div>
+          <div class="brand-title" id="active-subject-header-title">Topics</div>
+          <div class="brand-sub" id="active-subject-header-sub">Subject Syllabus</div>
+        </div>
+      </div>
+      <button class="nav-btn-circle" onclick="fetchTopicsListForCurrentSubject()" title="Refresh"><i class="fas fa-sync-alt" id="refresh-topics-icon"></i></button>
+    </div>
+
+    <div class="search-shelf">
+      <div class="search-box-pill">
+        <i class="fas fa-search" style="color: var(--text-muted); font-size: 13px;"></i>
+        <input type="text" id="mobile-topic-search" placeholder="Search topics in this subject..." oninput="filterMobileTopics()">
+      </div>
+    </div>
+
+    <div class="dashboard-scroll-body">
+      <div class="section-headline">
+        <span>Syllabus Topics <span id="offline-topics-tag" style="display:none; color:var(--warning); font-size:9px;">(Offline)</span></span>
+        <span id="topic-count-tag" style="color: var(--current-primary);">0 Topics</span>
+      </div>
+      <div id="topic-list-container" style="display: flex; flex-direction: column; gap: 10px;">
+        <div style="text-align: center; padding: 60px 20px; color: var(--text-sub);">
+          <i class="fas fa-circle-notch fa-spin fa-2x" style="color: var(--current-primary); margin-bottom: 14px;"></i><br>Loading Subject Topics...
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================
+       📜 EXAM INSTRUCTIONS SCREEN (PRE-EXAM)
+       ========================================================= -->
+  <div id="exam-instructions-screen" class="view-container">
+    <div class="app-nav-header">
+      <div class="brand-cluster">
+        <button class="nav-btn-circle" onclick="cancelExamInstructions()" title="Back"><i class="fas fa-arrow-left"></i></button>
+        <div class="brand-title">Exam Instructions</div>
+      </div>
+    </div>
+    <div class="dashboard-scroll-body" style="background: var(--bg-surface);">
+      <div class="solution-insight-card" style="border-left-color: var(--current-primary); margin-top: 0; pointer-events: none;">
+          <b style="font-size: 16px;"><i class="fas fa-clipboard-list"></i> Please read carefully:</b><br><br>
+          1. Total duration of the examination is strictly based on the number of questions.<br>
+          2. The countdown timer at the top right will display the time remaining. Exam auto-submits when time expires.<br>
+          3. <b>Marking Scheme:</b> +1.00 for correct, -0.25 for incorrect answers.<br>
+          4. <b>Palette Legend:</b><br>
+          <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:8px;">
+             <div style="display:flex; align-items:center; font-size:11px; gap:6px;"><div class="grid-node exam-node-unvisited" style="width:24px; height:24px; font-size:10px;">1</div> Not Visited</div>
+             <div style="display:flex; align-items:center; font-size:11px; gap:6px;"><div class="grid-node exam-node-unanswered" style="width:24px; height:24px; font-size:10px;">2</div> Not Answered</div>
+             <div style="display:flex; align-items:center; font-size:11px; gap:6px;"><div class="grid-node exam-node-answered" style="width:24px; height:24px; font-size:10px;">3</div> Answered</div>
+             <div style="display:flex; align-items:center; font-size:11px; gap:6px;"><div class="grid-node exam-node-review" style="width:24px; height:24px; font-size:10px;">4</div> Marked for Review</div>
+             <div style="display:flex; align-items:center; font-size:11px; gap:6px;"><div class="grid-node exam-node-answered-review" style="width:24px; height:24px; font-size:10px;">5</div> Answered & Marked</div>
+          </div>
+          <br>5. <b>Evaluation Rule:</b> "Answered" and "Answered & Marked for Review" will be considered for final evaluation.<br>
+          <br>6. <b>Anti-Cheat:</b> Copying text or switching browser tabs will be recorded as a violation.
+      </div>
+      <div style="margin-top:20px; display:flex; align-items:flex-start; gap:12px; padding: 0 10px;">
+          <input type="checkbox" id="exam-agree-checkbox" style="width:22px; height:22px; margin-top:2px; flex-shrink: 0; accent-color: var(--current-primary);">
+          <label for="exam-agree-checkbox" style="font-size:13px; color:var(--text-sub); line-height:1.5;">I have read and understood the instructions. I agree that in case of not adhering to instructions, I may be disqualified.</label>
+      </div>
+      <button class="btn-launch-hero" style="margin-top:24px;" onclick="checkExamAgreementAndStart()">I am ready to begin</button>
+    </div>
+  </div>
+
+  <!-- =========================================================
+       📖 3. FULLSCREEN STUDY ENGINE PORTAL
+       ========================================================= -->
+  <div id="study-interface-wrapper" class="view-container">
+    
+    <div class="study-app-bar">
+      <button class="nav-action-icon" onclick="returnToSetup()" title="Back"><i class="fas fa-arrow-left"></i></button>
+      
+      <div class="header-center-info">
+        <span class="app-bar-topic-title" id="header-topic">Topic</span>
+        <div class="telemetry-pills-row" id="session-stats-group" style="display: none;">
+          <div class="micro-pill" style="color: #c084fc;" id="master-timer-pill"><i class="fas fa-stopwatch"></i> <span id="master-timer">00:00</span></div>
+          <div class="micro-pill" id="accuracy-timer-pill">
+            <span style="color: var(--success);"><i class="fas fa-check"></i> <span id="stat-correct">0</span></span>
+            <span style="color: var(--text-muted); margin: 0 1px;">|</span>
+            <span style="color: var(--danger);"><i class="fas fa-times"></i> <span id="stat-wrong">0</span></span>
+          </div>
+          <!-- Learning Element: Hot Streak Visualizer -->
+          <div class="micro-pill" id="streak-pill" style="display:none; color: var(--streak-fire);"><i class="fas fa-fire"></i> <span id="streak-count">0</span></div>
+          <div class="micro-pill" id="exam-stats-pill" style="display: none; color: var(--current-primary);"><i class="fas fa-edit"></i> <span id="stat-exam-attempted">0</span>/<span id="stat-exam-total">0</span></div>
+        </div>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <button class="nav-action-icon" id="star-card-btn" onclick="toggleCurrentStar()"><i class="far fa-star"></i></button>
+        <button id="exam-submit-header-btn" style="display:none; background:var(--danger); color:#fff; border:none; padding:8px 12px; border-radius:10px; font-weight:800; font-size:11.5px; box-shadow:0 4px 10px rgba(244,63,94,0.3);" onclick="promptSubmitExam()">SUBMIT</button>
+        <button class="nav-action-icon" id="palette-toggle-btn" onclick="togglePaletteDrawer()"><i class="fas fa-th"></i></button>
+      </div>
+    </div>
+
+    <div class="progress-track-rail"><div class="progress-track-fill" id="study-progress-fill"></div></div>
+    <div class="study-canvas-viewport" id="study-container"></div>
+
+    <!-- General Purpose Dock -->
+    <div class="mobile-bottom-dock" id="mobile-dock-row" style="display: none;">
+      <button class="btn-dock-secondary" id="dock-prev-btn" onclick="goToPrevCard()"><i class="fas fa-arrow-left"></i> Prev</button>
+      <button class="btn-dock-secondary" id="dock-lifeline-btn" onclick="useLifeline()" style="display:none; color: var(--current-primary);"><i class="fas fa-magic"></i> 50/50 (<span id="lifeline-count">3</span>)</button>
+      <button class="btn-dock-primary" id="dock-next-btn" onclick="goToNextCard()">Next <i class="fas fa-arrow-right"></i></button>
+    </div>
+
+    <!-- Standardized Exam Mode Dock -->
+    <div class="mobile-bottom-dock" id="exam-dock-row" style="display: none; padding: 10px 14px calc(var(--safe-bottom) + 10px) 14px; gap: 8px;">
+      <button class="btn-dock-secondary" onclick="examClearResponse()" style="flex: 1; font-size: 11px; padding: 12px 2px;">Clear</button>
+      <button class="btn-dock-secondary" onclick="examMarkReviewNext()" style="flex: 1.5; font-size: 11px; padding: 12px 2px; background: rgba(168, 85, 247, 0.1); color: var(--purple); border-color: var(--purple);">Mark & Next</button>
+      <button class="btn-dock-primary" onclick="examSaveNext()" style="flex: 1.5; font-size: 11px; padding: 12px 2px; background: var(--success); box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);">Save & Next</button>
+    </div>
+
+    <div class="palette-drawer-mobile" id="paletteDrawer">
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-subtle); padding-bottom: 12px;">
+        <span style="font-weight: 800; font-size: 13px; text-transform: uppercase;"><i class="fas fa-th"></i> Grid Overview</span>
+        <i class="fas fa-times" style="cursor: pointer; padding: 4px; color: var(--text-sub); font-size: 16px;" onclick="togglePaletteDrawer()"></i>
+      </div>
+      <div class="palette-filters" id="paletteFilterContainer" style="display: flex; gap: 6px; margin: 12px 0;"></div>
+      <div class="palette-grid-scroll" id="paletteGrid"></div>
+    </div>
+
+    <div class="overlay-backdrop" id="exitConfirmOverlay">
+      <div class="modal-floating-card">
+        <i class="fas fa-exclamation-circle" style="font-size: 40px; color: var(--warning); margin-bottom: 12px;"></i>
+        <h3 style="font-size: 18px; font-weight: 800; margin-bottom: 8px;">Leave Session?</h3>
+        <p style="font-size: 13px; color: var(--text-sub); margin-bottom: 22px;">Current batch progress will not be saved.</p>
+        <div style="display: flex; gap: 10px;">
+          <button class="btn-dock-secondary" onclick="cancelReturnToSetup()">Resume</button>
+          <button class="btn-dock-primary" style="background: var(--danger); color: #fff;" onclick="executeReturnToSetup()">Exit Session</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="overlay-backdrop" id="examSubmitOverlay">
+      <div class="modal-floating-card">
+        <i class="fas fa-file-signature" style="font-size: 40px; color: var(--current-primary); margin-bottom: 12px;"></i>
+        <h3 style="font-size: 18px; font-weight: 800; margin-bottom: 8px;">Submit Exam Paper?</h3>
+        <p id="exam-submit-stats-text" style="font-size: 13px; color: var(--text-sub); margin-bottom: 22px;"></p>
+        <div style="display: flex; gap: 10px;">
+          <button class="btn-dock-secondary" onclick="cancelSubmitExam()">Review</button>
+          <button class="btn-dock-primary" style="background: var(--success);" onclick="executeSubmitExam()">Confirm Submit</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="confetti-canvas-box"></div>
+  </div>
+
+  <script>
+    const API_URL = "https://script.google.com/macros/s/AKfycbxX2eP7bzttr1q1cVxYWHFf9PskuykvefmJKY4mQRMOUCZ8VhSoTTG6lJzKNkLHgJ5v/exec";
+
+    let globalAudioCtx = null;
+    const TIME_FRACTION = 5;
+    const LIFELINE_TOTAL = 3;
+
+    // Multi-subject tracking
+    let currentSelectedSubject = null;
+    let topic = "";
+    let initialQuestions = [];
+
+    let studyModeType = "quiz";
+    let isShuffleEnabled = true;
+    let isInsightEnabled = true;
+    let selectedBatchSize = 'ALL';
+
+    let sessionActive = false;
+    let soundEnabled = true;
+    let currentPaletteFilter = 'all';
+    let isFinishScreen = false;
+    let awaitingAcknowledgment = false;
+
+    // REFINED THEMES (Removed Ocean, Dracula, Void)
+    const THEMES = ['default', 'hacker', 'sunset', 'paper', 'academic'];
+    let currentThemeIdx = 0;
+    let previousThemeIdx = 0; // For restoring theme after mock exam
+
+    let globalQuestions = [];
+    let questions = [];
+    let currentBatchIndex = 0;
+    let batchSize = 10;
+    let currentIndex = 0;
+    let mistakesQueue = [];
+    let isReviewMode = false;
+
+    let userAnswers = {};
+    let localLocks = {};
+    
+    // CBT EXAM ENGINE STATES
+    let examAnswers = {}; 
+    let examQuestionStates = {}; // Unvisited, visited_unanswered, answered, marked_review, answered_marked_review
+    let isExamSubmitted = false;
+    let isExamReview = false;
+    let cheatWarnings = 0;
+
+    let starredSet = new Set();
+    let currentStreak = 0;
+    let lifelinesRemaining = LIFELINE_TOTAL;
+    let isCardFlipped = false;
+
+    let sessionTimerInterval = null;
+    let totalSessionElapsed = 0;
+    let countdownSeconds = 0;
+
+    // View Routing architecture 
+    function switchScreen(screenId) {
+      ['mobile-subject-screen', 'mobile-home-screen', 'study-interface-wrapper', 'exam-instructions-screen'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = (id === screenId) ? 'flex' : 'none';
+      });
+    }
+
+    // Elegant Toast Notification System (Learning Utility)
+    function showToast(msg, icon = 'info-circle', color = 'var(--current-primary)') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      toast.className = 'app-toast';
+      
+      // Update transform cleanup to slide down out of view when removing
+      toast.innerHTML = `<i class="fas fa-${icon}" style="color: ${color}; margin-right: 6px;"></i> ${msg}`;
+      container.appendChild(toast);
+      
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(10px)';
+        toast.style.transition = 'all 0.3s ease';
+        setTimeout(() => toast.remove(), 300);
+      }, 2500);
+    }
+
+    // Keyboard Accessibility Support (Utility)
+    document.addEventListener('keydown', (e) => {
+      if (!sessionActive || isFinishScreen || document.getElementById('exitConfirmOverlay').style.display === 'flex') return;
+      
+      // Arrow navigation (Disabled for exams to enforce dock usage)
+      if (studyModeType !== 'exam') {
+          if (e.key === 'ArrowRight') goToNextCard();
+          if (e.key === 'ArrowLeft') goToPrevCard();
+      }
+      
+      // Flashcard flipping
+      if (studyModeType === 'flashcard' && e.code === 'Space') {
+        e.preventDefault();
+        flipFlashcard(!isCardFlipped);
+      }
+      
+      // Option Selection (1-4 or A-D)
+      if (studyModeType === 'quiz' || (studyModeType === 'exam' && !isExamSubmitted)) {
+        if (['1','2','3','4','a','b','c','d'].includes(e.key.toLowerCase())) {
+          let idx;
+          if (e.key >= '1' && e.key <= '4') {
+            idx = parseInt(e.key) - 1;
+          } else {
+            idx = e.key.toLowerCase().charCodeAt(0) - 97;
+          }
+          const optionCards = document.querySelectorAll('.touch-option-card:not(.eliminated)');
+          if (optionCards[idx]) {
+            optionCards[idx].click();
+          }
+        }
+      }
+    });
+
+    // Anti-Cheat (Proctoring) Mechanisms for Exam Mode
+    document.addEventListener('copy', (e) => {
+        if (sessionActive && studyModeType === 'exam' && !isExamSubmitted) {
+            e.preventDefault();
+            showToast("Copying is disabled during active exams.", "shield-alt", "var(--warning)");
+        }
+    });
+    document.addEventListener('contextmenu', (e) => {
+        if (sessionActive && studyModeType === 'exam' && !isExamSubmitted) e.preventDefault();
+    });
+    document.addEventListener('visibilitychange', () => {
+        if (sessionActive && studyModeType === 'exam' && !isExamSubmitted && document.hidden) {
+            cheatWarnings++;
+            showToast(`Warning: Tab switching is recorded! (Violation #${cheatWarnings})`, "exclamation-triangle", "var(--danger)");
+        }
+    });
+
+    // =========================================================
+    // 📚 1. SUBJECT SCREEN CONTROLLER
+    // =========================================================
+    window.onload = () => { 
+        switchScreen('mobile-subject-screen');
+        fetchSubjectsList(); 
+    };
+
+    function fetchSubjectsList() {
+      const icon = document.getElementById('refresh-subjects-icon');
+      if (icon) icon.classList.add('fa-spin');
+      document.getElementById('offline-subjects-tag').style.display = 'none';
+      
+      fetch(API_URL + "?action=getSubjects")
+        .then(response => response.json())
+        .then(subjects => {
+          if (icon) icon.classList.remove('fa-spin');
+          localStorage.setItem('studyHub_cached_subjects', JSON.stringify(subjects));
+          renderSubjectList(subjects);
+        })
+        .catch(err => {
+          if (icon) icon.classList.remove('fa-spin');
+          const cached = localStorage.getItem('studyHub_cached_subjects');
+          if (cached) {
+            document.getElementById('offline-subjects-tag').style.display = 'inline';
+            renderSubjectList(JSON.parse(cached));
+          } else {
+            document.getElementById('subject-list-container').innerHTML = `<div style="text-align: center; color: var(--danger); padding: 40px 20px;">Connection Error: ${err.message}. No offline cache available.</div>`;
+          }
+        });
+    }
+
+    function renderSubjectList(subjects) {
+      const container = document.getElementById('subject-list-container');
+      const countTag = document.getElementById('subject-count-tag');
+      
+      if (!subjects || subjects.length === 0) {
+        container.innerHTML = `<div style="text-align: center; color: var(--danger); padding: 40px 20px;">No subjects registered in Master_Registry.</div>`;
+        if (countTag) countTag.innerText = "0 Subjects";
+        return;
+      }
+
+      if (countTag) countTag.innerText = `${subjects.length} Subjects`;
+      let html = '';
+      subjects.forEach((sub, i) => {
+        const safeName = sub.name.replace(/'/g, "\\'");
+        html += `
+          <div class="subject-card" onclick="selectSubject('${safeName}', '${sub.id}')" style="animation: fadeSlideIn 0.3s ease forwards; animation-delay: ${i * 0.05}s; opacity: 0;">
+            <div class="topic-meta-left">
+              <div class="topic-name">${sub.name}</div>
+              <div class="topic-badges-row">
+                <span class="topic-count-pill"><i class="fas fa-database"></i> Connected</span>
+                <span>• Tap to explore</span>
+              </div>
+            </div>
+            <div class="topic-action-chevron"><i class="fas fa-chevron-right"></i></div>
+          </div>
+        `;
+      });
+      container.innerHTML = html;
+    }
+
+    function filterMobileSubjects() {
+      const term = document.getElementById('mobile-subject-search').value.toLowerCase().trim();
+      const cards = document.querySelectorAll('.subject-card');
+      let visible = 0;
+      cards.forEach(c => {
+        const text = c.innerText.toLowerCase();
+        const show = text.includes(term);
+        c.style.display = show ? 'flex' : 'none';
+        if (show) visible++;
+      });
+      const countTag = document.getElementById('subject-count-tag');
+      if (countTag) countTag.innerText = `${visible} Subjects`;
+    }
+
+    function selectSubject(subjectName, spreadsheetId) {
+      currentSelectedSubject = { name: subjectName, id: spreadsheetId };
+      switchScreen('mobile-home-screen');
+      
+      document.getElementById('active-subject-header-title').innerText = subjectName;
+      document.getElementById('active-subject-header-sub').innerText = "Select Topic to Practice";
+
+      fetchTopicsListForCurrentSubject();
+    }
+
+    function returnToSubjects() {
+      switchScreen('mobile-subject-screen');
+      currentSelectedSubject = null;
+      fetchSubjectsList();
+    }
+
+    // =========================================================
+    // 🏠 2. TOPIC SCREEN CONTROLLER
+    // =========================================================
+    function fetchTopicsListForCurrentSubject() {
+      if (!currentSelectedSubject) return;
+      const icon = document.getElementById('refresh-topics-icon');
+      if (icon) icon.classList.add('fa-spin');
+      document.getElementById('offline-topics-tag').style.display = 'none';
+      
+      const container = document.getElementById('topic-list-container');
+      container.innerHTML = `<div style="text-align: center; padding: 60px 20px; color: var(--text-sub);"><i class="fas fa-circle-notch fa-spin fa-2x" style="color: var(--current-primary); margin-bottom: 14px;"></i><br>Loading Topics...</div>`;
+      
+      const cacheKey = `studyHub_cached_topics_${currentSelectedSubject.id}`;
+
+      fetch(API_URL + "?action=getTopics&sheetId=" + encodeURIComponent(currentSelectedSubject.id))
+        .then(response => response.json())
+        .then(topics => {
+          if (icon) icon.classList.remove('fa-spin');
+          localStorage.setItem(cacheKey, JSON.stringify(topics));
+          renderMobileHome(topics);
+        })
+        .catch(err => {
+          if (icon) icon.classList.remove('fa-spin');
+          const cached = localStorage.getItem(cacheKey);
+          if (cached) {
+            document.getElementById('offline-topics-tag').style.display = 'inline';
+            renderMobileHome(JSON.parse(cached));
+          } else {
+             container.innerHTML = `<div style="text-align: center; color: var(--danger); padding: 40px 20px;">Connection Error: ${err.message}</div>`;
+          }
+        });
+    }
+
+    function renderMobileHome(topics) {
+      const container = document.getElementById('topic-list-container');
+      const countTag = document.getElementById('topic-count-tag');
+      
+      if (!topics || topics.length === 0) {
+        container.innerHTML = `<div style="text-align: center; color: var(--danger); padding: 40px 20px;">No topics found in Index_DB for this subject.</div>`;
+        if (countTag) countTag.innerText = "0 Topics";
+        return;
+      }
+
+      if (countTag) countTag.innerText = `${topics.length} Topics`;
+      
+      // 1. Group topics by 'sheetName'
+      const groupedTopics = {};
+      topics.forEach(t => {
+        // Agar backend sheetName pass nahi karta, toh 'General Topics' group bana dega
+        const groupName = t.sheetName || 'General Topics'; 
+        if (!groupedTopics[groupName]) {
+          groupedTopics[groupName] = [];
+        }
+        groupedTopics[groupName].push(t);
+      });
+
+      // 2. Build Accordion UI
+      let html = '';
+      let groupIndex = 0;
+
+      for (const [sheetName, groupItems] of Object.entries(groupedTopics)) {
+        html += `
+          <div class="sheet-group-wrapper" id="group-wrapper-${groupIndex}" style="opacity: 0; animation-delay: ${groupIndex * 0.05}s; animation: fadeSlideIn 0.3s ease forwards;">
+            
+            <!-- Folder Header -->
+            <div class="sheet-group-header" onclick="toggleSheetGroup(${groupIndex})">
+              <div class="group-info">
+                <div class="group-title"><i class="fas fa-folder-open" style="margin-right: 6px; color: var(--warning);"></i> ${sheetName}</div>
+                <div class="group-meta">${groupItems.length} Question Sets</div>
+              </div>
+              <div class="sheet-group-icon"><i class="fas fa-chevron-down"></i></div>
+            </div>
+
+            <!-- Folder Content (Question Sets) -->
+            <div class="sheet-group-content" id="group-content-${groupIndex}">
+        `;
+
+        // Render Cards inside the folder
+        groupItems.forEach((t) => {
+          html += `
+            <div class="mobile-topic-card" onclick="launchStudySession('${t.title.replace(/'/g, "\\'")}', '${t.spreadsheetId}')">
+              <div class="topic-meta-left">
+                <div class="topic-name">${t.title}</div>
+                <div class="topic-badges-row">
+                  <span class="topic-count-pill"><i class="far fa-file-alt"></i> ${t.count} Qs</span>
+                  <span>• Tap to Launch</span>
+                </div>
+              </div>
+              <div class="topic-action-chevron"><i class="fas fa-play" style="font-size: 10px;"></i></div>
+            </div>
+          `;
+        });
+
+        html += `</div></div>`; // Close content and wrapper
+        groupIndex++;
+      }
+
+      container.innerHTML = html;
+    }
+
+    // Function to toggle accordion open/close
+    function toggleSheetGroup(index) {
+      const wrapper = document.getElementById(`group-wrapper-${index}`);
+      wrapper.classList.toggle('open');
+    }
+
+    function filterMobileTopics() {
+      const term = document.getElementById('mobile-topic-search').value.toLowerCase().trim();
+      const cards = document.querySelectorAll('.mobile-topic-card');
+      let visible = 0;
+      cards.forEach(c => {
+        const text = c.innerText.toLowerCase();
+        const show = text.includes(term);
+        c.style.display = show ? 'flex' : 'none';
+        if (show) {
+          visible++;
+          if(term.length > 0) {
+             const wrapper = c.closest('.sheet-group-wrapper');
+             if(wrapper) wrapper.classList.add('open');
+          }
+        }
+      });
+      const countTag = document.getElementById('topic-count-tag');
+      if (countTag) countTag.innerText = `${visible} Topics`;
+    }
+
+    function launchStudySession(selectedTopic, sheetId) {
+      topic = selectedTopic;
+      switchScreen('study-interface-wrapper');
+      document.getElementById('header-topic').innerText = selectedTopic;
+      
+      const container = document.getElementById('study-container');
+      container.innerHTML = `<div style="text-align: center; padding: 80px 20px; color: var(--text-sub);"><i class="fas fa-circle-notch fa-spin fa-2x" style="color: var(--current-primary); margin-bottom: 14px;"></i><br><b style="color:var(--text-main);">Loading Cards...</b></div>`;
+
+      const cacheKey = `studyHub_cached_deck_${sheetId}`;
+
+      fetch(API_URL + "?action=getQuestions&topic=" + encodeURIComponent(selectedTopic) + "&sheetId=" + encodeURIComponent(sheetId))
+        .then(response => response.json())
+        .then(questionsData => {
+          localStorage.setItem(cacheKey, JSON.stringify(questionsData));
+          initialQuestions = questionsData;
+          renderSetupScreen();
+        })
+        .catch(err => {
+          const cached = localStorage.getItem(cacheKey);
+          if (cached) {
+            initialQuestions = JSON.parse(cached);
+            renderSetupScreen();
+          } else {
+            container.innerHTML = `<div style="text-align: center; color: var(--danger); padding: 40px;">Error Loading Deck: ${err.message}. No offline cache.</div>`;
+          }
+        });
+    }
+
+    function returnToHome() {
+      if (sessionTimerInterval) clearInterval(sessionTimerInterval);
+      sessionActive = false;
+      switchScreen('mobile-home-screen');
+      document.getElementById('mobile-dock-row').style.display = 'none';
+      document.getElementById('exam-dock-row').style.display = 'none';
+      fetchTopicsListForCurrentSubject();
+    }
+
+    // =========================================================
+    // ⚙️ SETUP & STUDY ENGINE CONTROLLER
+    // =========================================================
+    function renderSetupScreen() {
+      const container = document.getElementById('study-container');
+      document.getElementById('session-stats-group').style.display = 'none';
+      document.getElementById('mobile-dock-row').style.display = 'none';
+      document.getElementById('exam-dock-row').style.display = 'none';
+      document.getElementById('study-progress-fill').style.width = '0%';
+      document.getElementById('star-card-btn').style.display = 'flex';
+      document.getElementById('exam-submit-header-btn').style.display = 'none';
+
+      const qCount = initialQuestions ? initialQuestions.length : 0;
+      const mins = Math.ceil(qCount / TIME_FRACTION);
+
+      container.innerHTML = `
+        <div class="setup-sheet-shell">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:12px; font-weight:800; color:var(--current-primary); text-transform:uppercase;"><i class="fas fa-sliders-h"></i> Session Setup</span>
+            <span style="font-size:12px; color:var(--text-sub); font-weight:600;"><i class="fas fa-clock"></i> ~${mins} mins (${qCount} Qs)</span>
+          </div>
+
+          <div class="mode-select-grid">
+            <div class="mode-app-card ${studyModeType === 'quiz' ? 'active' : ''}" id="mode-quiz" onclick="selectMode('quiz')">
+              <div class="mode-icon-circle"><i class="fas fa-list-ul"></i></div>
+              <div style="font-size:13.5px; font-weight:800;">Quiz Mode</div>
+              <div style="font-size:10.5px; color:var(--text-sub);">Instant feedback & lifelines</div>
+            </div>
+
+            <div class="mode-app-card ${studyModeType === 'exam' ? 'active' : ''}" id="mode-exam" onclick="selectMode('exam')">
+              <div class="mode-icon-circle"><i class="fas fa-file-signature"></i></div>
+              <div style="font-size:13.5px; font-weight:800;">Mock Exam</div>
+              <div style="font-size:10.5px; color:var(--text-sub);">-0.25 negative marking</div>
+            </div>
+
+            <div class="mode-app-card ${studyModeType === 'flashcard' ? 'active' : ''}" id="mode-flashcard" onclick="selectMode('flashcard')">
+              <div class="mode-icon-circle"><i class="fas fa-clone"></i></div>
+              <div style="font-size:13.5px; font-weight:800;">Flashcard</div>
+              <div style="font-size:10.5px; color:var(--text-sub);">Spaced recall ratings</div>
+            </div>
+
+            <div class="mode-app-card ${studyModeType === 'read' ? 'active' : ''}" id="mode-read" onclick="selectMode('read')">
+              <div class="mode-icon-circle"><i class="fas fa-book-reader"></i></div>
+              <div style="font-size:13.5px; font-weight:800;">Read Mode</div>
+              <div style="font-size:10.5px; color:var(--text-sub);">Pre-solved quick revision</div>
+            </div>
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:8px;">
+            <div class="toggle-row-setting">
+              <span style="font-size:12.5px; font-weight:700;"><i class="fas fa-random" style="color:var(--current-primary);"></i> Shuffle Order</span>
+              <div class="segmented-pills">
+                <span class="seg-pill-btn ${isShuffleEnabled ? 'active' : ''}" onclick="toggleSetting('shuffle', true)">ON</span>
+                <span class="seg-pill-btn ${!isShuffleEnabled ? 'active' : ''}" onclick="toggleSetting('shuffle', false)">OFF</span>
+              </div>
+            </div>
+
+            <div class="toggle-row-setting">
+              <span style="font-size:12.5px; font-weight:700;"><i class="far fa-lightbulb" style="color:var(--warning);"></i> Solution Insights</span>
+              <div class="segmented-pills">
+                <span class="seg-pill-btn ${isInsightEnabled ? 'active' : ''}" onclick="toggleSetting('insight', true)">ON</span>
+                <span class="seg-pill-btn ${!isInsightEnabled ? 'active' : ''}" onclick="toggleSetting('insight', false)">OFF</span>
+              </div>
+            </div>
+
+            <div class="toggle-row-setting">
+              <span style="font-size:12.5px; font-weight:700;"><i class="fas fa-layer-group" style="color:#a855f7;"></i> Batch Chunk</span>
+              <div class="segmented-pills">
+                <span class="seg-pill-btn ${selectedBatchSize === '10' ? 'active' : ''}" onclick="selectBatchSize('10')">10</span>
+                <span class="seg-pill-btn ${selectedBatchSize === '20' ? 'active' : ''}" onclick="selectBatchSize('20')">20</span>
+                <span class="seg-pill-btn ${selectedBatchSize === 'ALL' ? 'active' : ''}" onclick="selectBatchSize('ALL')">ALL</span>
+              </div>
+            </div>
+
+            <!-- Removed 3 Themes, Re-indexed remaining 5 -->
+            <div class="toggle-row-setting">
+              <span style="font-size:12.5px; font-weight:700;"><i class="fas fa-palette" style="color:var(--success);"></i> Theme</span>
+              <div class="theme-bubbles-row">
+                <div class="theme-bubble ${currentThemeIdx === 0 ? 'active' : ''}" style="background:#38bdf8;" onclick="changeTheme(0)" title="Default"></div>
+                <div class="theme-bubble ${currentThemeIdx === 1 ? 'active' : ''}" style="background:#39ff14;" onclick="changeTheme(1)" title="Hacker"></div>
+                <div class="theme-bubble ${currentThemeIdx === 2 ? 'active' : ''}" style="background:#ff5722;" onclick="changeTheme(2)" title="Sunset"></div>
+                <div class="theme-bubble ${currentThemeIdx === 3 ? 'active' : ''}" style="background:#f1f5f9;" onclick="changeTheme(3)" title="Paper"></div>
+                <div class="theme-bubble ${currentThemeIdx === 4 ? 'active' : ''}" style="background:#fdf6e3;" onclick="changeTheme(4)" title="Academic"></div>
+              </div>
+            </div>
+          </div>
+
+          <button class="btn-launch-hero" onclick="startSession()">
+            <span>Begin Session</span>
+            <i class="fas fa-play"></i>
+          </button>
+        </div>
+      `;
+    }
+
+    function selectMode(m) { studyModeType = m; renderSetupScreen(); }
+    function toggleSetting(s, v) { if (s==='shuffle') isShuffleEnabled=v; if (s==='insight') isInsightEnabled=v; renderSetupScreen(); }
+    function selectBatchSize(v) { selectedBatchSize = v; renderSetupScreen(); }
+    function changeTheme(idx) {
+      currentThemeIdx = idx;
+      document.body.className = idx > 0 ? 'theme-' + THEMES[idx] : '';
+      
+      const themeColors = ['#090d16', '#020802', '#120505', '#f1f5f9', '#fdf6e3'];
+      document.getElementById('meta-theme-color').content = themeColors[idx];
+      
+      if(!sessionActive && !isFinishScreen) renderSetupScreen();
+    }
+
+    function shuffleArray(arr) {
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+
+    function startSession() {
+      if (!initialQuestions || initialQuestions.length === 0) return;
+
+      if (studyModeType === 'exam') {
+        previousThemeIdx = currentThemeIdx;
+        changeTheme(3); // 3 is now the 'Paper' theme for exams
+        document.getElementById('exam-agree-checkbox').checked = false;
+        switchScreen('exam-instructions-screen');
+        return;
+      }
+      
+      beginExamActual();
+    }
+
+    function cancelExamInstructions() {
+      changeTheme(previousThemeIdx); // Restore original theme
+      switchScreen('study-interface-wrapper');
+      renderSetupScreen();
+    }
+
+    function checkExamAgreementAndStart() {
+      if (!document.getElementById('exam-agree-checkbox').checked) {
+        showToast("You must agree to the instructions to proceed.", "exclamation-circle", "var(--danger)");
+        return;
+      }
+      switchScreen('study-interface-wrapper');
+      beginExamActual();
+    }
+
+    function beginExamActual() {
+      unlockAudioContext();
+      
+      globalQuestions = JSON.parse(JSON.stringify(initialQuestions));
+      
+      // 🚨 BULLETPROOF FIX: Convert correctIndex to Number explicitly to avoid String vs Integer mismatch
+      globalQuestions.forEach((q, idx) => { 
+        q._id = Math.random().toString(36).substr(2, 9); 
+        q.globalIndex = idx; 
+        q.correctIndex = Number(q.correctIndex); // Converts e.g., "2" -> 2
+      });
+
+      if (isShuffleEnabled) {
+        globalQuestions = shuffleArray(globalQuestions);
+        globalQuestions.forEach(q => {
+          // Changed === to == just for double safety, though Number() handles the typing.
+          let opts = q.options.map((text, idx) => ({ text, isCorrect: idx == q.correctIndex }));
+          opts = shuffleArray(opts);
+          q.options = opts.map(o => o.text);
+          q.correctIndex = opts.findIndex(o => o.isCorrect);
+        });
+      }
+
+      batchSize = (selectedBatchSize === 'ALL' || studyModeType === 'exam') ? globalQuestions.length : parseInt(selectedBatchSize, 10);
+      currentBatchIndex = 0;
+      userAnswers = {};
+      localLocks = {};
+      
+      examAnswers = {};
+      examQuestionStates = {};
+      isExamSubmitted = false;
+      isExamReview = false;
+      cheatWarnings = 0;
+      
+      awaitingAcknowledgment = false;
+      totalSessionElapsed = 0;
+      countdownSeconds = Math.ceil((globalQuestions.length / TIME_FRACTION) * 60);
+      sessionActive = true;
+      isFinishScreen = false;
+      currentStreak = 0;
+
+      document.getElementById('session-stats-group').style.display = 'flex';
+
+      const accPill = document.getElementById('accuracy-timer-pill');
+      const examPill = document.getElementById('exam-stats-pill');
+      const masterTimerPill = document.getElementById('master-timer-pill');
+      const lifeBtn = document.getElementById('dock-lifeline-btn');
+      const streakPill = document.getElementById('streak-pill');
+      
+      const genDock = document.getElementById('mobile-dock-row');
+      const examDock = document.getElementById('exam-dock-row');
+
+      if (studyModeType === 'read') {
+        accPill.style.display = 'none'; examPill.style.display = 'none'; masterTimerPill.style.display = 'none';
+        lifeBtn.style.display = 'none'; streakPill.style.display = 'none';
+        genDock.style.display = 'flex'; examDock.style.display = 'none';
+      } else if (studyModeType === 'exam') {
+        accPill.style.display = 'none'; examPill.style.display = 'inline-flex'; masterTimerPill.style.display = 'inline-flex';
+        lifeBtn.style.display = 'none'; streakPill.style.display = 'none';
+        genDock.style.display = 'none'; examDock.style.display = 'flex';
+        document.getElementById('star-card-btn').style.display = 'none';
+        document.getElementById('exam-submit-header-btn').style.display = 'inline-block';
+      } else {
+        accPill.style.display = 'inline-flex'; examPill.style.display = 'none'; masterTimerPill.style.display = 'inline-flex';
+        lifeBtn.style.display = (studyModeType === 'quiz') ? 'flex' : 'none';
+        genDock.style.display = 'flex'; examDock.style.display = 'none';
+      }
+
+      startMasterTimer();
+      loadBatch();
+    }
+
+    function startMasterTimer() {
+      if (sessionTimerInterval) clearInterval(sessionTimerInterval);
+      if (studyModeType === 'read') return;
+
+      sessionTimerInterval = setInterval(() => {
+        totalSessionElapsed++;
+        if (countdownSeconds > 0) {
+          countdownSeconds--;
+          let m = Math.floor(countdownSeconds / 60); let s = countdownSeconds % 60;
+          document.getElementById('master-timer').innerText = `${m}:${s < 10 ? '0' : ''}${s}`;
+        } else {
+          document.getElementById('master-timer').innerText = "00:00";
+          if (studyModeType === 'exam' && !isExamSubmitted) executeSubmitExam();
+        }
+      }, 1000);
+    }
+
+    function loadBatch() {
+      isReviewMode = false;
+      isFinishScreen = false;
+      mistakesQueue = [];
+      lifelinesRemaining = LIFELINE_TOTAL;
+      awaitingAcknowledgment = false;
+
+      let start = currentBatchIndex * batchSize;
+      let end = Math.min(start + batchSize, globalQuestions.length);
+      questions = JSON.parse(JSON.stringify(globalQuestions.slice(start, end)));
+      questions.forEach(q => { q._id = Math.random().toString(36).substr(2, 9); });
+
+      currentIndex = 0;
+      currentPaletteFilter = 'all';
+      showCard();
+    }
+
+    function getFilteredIndices() {
+      let indices = [];
+      for (let i = 0; i < questions.length; i++) {
+        const q = questions[i];
+        const globalId = globalQuestions[q.globalIndex]._id;
+        const isStarred = starredSet.has(q.globalIndex);
+
+        if (studyModeType === 'exam' && !isExamSubmitted) {
+          const isAttempted = examAnswers[globalId] !== undefined;
+          if (currentPaletteFilter === 'attempted' && !isAttempted) continue;
+          if (currentPaletteFilter === 'unattempted' && isAttempted) continue;
+          if (currentPaletteFilter === 'star' && !isStarred) continue;
+        } else {
+          const isCorrect = userAnswers[globalId] === 'correct';
+          const isWrong = userAnswers[globalId] === 'wrong';
+          if (currentPaletteFilter === 'wrong' && !isWrong) continue;
+          if (currentPaletteFilter === 'star' && !isStarred) continue;
+        }
+        indices.push(i);
+      }
+      return indices;
+    }
+
+    function showCard() {
+      isCardFlipped = false;
+      
+      // Initialize exam palette state on first visit
+      if (studyModeType === 'exam' && !isExamSubmitted) {
+         const q = questions[currentIndex];
+         const globalId = globalQuestions[q.globalIndex]._id;
+         if (!examQuestionStates[globalId]) {
+             examQuestionStates[globalId] = 'visited_unanswered';
+         }
+      }
+      
+      updateLiveTelemetry();
+      populatePaletteGrid();
+
+      if (studyModeType === 'quiz') renderQuizCard(currentIndex);
+      else if (studyModeType === 'flashcard') renderFlashCard(currentIndex);
+      else if (studyModeType === 'read') renderReadCard(currentIndex);
+      else if (studyModeType === 'exam') renderExamCard(currentIndex);
+    }
+
+    function renderReadCard(idx) {
+      const q = questions[idx];
+      const container = document.getElementById('study-container');
+      let optionsHtml = '';
+
+      q.options.forEach((opt, i) => {
+        const label = String.fromCharCode(65 + i);
+        let stateClass = i === q.correctIndex ? 'correct' : '';
+        optionsHtml += `
+          <div class="touch-option-card ${stateClass}" style="pointer-events: none; animation: fadeSlideIn 0.3s ease forwards; animation-delay: ${i * 0.05}s; opacity: 0;">
+            <div style="display:flex; align-items:center;">
+              <span class="choice-badge-circle">${label}</span>
+              <span style="font-size:14px;">${opt}</span>
+            </div>
+            ${stateClass === 'correct' ? '<i class="fas fa-check-circle" style="color:var(--success);"></i>' : ''}
+          </div>`;
+      });
+
+      const insightHtml = (isInsightEnabled && q.extraInfo) ? `<div class="solution-insight-card"><b style="color:var(--current-primary);"><i class="far fa-lightbulb"></i> Insight:</b><br>${q.extraInfo}</div>` : '';
+
+      container.innerHTML = `
+        <div style="font-size:11px; font-weight:800; color:var(--success); margin-bottom:6px;"><i class="fas fa-book-open"></i> READ MODE (Q. ${q.globalIndex + 1} OF ${globalQuestions.length})</div>
+        <div class="question-headline">${q.question}</div>
+        <div class="options-stack">${optionsHtml}</div>
+        ${insightHtml}
+      `;
+      updateDockButtons();
+    }
+
+    function renderFlashCard(idx) {
+      const q = questions[idx];
+      const container = document.getElementById('study-container');
+      const insightHtml = (isInsightEnabled && q.extraInfo) ? `<div style="font-size:12.5px; opacity: 0.85; margin-bottom:14px; line-height:1.5;">${q.extraInfo}</div>` : '';
+
+      container.innerHTML = `
+        <div style="font-size:11px; font-weight:800; color:#a855f7; margin-bottom:6px;"><i class="fas fa-clone"></i> FLASHCARD (Q. ${q.globalIndex + 1} OF ${globalQuestions.length})</div>
+        <div id="fc-front" class="flashcard-mobile-panel" onclick="flipFlashcard(true)">
+          <div class="question-headline" style="text-align:center; margin:0;">${q.question}</div>
+          <div style="margin-top:24px; font-size:11px; font-weight:800; color:var(--text-sub); letter-spacing:0.8px;"><i class="fas fa-hand-pointer"></i> TAP TO FLIP</div>
+        </div>
+        
+        <div id="fc-back" class="flashcard-mobile-panel" style="display:none; text-align:left; align-items:flex-start;">
+          ${insightHtml}
+          <div style="font-size:11px; font-weight:800; color:var(--success); text-transform:uppercase;">Correct Answer:</div>
+          <div style="font-size:16px; font-weight:800; color:var(--success); margin-bottom:20px;">${q.options[q.correctIndex]}</div>
+          <div style="display:flex; gap:8px; width:100%; margin-top:auto;">
+            <button class="btn-dock-secondary" style="background:rgba(244,63,94,0.15); color:var(--danger); border-color:rgba(244,63,94,0.3);" onclick="scoreFlashcard('hard')">Hard</button>
+            <button class="btn-dock-secondary" style="background:rgba(251,191,36,0.15); color:var(--warning); border-color:rgba(251,191,36,0.3);" onclick="scoreFlashcard('good')">Good</button>
+            <button class="btn-dock-secondary" style="background:rgba(16,185,129,0.15); color:var(--success); border-color:rgba(16,185,129,0.3);" onclick="scoreFlashcard('easy')">Easy</button>
+          </div>
+        </div>
+      `;
+      updateDockButtons();
+    }
+
+    function renderQuizCard(idx) {
+      const q = questions[idx];
+      const container = document.getElementById('study-container');
+      const localAns = localLocks[q._id];
+      const isAnswered = localAns !== undefined;
+      let optionsHtml = '';
+
+      q.options.forEach((opt, i) => {
+        const label = String.fromCharCode(65 + i);
+        let stateClass = '';
+        if (isAnswered) {
+          if (i == q.correctIndex) stateClass = 'correct'; // Updated to loose equality
+          else if (i == localAns) stateClass = 'wrong';
+        }
+        optionsHtml += `
+          <div class="touch-option-card ${stateClass}" style="animation: fadeSlideIn 0.3s ease forwards; animation-delay: ${i * 0.05}s; opacity: 0;" onclick="handleQuizAnswer(${i}, ${q.correctIndex}, this)">
+            <div style="display:flex; align-items:center;">
+              <span class="choice-badge-circle">${label}</span>
+              <span style="font-size:14px;">${opt}</span>
+            </div>
+            ${stateClass === 'correct' ? '<i class="fas fa-check-circle" style="color:var(--success);"></i>' : (stateClass === 'wrong' ? '<i class="fas fa-times-circle" style="color:var(--danger);"></i>' : '')}
+          </div>`;
+      });
+
+      const insightHtml = (isInsightEnabled && q.extraInfo) ? `<div id="extra-box" class="solution-insight-card ${isAnswered && localAns != q.correctIndex ? 'wrong-accent' : ''}" style="${isAnswered ? 'display:block;' : 'display:none;'}"><b style="color:var(--current-primary);"><i class="far fa-lightbulb"></i> Insight:</b><br>${q.extraInfo}</div>` : '';
+
+      container.innerHTML = `
+        <div style="font-size:11px; font-weight:800; color:var(--current-primary); margin-bottom:6px;"><i class="fas fa-list-ul"></i> QUIZ (Q. ${q.globalIndex + 1} OF ${globalQuestions.length})</div>
+        <div class="question-headline">${q.question}</div>
+        <div class="options-stack">${optionsHtml}</div>
+        ${insightHtml}
+      `;
+      if (isAnswered) document.querySelectorAll('.touch-option-card').forEach(o => o.style.pointerEvents = 'none');
+      updateDockButtons();
+    }
+
+    function renderExamCard(idx) {
+      const q = questions[idx];
+      const container = document.getElementById('study-container');
+      const globalId = globalQuestions[q.globalIndex]._id;
+      const selectedChoice = examAnswers[globalId];
+      let optionsHtml = '';
+
+      if (!isExamReview) {
+        // ACTUAL EXAM TAKING VIEW (Animations Removed for focus)
+        q.options.forEach((opt, i) => {
+          const label = String.fromCharCode(65 + i);
+          const isSelected = selectedChoice === i;
+          optionsHtml += `
+            <div class="touch-option-card ${isSelected ? 'exam-selected' : ''}" style="opacity: 1;" onclick="handleExamAnswerSelect(${i})">
+              <div style="display:flex; align-items:center;">
+                <span class="choice-badge-circle">${label}</span>
+                <span style="font-size:14px;">${opt}</span>
+              </div>
+              <i class="${isSelected ? 'fas fa-dot-circle' : 'far fa-circle'}" style="color: ${isSelected ? 'var(--current-primary)' : 'var(--text-muted)'};"></i>
+            </div>`;
+        });
+
+        container.innerHTML = `
+          <div style="font-size:11px; font-weight:800; color:var(--danger); margin-bottom:6px;"><i class="fas fa-file-signature"></i> MOCK EXAM (Q. ${q.globalIndex + 1} OF ${globalQuestions.length}) • <span style="color:#94a3b8;">[+1.00 / -0.25]</span></div>
+          <div class="question-headline" style="animation: none;">${q.question}</div>
+          <div class="options-stack">${optionsHtml}</div>
+        `;
+      } else {
+        // EXAM REVIEW VIEW (INSPECT PAPER)
+        const isCorrect = selectedChoice == q.correctIndex; // Updated to loose equality
+        const isUnattempted = selectedChoice === undefined;
+
+        q.options.forEach((opt, i) => {
+          const label = String.fromCharCode(65 + i);
+          let stateClass = '';
+          if (i == q.correctIndex) stateClass = 'correct'; // Updated to loose equality
+          else if (i === selectedChoice) stateClass = 'wrong';
+          optionsHtml += `
+            <div class="touch-option-card ${stateClass}" style="pointer-events: none; opacity: 1;">
+              <div style="display:flex; align-items:center;">
+                <span class="choice-badge-circle">${label}</span>
+                <span style="font-size:14px;">${opt}</span>
+              </div>
+            </div>`;
+        });
+
+        let verdictTag = isCorrect ? `<i class="fas fa-check-circle" style="color:var(--success);"></i> Correct (+1.00)` : (isUnattempted ? `<i class="fas fa-minus-circle" style="color:var(--text-muted);"></i> Skipped (0.00)` : `<i class="fas fa-times-circle" style="color:var(--danger);"></i> Incorrect (-0.25)`);
+        
+        let borderColor = isCorrect ? 'var(--success)' : (isUnattempted ? 'var(--text-muted)' : 'var(--danger)');
+        let bgColor = isCorrect ? 'rgba(16, 185, 129, 0.05)' : (isUnattempted ? 'rgba(148, 163, 184, 0.05)' : 'rgba(244, 63, 94, 0.05)');
+
+        container.innerHTML = `
+          <div style="background: ${bgColor}; border: 1px solid ${borderColor}; border-radius: 14px; padding: 12px 16px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; border-left: 5px solid ${borderColor}; box-shadow: var(--shadow-soft);">
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+              <span style="font-size:10.5px; font-weight:800; color:var(--text-muted); text-transform:uppercase;">Question ${q.globalIndex + 1} of ${globalQuestions.length}</span>
+              <span style="font-size:15px; font-weight:800; color:var(--text-main);">${verdictTag}</span>
+            </div>
+            <button class="btn-dock-secondary" style="padding:8px 14px; font-size:12px; margin: 0; flex: 0 1 auto; width: auto;" onclick="finishSessionScreen()"><i class="fas fa-poll"></i> Results</button>
+          </div>
+          <div class="question-headline" style="animation: none;">${q.question}</div>
+          <div class="options-stack">${optionsHtml}</div>
+          ${q.extraInfo ? `<div class="solution-insight-card ${!isCorrect && !isUnattempted ? 'wrong-accent' : ''}" style="animation: none;"><b style="color:var(--current-primary);"><i class="far fa-lightbulb"></i> Insight:</b><br>${q.extraInfo}</div>` : ''}
+        `;
+      }
+    }
+
+    function handleQuizAnswer(selectedIdx, correctIdx, element) {
+      if (localLocks[questions[currentIndex]._id] !== undefined) return;
+      localLocks[questions[currentIndex]._id] = selectedIdx;
+      awaitingAcknowledgment = false;
+
+      document.querySelectorAll('.touch-option-card').forEach(o => o.style.pointerEvents = 'none');
+      const extraBox = document.getElementById('extra-box');
+      const q = questions[currentIndex];
+      const globalId = globalQuestions[q.globalIndex]._id;
+
+      if (selectedIdx == correctIdx) { // Updated to loose equality
+        if (userAnswers[globalId] === undefined) userAnswers[globalId] = 'correct';
+        element.classList.add('correct');
+        currentStreak++;
+        playSfx('correct');
+        
+        // Gamification
+        if (currentStreak === 3) showToast("3 in a row! You're on fire! 🔥", "fire", "var(--streak-fire)");
+        if (currentStreak === 5) showToast("5 in a row! Unstoppable! 🚀", "rocket", "var(--purple)");
+      } else {
+        if (userAnswers[globalId] === undefined) userAnswers[globalId] = 'wrong';
+        element.classList.add('wrong');
+        const allOpts = document.querySelectorAll('.touch-option-card');
+        if (allOpts[correctIdx]) allOpts[correctIdx].classList.add('correct');
+        if (extraBox) extraBox.classList.add('wrong-accent');
+        currentStreak = 0;
+        playSfx('wrong');
+        
+        handleMistake(q);
+        
+        if (isInsightEnabled && q.extraInfo) {
+          awaitingAcknowledgment = true;
+        }
+      }
+
+      if (isInsightEnabled && extraBox) extraBox.style.display = 'block';
+      updateLiveTelemetry();
+      populatePaletteGrid();
+      updateDockButtons();
+    }
+
+    // EXAM MODE DOCK CONTROLS
+    function handleExamAnswerSelect(selectedIdx) {
+      if (isExamSubmitted) return;
+      const q = questions[currentIndex];
+      const globalId = globalQuestions[q.globalIndex]._id;
+      
+      // Toggle selection visually (does not permanently save state until button pressed)
+      if (examAnswers[globalId] === selectedIdx) delete examAnswers[globalId];
+      else examAnswers[globalId] = selectedIdx;
+
+      renderExamCard(currentIndex);
+    }
+    
+    function examSaveNext() {
+      const q = questions[currentIndex];
+      const globalId = globalQuestions[q.globalIndex]._id;
+      const hasAnswer = examAnswers[globalId] !== undefined;
+
+      if (hasAnswer) examQuestionStates[globalId] = 'answered';
+      else examQuestionStates[globalId] = 'visited_unanswered';
+
+      goToNextCardExamFlow();
+    }
+    
+    function examMarkReviewNext() {
+      const q = questions[currentIndex];
+      const globalId = globalQuestions[q.globalIndex]._id;
+      const hasAnswer = examAnswers[globalId] !== undefined;
+
+      if (hasAnswer) examQuestionStates[globalId] = 'answered_marked_review';
+      else examQuestionStates[globalId] = 'marked_review';
+
+      goToNextCardExamFlow();
+    }
+    
+    function examClearResponse() {
+      const q = questions[currentIndex];
+      const globalId = globalQuestions[q.globalIndex]._id;
+      delete examAnswers[globalId];
+      examQuestionStates[globalId] = 'visited_unanswered';
+      
+      renderExamCard(currentIndex);
+      populatePaletteGrid();
+    }
+    
+    function goToNextCardExamFlow() {
+      let indices = getFilteredIndices();
+      let nextIndex = indices.find(i => i > currentIndex);
+      if (nextIndex !== undefined) { 
+        currentIndex = nextIndex; 
+        showCard(); 
+      } else {
+        togglePaletteDrawer();
+        showToast("End of questions. Please review the palette.", "info-circle", "var(--current-primary)");
+        updateLiveTelemetry();
+        populatePaletteGrid();
+      }
+    }
+
+    function handleMistake(q) {
+      if (!mistakesQueue.some(m => m.globalIndex === q.globalIndex)) mistakesQueue.push(q);
+      if (studyModeType !== 'exam') {
+        const cloned = JSON.parse(JSON.stringify(q));
+        cloned._id = Math.random().toString(36).substr(2, 9);
+        questions.splice(currentIndex + 4, 0, cloned);
+      }
+    }
+
+    // Spaced Repetition Logic for Flashcards
+    function scoreFlashcard(level) {
+      const q = questions[currentIndex];
+      const globalId = globalQuestions[q.globalIndex]._id;
+      
+      if (level === 'hard') {
+        if (userAnswers[globalId] === undefined) userAnswers[globalId] = 'wrong';
+        const cloned = JSON.parse(JSON.stringify(q));
+        cloned._id = Math.random().toString(36).substr(2, 9);
+        questions.splice(currentIndex + 2, 0, cloned); 
+        showToast("Added back to queue for quick review", "sync", "var(--danger)");
+      } else if (level === 'good') {
+        if (userAnswers[globalId] === undefined) userAnswers[globalId] = 'correct';
+        playSfx('correct');
+        const cloned = JSON.parse(JSON.stringify(q));
+        cloned._id = Math.random().toString(36).substr(2, 9);
+        questions.splice(currentIndex + 5, 0, cloned); 
+        showToast("We'll ask this again later", "layer-group", "var(--warning)");
+      } else {
+        if (userAnswers[globalId] === undefined) userAnswers[globalId] = 'correct';
+        playSfx('correct');
+        showToast("Mastered! Removed from current cycle", "check-circle", "var(--success)");
+      }
+      goToNextCard();
+    }
+
+    function flipFlashcard(showBack) {
+      isCardFlipped = showBack;
+      document.getElementById('fc-front').style.display = showBack ? 'none' : 'flex';
+      document.getElementById('fc-back').style.display = showBack ? 'flex' : 'none';
+    }
+
+    function useLifeline() {
+      const localId = questions[currentIndex]._id;
+      if (studyModeType !== 'quiz' || lifelinesRemaining <= 0 || localLocks[localId] !== undefined) return;
+      const q = questions[currentIndex];
+      let wrongIndices = [];
+      q.options.forEach((_, i) => { if (i != q.correctIndex) wrongIndices.push(i); });
+      wrongIndices = shuffleArray(wrongIndices).slice(0, 2);
+      const optionCards = document.querySelectorAll('.touch-option-card');
+      wrongIndices.forEach(idx => { if (optionCards[idx]) optionCards[idx].classList.add('eliminated'); });
+      lifelinesRemaining--;
+      playSfx('magic');
+      updateLiveTelemetry();
+    }
+
+    function updateDockButtons() {
+      if (studyModeType === 'exam' && !isExamReview) return; // Dock logic strictly disabled for exams
+      
+      const indices = getFilteredIndices();
+      const hasPrev = indices.some(i => i < currentIndex);
+      const hasNext = indices.some(i => i > currentIndex);
+
+      const prevBtn = document.getElementById('dock-prev-btn');
+      const nextBtn = document.getElementById('dock-next-btn');
+
+      if (prevBtn) prevBtn.disabled = !hasPrev;
+
+      if (awaitingAcknowledgment) {
+        nextBtn.innerHTML = `I Understand <i class="fas fa-check"></i>`;
+        nextBtn.style.background = 'var(--warning)';
+        nextBtn.style.color = '#000';
+        nextBtn.onclick = () => { awaitingAcknowledgment = false; goToNextCard(); };
+        return;
+      }
+
+      nextBtn.style.color = '#fff';
+      nextBtn.onclick = goToNextCard;
+
+      if (!hasNext) {
+        if (studyModeType === 'read' || mistakesQueue.length === 0) {
+          nextBtn.innerHTML = `Finish <i class="fas fa-flag-checkered"></i>`;
+          nextBtn.style.background = 'var(--success)';
+        } else {
+          nextBtn.innerHTML = `Results <i class="fas fa-chart-pie"></i>`;
+          nextBtn.style.background = 'var(--current-primary)';
+        }
+      } else {
+        nextBtn.innerHTML = `Next <i class="fas fa-arrow-right"></i>`;
+        nextBtn.style.background = 'var(--current-primary)';
+      }
+    }
+
+    function goToPrevCard() {
+      awaitingAcknowledgment = false;
+      const indices = getFilteredIndices();
+      let prevIndices = indices.filter(i => i < currentIndex);
+      if (prevIndices.length > 0) { currentIndex = prevIndices[prevIndices.length - 1]; showCard(); }
+    }
+
+    function goToNextCard() {
+      awaitingAcknowledgment = false;
+      let indices = getFilteredIndices();
+      let nextIndex = indices.find(i => i > currentIndex);
+      if (nextIndex !== undefined) { 
+        currentIndex = nextIndex; 
+        showCard(); 
+      } else {
+        finishSessionScreen();
+      }
+    }
+
+    function updateLiveTelemetry() {
+      const gIndex = questions[currentIndex].globalIndex;
+      const starBtn = document.getElementById('star-card-btn');
+      const isStarred = starredSet.has(gIndex);
+      if (starBtn) {
+        starBtn.classList.toggle('star-active', isStarred);
+        starBtn.innerHTML = isStarred ? '<i class="fas fa-star"></i>' : '<i class="far fa-star"></i>';
+      }
+
+      const fillBar = document.getElementById('study-progress-fill');
+      if (fillBar && globalQuestions.length > 0) {
+        const percent = Math.round(((currentIndex + 1) / globalQuestions.length) * 100);
+        fillBar.style.width = percent + '%';
+      }
+
+      if (studyModeType === 'read') return;
+
+      if (studyModeType === 'exam' && !isExamSubmitted) {
+        // Count explicitly saved answers
+        let savedCount = 0;
+        for (let key in examQuestionStates) {
+          if (examQuestionStates[key] === 'answered' || examQuestionStates[key] === 'answered_marked_review') savedCount++;
+        }
+        document.getElementById('stat-exam-attempted').innerText = savedCount;
+        document.getElementById('stat-exam-total').innerText = globalQuestions.length;
+        return;
+      }
+
+      let correct = 0; let wrong = 0;
+      globalQuestions.forEach(q => {
+        if (userAnswers[q._id] === 'correct') correct++;
+        if (userAnswers[q._id] === 'wrong') wrong++;
+      });
+      document.getElementById('stat-correct').innerText = correct;
+      document.getElementById('stat-wrong').innerText = wrong;
+
+      const lifeCount = document.getElementById('lifeline-count');
+      if (lifeCount) lifeCount.innerText = lifelinesRemaining;
+
+      // Update Streak Gamification
+      const streakPill = document.getElementById('streak-pill');
+      if (currentStreak >= 3) {
+        streakPill.style.display = 'inline-flex';
+        document.getElementById('streak-count').innerText = currentStreak;
+        streakPill.style.animation = 'popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+      } else {
+        streakPill.style.display = 'none';
+      }
+    }
+
+    function toggleCurrentStar() {
+      const gIndex = questions[currentIndex].globalIndex;
+      if (starredSet.has(gIndex)) starredSet.delete(gIndex);
+      else starredSet.add(gIndex);
+      updateLiveTelemetry();
+      populatePaletteGrid();
+    }
+
+    function togglePaletteDrawer() {
+      document.getElementById('paletteDrawer').classList.toggle('open');
+    }
+
+    function populatePaletteGrid() {
+      const grid = document.getElementById('paletteGrid');
+      if (!grid) return;
+      grid.innerHTML = '';
+      const indices = getFilteredIndices();
+      const seenGlobals = new Set();
+
+      indices.forEach(i => {
+        const q = questions[i];
+        if (seenGlobals.has(q.globalIndex)) return;
+        seenGlobals.add(q.globalIndex);
+
+        const globalId = globalQuestions[q.globalIndex]._id;
+        const node = document.createElement('div');
+        node.className = 'grid-node';
+        if (q.globalIndex === questions[currentIndex].globalIndex) node.classList.add('active-node');
+
+        if (studyModeType === 'exam' && !isExamSubmitted) {
+          // Formal Exam Palette Logic
+          const state = examQuestionStates[globalId];
+          if (state === 'answered') node.classList.add('exam-node-answered');
+          else if (state === 'visited_unanswered') node.classList.add('exam-node-unanswered');
+          else if (state === 'marked_review') node.classList.add('exam-node-review');
+          else if (state === 'answered_marked_review') node.classList.add('exam-node-answered-review');
+          else node.classList.add('exam-node-unvisited'); // Default unvisited
+        } else {
+          // Standard Quiz Palette Logic
+          if (userAnswers[globalId] === 'correct') node.classList.add('node-correct');
+          else if (userAnswers[globalId] === 'wrong') node.classList.add('node-wrong');
+        }
+
+        node.innerText = q.globalIndex + 1;
+        if (starredSet.has(q.globalIndex) && studyModeType !== 'exam') {
+          const s = document.createElement('i');
+          s.className = 'fas fa-star star-indicator';
+          node.appendChild(s);
+        }
+
+        node.onclick = () => {
+          let target = indices.find(idx => questions[idx].globalIndex === q.globalIndex);
+          if (target !== undefined) { currentIndex = target; togglePaletteDrawer(); showCard(); }
+        };
+        grid.appendChild(node);
+      });
+    }
+
+    function promptSubmitExam() {
+      let savedCount = 0;
+      for (let key in examQuestionStates) {
+        if (examQuestionStates[key] === 'answered' || examQuestionStates[key] === 'answered_marked_review') savedCount++;
+      }
+      
+      document.getElementById('exam-submit-stats-text').innerHTML = `Attempted & Saved: <b>${savedCount}</b> / ${globalQuestions.length}<br>Unattempted: <b>${globalQuestions.length - savedCount}</b> Qs<br><span style="font-size:11px; color:var(--text-muted);">Marking: +1.00 Correct | -0.25 Wrong</span>`;
+      document.getElementById('examSubmitOverlay').style.display = 'flex';
+    }
+    
+    function cancelSubmitExam() { document.getElementById('examSubmitOverlay').style.display = 'none'; }
+
+    function executeSubmitExam() {
+      document.getElementById('examSubmitOverlay').style.display = 'none';
+      isExamSubmitted = true;
+      if (sessionTimerInterval) clearInterval(sessionTimerInterval);
+
+      mistakesQueue = [];
+      
+      // Formal Evaluation Engine
+      globalQuestions.forEach(q => {
+        const globalId = q._id;
+        const state = examQuestionStates[globalId];
+        const choice = examAnswers[globalId];
+
+        // Evaluate ONLY if explicitly saved as answered or answered_marked_review
+        const isEvaluable = (state === 'answered' || state === 'answered_marked_review');
+
+        if (isEvaluable && choice !== undefined) {
+            if (choice == q.correctIndex) userAnswers[globalId] = 'correct'; // Updated to loose equality
+            else { userAnswers[globalId] = 'wrong'; mistakesQueue.push(q); }
+        } else {
+            userAnswers[globalId] = 'unattempted';
+        }
+      });
+      
+      finishSessionScreen();
+    }
+
+    // ==========================================
+    // 📊 REDESIGNED PRO-LEVEL FINISH SCREEN 📊
+    // ==========================================
+    function finishSessionScreen() {
+      isFinishScreen = true;
+      if (sessionTimerInterval) clearInterval(sessionTimerInterval);
+      document.getElementById('mobile-dock-row').style.display = 'none';
+      document.getElementById('exam-dock-row').style.display = 'none';
+      document.getElementById('exam-submit-header-btn').style.display = 'none';
+
+      const container = document.getElementById('study-container');
+      let correct = 0; let wrong = 0;
+      
+      globalQuestions.forEach(q => {
+        if (userAnswers[q._id] === 'correct') correct++;
+        if (userAnswers[q._id] === 'wrong') wrong++;
+      });
+
+      const totalQs = globalQuestions.length;
+      const totalAttempted = correct + wrong;
+      const unattempted = totalQs - totalAttempted;
+      const accuracy = totalAttempted > 0 ? Math.round((correct / totalAttempted) * 100) : 0;
+      const mins = Math.floor(totalSessionElapsed / 60); 
+      const secs = totalSessionElapsed % 60;
+      const timeStr = `${mins}m ${secs < 10 ? '0' : ''}${secs}s`;
+      
+      // Deeper Analytics Calculations
+      const penaltyMarks = (wrong * 0.25).toFixed(2);
+      const netMarks = (correct * 1.0 - penaltyMarks).toFixed(2);
+      const avgTimeSecs = totalAttempted > 0 ? Math.round(totalSessionElapsed / totalQs) : 0;
+      
+      const correctPct = (correct / totalQs) * 100;
+      const wrongPct = (wrong / totalQs) * 100;
+      const skipPct = (unattempted / totalQs) * 100;
+
+      let title = studyModeType === 'exam' ? 'Exam Analysis 📊' : 'Deck Completed! 🏆';
+      let sub = studyModeType === 'exam' ? `Performance breakdown based on your final submission.` : `You've completed this study cycle.`;
+
+      // REDESIGNED ACTION BUTTONS
+      let actionButtonsHtml = '';
+      if (studyModeType === 'exam') {
+        actionButtonsHtml = `
+          <button class="btn-dock-primary" style="background: linear-gradient(135deg, var(--current-primary), #2563eb); font-size: 15px; padding: 15px; box-shadow: 0 8px 20px rgba(56, 189, 248, 0.25);" onclick="inspectExamSolutions()">
+            <i class="fas fa-search-plus"></i> Inspect Detailed Solutions
+          </button>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <button class="btn-dock-secondary" style="background: rgba(251, 191, 36, 0.1); color: var(--warning); border-color: rgba(251, 191, 36, 0.3); font-size: 13.5px;" onclick="startSession()">
+              <i class="fas fa-redo-alt"></i> Re-take Exam
+            </button>
+            <button class="btn-dock-secondary" style="font-size: 13.5px;" onclick="returnToHome()">
+              <i class="fas fa-home"></i> Home Dashboard
+            </button>
+          </div>
+        `;
+      } else {
+        actionButtonsHtml = `
+          <button class="btn-dock-primary" style="background: linear-gradient(135deg, var(--warning), #f59e0b); color: #000; font-size: 15px; padding: 15px; box-shadow: 0 8px 20px rgba(251, 191, 36, 0.25);" onclick="startSession()">
+            <i class="fas fa-redo-alt"></i> Re-take Module
+          </button>
+          <button class="btn-dock-secondary" style="font-size: 14px; padding: 14px;" onclick="returnToHome()">
+            <i class="fas fa-th-large"></i> Back to Dashboard
+          </button>
+        `;
+      }
+
+      let statsGridHtml = '';
+      if (studyModeType === 'exam') {
+        statsGridHtml = `
+          <!-- HERO SCORE CARD -->
+          <div style="background: linear-gradient(135deg, var(--bg-card), rgba(56, 189, 248, 0.05)); border: 1px solid var(--current-primary); border-radius: 18px; padding: 20px; margin-bottom: 16px; position: relative; overflow: hidden;">
+            <div style="position: absolute; top: -10px; right: -10px; opacity: 0.1; font-size: 80px;"><i class="fas fa-trophy"></i></div>
+            <div style="font-size: 11px; color: var(--text-sub); text-transform: uppercase; font-weight: 800; letter-spacing: 1px;">Final Score</div>
+            <div style="font-size: 42px; font-weight: 900; color: var(--current-primary); margin: 4px 0;">
+                ${netMarks} <span style="font-size: 16px; color: var(--text-muted); font-weight: 700;">/ ${totalQs}</span>
+            </div>
+            <div style="display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--danger); font-weight: 700; background: rgba(244, 63, 94, 0.1); padding: 4px 10px; border-radius: 8px;">
+                <i class="fas fa-arrow-down"></i> -${penaltyMarks} marks lost in penalty
+            </div>
+          </div>
+
+          <!-- DISTRIBUTION VISUALIZER -->
+          <div style="background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 16px; padding: 16px; margin-bottom: 16px; text-align: left;">
+             <div style="font-size: 11px; color: var(--text-sub); text-transform: uppercase; font-weight: 800; margin-bottom: 12px;"><i class="fas fa-chart-pie"></i> Attempt Distribution</div>
+             <div style="display: flex; justify-content: space-between; font-size: 12px; font-weight: 800; margin-bottom: 8px;">
+                <span style="color: var(--success);"><i class="fas fa-check-circle"></i> Correct (${correct})</span>
+                <span style="color: var(--danger);"><i class="fas fa-times-circle"></i> Wrong (${wrong})</span>
+                <span style="color: var(--text-muted);"><i class="fas fa-minus-circle"></i> Skipped (${unattempted})</span>
+             </div>
+             <div style="display: flex; height: 10px; width: 100%; border-radius: 6px; overflow: hidden; background: rgba(128,128,128,0.1);">
+                <div style="width: ${correctPct}%; background: var(--success); transition: width 1s ease-out;"></div>
+                <div style="width: ${wrongPct}%; background: var(--danger); transition: width 1s ease-out;"></div>
+                <div style="width: ${skipPct}%; background: var(--text-muted); transition: width 1s ease-out;"></div>
+             </div>
+          </div>
+
+          <!-- DETAILED METRICS GRID -->
+          <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 16px;">
+            <div class="mode-app-card" style="padding: 14px 10px;">
+              <span style="font-size:10.5px; font-weight:800; color:var(--text-muted); text-transform:uppercase;">Accuracy Rate</span>
+              <span style="font-size:22px; font-weight:800; color:var(--text-main); margin-top:4px;">${accuracy}%</span>
+            </div>
+            <div class="mode-app-card" style="padding: 14px 10px;">
+              <span style="font-size:10.5px; font-weight:800; color:var(--text-muted); text-transform:uppercase;">Avg Time / Q</span>
+              <span style="font-size:22px; font-weight:800; color:var(--text-main); margin-top:4px;">${avgTimeSecs}s</span>
+            </div>
+            <div class="mode-app-card" style="padding: 14px 10px; grid-column: span 2; display: flex; flex-direction: row; justify-content: space-between; align-items: center; background: rgba(128,128,128,0.05);">
+              <span style="font-size:12px; font-weight:800; color:var(--text-muted);"><i class="fas fa-stopwatch"></i> TOTAL DURATION</span>
+              <span style="font-size:16px; font-weight:800; color:var(--text-main);">${timeStr}</span>
+            </div>
+          </div>
+        `;
+      } else {
+        // Standard Learning/Quiz Mode Analysis
+        statsGridHtml = `
+          <div class="mode-select-grid" style="grid-template-columns: repeat(2, 1fr); gap:10px; margin-bottom: 16px;">
+            <div class="mode-app-card" style="padding:16px;">
+              <span style="font-size:11px; font-weight:800; color:var(--text-muted); text-transform:uppercase;">Accuracy</span>
+              <span style="font-size:26px; font-weight:900; color:var(--success); margin-top:4px;">${accuracy}%</span>
+              <span style="font-size:11px; color:var(--text-sub); margin-top:2px;">${correct} of ${totalQs} Correct</span>
+            </div>
+            <div class="mode-app-card" style="padding:16px;">
+              <span style="font-size:11px; font-weight:800; color:var(--text-muted); text-transform:uppercase;">Time Spent</span>
+              <span style="font-size:26px; font-weight:900; color:var(--text-main); margin-top:4px;">${timeStr}</span>
+              <span style="font-size:11px; color:var(--text-sub); margin-top:2px;">Avg ${avgTimeSecs}s / Q</span>
+            </div>
+          </div>
+        `;
+      }
+
+      container.innerHTML = `
+        <div class="setup-sheet-shell" style="text-align:center; padding:24px 16px;">
+          <h2 style="font-size:22px; font-weight:800; margin-bottom:4px; color:var(--text-main);">${title}</h2>
+          <p style="font-size:13px; font-weight:500; color:var(--text-sub); margin-bottom:20px;">${sub}</p>
+
+          ${statsGridHtml}
+
+          <div style="display:flex; flex-direction:column; gap:12px; margin-top: 10px;">
+            ${actionButtonsHtml}
+          </div>
+        </div>
+      `;
+
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          if (accuracy >= 80 && studyModeType !== 'exam') {
+            triggerConfetti(); // Confetti is suppressed for Mock Exams for a serious tone
+          }
+        }, 150);
+      });
+    }
+
+    function inspectExamSolutions() {
+      isExamReview = true;
+      currentIndex = 0;
+      isFinishScreen = false;
+      document.getElementById('mobile-dock-row').style.display = 'flex'; // Standard dock for reviewing
+      showCard();
+    }
+
+    function returnToSetup() {
+      if (isFinishScreen || !sessionActive) returnToHome();
+      else document.getElementById('exitConfirmOverlay').style.display = 'flex';
+    }
+    
+    function cancelReturnToSetup() { document.getElementById('exitConfirmOverlay').style.display = 'none'; }
+    
+    function executeReturnToSetup() {
+      document.getElementById('exitConfirmOverlay').style.display = 'none';
+      if (sessionTimerInterval) clearInterval(sessionTimerInterval);
+      sessionActive = false;
+      if (studyModeType === 'exam') changeTheme(previousThemeIdx); // Restore original theme
+      renderSetupScreen();
+    }
+
+    function triggerConfetti() {
+      try {
+        let box = document.getElementById('confetti-canvas-box');
+        box.innerHTML = ''; box.style.display = 'block';
+        const em = ['🏆', '✨', '🎉', '🔥', '💯'];
+        for (let i = 0; i < 35; i++) {
+          const el = document.createElement('div');
+          el.className = 'confetti-flake';
+          el.innerText = em[Math.floor(Math.random() * em.length)];
+          el.style.left = (Math.random() * 100) + 'vw';
+          el.style.animationDuration = (Math.random() * 2 + 1.5) + 's';
+          box.appendChild(el);
+        }
+        setTimeout(() => { box.style.display = 'none'; box.innerHTML = ''; }, 4500);
+      } catch(e) {}
+    }
+
+    function unlockAudioContext() {
+      if (!globalAudioCtx) {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        globalAudioCtx = new AudioContext();
+      }
+      if (globalAudioCtx.state === 'suspended') globalAudioCtx.resume();
+    }
+
+    function playSfx(t) {
+      if (!soundEnabled || !globalAudioCtx) return;
+      if (studyModeType === 'exam' && !isExamReview) return; // Strict Silence during active exam
+      try {
+        const now = globalAudioCtx.currentTime;
+        const osc = globalAudioCtx.createOscillator();
+        const gain = globalAudioCtx.createGain();
+        osc.connect(gain); gain.connect(globalAudioCtx.destination);
+        if (t === 'tick') {
+          osc.frequency.setValueAtTime(600, now);
+          gain.gain.setValueAtTime(0.08, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+          osc.start(now); osc.stop(now + 0.05);
+        } else if (t === 'correct') {
+          osc.frequency.setValueAtTime(1046, now);
+          gain.gain.setValueAtTime(0.15, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+          osc.start(now); osc.stop(now + 0.4);
+        } else if (t === 'wrong') {
+          osc.type = 'sawtooth'; osc.frequency.setValueAtTime(200, now);
+          gain.gain.setValueAtTime(0.2, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+          osc.start(now); osc.stop(now + 0.25);
+        } else if (t === 'magic') {
+          osc.frequency.setValueAtTime(800, now);
+          osc.frequency.exponentialRampToValueAtTime(1200, now + 0.2);
+          gain.gain.setValueAtTime(0.1, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+          osc.start(now); osc.stop(now + 0.3);
+        }
+      } catch(e) {}
+    }
+  </script>
+</body>
+</html>
