@@ -2600,10 +2600,10 @@
 
     function useLifeline() {
       const localId = questions[currentIndex]._id;
-      // चेक करें कि लाइफलाइन बची है या नहीं, या इसी सवाल पर पहले इस्तेमाल तो नहीं हो चुकी
+      // Check karein ki lifeline bachi hai ya nahi, ya isi sawal par pehle use toh nahi hui
       if (studyModeType !== 'quiz' || lifelinesRemaining <= 0 || localLocks[localId] !== undefined || questions[currentIndex].lifelineUsed) return;
       
-      questions[currentIndex].lifelineUsed = true; // इस सवाल के लिए लाइफलाइन लॉक कर दें
+      questions[currentIndex].lifelineUsed = true; // Is sawal ke liye lifeline lock kar dein
       const q = questions[currentIndex];
       
       let wrongIndices = [];
@@ -2613,16 +2613,18 @@
       const optionCards = document.querySelectorAll('.touch-option-card');
       wrongIndices.forEach(idx => { 
         if (optionCards[idx]) {
-          optionCards[idx].classList.add('eliminated');
-          optionCards[idx].style.opacity = '0.15'; // ग़लत ऑप्शंस को पूरी तरह धुंधला कर दें
+          optionCards[idx].style.animation = 'none'; // 🚀 Nayi line: CSS animation ko rok देगी
+          optionCards[idx].style.opacity = '0.15'; // 2 galat options dhundhle (fade) ho jayenge
+          optionCards[idx].style.pointerEvents = 'none'; // Unpar click hona band ho jayega
           optionCards[idx].style.transform = 'scale(0.95)';
+          optionCards[idx].classList.add('eliminated');
         } 
       });
       
       lifelinesRemaining--;
       playSfx('magic');
       updateLiveTelemetry();
-      updateDockButtons(); // बटन का स्टेटस तुरंत अपडेट करें
+      updateDockButtons(); // Button ko dhundhla (disable) karne ke liye
     }
 
     function updateDockButtons() {
