@@ -1,289 +1,126 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-  <base target="_top">
   <meta charset="UTF-8">
-  <meta name="viewport"
-    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-
-  <!-- Favicon and Homescreen Icons -->
-  <link rel="icon" type="image/png" sizes="192x192" href="https://i.ibb.co/HTWrFXqk/studylogo2.png">
-  <link rel="apple-touch-icon" href="https://i.ibb.co/HTWrFXqk/studylogo2.png">
-  <meta name="apple-mobile-web-app-title" content="Study Hub">
-  <meta name="application-name" content="Study Hub">
-
-  <!-- Web App Manifest (Updated with 'maskable' to fix tiny Android icon) -->
-  <link rel="manifest" href="data:application/manifest+json;charset=utf-8,%7B%22name%22%3A%22Study%20Hub%22%2C%22short_name%22%3A%22StudyHub%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23090d16%22%2C%22theme_color%22%3A%22%23090d16%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22https%3A%2F%2Fi.ibb.co%2Fv4nL7ZTV%2Fstudylogo.png%22%2C%22sizes%22%3A%22192x192%20512x512%22%2C%22type%22%3A%22image%2Fpng%22%2C%22purpose%22%3A%22any%20maskable%22%7D%5D%7D">
-
-  <!-- PWA & Theme Settings -->
-  <meta name="theme-color" content="#090d16" id="meta-theme-color">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="mobile-web-app-capable" content="yes">
-
-  <!-- External Fonts & Icons -->
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600;700;800;900&display=swap"
-    rel="stylesheet">
-
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Assessment Console - TCS iON Industrial Layout</title>
   <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
+<body class="exam-body">
 
-<body>
-  <div class="ambient-glow-top"></div>
-  <div id="toast-container"></div>
-
-  <!-- =========================================================
-       📚 1. SUBJECT SELECTION WINDOW (LAUNCHPAD)
-       ========================================================= -->
-  <div id="mobile-subject-screen" class="view-container">
-    <div class="app-nav-header">
-      <div class="brand-cluster">
-        <div class="brand-icon">
-          <img src="https://i.ibb.co/HTWrFXqk/studylogo2.png" alt="Study Hub Logo">
-        </div>
-        <div>
-          <div class="brand-title">Study Hub</div>
-          <div class="brand-sub">Select Subject Vault</div>
-        </div>
-      </div>
-      <button class="nav-btn-circle" onclick="fetchSubjectsList()" title="Refresh"><i class="fas fa-sync-alt"
-          id="refresh-subjects-icon"></i></button>
+  <!-- TOP ENTERPRISE BANNER -->
+  <header class="tcs-top-bar">
+    <div class="exam-meta">
+      <span class="system-id">System Name: <strong>C-104</strong></span>
+      <!-- DYNAMIC TEST SELECTOR DROPDOWN -->
+      <select id="testSelectDropdown" class="test-select-input">
+        <option value="">Loading Available Tests...</option>
+      </select>
     </div>
-
-    <div class="search-shelf">
-      <div class="search-box-pill">
-        <i class="fas fa-search" style="color: var(--text-muted); font-size: 13px;"></i>
-        <input type="text" id="mobile-subject-search" placeholder="Search subject (e.g. History)..."
-          oninput="filterMobileSubjects()">
+    
+    <div class="candidate-card">
+      <div class="candidate-avatar">
+        <svg viewBox="0 0 24 24" fill="#64748b" width="36" height="36"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+      </div>
+      <div class="candidate-info">
+        <span class="c-name">CANDIDATE: <strong>STUDENT_ROLL_2026</strong></span>
+        <span class="c-subject">Subject: <span id="subjectLabel">Loading...</span></span>
       </div>
     </div>
+  </header>
 
-    <div class="dashboard-scroll-body">
-      <div class="section-headline">
-        <span>Available Subjects <span id="offline-subjects-tag"
-            style="display:none; color:var(--warning); font-size:9px;">(Offline)</span></span>
-        <span id="subject-count-tag" style="color: var(--current-primary);">0 Subjects</span>
+  <!-- SUB-HEADER: SECTION TABS & UTILITY STRIP -->
+  <div class="tcs-sub-bar">
+    <!-- DYNAMIC SECTION CONTAINER (Rendered by script.js) -->
+    <div class="section-tabs-container" id="sectionTabs"></div>
+
+    <div class="utility-tools">
+      <div class="lang-selector">
+        <label for="langSwitch">View in:</label>
+        <select id="langSwitch">
+          <option value="en">English</option>
+          <option value="hi">Hindi</option>
+        </select>
       </div>
-      <div id="subject-list-container" style="display: flex; flex-direction: column; gap: 10px;">
-        <div style="text-align: center; padding: 60px 20px; color: var(--text-sub);">
-          <i class="fas fa-circle-notch fa-spin fa-2x"
-            style="color: var(--current-primary); margin-bottom: 14px;"></i><br>Connecting to Master Registry...
-        </div>
+      <div class="font-resizer">
+        <button id="btnFontDec">A-</button>
+        <button id="btnFontReset">A</button>
+        <button id="btnFontInc">A+</button>
       </div>
     </div>
   </div>
 
-  <!-- =========================================================
-       🏠 2. TOPIC SELECTION WINDOW (INSIDE SELECTED SUBJECT)
-       ========================================================= -->
-  <div id="mobile-home-screen" class="view-container">
-    <div class="app-nav-header">
-      <div class="brand-cluster">
-        <button class="nav-btn-circle" onclick="returnToSubjects()" style="margin-right: 4px;"
-          title="Back to Subjects"><i class="fas fa-arrow-left"></i></button>
-        <div>
-          <div class="brand-title" id="active-subject-header-title">Topics</div>
-          <div class="brand-sub" id="active-subject-header-sub">Subject Syllabus</div>
+  <!-- WORKSPACE SPLIT (75% LEFT, 25% RIGHT) -->
+  <main class="tcs-workspace">
+    
+    <!-- LEFT PANEL: QUESTION RUNNER -->
+    <section class="question-workspace">
+      <div class="q-meta-strip">
+        <div class="q-index-tag">
+          Question No. <span id="qDisplayNumber">1</span>
         </div>
-      </div>
-      <button class="nav-btn-circle" onclick="fetchTopicsListForCurrentSubject()" title="Refresh"><i
-          class="fas fa-sync-alt" id="refresh-topics-icon"></i></button>
-    </div>
-
-    <div class="search-shelf">
-      <div class="search-box-pill">
-        <i class="fas fa-search" style="color: var(--text-muted); font-size: 13px;"></i>
-        <input type="text" id="mobile-topic-search" placeholder="Search topics in this subject..."
-          oninput="filterMobileTopics()">
-      </div>
-    </div>
-
-    <div class="dashboard-scroll-body">
-      <div class="section-headline">
-        <span>Syllabus Topics <span id="offline-topics-tag"
-            style="display:none; color:var(--warning); font-size:9px;">(Offline)</span></span>
-        <span id="topic-count-tag" style="color: var(--current-primary);">0 Topics</span>
-      </div>
-      <div id="topic-list-container" style="display: flex; flex-direction: column; gap: 10px;">
-        <div style="text-align: center; padding: 60px 20px; color: var(--text-sub);">
-          <i class="fas fa-circle-notch fa-spin fa-2x"
-            style="color: var(--current-primary); margin-bottom: 14px;"></i><br>Loading Subject Topics...
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- =========================================================
-       📜 EXAM INSTRUCTIONS SCREEN (PRE-EXAM)
-       ========================================================= -->
-  <div id="exam-instructions-screen" class="view-container">
-    <div class="app-nav-header">
-      <div class="brand-cluster">
-        <button class="nav-btn-circle" onclick="cancelExamInstructions()" title="Back"><i
-            class="fas fa-arrow-left"></i></button>
-        <div class="brand-title">Exam Instructions</div>
-      </div>
-    </div>
-    <div class="dashboard-scroll-body" style="background: var(--bg-surface);">
-      <div class="solution-insight-card"
-        style="border-left-color: var(--current-primary); margin-top: 0; pointer-events: none;">
-        <b style="font-size: 16px;"><i class="fas fa-clipboard-list"></i> Please read carefully:</b><br><br>
-        1. Total duration of the examination is strictly based on the number of questions.<br>
-        2. The countdown timer at the top right will display the time remaining. Exam auto-submits when time
-        expires.<br>
-        3. <b>Marking Scheme:</b> +1.00 for correct, -0.25 for incorrect answers.<br>
-        4. <b>Palette Legend:</b><br>
-        <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:8px;">
-          <div style="display:flex; align-items:center; font-size:11px; gap:6px;">
-            <div class="grid-node exam-node-unvisited" style="width:24px; height:24px; font-size:10px;">1</div> Not
-            Visited
-          </div>
-          <div style="display:flex; align-items:center; font-size:11px; gap:6px;">
-            <div class="grid-node exam-node-unanswered" style="width:24px; height:24px; font-size:10px;">2</div> Not
-            Answered
-          </div>
-          <div style="display:flex; align-items:center; font-size:11px; gap:6px;">
-            <div class="grid-node exam-node-answered" style="width:24px; height:24px; font-size:10px;">3</div> Answered
-          </div>
-          <div style="display:flex; align-items:center; font-size:11px; gap:6px;">
-            <div class="grid-node exam-node-review" style="width:24px; height:24px; font-size:10px;">4</div> Marked for
-            Review
-          </div>
-          <div style="display:flex; align-items:center; font-size:11px; gap:6px;">
-            <div class="grid-node exam-node-answered-review" style="width:24px; height:24px; font-size:10px;">5</div>
-            Answered & Marked
-          </div>
-        </div>
-        <br>5. <b>Evaluation Rule:</b> "Answered" and "Answered & Marked for Review" will be considered for final
-        evaluation.<br>
-        <br>6. <b>Anti-Cheat:</b> Copying text or switching browser tabs will be recorded as a violation.
-      </div>
-      <div style="margin-top:20px; display:flex; align-items:flex-start; gap:12px; padding: 0 10px;">
-        <input type="checkbox" id="exam-agree-checkbox"
-          style="width:22px; height:22px; margin-top:2px; flex-shrink: 0; accent-color: var(--current-primary);">
-        <label for="exam-agree-checkbox" style="font-size:13px; color:var(--text-sub); line-height:1.5;">I have read and
-          understood the instructions. I agree that in case of not adhering to instructions, I may be
-          disqualified.</label>
-      </div>
-      <button class="btn-launch-hero" style="margin-top:24px;" onclick="checkExamAgreementAndStart()">I am ready to
-        begin</button>
-    </div>
-  </div>
-
-  <!-- =========================================================
-       📖 3. FULLSCREEN STUDY ENGINE PORTAL
-       ========================================================= -->
-  <div id="study-interface-wrapper" class="view-container">
-
-    <div class="study-app-bar">
-      <button class="nav-action-icon" onclick="returnToSetup()" title="Back"><i class="fas fa-arrow-left"></i></button>
-
-      <div class="header-center-info">
-        <span class="app-bar-topic-title" id="header-topic">Topic</span>
-        <div class="telemetry-pills-row" id="session-stats-group" style="display: none;">
-          <div class="micro-pill" style="color: #c084fc;" id="master-timer-pill"><i class="fas fa-stopwatch"></i> <span
-              id="master-timer">00:00</span></div>
-          <div class="micro-pill" id="accuracy-timer-pill">
-            <span style="color: var(--success);"><i class="fas fa-check"></i> <span id="stat-correct">0</span></span>
-            <span style="color: var(--text-muted); margin: 0 1px;">|</span>
-            <span style="color: var(--danger);"><i class="fas fa-times"></i> <span id="stat-wrong">0</span></span>
-          </div>
-          <!-- Learning Element: Hot Streak Visualizer -->
-          <div class="micro-pill" id="streak-pill" style="display:none; color: var(--streak-fire);"><i
-              class="fas fa-fire"></i> <span id="streak-count">0</span></div>
-          <div class="micro-pill" id="exam-stats-pill" style="display: none; color: var(--current-primary);"><i
-              class="fas fa-edit"></i> <span id="stat-exam-attempted">0</span>/<span id="stat-exam-total">0</span></div>
+        <div class="marking-scheme">
+          Marks for correct answer: <span class="mark-positive">+2.00</span> | Negative: <span class="mark-negative">-0.50</span>
         </div>
       </div>
 
-      <div style="display: flex; align-items: center; gap: 6px;">
-        <button class="nav-action-icon" id="star-card-btn" onclick="toggleCurrentStar()"><i
-            class="far fa-star"></i></button>
-        <button id="exam-submit-header-btn"
-          style="display:none; background:var(--danger); color:#fff; border:none; padding:8px 12px; border-radius:10px; font-weight:800; font-size:11.5px; box-shadow:0 4px 10px rgba(244,63,94,0.3);"
-          onclick="promptSubmitExam()">SUBMIT</button>
-        <button class="nav-action-icon" id="palette-toggle-btn" onclick="togglePaletteDrawer()"><i
-            class="fas fa-th"></i></button>
-      </div>
-    </div>
+      <div class="q-scroll-area">
+        <div class="question-text-box" id="questionContent">
+          Loading Question Content...
+        </div>
 
-    <div class="progress-track-rail">
-      <div class="progress-track-fill" id="study-progress-fill"></div>
-    </div>
-    <div class="study-canvas-viewport" id="study-container"></div>
-
-    <!-- General Purpose Dock -->
-    <div class="mobile-bottom-dock" id="mobile-dock-row" style="display: none;">
-      <button class="btn-dock-secondary" id="dock-prev-btn" onclick="goToPrevCard()"><i class="fas fa-arrow-left"></i>
-        Prev</button>
-      <button class="btn-dock-secondary" id="dock-lifeline-btn" onclick="useLifeline()"
-        style="display:none; color: var(--current-primary); white-space: nowrap; flex-wrap: nowrap; padding: 13px 5px;">
-        <i class="fas fa-magic"></i> 50:50 <span style="background: var(--current-primary); color: #fff; padding: 2px 7px; border-radius: 8px; font-size: 10px; margin-left: 5px; font-weight: 900;" id="lifeline-count">3</span>
-      </button>
-      <button class="btn-dock-primary" id="dock-next-btn" onclick="goToNextCard()">Next <i
-          class="fas fa-arrow-right"></i></button>
-    </div>
-
-    <!-- Standardized Exam Mode Dock -->
-    <div class="mobile-bottom-dock" id="exam-dock-row"
-      style="display: none; padding: 10px 14px calc(var(--safe-bottom) + 10px) 14px; gap: 8px;">
-      <button class="btn-dock-secondary" onclick="examClearResponse()"
-        style="flex: 1; font-size: 11px; padding: 12px 2px;">Clear</button>
-      <button class="btn-dock-secondary" onclick="examMarkReviewNext()"
-        style="flex: 1.5; font-size: 11px; padding: 12px 2px; background: rgba(168, 85, 247, 0.1); color: var(--purple); border-color: var(--purple);">Mark
-        & Next</button>
-      <button class="btn-dock-primary" onclick="examSaveNext()"
-        style="flex: 1.5; font-size: 11px; padding: 12px 2px; background: var(--success); box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);">Save
-        & Next</button>
-    </div>
-
-    <div class="palette-drawer-mobile" id="paletteDrawer">
-      <div
-        style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-subtle); padding-bottom: 12px;">
-        <span style="font-weight: 800; font-size: 13px; text-transform: uppercase;"><i class="fas fa-th"></i> Grid
-          Overview</span>
-        <i class="fas fa-times" style="cursor: pointer; padding: 4px; color: var(--text-sub); font-size: 16px;"
-          onclick="togglePaletteDrawer()"></i>
-      </div>
-      <div class="palette-filters" id="paletteFilterContainer" style="display: flex; gap: 6px; margin: 12px 0;"></div>
-      <div class="palette-grid-scroll" id="paletteGrid"></div>
-    </div>
-
-    <div class="overlay-backdrop" id="exitConfirmOverlay">
-      <div class="modal-floating-card">
-        <i class="fas fa-exclamation-circle" style="font-size: 40px; color: var(--warning); margin-bottom: 12px;"></i>
-        <h3 style="font-size: 18px; font-weight: 800; margin-bottom: 8px;">Leave Session?</h3>
-        <p style="font-size: 13px; color: var(--text-sub); margin-bottom: 22px;">Current batch progress will not be
-          saved.</p>
-        <div style="display: flex; gap: 10px;">
-          <button class="btn-dock-secondary" onclick="cancelReturnToSetup()">Resume</button>
-          <button class="btn-dock-primary" style="background: var(--danger); color: #fff;"
-            onclick="executeReturnToSetup()">Exit Session</button>
+        <div class="options-container" id="optionsContainer">
+          <!-- Dynamic Radio Options Rendered by script.js -->
         </div>
       </div>
-    </div>
+    </section>
 
-    <div class="overlay-backdrop" id="examSubmitOverlay">
-      <div class="modal-floating-card">
-        <i class="fas fa-file-signature"
-          style="font-size: 40px; color: var(--current-primary); margin-bottom: 12px;"></i>
-        <h3 style="font-size: 18px; font-weight: 800; margin-bottom: 8px;">Submit Exam Paper?</h3>
-        <p id="exam-submit-stats-text" style="font-size: 13px; color: var(--text-sub); margin-bottom: 22px;"></p>
-        <div style="display: flex; gap: 10px;">
-          <button class="btn-dock-secondary" onclick="cancelSubmitExam()">Review</button>
-          <button class="btn-dock-primary" style="background: var(--success);" onclick="executeSubmitExam()">Confirm
-            Submit</button>
-        </div>
+    <!-- RIGHT PANEL: INDUSTRIAL PALETTE & STATUS DASHBOARD -->
+    <aside class="tcs-side-panel">
+      
+      <!-- REAL-TIME STATUS MATRIX (TCS iON COUNTS) -->
+      <div class="status-summary-matrix">
+        <div class="stat-pill"><span class="badge answered" id="cntAnswered">0</span> Answered</div>
+        <div class="stat-pill"><span class="badge not-answered" id="cntNotAnswered">0</span> Not Answered</div>
+        <div class="stat-pill"><span class="badge not-visited" id="cntNotVisited">25</span> Not Visited</div>
+        <div class="stat-pill"><span class="badge review" id="cntReview">0</span> Marked for Review</div>
+        <div class="stat-pill"><span class="badge ans-review" id="cntAnsReview">0</span> Ans & Marked for Review</div>
       </div>
-    </div>
 
-    <div id="confetti-canvas-box"></div>
-  </div>
+      <!-- TIMER DISPLAY -->
+      <div class="industrial-timer-box">
+        <span class="timer-label">Time Remaining:</span>
+        <span class="timer-digits" id="timerDisplay">15:00</span>
+      </div>
+
+      <!-- PALETTE TITLE -->
+      <div class="palette-header-strip">
+        CHOOSE A QUESTION
+      </div>
+
+      <!-- 25-GRID BUTTONS -->
+      <div class="palette-grid-viewport" id="paletteGrid">
+        <!-- Buttons injected dynamically by script.js -->
+      </div>
+    </aside>
+  </main>
+
+  <!-- INDUSTRIAL FOOTER: ACTION BAR -->
+  <footer class="tcs-footer-bar">
+    <div class="footer-left">
+      <button class="tcs-btn btn-secondary" id="btnMarkReview">Mark for Review & Next</button>
+      <button class="tcs-btn btn-secondary" id="btnClear">Clear Response</button>
+    </div>
+    <div class="footer-right">
+      <button class="tcs-btn btn-primary" id="btnSaveNext">Save & Next</button>
+      <button class="tcs-btn btn-submit" id="btnSubmit">Submit Exam</button>
+    </div>
+  </footer>
+
+  <!-- SUBMISSION MODAL MOUNT CONTAINER -->
+  <div id="submitModalContainer" style="display: none;"></div>
 
   <script src="script.js"></script>
-
 </body>
-
 </html>
