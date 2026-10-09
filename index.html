@@ -31,7 +31,7 @@
       </div>
 
       <!-- Auth Navigation Tabs: Sign In / Create Profile -->
-      <div class="auth-tabs" style="display: flex; gap: 8px; margin-bottom: 18px; border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
+      <div class="auth-tabs" id="authNavTabs" style="display: flex; gap: 8px; margin-bottom: 18px; border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
         <button type="button" id="tabSignIn" class="auth-tab-btn active" style="flex: 1; padding: 8px; font-weight: 700; font-size: 12px; border: none; background: transparent; color: var(--tcs-blue-accent); cursor: pointer; border-bottom: 2px solid var(--tcs-blue-accent);">Sign In</button>
         <button type="button" id="tabRegister" class="auth-tab-btn" style="flex: 1; padding: 8px; font-weight: 700; font-size: 12px; border: none; background: transparent; color: #64748b; cursor: pointer;">New Candidate Registration</button>
       </div>
@@ -72,9 +72,8 @@
         <button type="submit" class="btn-industrial-login" id="btnSignInSubmit">Authenticate & Enter</button>
       </form>
 
-      <!-- 2. REGISTRATION FORM (CREATE PROFILE & EMAIL VERIFICATION) -->
+      <!-- 2. REGISTRATION FORM (CREATE PROFILE & EMAIL VERIFICATION LINK) -->
       <form id="registerForm" class="login-form" style="display: none;">
-        <!-- Step A: Candidate Info Collection -->
         <div id="regFieldsStep">
           <div class="form-group">
             <label for="inputRegName">Full Name</label>
@@ -92,48 +91,55 @@
             <label for="inputRegPass">Set Access Password / Security PIN</label>
             <input type="password" id="inputRegPass" placeholder="At least 6 characters" required autocomplete="new-password">
           </div>
-          <button type="submit" class="btn-industrial-login" id="btnRegisterSubmit">Create Profile & Verify Email</button>
+          <button type="submit" class="btn-industrial-login" id="btnRegisterSubmit">Create Profile & Send Verification Link</button>
         </div>
 
-        <!-- Step B: 6-Digit Email OTP Verification -->
-        <div id="regOtpStep" style="display: none;">
-          <p style="font-size: 12px; color: #64748b; margin-bottom: 12px;">A 6-digit confirmation code has been dispatched to your email. Enter it below to activate your candidate profile:</p>
-          <div class="form-group">
-            <label for="inputRegOtp">6-Digit Verification Code</label>
-            <input type="text" id="inputRegOtp" placeholder="123456" maxlength="6" inputmode="numeric" style="letter-spacing: 4px; font-weight: 700; text-align: center; font-size: 18px;">
-          </div>
-          <button type="button" class="btn-industrial-login" id="btnConfirmRegOtp">Verify OTP & Activate Profile</button>
+        <!-- Post-Submit Instruction Card -->
+        <div id="regSuccessCard" style="display: none; text-align: center; padding: 15px; background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.3); border-radius: 6px;">
+          <div style="font-size: 28px; margin-bottom: 8px;">📩</div>
+          <h4 style="color: #22c55e; margin-bottom: 6px; font-size: 15px;">Verification Link Dispatched</h4>
+          <p style="font-size: 12px; color: #94a3b8; line-height: 1.5; margin-bottom: 14px;">
+            A confirmation link has been sent to your email. Click <strong>"Confirm email address"</strong> in your inbox to automatically activate your profile and launch the portal.
+          </p>
+          <button type="button" class="btn-industrial-login" id="btnBackToSignInFromReg" style="background: transparent; border: 1px solid var(--tcs-blue-accent); color: var(--tcs-blue-accent); padding: 8px;">Back to Sign In</button>
         </div>
       </form>
 
-      <!-- 3. FORGOT PASSWORD / PIN RESET FORM -->
+      <!-- 3. FORGOT PASSWORD REQUEST FORM -->
       <form id="forgotForm" class="login-form" style="display: none;">
-        <!-- Step A: Enter Registered Email -->
         <div id="forgotEmailStep">
-          <p style="font-size: 12px; color: #64748b; margin-bottom: 12px;">Enter your registered candidate email to receive a secure recovery code:</p>
+          <p style="font-size: 12px; color: #64748b; margin-bottom: 12px;">Enter your registered candidate email to receive a secure password recovery link:</p>
           <div class="form-group">
             <label for="inputForgotEmail">Registered Candidate Email</label>
             <input type="email" id="inputForgotEmail" placeholder="candidate@example.com" required>
           </div>
-          <button type="submit" class="btn-industrial-login" id="btnSendForgotOtp">Send Reset Code</button>
+          <button type="submit" class="btn-industrial-login" id="btnSendForgotOtp">Send Password Recovery Link</button>
         </div>
 
-        <!-- Step B: Verify OTP & Set New Password -->
-        <div id="forgotResetStep" style="display: none;">
-          <div class="form-group">
-            <label for="inputForgotOtp">6-Digit Recovery Code</label>
-            <input type="text" id="inputForgotOtp" placeholder="123456" maxlength="6" inputmode="numeric" style="letter-spacing: 4px; font-weight: 700; text-align: center; font-size: 18px;">
-          </div>
-          <div class="form-group">
-            <label for="inputForgotNewPass">New Password / Security PIN</label>
-            <input type="password" id="inputForgotNewPass" placeholder="••••••••" required>
-          </div>
-          <button type="button" class="btn-industrial-login" id="btnUpdatePassword">Update PIN & Enter</button>
+        <div id="forgotSuccessStep" style="display: none; text-align: center; padding: 15px; background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.3); border-radius: 6px;">
+          <div style="font-size: 28px; margin-bottom: 8px;">🔐</div>
+          <h4 style="color: #22c55e; margin-bottom: 6px; font-size: 15px;">Recovery Link Sent</h4>
+          <p style="font-size: 12px; color: #94a3b8; line-height: 1.5; margin-bottom: 14px;">
+            Please check your email and click the password reset link. It will automatically redirect you here to create a new password.
+          </p>
         </div>
 
         <div style="text-align: center; margin-top: 14px;">
           <button type="button" id="btnBackToSignIn" style="background: none; border: none; color: #64748b; font-size: 11px; cursor: pointer; text-decoration: underline;">Back to Sign In</button>
         </div>
+      </form>
+
+      <!-- 4. NEW PASSWORD SETTER FORM (TRIGGERED ON RECOVERY LINK CLICK) -->
+      <form id="resetPasswordForm" class="login-form" style="display: none;">
+        <div style="text-align: center; margin-bottom: 14px;">
+          <h4 style="color: var(--tcs-blue-accent); font-size: 15px;">Set New Password</h4>
+          <p style="font-size: 12px; color: #64748b;">Enter your new security password / PIN below to restore access:</p>
+        </div>
+        <div class="form-group">
+          <label for="inputNewPassword">New Password / PIN</label>
+          <input type="password" id="inputNewPassword" placeholder="At least 6 characters" required autocomplete="new-password">
+        </div>
+        <button type="submit" class="btn-industrial-login" id="btnSaveNewPassword">Update Password & Enter Portal</button>
       </form>
 
     </div>
@@ -165,9 +171,7 @@
       <!-- Left Subject Nav Sidebar -->
       <aside class="subject-sidebar">
         <div class="sidebar-heading">TEST SUBJECTS</div>
-        <div class="subject-chips-list" id="subjectChipsContainer">
-          <!-- Injected via script.js -->
-        </div>
+        <div class="subject-chips-list" id="subjectChipsContainer"></div>
       </aside>
 
       <!-- Right Main Catalog Area -->
@@ -182,16 +186,13 @@
           </div>
         </div>
 
-        <div class="topics-grid" id="topicsContainer">
-          <!-- Dynamic Topic Accordion Cards injected via script.js -->
-        </div>
+        <div class="topics-grid" id="topicsContainer"></div>
       </main>
     </div>
   </section>
 
   <!-- ================= SCREEN 3: TCS iON EXAM CONSOLE ================= -->
   <section id="viewExam" class="view-screen" style="display: none;">
-    <!-- Top Enterprise Banner -->
     <header class="tcs-top-bar">
       <div class="exam-meta">
         <span class="system-id">System Name: <strong>C-104</strong></span>
@@ -209,7 +210,6 @@
       </div>
     </header>
 
-    <!-- Sub-Header: Section Tabs & Utility Strip -->
     <div class="tcs-sub-bar">
       <div class="section-tabs-container" id="sectionTabs"></div>
       <div class="utility-tools">
@@ -223,16 +223,13 @@
       </div>
     </div>
 
-    <!-- Workspace Split -->
     <main class="tcs-workspace">
-      <!-- Left Panel: Question Workspace -->
       <section class="question-workspace">
         <div class="q-meta-strip">
           <div class="q-meta-left">
             <div class="q-index-tag">Question No. <span id="qDisplayNumber">1</span></div>
             <div class="marking-scheme">Marks: <span class="mark-positive">+2.00</span> | <span class="mark-negative">-0.50</span></div>
           </div>
-          <!-- Mobile Specific: Timer & Palette Button -->
           <div class="mobile-exam-controls" style="display: none;">
             <span class="m-timer" id="mobileTimerDisplay">15:00</span>
             <button id="btnMobilePalette" class="btn-mobile-palette">▦ Palette</button>
@@ -245,7 +242,6 @@
         </div>
       </section>
 
-      <!-- Right Panel: TCS iON Palette Panel -->
       <div id="paletteOverlay" class="palette-overlay"></div>
       <aside class="tcs-side-panel">
         <div class="status-summary-matrix">
@@ -266,7 +262,6 @@
       </aside>
     </main>
 
-    <!-- Bottom Action Footer -->
     <footer class="tcs-footer-bar">
       <div class="footer-left">
         <button class="tcs-btn btn-secondary" id="btnMarkReview">Mark for Review & Next</button>
@@ -281,7 +276,6 @@
 
   <!-- ================= SCREEN 4: SOLUTIONS & EXPLANATIONS ================= -->
   <section id="viewSolutions" class="view-screen" style="display: none; background: #f1f5f9; overflow-y: auto;">
-    <!-- Top Bar -->
     <header class="dash-top-bar" style="position: sticky; top: 0; z-index: 10;">
       <div class="dash-brand">
         <span class="portal-tag">ASSESSMENT SOLUTIONS</span>
@@ -290,11 +284,8 @@
       <button class="tcs-btn btn-primary" onclick="closeExamAndReload()">Back to Dashboard</button>
     </header>
 
-    <!-- Solutions Container -->
     <main style="padding: 30px 20px;">
-      <div id="solutionsContainer" style="max-width: 850px; margin: 0 auto; width: 100%; display: flex; flex-direction: column; gap: 20px;">
-        <!-- Solution Cards dynamically injected here -->
-      </div>
+      <div id="solutionsContainer" style="max-width: 850px; margin: 0 auto; width: 100%; display: flex; flex-direction: column; gap: 20px;"></div>
     </main>
   </section>
 
@@ -308,7 +299,6 @@
     </header>
 
     <main style="padding: 30px; max-width: 900px; margin: 0 auto; width: 100%;">
-      <!-- Analytics Banner -->
       <div class="analytics-banner">
         <div class="stat-card">
           <div class="stat-value" id="statTotalTests">0</div>
@@ -324,7 +314,6 @@
         </div>
       </div>
 
-      <!-- Attendance Calendar Section -->
       <div class="profile-section-card">
         <h3 class="section-title">Monthly Attendance Record</h3>
         <div class="calendar-wrapper">
@@ -338,9 +327,7 @@
           <div class="calendar-days-header">
             <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
           </div>
-          <div class="calendar-grid" id="attendanceCalendarGrid">
-            <!-- Calendar JS se banega -->
-          </div>
+          <div class="calendar-grid" id="attendanceCalendarGrid"></div>
         </div>
       </div>
     </main>

@@ -15,10 +15,6 @@ let activeSubject = null;
 let userAttemptHistory = [];
 let currentLang = "en";
 
-// Temporary Auth Transition State
-let pendingRegData = null;
-let pendingForgotEmail = "";
-
 // Register Service Worker for Native PWA Installation
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
@@ -81,33 +77,51 @@ function initAuthSessionWatcher() {
     }
   });
 
-  // 2. Real-time Auth Event Listener
+  // 2. Real-time Auth Event Listener (Handles One-Click Link & Recovery)
   supabaseClient.auth.onAuthStateChange(async (event, session) => {
+    // A. Password Recovery Event (Triggered by Reset Link in Email)
+    if (event === "PASSWORD_RECOVERY") {
+      showPasswordResetUI();
+      return;
+    }
+
+    // B. Logout Event
     if (event === "SIGNED_OUT" || !session || !session.user) {
       currentCandidate = null;
       switchView("viewLogin");
       return;
     }
 
-    // सख्त पहरा: बिना ईमेल वेरिफिकेशन के डैशबोर्ड में जाने की सख्त मनाही
+    // C. Strict Guard: Don't allow unconfirmed user into Dashboard
     if (!session.user.email_confirmed_at) {
       currentCandidate = null;
       switchView("viewLogin");
       return;
     }
 
+    // D. Confirmed Login Event (From Email Confirmation Link or Standard Sign-In)
     if (!currentCandidate || currentCandidate.email !== session.user.email.toLowerCase()) {
       initCandidateSession(session.user);
     }
   });
 }
 
-// केवल वेरीफाइड यूजर के लिए प्रोफाइल लोड करने वाला सुरक्षित फंक्शन
+function showPasswordResetUI() {
+  switchView("viewLogin");
+  document.getElementById("signInForm").style.display = "none";
+  document.getElementById("registerForm").style.display = "none";
+  document.getElementById("forgotForm").style.display = "none";
+  document.getElementById("authNavTabs").style.display = "none";
+  document.getElementById("resetPasswordForm").style.display = "block";
+  showAuthNotice("Enter your new security password below.", false);
+}
+
+// Loads or Creates candidate profile in public.students upon confirmed auth
 async function initCandidateSession(user) {
   try {
     const userEmail = (user.email || "").toLowerCase();
     
-    // Check if candidate profile exists in public.students
+    // Check if candidate profile already exists in public.students
     const { data: student, error } = await supabaseClient
       .from("students")
       .select("*")
@@ -118,7 +132,7 @@ async function initCandidateSession(user) {
       currentCandidate = student;
       mountDashboard();
     } else {
-      // अगर यूजर ऑथेंटिकेटेड है लेकिन students टेबल में नहीं है (जैसे Google OAuth से पहली बार आना)
+      // First-time confirmation link redirect: Extract metadata and create verified student record
       const roll = user.user_metadata?.roll_number || "ROLL-" + Math.floor(1000 + Math.random() * 9000);
       const name = user.user_metadata?.full_name || user.user_metadata?.name || userEmail.split("@")[0];
 
@@ -138,7 +152,7 @@ async function initCandidateSession(user) {
     }
   } catch (err) {
     console.error("Candidate session init error:", err);
-    showAuthNotice("Candidate profile load nahi ho saki: " + err.message);
+    showAuthNotice("Candidate profile load failed: " + err.message);
     switchView("viewLogin");
   }
 }
@@ -156,9 +170,11 @@ function showAuthNotice(msg, isError = true) {
 function setupAppEvents() {
   const tabSignIn = document.getElementById("tabSignIn");
   const tabRegister = document.getElementById("tabRegister");
+  const authNavTabs = document.getElementById("authNavTabs");
   const signInForm = document.getElementById("signInForm");
   const registerForm = document.getElementById("registerForm");
   const forgotForm = document.getElementById("forgotForm");
+  const resetPasswordForm = document.getElementById("resetPasswordForm");
   const authErrBox = document.getElementById("authErrorMsg");
 
   // 1. Auth Tabs Switching
@@ -171,6 +187,7 @@ function setupAppEvents() {
       signInForm.style.display = "block";
       registerForm.style.display = "none";
       forgotForm.style.display = "none";
+      resetPasswordForm.style.display = "none";
       authErrBox.style.display = "none";
     });
 
@@ -180,8 +197,11 @@ function setupAppEvents() {
       tabSignIn.style.borderBottom = "none";
       tabSignIn.style.color = "#64748b";
       registerForm.style.display = "block";
+      document.getElementById("regFieldsStep").style.display = "block";
+      document.getElementById("regSuccessCard").style.display = "none";
       signInForm.style.display = "none";
       forgotForm.style.display = "none";
+      resetPasswordForm.style.display = "none";
       authErrBox.style.display = "none";
     });
   }
@@ -192,9 +212,10 @@ function setupAppEvents() {
     btnOpenForgot.addEventListener("click", () => {
       signInForm.style.display = "none";
       registerForm.style.display = "none";
+      resetPasswordForm.style.display = "none";
       forgotForm.style.display = "block";
       document.getElementById("forgotEmailStep").style.display = "block";
-      document.getElementById("forgotResetStep").style.display = "none";
+      document.getElementById("forgotSuccessStep").style.display = "none";
       authErrBox.style.display = "none";
     });
   }
@@ -202,6 +223,15 @@ function setupAppEvents() {
   const btnBackToSignIn = document.getElementById("btnBackToSignIn");
   if (btnBackToSignIn && tabSignIn) {
     btnBackToSignIn.addEventListener("click", () => {
+      authNavTabs.style.display = "flex";
+      tabSignIn.click();
+    });
+  }
+
+  const btnBackToSignInFromReg = document.getElementById("btnBackToSignInFromReg");
+  if (btnBackToSignInFromReg && tabSignIn) {
+    btnBackToSignInFromReg.addEventListener("click", () => {
+      authNavTabs.style.display = "flex";
       tabSignIn.click();
     });
   }
@@ -221,7 +251,7 @@ function setupAppEvents() {
     });
   }
 
-  // 4. Candidate Sign-In (Returning User) - सुरक्षित गार्ड के साथ
+  // 4. Candidate Sign-In (Returning User - Validates Confirmation)
   if (signInForm) {
     signInForm.addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -241,10 +271,10 @@ function setupAppEvents() {
 
         if (error) throw error;
 
-        // कड़ा चेक: क्या ईमेल वेरिफ़ाई हो चुका है?
+        // Check if user confirmed their email
         if (!data.user || !data.user.email_confirmed_at) {
           await supabaseClient.auth.signOut();
-          throw new Error("Aapka email verify nahi hua hai. Kripya pehle email par aaya OTP enter karke account activate karein.");
+          throw new Error("Aapka email verify nahi hua hai. Kripya pehle apne inbox me aaye 'Confirm email address' link par click karein.");
         }
 
         await initCandidateSession(data.user);
@@ -257,8 +287,7 @@ function setupAppEvents() {
     });
   }
 
-  // 5. New Candidate Registration (Step A: Info Submit & Trigger OTP)
-  // ध्यान दें: यहाँ डेटाबेस में कोई एंट्री नहीं की जाएगी!
+  // 5. New Candidate Registration (Dispatches One-Click Confirmation Link)
   if (registerForm) {
     registerForm.addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -269,7 +298,7 @@ function setupAppEvents() {
       const btn = document.getElementById("btnRegisterSubmit");
 
       authErrBox.style.display = "none";
-      btn.innerText = "Generating Security OTP...";
+      btn.innerText = "Sending Confirmation Link...";
       btn.disabled = true;
 
       try {
@@ -277,76 +306,27 @@ function setupAppEvents() {
           email: email,
           password: password,
           options: {
-            data: { full_name: name, roll_number: roll }
+            data: { full_name: name, roll_number: roll },
+            emailRedirectTo: window.location.origin
           }
         });
 
         if (error) throw error;
 
-        // डेटा को केवल मेमोरी में रखें, डेटाबेस में अभी कुछ नहीं भेजना
-        pendingRegData = { name, roll, email };
-        
+        // Hide input fields and show instructions
         document.getElementById("regFieldsStep").style.display = "none";
-        document.getElementById("regOtpStep").style.display = "block";
-        showAuthNotice("6-Digit OTP aapke email par bhej diya gaya hai. Inbox/Spam check karein.", false);
+        document.getElementById("regSuccessCard").style.display = "block";
+        showAuthNotice("Confirmation email dispatched successfully! Please check your inbox.", false);
       } catch (err) {
         showAuthNotice(err.message || "Registration failed.");
       } finally {
-        btn.innerText = "Create Profile & Verify Email";
+        btn.innerText = "Create Profile & Send Verification Link";
         btn.disabled = false;
       }
     });
   }
 
-  // New Candidate Registration (Step B: केवल सही OTP डालने पर ही डेटाबेस में सेव होगा)
-  const btnConfirmRegOtp = document.getElementById("btnConfirmRegOtp");
-  if (btnConfirmRegOtp) {
-    btnConfirmRegOtp.addEventListener("click", async () => {
-      const token = document.getElementById("inputRegOtp").value.trim();
-
-      if (token.length !== 6) {
-        showAuthNotice("Kripya poora 6-digit OTP darj karein.");
-        return;
-      }
-
-      if (!pendingRegData || !pendingRegData.email) {
-        showAuthNotice("Registration session expire ho gaya. Kripya form dobara bharein.");
-        return;
-      }
-
-      btnConfirmRegOtp.innerText = "Verifying & Activating Profile...";
-      btnConfirmRegOtp.disabled = true;
-
-      try {
-        const { data, error } = await supabaseClient.auth.verifyOtp({
-          email: pendingRegData.email,
-          token: token,
-          type: "signup"
-        });
-
-        if (error) throw error;
-
-        // केवल OTP सफल होने पर ही students टेबल में ओरिजिनल डेटा सेव होगा
-        const { error: dbErr } = await supabaseClient.from("students").upsert({
-          roll_number: pendingRegData.roll,
-          full_name: pendingRegData.name,
-          email: pendingRegData.email
-        }, { onConflict: "email" });
-
-        if (dbErr) throw dbErr;
-
-        showAuthNotice("Account verified successfully! Logging in...", false);
-        if (data.user) await initCandidateSession(data.user);
-      } catch (err) {
-        showAuthNotice(err.message || "Invalid ya Expired OTP code.");
-      } finally {
-        btnConfirmRegOtp.innerText = "Verify OTP & Activate Profile";
-        btnConfirmRegOtp.disabled = false;
-      }
-    });
-  }
-
-  // 6. Forgot Password (Step A: Dispatch Reset Code)
+  // 6. Forgot Password (Request Recovery Link)
   if (forgotForm) {
     forgotForm.addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -354,66 +334,64 @@ function setupAppEvents() {
       const btn = document.getElementById("btnSendForgotOtp");
 
       authErrBox.style.display = "none";
-      btn.innerText = "Sending Reset Code...";
+      btn.innerText = "Dispatching Link...";
       btn.disabled = true;
 
       try {
-        const { error } = await supabaseClient.auth.resetPasswordForEmail(email);
+        const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+          redirectTo: window.location.origin
+        });
         if (error) throw error;
 
-        pendingForgotEmail = email;
         document.getElementById("forgotEmailStep").style.display = "none";
-        document.getElementById("forgotResetStep").style.display = "block";
-        showAuthNotice("Recovery OTP registered email par bhej diya gaya hai.", false);
+        document.getElementById("forgotSuccessStep").style.display = "block";
+        showAuthNotice("Recovery link dispatched to your registered email.", false);
       } catch (err) {
-        showAuthNotice(err.message || "Failed to send reset code.");
+        showAuthNotice(err.message || "Failed to dispatch recovery email.");
       } finally {
-        btn.innerText = "Send Reset Code";
+        btn.innerText = "Send Password Recovery Link";
         btn.disabled = false;
       }
     });
   }
 
-  // Forgot Password (Step B: Verify Recovery OTP & Update Password)
-  const btnUpdatePassword = document.getElementById("btnUpdatePassword");
-  if (btnUpdatePassword) {
-    btnUpdatePassword.addEventListener("click", async () => {
-      const token = document.getElementById("inputForgotOtp").value.trim();
-      const newPass = document.getElementById("inputForgotNewPass").value;
+  // 7. Reset Password (Saves New Password After Recovery Link Click)
+  if (resetPasswordForm) {
+    resetPasswordForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const newPass = document.getElementById("inputNewPassword").value;
+      const btn = document.getElementById("btnSaveNewPassword");
 
-      if (!token || newPass.length < 6) {
-        showAuthNotice("Kripya 6-digit OTP aur kam se kam 6 aksharon ka password daalein.");
+      if (newPass.length < 6) {
+        showAuthNotice("Password must contain at least 6 characters.");
         return;
       }
 
-      btnUpdatePassword.innerText = "Updating Password...";
-      btnUpdatePassword.disabled = true;
+      btn.innerText = "Updating Password...";
+      btn.disabled = true;
 
       try {
-        const { error: otpErr } = await supabaseClient.auth.verifyOtp({
-          email: pendingForgotEmail,
-          token: token,
-          type: "recovery"
-        });
-        if (otpErr) throw otpErr;
-
-        const { data, error: updateErr } = await supabaseClient.auth.updateUser({
+        const { data, error } = await supabaseClient.auth.updateUser({
           password: newPass
         });
-        if (updateErr) throw updateErr;
+        if (error) throw error;
 
-        showAuthNotice("Password update ho gaya! Redirecting...", false);
-        if (data.user) await initCandidateSession(data.user);
+        showAuthNotice("Password updated successfully! Redirecting to Dashboard...", false);
+        
+        setTimeout(async () => {
+          authNavTabs.style.display = "flex";
+          if (data.user) await initCandidateSession(data.user);
+        }, 1200);
       } catch (err) {
-        showAuthNotice(err.message || "Password update fail hua.");
+        showAuthNotice(err.message || "Password update failed.");
       } finally {
-        btnUpdatePassword.innerText = "Update PIN & Enter";
-        btnUpdatePassword.disabled = false;
+        btn.innerText = "Update Password & Enter Portal";
+        btn.disabled = false;
       }
     });
   }
 
-  // 7. Candidate Sign Out
+  // 8. Candidate Sign Out
   const btnLogout = document.getElementById("btnLogout");
   if (btnLogout) {
     btnLogout.addEventListener("click", async () => {
@@ -424,7 +402,7 @@ function setupAppEvents() {
     });
   }
 
-  // 8. Student Profile & Analytics View Trigger
+  // 9. Student Profile & Analytics View Trigger
   const btnMyProfile = document.getElementById("btnMyProfile");
   if (btnMyProfile) {
     btnMyProfile.addEventListener("click", () => {
@@ -433,7 +411,7 @@ function setupAppEvents() {
     });
   }
 
-  // 9. High-Tech Dark Mode Toggle & Sync
+  // 10. Eye-Care High-Tech Dark Mode Toggle & Sync
   const btnDarkMode = document.getElementById("btnDarkMode");
   if (localStorage.getItem("theme") === "dark") {
     document.body.classList.add("dark-theme");
@@ -453,7 +431,7 @@ function setupAppEvents() {
     });
   }
 
-  // 10. Exam Console Action Handlers
+  // 11. Exam Console Action Handlers
   document.getElementById("btnSaveNext").addEventListener("click", () => {
     if (!userResponses[currentIndex]) return;
     const state = userResponses[currentIndex];
@@ -479,7 +457,7 @@ function setupAppEvents() {
     showExamSummaryModal();
   });
 
-  // 11. Dashboard Topic Filter Search
+  // 12. Dashboard Topic Filter Search
   document.getElementById("topicSearchInput").addEventListener("input", (e) => {
     const query = e.target.value.toLowerCase();
     document.querySelectorAll(".topic-accordion-card").forEach(card => {
@@ -488,7 +466,7 @@ function setupAppEvents() {
     });
   });
 
-  // 12. Bilingual Language Switcher
+  // 13. Bilingual Language Switcher
   document.getElementById("langSwitch").addEventListener("change", (e) => {
     currentLang = e.target.value;
     if (document.getElementById("viewExam").style.display === "flex") {
@@ -496,13 +474,13 @@ function setupAppEvents() {
     }
   });
 
-  // 13. Mobile Bottom-Sheet Palette Drawer Trigger
+  // 14. Mobile Bottom-Sheet Palette Drawer Trigger
   document.getElementById("btnMobilePalette").addEventListener("click", () => {
     document.querySelector(".tcs-side-panel").classList.add("open");
     document.getElementById("paletteOverlay").classList.add("open");
   });
 
-  // 14. Close Mobile Drawer via Backdrop Click
+  // 15. Close Mobile Drawer via Backdrop Click
   document.getElementById("paletteOverlay").addEventListener("click", () => {
     document.querySelector(".tcs-side-panel").classList.remove("open");
     document.getElementById("paletteOverlay").classList.remove("open");
