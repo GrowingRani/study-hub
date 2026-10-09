@@ -72,28 +72,33 @@ window.switchView = function(viewId) {
 // ==========================================================================
 
 // ================= SAFE AUTH SESSION WATCHER =================
+
+// ==========================================================================
+// 4. SUPABASE AUTH LAYER & SESSION MANAGEMENT
+// ==========================================================================
 function initAuthSessionWatcher() {
+  // 1. Initial Page Load Guard
   supabaseClient.auth.getSession().then(({ data: { session } }) => {
-    // केवल वही यूज़र अंदर जाएगा जिसका ईमेल कन्फ़र्म हो चुका है
-    if (session && session.user && session.user.email_confirmed_at) {
+    // STRICT GUARD: केवल तभी अंदर जाने दें जब ईमेल Verify हो चुका हो
+    if (session && session.user && session.user.email_confirmed_at != null) {
       initCandidateSession(session.user);
     } else {
       switchView("viewLogin");
     }
   });
 
+  // 2. Real-time Event Guard
   supabaseClient.auth.onAuthStateChange(async (event, session) => {
-    if (session && session.user) {
-      // अगर ईमेल अभी कन्फ़र्म नहीं हुआ है, तो अंदर जाने से रोकें
-      if (!session.user.email_confirmed_at) {
-        return;
-      }
-      if (!currentCandidate || currentCandidate.id !== session.user.id) {
-        initCandidateSession(session.user);
-      }
-    } else {
+    // अगर सेशन नहीं है, या ईमेल अभी तक OTP से Verify नहीं हुआ है, तो तुरंत बाहर रोकें
+    if (!session || !session.user || session.user.email_confirmed_at == null) {
       currentCandidate = null;
       switchView("viewLogin");
+      return; // कोड यहीं रुक जाएगा, डेटाबेस में कोई एंट्री नहीं जाएगी
+    }
+
+    // अगर ईमेल Verified है, तभी डैशबोर्ड में भेजें
+    if (!currentCandidate || currentCandidate.id !== session.user.id) {
+      initCandidateSession(session.user);
     }
   });
 }
