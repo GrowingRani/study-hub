@@ -307,7 +307,7 @@ function setupAppEvents() {
           password: password,
           options: {
             data: { full_name: name, roll_number: roll },
-            emailRedirectTo: window.location.origin
+            emailRedirectTo: "https://my-assessment-portal.netlify.app"
           }
         });
 
