@@ -59,7 +59,7 @@ function checkExistingSession() {
 }
 
 function setupAppEvents() {
-  // Login Submit
+  // 1. Candidate Authentication Submit
   document.getElementById("loginForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     const roll = document.getElementById("inputRollNumber").value.trim();
@@ -94,20 +94,40 @@ function setupAppEvents() {
     }
   });
 
-  // Logout
+  // 2. Candidate Sign Out
   document.getElementById("btnLogout").addEventListener("click", () => {
     localStorage.removeItem("candidate_session");
     currentCandidate = null;
     switchView("viewLogin");
   });
 
-  // Open Profile
+  // 3. Open Profile & Analytics View
   document.getElementById("btnMyProfile").addEventListener("click", () => {
     fetchStudentAnalytics(); 
     switchView("viewProfile");
   });
 
-  // Exam Action Buttons
+  // 4. Eye-Care Dark Mode Toggle & Saved State Sync
+  const btnDarkMode = document.getElementById("btnDarkMode");
+  if (localStorage.getItem("theme") === "dark") {
+    document.body.classList.add("dark-theme");
+    if (btnDarkMode) btnDarkMode.innerText = "☀️";
+  }
+
+  if (btnDarkMode) {
+    btnDarkMode.addEventListener("click", () => {
+      document.body.classList.toggle("dark-theme");
+      if (document.body.classList.contains("dark-theme")) {
+        localStorage.setItem("theme", "dark");
+        btnDarkMode.innerText = "☀️";
+      } else {
+        localStorage.setItem("theme", "light");
+        btnDarkMode.innerText = "🌙";
+      }
+    });
+  }
+
+  // 5. Exam Console Action Buttons
   document.getElementById("btnSaveNext").addEventListener("click", () => {
     if (!userResponses[currentIndex]) return;
     const state = userResponses[currentIndex];
@@ -133,7 +153,7 @@ function setupAppEvents() {
     showExamSummaryModal();
   });
 
-  // Dashboard Search
+  // 6. Dashboard Topic Filter Search
   document.getElementById("topicSearchInput").addEventListener("input", (e) => {
     const query = e.target.value.toLowerCase();
     document.querySelectorAll(".topic-accordion-card").forEach(card => {
@@ -141,30 +161,27 @@ function setupAppEvents() {
       card.style.display = text.includes(query) ? "block" : "none";
     });
   });
-  // Language Switcher Event
+
+  // 7. Bilingual Language Switcher
   document.getElementById("langSwitch").addEventListener("change", (e) => {
     currentLang = e.target.value;
-    // अगर एग्जाम चल रहा है, तो करंट सवाल को नई भाषा में रीलोड करें
     if (document.getElementById("viewExam").style.display === "flex") {
       renderQuestion(currentIndex);
     }
   });
 
-  // Mobile Palette Drawer Toggle
+  // 8. Mobile Bottom-Sheet Palette Drawer Trigger
   document.getElementById("btnMobilePalette").addEventListener("click", () => {
     document.querySelector(".tcs-side-panel").classList.add("open");
     document.getElementById("paletteOverlay").classList.add("open");
   });
 
-  // Close Drawer by clicking on Blur Overlay
+  // 9. Close Mobile Drawer via Backdrop Click
   document.getElementById("paletteOverlay").addEventListener("click", () => {
     document.querySelector(".tcs-side-panel").classList.remove("open");
     document.getElementById("paletteOverlay").classList.remove("open");
   });
-
 }
-
-
 
 
 
@@ -442,7 +459,23 @@ function updateStatusMatrix() {
 
 function startExamTimer() {
   if (timerInterval) clearInterval(timerInterval);
-  const display = document.getElementById("timerDisplay");
+
+  // Helper function: dono displays ko synchronize karne ke liye
+  const updateTimerDisplays = () => {
+    const mins = Math.floor(timeRemaining / 60);
+    const secs = timeRemaining % 60;
+    const formattedTime = `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+
+    const desktopDisplay = document.getElementById("timerDisplay");
+    const mobileDisplay = document.getElementById("mobileTimerDisplay");
+
+    if (desktopDisplay) desktopDisplay.innerText = formattedTime;
+    if (mobileDisplay) mobileDisplay.innerText = formattedTime;
+  };
+
+  // 1st second wait kiye bina screen par turant time show karein
+  updateTimerDisplays();
+
   timerInterval = setInterval(() => {
     if (timeRemaining <= 0) {
       clearInterval(timerInterval);
@@ -450,11 +483,8 @@ function startExamTimer() {
       return;
     }
     timeRemaining--;
-    const mins = Math.floor(timeRemaining / 60);
-    const secs = timeRemaining % 60;
-    display.innerText = `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+    updateTimerDisplays();
   }, 1000);
-  document.getElementById("mobileTimerDisplay").innerText = `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
 }
 
 // ================= 7. SUBMISSION, SCORECARD & TELEMETRY =================
@@ -513,40 +543,61 @@ async function renderScorecard() {
   const timeSpentMins = Math.ceil(timeSpentSecs / 60);
 
   try {
-    // 1. Save Test Attempt
+    // 1. Save Test Attempt Record
     await supabaseClient.from("test_attempts").insert({
-      student_roll: currentCandidate.roll_number, test_id: activeTest.id, score: score, total_correct: correct, total_incorrect: incorrect, time_spent_seconds: timeSpentSecs
+      student_roll: currentCandidate.roll_number,
+      test_id: activeTest.id,
+      score: score,
+      total_correct: correct,
+      total_incorrect: incorrect,
+      time_spent_seconds: timeSpentSecs
     });
 
-    // 2. Update Daily Attendance
-    const today = new Date().toISOString().split('T')[0];
-    const { data: attRecord } = await supabaseClient.from("daily_attendance").select("id, total_minutes_spent").eq("student_roll", currentCandidate.roll_number).eq("study_date", today).maybeSingle();
+    // 2. Update Daily Attendance Telemetry
+    const today = new Date().toISOString().split("T")[0];
+    const { data: attRecord } = await supabaseClient
+      .from("daily_attendance")
+      .select("id, total_minutes_spent")
+      .eq("student_roll", currentCandidate.roll_number)
+      .eq("study_date", today)
+      .maybeSingle();
 
     if (attRecord) {
-      await supabaseClient.from("daily_attendance").update({ total_minutes_spent: attRecord.total_minutes_spent + timeSpentMins }).eq("id", attRecord.id);
+      await supabaseClient
+        .from("daily_attendance")
+        .update({ total_minutes_spent: attRecord.total_minutes_spent + timeSpentMins })
+        .eq("id", attRecord.id);
     } else {
-      await supabaseClient.from("daily_attendance").insert({ student_roll: currentCandidate.roll_number, study_date: today, total_minutes_spent: timeSpentMins });
+      await supabaseClient
+        .from("daily_attendance")
+        .insert({
+          student_roll: currentCandidate.roll_number,
+          study_date: today,
+          total_minutes_spent: timeSpentMins
+        });
     }
-  } catch (err) { console.error("Telemetry save error:", err); }
+  } catch (err) {
+    console.error("Telemetry save error:", err);
+  }
 
   const modal = document.getElementById("submitModalContainer");
   modal.innerHTML = `
     <div class="tcs-modal-box" style="width: 620px;">
       <div class="tcs-modal-header" style="background:#16a34a;">Assessment Scorecard & Analysis</div>
       <div class="tcs-modal-body">
-        <div style="text-align:center; padding: 15px; background:#f1f5f9; margin-bottom:15px;">
-          <h2 style="font-size:26px; color:#1e3a8a;">Score: ${score.toFixed(2)} / ${testQuestions.length * 2}</h2>
-          <p style="font-size:12px; color:#64748b;">Time Taken: ${Math.floor(timeSpentSecs / 60)}m ${timeSpentSecs % 60}s | Marking: +2.00 | -0.50</p>
+        <div class="score-highlight-card" style="text-align:center; padding: 15px; margin-bottom:15px; border-radius: 4px;">
+          <h2 class="score-highlight-title" style="font-size:26px;">Score: ${score.toFixed(2)} / ${testQuestions.length * 2}</h2>
+          <p style="font-size:12px; color:#64748b; margin-top: 4px;">Time Taken: ${Math.floor(timeSpentSecs / 60)}m ${timeSpentSecs % 60}s | Marking: +2.00 | -0.50</p>
         </div>
         <table class="modal-summary-table">
           <tbody>
-            <tr><td>Correct Answers</td><td style="color:#16a34a; font-weight:bold;">${correct} (+${(correct*2).toFixed(2)})</td></tr>
-            <tr><td>Incorrect Answers</td><td style="color:#dc2626; font-weight:bold;">${incorrect} (-${(incorrect*0.5).toFixed(2)})</td></tr>
+            <tr><td>Correct Answers</td><td style="color:#16a34a; font-weight:bold;">${correct} (+${(correct * 2).toFixed(2)})</td></tr>
+            <tr><td>Incorrect Answers</td><td style="color:#dc2626; font-weight:bold;">${incorrect} (-${(incorrect * 0.5).toFixed(2)})</td></tr>
             <tr><td>Unattempted</td><td>${unattempted}</td></tr>
-            <tr><td>Accuracy</td><td>${(correct + incorrect) > 0 ? ((correct / (correct + incorrect)) * 100).toFixed(1) : 0}%</td></tr>
+            <tr><td>Accuracy</td><td>${(correct + incorrect) > 0 ? (((correct / (correct + incorrect)) * 100).toFixed(1)) : 0}%</td></tr>
           </tbody>
         </table>
-        <div style="font-size:12px; color:#16a34a; text-align:center; font-weight:600;">✔ Progress & Attendance Synced Successfully</div>
+        <div style="font-size:12px; color:#16a34a; text-align:center; font-weight:600; margin-top: 8px;">✔ Progress & Attendance Synced Successfully</div>
       </div>
       <div class="tcs-modal-footer">
         <button class="tcs-btn btn-secondary" onclick="openSolutionsView()">View Detailed Solutions</button>

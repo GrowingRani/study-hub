@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Assessment Engine - Industrial Assessment Portal</title>
   <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="data:,">
   
   <!-- Supabase JS Client CDN -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -48,6 +49,8 @@
           <span class="user-name" id="dashCandidateName">Candidate</span>
           <span class="user-roll" id="dashCandidateRoll">ROLL: ---</span>
         </div>
+        <!-- Dark Mode Toggle -->
+        <button class="btn-dash-logout" id="btnDarkMode" style="padding: 6px 10px; font-size: 14px; border: none; background: transparent; cursor: pointer;">🌙</button>
         <!-- Profile & Logout Buttons -->
         <button class="tcs-btn btn-primary" id="btnMyProfile" style="padding: 6px 12px; font-size: 12px;">My Profile</button>
         <button class="btn-dash-logout" id="btnLogout">Sign Out</button>
