@@ -127,6 +127,9 @@ async function mountDashboard() {
   document.getElementById("dashCandidateRoll").innerText = "ROLL: " + currentCandidate.roll_number;
 
   switchView("viewDashboard");
+  
+  // दोनों डेटा लोडिंग फ़ंक्शन्स एक साथ चलाएं
+  await fetchStudentAnalytics();
   await fetchTestCatalog();
 }
 
@@ -590,6 +593,7 @@ async function renderScorecard() {
         <div style="font-size:12px; color:#16a34a; text-align:center; font-weight:600;">✔ Progress & Attendance Synced Successfully</div>
       </div>
       <div class="tcs-modal-footer">
+        <button class="tcs-btn btn-secondary" onclick="openSolutionsView()">View Detailed Solutions</button>
         <button class="tcs-btn btn-primary" onclick="closeExamAndReload()">Return to Repository</button>
       </div>
     </div>
@@ -608,3 +612,147 @@ window.closeExamAndReturnToDashboard = function() {
   document.getElementById("submitModalContainer").style.display = "none";
   mountDashboard();
 };
+
+function switchView(viewId) {
+  document.getElementById("viewLogin").style.display = "none";
+  document.getElementById("viewDashboard").style.display = "none";
+  document.getElementById("viewExam").style.display = "none";
+  document.getElementById("viewSolutions").style.display = "none"; // Naya view hide kiya
+  document.getElementById(viewId).style.display = "flex";
+}
+
+
+// ================= 5. SOLUTIONS & EXPLANATIONS VIEW =================
+window.openSolutionsView = function() {
+  document.getElementById("submitModalContainer").style.display = "none";
+  document.getElementById("solExamTitle").innerText = activeTest.title;
+  switchView("viewSolutions");
+
+  const container = document.getElementById("solutionsContainer");
+  container.innerHTML = "";
+
+  testQuestions.forEach((q, idx) => {
+    const userAns = userResponses[idx].selected;
+    const correctAns = String(q.correctAnswer);
+    
+    // Status Badge Logic
+    let statusText = "Unattempted";
+    let statusClass = "sol-status-unattempted";
+    if (userAns) {
+      if (String(userAns) === correctAns) {
+        statusText = "Correct";
+        statusClass = "sol-status-correct";
+      } else {
+        statusText = "Incorrect";
+        statusClass = "sol-status-incorrect";
+      }
+    }
+
+    // Question Text Parsing
+    let qText = typeof q.content === "object" && q.content !== null ? (q.content.en || q.content.hi || JSON.stringify(q.content)) : String(q.content);
+    
+    // Explanation Text Parsing
+    let expText = "No explanation provided.";
+    if (q.explanation) {
+       expText = typeof q.explanation === "object" ? (q.explanation.en || q.explanation.hi || JSON.stringify(q.explanation)) : String(q.explanation);
+    }
+
+    // Generate Options HTML
+    let optionsHtml = "";
+    const optionsList = Array.isArray(q.options) ? q.options : [];
+    
+    optionsList.forEach(opt => {
+      const optId = String(opt.id);
+      let optClass = "sol-option";
+      let icon = "⚪";
+
+      if (optId === correctAns) {
+        optClass += " sol-opt-correct";
+        icon = "✔️";
+      } else if (optId === String(userAns) && optId !== correctAns) {
+        optClass += " sol-opt-wrong";
+        icon = "❌";
+      }
+
+      optionsHtml += `
+        <div class="${optClass}">
+          <span>${icon}</span>
+          <span>${opt.text || opt.en || JSON.stringify(opt)}</span>
+        </div>
+      `;
+    });
+
+    // Build the Card
+    const card = document.createElement("div");
+    card.className = "solution-card";
+    card.innerHTML = `
+      <div class="sol-q-header">
+        <span>Question ${q.qNum}</span>
+        <span class="sol-status-badge ${statusClass}">${statusText}</span>
+      </div>
+      <div class="sol-content">${qText}</div>
+      <div style="margin-bottom: 16px;">
+        ${optionsHtml}
+      </div>
+      <div class="sol-explanation">
+        <strong>Explanation:</strong>
+        ${expText}
+      </div>
+    `;
+    
+    container.appendChild(card);
+  });
+};
+
+
+// ================= DASHBOARD ANALYTICS ENGINE =================
+async function fetchStudentAnalytics() {
+  try {
+    // 1. कुल अटेम्प्ट्स और एक्यूरेसी निकालें
+    const { data: attempts } = await supabaseClient
+      .from("test_attempts")
+      .select("total_correct, total_incorrect")
+      .eq("student_roll", currentCandidate.roll_number);
+
+    let totalTests = 0;
+    let totalCorrect = 0;
+    let totalIncorrect = 0;
+
+    if (attempts && attempts.length > 0) {
+      totalTests = attempts.length;
+      attempts.forEach(a => {
+        totalCorrect += (a.total_correct || 0);
+        totalIncorrect += (a.total_incorrect || 0);
+      });
+    }
+
+    let accuracy = 0;
+    if (totalCorrect + totalIncorrect > 0) {
+      accuracy = ((totalCorrect / (totalCorrect + totalIncorrect)) * 100).toFixed(1);
+    }
+
+    // 2. कुल पढ़ाई का समय (Daily Attendance) निकालें
+    const { data: attendance } = await supabaseClient
+      .from("daily_attendance")
+      .select("total_minutes_spent")
+      .eq("student_roll", currentCandidate.roll_number);
+    
+    let totalMins = 0;
+    if (attendance && attendance.length > 0) {
+      attendance.forEach(record => {
+        totalMins += (record.total_minutes_spent || 0);
+      });
+    }
+
+    const hours = Math.floor(totalMins / 60);
+    const mins = totalMins % 60;
+
+    // 3. UI को अपडेट करें
+    document.getElementById("statTotalTests").innerText = totalTests;
+    document.getElementById("statAccuracy").innerText = accuracy + "%";
+    document.getElementById("statStudyTime").innerText = `${hours}h ${mins}m`;
+
+  } catch (err) {
+    console.error("Analytics fetch error:", err);
+  }
+}

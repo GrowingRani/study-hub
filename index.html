@@ -62,6 +62,21 @@
 
       <!-- Right Main Catalog Area -->
       <main class="catalog-viewport">
+        <!-- ================= STUDENT ANALYTICS BANNER ================= -->
+        <div class="analytics-banner">
+          <div class="stat-card">
+            <div class="stat-value" id="statTotalTests">0</div>
+            <div class="stat-label">Total Tests Attempted</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="statAccuracy">0.0%</div>
+            <div class="stat-label">Overall Accuracy</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="statStudyTime">0h 0m</div>
+            <div class="stat-label">Total Study Time</div>
+          </div>
+        </div>
         <div class="catalog-header">
           <div>
             <h2 id="activeSubjectTitle">Select Subject</h2>
@@ -161,9 +176,28 @@
     </footer>
   </section>
 
+  <!-- ================= SCREEN 4: SOLUTIONS & EXPLANATIONS ================= -->
+  <section id="viewSolutions" class="view-screen" style="display: none; background: #f1f5f9; overflow-y: auto;">
+    <!-- Top Bar -->
+    <header class="dash-top-bar" style="position: sticky; top: 0; z-index: 10;">
+      <div class="dash-brand">
+        <span class="portal-tag">ASSESSMENT SOLUTIONS</span>
+        <span class="node-tag" id="solExamTitle">Test Title</span>
+      </div>
+      <button class="tcs-btn btn-primary" onclick="closeExamAndReload()">Back to Dashboard</button>
+    </header>
+
+    <!-- Solutions Container -->
+    <main style="padding: 30px 20px;">
+      <div id="solutionsContainer" style="max-width: 850px; margin: 0 auto; width: 100%; display: flex; flex-direction: column; gap: 20px;">
+        <!-- Solution Cards dynamically injected here -->
+      </div>
+    </main>
+  </section>
+
   <!-- Submit & Scorecard Modal Mount -->
   <div id="submitModalContainer" style="display: none;"></div>
-
+   
   <script src="script.js"></script>
 </body>
 </html>
