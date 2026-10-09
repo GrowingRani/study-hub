@@ -70,9 +70,12 @@ window.switchView = function(viewId) {
 // ==========================================================================
 // 4. SUPABASE AUTH LAYER & SESSION MANAGEMENT
 // ==========================================================================
+
+// ================= SAFE AUTH SESSION WATCHER =================
 function initAuthSessionWatcher() {
   supabaseClient.auth.getSession().then(({ data: { session } }) => {
-    if (session && session.user) {
+    // केवल वही यूज़र अंदर जाएगा जिसका ईमेल कन्फ़र्म हो चुका है
+    if (session && session.user && session.user.email_confirmed_at) {
       initCandidateSession(session.user);
     } else {
       switchView("viewLogin");
@@ -81,6 +84,10 @@ function initAuthSessionWatcher() {
 
   supabaseClient.auth.onAuthStateChange(async (event, session) => {
     if (session && session.user) {
+      // अगर ईमेल अभी कन्फ़र्म नहीं हुआ है, तो अंदर जाने से रोकें
+      if (!session.user.email_confirmed_at) {
+        return;
+      }
       if (!currentCandidate || currentCandidate.id !== session.user.id) {
         initCandidateSession(session.user);
       }
