@@ -9,6 +9,20 @@ let currentCandidate = null;
 let catalogData = [];
 let activeSubject = null;
 let userAttemptHistory = []; // Student की हिस्ट्री स्टोर करने के लिए
+let currentLang = "en"; // डिफ़ॉल्ट भाषा इंग्लिश
+
+// --- स्मार्ट लैंग्वेज फॉलबैक हेल्पर ---
+function getLocalizedText(obj) {
+  if (typeof obj === "object" && obj !== null) {
+    if (currentLang === "hi") {
+      // अगर हिंदी चुनी है और हिंदी मौजूद है तो वो दिखाएं, वरना इंग्लिश + नोट दिखाएं
+      return obj.hi ? obj.hi : (obj.en + "\n\n*(यह कंटेंट अभी हिंदी में उपलब्ध नहीं है)*");
+    } else {
+      return obj.en || JSON.stringify(obj);
+    }
+  }
+  return String(obj || "");
+}
 
 // Exam Session State
 let activeTest = null;
@@ -127,7 +141,17 @@ function setupAppEvents() {
       card.style.display = text.includes(query) ? "block" : "none";
     });
   });
+  // Language Switcher Event
+  document.getElementById("langSwitch").addEventListener("change", (e) => {
+    currentLang = e.target.value;
+    // अगर एग्जाम चल रहा है, तो करंट सवाल को नई भाषा में रीलोड करें
+    if (document.getElementById("viewExam").style.display === "flex") {
+      renderQuestion(currentIndex);
+    }
+  });
 }
+
+
 
 // ================= 5. DASHBOARD & TAXONOMY LAYER =================
 async function mountDashboard() {
@@ -321,8 +345,8 @@ function renderQuestion(index) {
 
   document.getElementById("qDisplayNumber").innerText = q.qNum;
 
-  let qText = typeof q.content === "object" && q.content !== null ? (q.content.en || q.content.hi || JSON.stringify(q.content)) : String(q.content);
-  document.getElementById("questionContent").innerText = qText;
+  // नए स्मार्ट हेल्पर से सवाल का टेक्स्ट निकालें
+  document.getElementById("questionContent").innerText = getLocalizedText(q.content);
 
   const optContainer = document.getElementById("optionsContainer");
   optContainer.innerHTML = "";
@@ -341,7 +365,8 @@ function renderQuestion(index) {
     radio.addEventListener("change", () => { userResponses[currentIndex].selected = String(opt.id); });
 
     const span = document.createElement("span");
-    span.innerText = opt.text || opt.en || JSON.stringify(opt);
+    // ऑप्शंस के लिए भी स्मार्ट हेल्पर का इस्तेमाल
+    span.innerText = getLocalizedText({ en: opt.en || opt.text, hi: opt.hi });
 
     row.appendChild(radio);
     row.appendChild(span);
@@ -516,6 +541,8 @@ window.closeExamAndReload = async function() {
 };
 
 // ================= 8. SOLUTIONS & EXPLANATIONS VIEW =================
+
+// ================= 8. SOLUTIONS & EXPLANATIONS VIEW =================
 window.openSolutionsView = function() {
   document.getElementById("submitModalContainer").style.display = "none";
   document.getElementById("solExamTitle").innerText = activeTest.title;
@@ -535,9 +562,13 @@ window.openSolutionsView = function() {
       else { statusText = "Incorrect"; statusClass = "sol-status-incorrect"; }
     }
 
-    let qText = typeof q.content === "object" && q.content !== null ? (q.content.en || q.content.hi || JSON.stringify(q.content)) : String(q.content);
+    // स्मार्ट हेल्पर से सवाल और एक्सप्लेनेशन फेच करें
+    let qText = getLocalizedText(q.content);
+    
     let expText = "No explanation provided.";
-    if (q.explanation) expText = typeof q.explanation === "object" ? (q.explanation.en || q.explanation.hi || JSON.stringify(q.explanation)) : String(q.explanation);
+    if (q.explanation) {
+      expText = getLocalizedText(q.explanation);
+    }
 
     let optionsHtml = "";
     const optionsList = Array.isArray(q.options) ? q.options : [];
@@ -550,7 +581,10 @@ window.openSolutionsView = function() {
       if (optId === correctAns) { optClass += " sol-opt-correct"; icon = "✔️"; } 
       else if (optId === String(userAns) && optId !== correctAns) { optClass += " sol-opt-wrong"; icon = "❌"; }
 
-      optionsHtml += `<div class="${optClass}"><span>${icon}</span><span>${opt.text || opt.en || JSON.stringify(opt)}</span></div>`;
+      // स्मार्ट हेल्पर से ऑप्शन फेच करें
+      let optText = getLocalizedText({ en: opt.en || opt.text, hi: opt.hi });
+      
+      optionsHtml += `<div class="${optClass}"><span>${icon}</span><span>${optText}</span></div>`;
     });
 
     const card = document.createElement("div");
@@ -559,7 +593,7 @@ window.openSolutionsView = function() {
       <div class="sol-q-header"><span>Question ${q.qNum}</span><span class="sol-status-badge ${statusClass}">${statusText}</span></div>
       <div class="sol-content">${qText}</div>
       <div style="margin-bottom: 16px;">${optionsHtml}</div>
-      <div class="sol-explanation"><strong>Explanation:</strong>${expText}</div>
+      <div class="sol-explanation"><strong>Explanation:</strong><br/>${expText}</div>
     `;
     container.appendChild(card);
   });
