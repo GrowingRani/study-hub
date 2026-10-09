@@ -22,5 +22,20 @@
       "type": "image/png",
       "purpose": "any"
     }
+  ],
+  "screenshots": [
+    {
+      "src": "https://placehold.co/1280x720/090d16/38bdf8.png?text=Exam+Portal+Desktop",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Exam Console Desktop View"
+    },
+    {
+      "src": "https://placehold.co/750x1334/090d16/38bdf8.png?text=Exam+Portal+Mobile",
+      "sizes": "750x1334",
+      "type": "image/png",
+      "label": "Exam Console Mobile View"
+    }
   ]
 }
