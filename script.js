@@ -1,15 +1,23 @@
-// ================= 1. CONFIGURATION & SUPABASE INIT =================
+// ==========================================================================
+// 1. CONFIGURATION & SUPABASE INIT
+// ==========================================================================
 const SUPABASE_URL = "https://hqrbqqdjbswbvfhhqefw.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhxcmJxcWRqYnN3YnZmaGhxZWZ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE0NjI5ODgsImV4cCI6MjEwNzAzODk4OH0.iTay17X_Ysep1r-NLPSWpAzlQF-fmBb0sw1v7ptsdpE"; // यहाँ अपनी वास्तविक Anon Key डालें
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhxcmJxcWRqYnN3YnZmaGhxZWZ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE0NjI5ODgsImV4cCI6MjEwNzAzODk4OH0.iTay17X_Ysep1r-NLPSWpAzlQF-fmBb0sw1v7ptsdpE";
 
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// ================= 2. GLOBAL STATE =================
+// ==========================================================================
+// 2. GLOBAL STATE
+// ==========================================================================
 let currentCandidate = null;
 let catalogData = [];
 let activeSubject = null;
-let userAttemptHistory = []; // Student की हिस्ट्री स्टोर करने के लिए
-let currentLang = "en"; // डिफ़ॉल्ट भाषा इंग्लिश
+let userAttemptHistory = [];
+let currentLang = "en";
+
+// Temporary Auth Transition State
+let pendingRegData = null;
+let pendingForgotEmail = "";
 
 // Register Service Worker for Native PWA Installation
 if ("serviceWorker" in navigator) {
@@ -21,12 +29,11 @@ if ("serviceWorker" in navigator) {
   });
 }
 
-// --- स्मार्ट लैंग्वेज फॉलबैक हेल्पर ---
+// द्विभाषी टेक्स्ट फॉलबैक हेल्पर (Bilingual Fallback Helper)
 function getLocalizedText(obj) {
   if (typeof obj === "object" && obj !== null) {
     if (currentLang === "hi") {
-      // अगर हिंदी चुनी है और हिंदी मौजूद है तो वो दिखाएं, वरना इंग्लिश + नोट दिखाएं
-      return obj.hi ? obj.hi : (obj.en + "\n\n*(यह कंटेंट अभी हिंदी में उपलब्ध नहीं है)*");
+      return obj.hi ? obj.hi : (obj.en + "\n\n*(यह सामग्री अभी हिंदी में उपलब्ध नहीं है)*");
     } else {
       return obj.en || JSON.stringify(obj);
     }
@@ -42,82 +49,363 @@ let userResponses = {};
 let timeRemaining = 15 * 60;
 let timerInterval = null;
 
-// ================= 3. APP INITIALIZATION & ROUTER =================
+// ==========================================================================
+// 3. APP INITIALIZATION & VIEW ROUTER
+// ==========================================================================
 window.addEventListener("DOMContentLoaded", () => {
   setupAppEvents();
-  checkExistingSession();
+  initAuthSessionWatcher();
 });
 
 window.switchView = function(viewId) {
-  document.getElementById("viewLogin").style.display = "none";
-  document.getElementById("viewDashboard").style.display = "none";
-  document.getElementById("viewExam").style.display = "none";
-  document.getElementById("viewSolutions").style.display = "none";
-  document.getElementById("viewProfile").style.display = "none";
-  document.getElementById(viewId).style.display = "flex";
+  const views = ["viewLogin", "viewDashboard", "viewExam", "viewSolutions", "viewProfile"];
+  views.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = "none";
+  });
+  const target = document.getElementById(viewId);
+  if (target) target.style.display = "flex";
 };
 
-// ================= 4. AUTH LAYER =================
-function checkExistingSession() {
-  const savedCandidate = localStorage.getItem("candidate_session");
-  if (savedCandidate) {
-    currentCandidate = JSON.parse(savedCandidate);
-    mountDashboard();
-  } else {
-    switchView("viewLogin");
-  }
-}
-
-function setupAppEvents() {
-  // 1. Candidate Authentication Submit
-  document.getElementById("loginForm").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const roll = document.getElementById("inputRollNumber").value.trim();
-    const btn = document.getElementById("btnLogin");
-    const errBox = document.getElementById("loginError");
-    
-    errBox.style.display = "none";
-    btn.innerText = "Authenticating...";
-    btn.disabled = true;
-
-    try {
-      const { data: student, error } = await supabaseClient
-        .from("students")
-        .select("*")
-        .eq("roll_number", roll)
-        .maybeSingle();
-
-      if (error || !student) {
-        currentCandidate = { roll_number: roll, full_name: "Candidate " + roll };
-      } else {
-        currentCandidate = student;
-      }
-
-      localStorage.setItem("candidate_session", JSON.stringify(currentCandidate));
-      mountDashboard();
-    } catch (err) {
-      errBox.innerText = "Network Error: " + err.message;
-      errBox.style.display = "block";
-    } finally {
-      btn.innerText = "Authenticate & Enter";
-      btn.disabled = false;
+// ==========================================================================
+// 4. SUPABASE AUTH LAYER & SESSION MANAGEMENT
+// ==========================================================================
+function initAuthSessionWatcher() {
+  supabaseClient.auth.getSession().then(({ data: { session } }) => {
+    if (session && session.user) {
+      initCandidateSession(session.user);
+    } else {
+      switchView("viewLogin");
     }
   });
 
-  // 2. Candidate Sign Out
-  document.getElementById("btnLogout").addEventListener("click", () => {
-    localStorage.removeItem("candidate_session");
-    currentCandidate = null;
-    switchView("viewLogin");
+  supabaseClient.auth.onAuthStateChange(async (event, session) => {
+    if (session && session.user) {
+      if (!currentCandidate || currentCandidate.id !== session.user.id) {
+        initCandidateSession(session.user);
+      }
+    } else {
+      currentCandidate = null;
+      switchView("viewLogin");
+    }
   });
+}
 
-  // 3. Open Profile & Analytics View
-  document.getElementById("btnMyProfile").addEventListener("click", () => {
-    fetchStudentAnalytics(); 
-    switchView("viewProfile");
-  });
+async function initCandidateSession(user) {
+  try {
+    const userEmail = (user.email || "").toLowerCase();
+    
+    // Check if candidate profile exists in public.students database table
+    const { data: student } = await supabaseClient
+      .from("students")
+      .select("*")
+      .or(`email.eq.${userEmail},roll_number.eq.${userEmail.split("@")[0].toUpperCase()}`)
+      .maybeSingle();
 
-  // 4. Eye-Care Dark Mode Toggle & Saved State Sync
+    if (student) {
+      currentCandidate = student;
+    } else {
+      currentCandidate = {
+        id: user.id,
+        email: userEmail,
+        roll_number: user.user_metadata?.roll_number || userEmail.split("@")[0].toUpperCase(),
+        full_name: user.user_metadata?.full_name || userEmail.split("@")[0]
+      };
+      
+      // Upsert record into public.students table
+      await supabaseClient.from("students").upsert({
+        roll_number: currentCandidate.roll_number,
+        full_name: currentCandidate.full_name,
+        email: currentCandidate.email
+      }, { onConflict: "roll_number" });
+    }
+  } catch (err) {
+    console.error("Candidate session init error:", err);
+    const userEmail = (user.email || "").toLowerCase();
+    currentCandidate = {
+      id: user.id,
+      email: userEmail,
+      roll_number: user.user_metadata?.roll_number || userEmail.split("@")[0].toUpperCase(),
+      full_name: user.user_metadata?.full_name || userEmail.split("@")[0]
+    };
+  }
+
+  mountDashboard();
+}
+
+function showAuthNotice(msg, isError = true) {
+  const authErrBox = document.getElementById("authErrorMsg");
+  if (!authErrBox) return;
+  authErrBox.innerText = msg;
+  authErrBox.style.display = "block";
+  authErrBox.style.background = isError ? "rgba(239, 68, 68, 0.15)" : "rgba(34, 197, 94, 0.15)";
+  authErrBox.style.borderColor = isError ? "#ef4444" : "#22c55e";
+  authErrBox.style.color = isError ? "#fca5a5" : "#4ade80";
+}
+
+function setupAppEvents() {
+  const tabSignIn = document.getElementById("tabSignIn");
+  const tabRegister = document.getElementById("tabRegister");
+  const signInForm = document.getElementById("signInForm");
+  const registerForm = document.getElementById("registerForm");
+  const forgotForm = document.getElementById("forgotForm");
+  const authErrBox = document.getElementById("authErrorMsg");
+
+  // 1. Auth Tabs Switching
+  if (tabSignIn && tabRegister) {
+    tabSignIn.addEventListener("click", () => {
+      tabSignIn.style.borderBottom = "2px solid var(--tcs-blue-accent)";
+      tabSignIn.style.color = "var(--tcs-blue-accent)";
+      tabRegister.style.borderBottom = "none";
+      tabRegister.style.color = "#64748b";
+      signInForm.style.display = "block";
+      registerForm.style.display = "none";
+      forgotForm.style.display = "none";
+      authErrBox.style.display = "none";
+    });
+
+    tabRegister.addEventListener("click", () => {
+      tabRegister.style.borderBottom = "2px solid var(--tcs-blue-accent)";
+      tabRegister.style.color = "var(--tcs-blue-accent)";
+      tabSignIn.style.borderBottom = "none";
+      tabSignIn.style.color = "#64748b";
+      registerForm.style.display = "block";
+      signInForm.style.display = "none";
+      forgotForm.style.display = "none";
+      authErrBox.style.display = "none";
+    });
+  }
+
+  // 2. Forgot Password Sub-View Toggles
+  const btnOpenForgot = document.getElementById("btnOpenForgot");
+  if (btnOpenForgot) {
+    btnOpenForgot.addEventListener("click", () => {
+      signInForm.style.display = "none";
+      registerForm.style.display = "none";
+      forgotForm.style.display = "block";
+      document.getElementById("forgotEmailStep").style.display = "block";
+      document.getElementById("forgotResetStep").style.display = "none";
+      authErrBox.style.display = "none";
+    });
+  }
+
+  const btnBackToSignIn = document.getElementById("btnBackToSignIn");
+  if (btnBackToSignIn && tabSignIn) {
+    btnBackToSignIn.addEventListener("click", () => {
+      tabSignIn.click();
+    });
+  }
+
+  // 3. Google OAuth 1-Click Sign-In
+  const btnGoogleAuth = document.getElementById("btnGoogleAuth");
+  if (btnGoogleAuth) {
+    btnGoogleAuth.addEventListener("click", async () => {
+      authErrBox.style.display = "none";
+      const { error } = await supabaseClient.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: window.location.origin
+        }
+      });
+      if (error) showAuthNotice(error.message);
+    });
+  }
+
+  // 4. Candidate Sign-In (Returning User)
+  if (signInForm) {
+    signInForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const email = document.getElementById("inputSignInEmail").value.trim().toLowerCase();
+      const password = document.getElementById("inputSignInPass").value;
+      const btn = document.getElementById("btnSignInSubmit");
+
+      authErrBox.style.display = "none";
+      btn.innerText = "Authenticating...";
+      btn.disabled = true;
+
+      try {
+        const { data, error } = await supabaseClient.auth.signInWithPassword({
+          email: email,
+          password: password
+        });
+
+        if (error) throw error;
+        if (data.user) await initCandidateSession(data.user);
+      } catch (err) {
+        showAuthNotice(err.message || "Invalid candidate email or PIN.");
+      } finally {
+        btn.innerText = "Authenticate & Enter";
+        btn.disabled = false;
+      }
+    });
+  }
+
+  // 5. New Candidate Registration (Step A: Info Submit & Trigger OTP)
+  if (registerForm) {
+    registerForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const name = document.getElementById("inputRegName").value.trim();
+      const roll = document.getElementById("inputRegRoll").value.trim().toUpperCase();
+      const email = document.getElementById("inputRegEmail").value.trim().toLowerCase();
+      const password = document.getElementById("inputRegPass").value;
+      const btn = document.getElementById("btnRegisterSubmit");
+
+      authErrBox.style.display = "none";
+      btn.innerText = "Creating Profile...";
+      btn.disabled = true;
+
+      try {
+        const { data, error } = await supabaseClient.auth.signUp({
+          email: email,
+          password: password,
+          options: {
+            data: { full_name: name, roll_number: roll }
+          }
+        });
+
+        if (error) throw error;
+
+        pendingRegData = { name, roll, email };
+        document.getElementById("regFieldsStep").style.display = "none";
+        document.getElementById("regOtpStep").style.display = "block";
+        showAuthNotice("Verification code sent to your email. Please check your inbox.", false);
+      } catch (err) {
+        showAuthNotice(err.message || "Registration failed.");
+      } finally {
+        btn.innerText = "Create Profile & Verify Email";
+        btn.disabled = false;
+      }
+    });
+  }
+
+  // New Candidate Registration (Step B: Confirm OTP & Save Profile)
+  const btnConfirmRegOtp = document.getElementById("btnConfirmRegOtp");
+  if (btnConfirmRegOtp) {
+    btnConfirmRegOtp.addEventListener("click", async () => {
+      const token = document.getElementById("inputRegOtp").value.trim();
+
+      if (token.length !== 6) {
+        showAuthNotice("Please enter the complete 6-digit OTP.");
+        return;
+      }
+
+      btnConfirmRegOtp.innerText = "Activating Account...";
+      btnConfirmRegOtp.disabled = true;
+
+      try {
+        const { data, error } = await supabaseClient.auth.verifyOtp({
+          email: pendingRegData.email,
+          token: token,
+          type: "signup"
+        });
+
+        if (error) throw error;
+
+        // Persist candidate profile in public.students database table
+        await supabaseClient.from("students").upsert({
+          roll_number: pendingRegData.roll,
+          full_name: pendingRegData.name,
+          email: pendingRegData.email
+        }, { onConflict: "roll_number" });
+
+        if (data.user) await initCandidateSession(data.user);
+      } catch (err) {
+        showAuthNotice(err.message || "Invalid or expired OTP.");
+      } finally {
+        btnConfirmRegOtp.innerText = "Verify OTP & Activate Profile";
+        btnConfirmRegOtp.disabled = false;
+      }
+    });
+  }
+
+  // 6. Forgot Password (Step A: Dispatch Reset Code)
+  if (forgotForm) {
+    forgotForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const email = document.getElementById("inputForgotEmail").value.trim().toLowerCase();
+      const btn = document.getElementById("btnSendForgotOtp");
+
+      authErrBox.style.display = "none";
+      btn.innerText = "Sending Reset Code...";
+      btn.disabled = true;
+
+      try {
+        const { error } = await supabaseClient.auth.resetPasswordForEmail(email);
+        if (error) throw error;
+
+        pendingForgotEmail = email;
+        document.getElementById("forgotEmailStep").style.display = "none";
+        document.getElementById("forgotResetStep").style.display = "block";
+        showAuthNotice("Recovery OTP sent to your registered email.", false);
+      } catch (err) {
+        showAuthNotice(err.message || "Failed to send reset code.");
+      } finally {
+        btn.innerText = "Send Reset Code";
+        btn.disabled = false;
+      }
+    });
+  }
+
+  // Forgot Password (Step B: Verify Recovery OTP & Update Password)
+  const btnUpdatePassword = document.getElementById("btnUpdatePassword");
+  if (btnUpdatePassword) {
+    btnUpdatePassword.addEventListener("click", async () => {
+      const token = document.getElementById("inputForgotOtp").value.trim();
+      const newPass = document.getElementById("inputForgotNewPass").value;
+
+      if (!token || newPass.length < 6) {
+        showAuthNotice("Please enter a valid OTP and a password with at least 6 characters.");
+        return;
+      }
+
+      btnUpdatePassword.innerText = "Updating Password...";
+      btnUpdatePassword.disabled = true;
+
+      try {
+        const { error: otpErr } = await supabaseClient.auth.verifyOtp({
+          email: pendingForgotEmail,
+          token: token,
+          type: "recovery"
+        });
+        if (otpErr) throw otpErr;
+
+        const { data, error: updateErr } = await supabaseClient.auth.updateUser({
+          password: newPass
+        });
+        if (updateErr) throw updateErr;
+
+        showAuthNotice("Password updated successfully! Redirecting...", false);
+        if (data.user) await initCandidateSession(data.user);
+      } catch (err) {
+        showAuthNotice(err.message || "Password update failed.");
+      } finally {
+        btnUpdatePassword.innerText = "Update PIN & Enter";
+        btnUpdatePassword.disabled = false;
+      }
+    });
+  }
+
+  // 7. Candidate Sign Out
+  const btnLogout = document.getElementById("btnLogout");
+  if (btnLogout) {
+    btnLogout.addEventListener("click", async () => {
+      await supabaseClient.auth.signOut();
+      currentCandidate = null;
+      switchView("viewLogin");
+      if (tabSignIn) tabSignIn.click();
+    });
+  }
+
+  // 8. Student Profile & Analytics View Trigger
+  const btnMyProfile = document.getElementById("btnMyProfile");
+  if (btnMyProfile) {
+    btnMyProfile.addEventListener("click", () => {
+      fetchStudentAnalytics();
+      switchView("viewProfile");
+    });
+  }
+
+  // 9. Eye-Care High-Tech Dark Mode Toggle & Sync
   const btnDarkMode = document.getElementById("btnDarkMode");
   if (localStorage.getItem("theme") === "dark") {
     document.body.classList.add("dark-theme");
@@ -137,7 +425,7 @@ function setupAppEvents() {
     });
   }
 
-  // 5. Exam Console Action Buttons
+  // 10. Exam Console Action Handlers
   document.getElementById("btnSaveNext").addEventListener("click", () => {
     if (!userResponses[currentIndex]) return;
     const state = userResponses[currentIndex];
@@ -163,7 +451,7 @@ function setupAppEvents() {
     showExamSummaryModal();
   });
 
-  // 6. Dashboard Topic Filter Search
+  // 11. Dashboard Topic Filter Search
   document.getElementById("topicSearchInput").addEventListener("input", (e) => {
     const query = e.target.value.toLowerCase();
     document.querySelectorAll(".topic-accordion-card").forEach(card => {
@@ -172,7 +460,7 @@ function setupAppEvents() {
     });
   });
 
-  // 7. Bilingual Language Switcher
+  // 12. Bilingual Language Switcher
   document.getElementById("langSwitch").addEventListener("change", (e) => {
     currentLang = e.target.value;
     if (document.getElementById("viewExam").style.display === "flex") {
@@ -180,28 +468,28 @@ function setupAppEvents() {
     }
   });
 
-  // 8. Mobile Bottom-Sheet Palette Drawer Trigger
+  // 13. Mobile Bottom-Sheet Palette Drawer Trigger
   document.getElementById("btnMobilePalette").addEventListener("click", () => {
     document.querySelector(".tcs-side-panel").classList.add("open");
     document.getElementById("paletteOverlay").classList.add("open");
   });
 
-  // 9. Close Mobile Drawer via Backdrop Click
+  // 14. Close Mobile Drawer via Backdrop Click
   document.getElementById("paletteOverlay").addEventListener("click", () => {
     document.querySelector(".tcs-side-panel").classList.remove("open");
     document.getElementById("paletteOverlay").classList.remove("open");
   });
 }
 
-
-
-// ================= 5. DASHBOARD & TAXONOMY LAYER =================
+// ==========================================================================
+// 5. DASHBOARD & TAXONOMY LAYER
+// ==========================================================================
 async function mountDashboard() {
-  document.getElementById("dashCandidateName").innerText = currentCandidate.full_name;
-  document.getElementById("dashCandidateRoll").innerText = "ROLL: " + currentCandidate.roll_number;
+  document.getElementById("dashCandidateName").innerText = currentCandidate.full_name || "Candidate";
+  document.getElementById("dashCandidateRoll").innerText = "ROLL: " + (currentCandidate.roll_number || "---");
 
   switchView("viewDashboard");
-  await fetchStudentAnalytics(); // Background update
+  await fetchStudentAnalytics();
   await fetchTestCatalog();
 }
 
@@ -219,7 +507,7 @@ async function fetchTestCatalog() {
   }
   catalogData = catalog;
 
-  // Student History Fetch karein
+  // Student Attempt History Fetch
   const { data: history } = await supabaseClient
     .from("test_attempts")
     .select("test_id, score, attempt_date")
@@ -332,18 +620,30 @@ function renderTopicSets() {
   });
 }
 
-// ================= 6. EXAM ENGINE LAYER =================
+// ==========================================================================
+// 6. TCS iON EXAM ENGINE LAYER
+// ==========================================================================
 window.launchAssessment = async function(testId) {
   switchView("viewExam");
   document.getElementById("examCandidateRoll").innerText = currentCandidate.roll_number;
   document.getElementById("questionContent").innerText = "Configuring assessment runtime...";
 
-  const { data: testInfo } = await supabaseClient.from("tests").select("id, title, total_duration_minutes").eq("id", testId).single();
+  const { data: testInfo } = await supabaseClient
+    .from("tests")
+    .select("id, title, total_duration_minutes")
+    .eq("id", testId)
+    .single();
+    
   activeTest = testInfo;
   document.getElementById("examTitle").innerText = activeTest.title;
   timeRemaining = (activeTest.total_duration_minutes || 15) * 60;
 
-  const { data: sections } = await supabaseClient.from("test_sections").select("id, section_name").eq("test_id", testId).limit(1);
+  const { data: sections } = await supabaseClient
+    .from("test_sections")
+    .select("id, section_name")
+    .eq("test_id", testId)
+    .limit(1);
+    
   const section = sections[0];
   document.getElementById("subjectLabel").innerText = section ? section.section_name : "Core Section";
   document.getElementById("sectionTabs").innerHTML = `<button class="section-tab">Section 1: ${section ? section.section_name : "General"}</button>`;
@@ -351,7 +651,8 @@ window.launchAssessment = async function(testId) {
   const { data: qData, error } = await supabaseClient
     .from("test_section_questions")
     .select(`question_number, questions (id, content, options, correct_answer, explanation)`)
-    .eq("section_id", section.id).order("question_number", { ascending: true });
+    .eq("section_id", section.id)
+    .order("question_number", { ascending: true });
 
   if (error || !qData || qData.length === 0) {
     alert("Is test ke questions load nahi ho sake!");
@@ -386,8 +687,6 @@ function renderQuestion(index) {
   if (state.status === 0) state.status = 1;
 
   document.getElementById("qDisplayNumber").innerText = q.qNum;
-
-  // नए स्मार्ट हेल्पर से सवाल का टेक्स्ट निकालें
   document.getElementById("questionContent").innerText = getLocalizedText(q.content);
 
   const optContainer = document.getElementById("optionsContainer");
@@ -404,10 +703,11 @@ function renderQuestion(index) {
     radio.value = String(opt.id);
     if (state.selected === String(opt.id)) radio.checked = true;
 
-    radio.addEventListener("change", () => { userResponses[currentIndex].selected = String(opt.id); });
+    radio.addEventListener("change", () => { 
+      userResponses[currentIndex].selected = String(opt.id); 
+    });
 
     const span = document.createElement("span");
-    // ऑप्शंस के लिए भी स्मार्ट हेल्पर का इस्तेमाल
     span.innerText = getLocalizedText({ en: opt.en || opt.text, hi: opt.hi });
 
     row.appendChild(radio);
@@ -417,7 +717,7 @@ function renderQuestion(index) {
 
   renderPaletteGrid();
   updateStatusMatrix();
-  // Mobile par jab sawal select ho, toh drawer auto-close ho jaye
+
   if (window.innerWidth <= 768) {
     document.querySelector(".tcs-side-panel").classList.remove("open");
     document.getElementById("paletteOverlay").classList.remove("open");
@@ -448,7 +748,10 @@ function renderPaletteGrid() {
 
 function advanceNextQuestion() {
   if (currentIndex + 1 < testQuestions.length) renderQuestion(currentIndex + 1);
-  else { renderPaletteGrid(); updateStatusMatrix(); }
+  else { 
+    renderPaletteGrid(); 
+    updateStatusMatrix(); 
+  }
 }
 
 function updateStatusMatrix() {
@@ -470,7 +773,6 @@ function updateStatusMatrix() {
 function startExamTimer() {
   if (timerInterval) clearInterval(timerInterval);
 
-  // Helper function: dono displays ko synchronize karne ke liye
   const updateTimerDisplays = () => {
     const mins = Math.floor(timeRemaining / 60);
     const secs = timeRemaining % 60;
@@ -483,7 +785,6 @@ function startExamTimer() {
     if (mobileDisplay) mobileDisplay.innerText = formattedTime;
   };
 
-  // 1st second wait kiye bina screen par turant time show karein
   updateTimerDisplays();
 
   timerInterval = setInterval(() => {
@@ -497,11 +798,17 @@ function startExamTimer() {
   }, 1000);
 }
 
-// ================= 7. SUBMISSION, SCORECARD & TELEMETRY =================
+// ==========================================================================
+// 7. SUBMISSION, SCORECARD & TELEMETRY
+// ==========================================================================
 function showExamSummaryModal() {
   let ans = 0, notAns = 0, notVis = 0, rev = 0, ansRev = 0;
   Object.values(userResponses).forEach(r => {
-    if (r.status === 0) notVis++; else if (r.status === 1) notAns++; else if (r.status === 2) ans++; else if (r.status === 3) rev++; else if (r.status === 4) ansRev++;
+    if (r.status === 0) notVis++; 
+    else if (r.status === 1) notAns++; 
+    else if (r.status === 2) ans++; 
+    else if (r.status === 3) rev++; 
+    else if (r.status === 4) ansRev++;
   });
 
   const modal = document.getElementById("submitModalContainer");
@@ -622,9 +929,9 @@ window.closeExamAndReload = async function() {
   mountDashboard();
 };
 
-// ================= 8. SOLUTIONS & EXPLANATIONS VIEW =================
-
-// ================= 8. SOLUTIONS & EXPLANATIONS VIEW =================
+// ==========================================================================
+// 8. SOLUTIONS & EXPLANATIONS VIEW
+// ==========================================================================
 window.openSolutionsView = function() {
   document.getElementById("submitModalContainer").style.display = "none";
   document.getElementById("solExamTitle").innerText = activeTest.title;
@@ -640,17 +947,17 @@ window.openSolutionsView = function() {
     let statusText = "Unattempted";
     let statusClass = "sol-status-unattempted";
     if (userAns) {
-      if (String(userAns) === correctAns) { statusText = "Correct"; statusClass = "sol-status-correct"; } 
-      else { statusText = "Incorrect"; statusClass = "sol-status-incorrect"; }
+      if (String(userAns) === correctAns) { 
+        statusText = "Correct"; 
+        statusClass = "sol-status-correct"; 
+      } else { 
+        statusText = "Incorrect"; 
+        statusClass = "sol-status-incorrect"; 
+      }
     }
 
-    // स्मार्ट हेल्पर से सवाल और एक्सप्लेनेशन फेच करें
     let qText = getLocalizedText(q.content);
-    
-    let expText = "No explanation provided.";
-    if (q.explanation) {
-      expText = getLocalizedText(q.explanation);
-    }
+    let expText = q.explanation ? getLocalizedText(q.explanation) : "No explanation provided.";
 
     let optionsHtml = "";
     const optionsList = Array.isArray(q.options) ? q.options : [];
@@ -660,12 +967,15 @@ window.openSolutionsView = function() {
       let optClass = "sol-option";
       let icon = "⚪";
 
-      if (optId === correctAns) { optClass += " sol-opt-correct"; icon = "✔️"; } 
-      else if (optId === String(userAns) && optId !== correctAns) { optClass += " sol-opt-wrong"; icon = "❌"; }
+      if (optId === correctAns) { 
+        optClass += " sol-opt-correct"; 
+        icon = "✔️"; 
+      } else if (optId === String(userAns) && optId !== correctAns) { 
+        optClass += " sol-opt-wrong"; 
+        icon = "❌"; 
+      }
 
-      // स्मार्ट हेल्पर से ऑप्शन फेच करें
       let optText = getLocalizedText({ en: opt.en || opt.text, hi: opt.hi });
-      
       optionsHtml += `<div class="${optClass}"><span>${icon}</span><span>${optText}</span></div>`;
     });
 
@@ -681,19 +991,32 @@ window.openSolutionsView = function() {
   });
 };
 
-// ================= 9. STUDENT ANALYTICS & CALENDAR =================
+// ==========================================================================
+// 9. STUDENT ANALYTICS & ATTENDANCE CALENDAR
+// ==========================================================================
 async function fetchStudentAnalytics() {
   try {
-    const { data: attempts } = await supabaseClient.from("test_attempts").select("total_correct, total_incorrect").eq("student_roll", currentCandidate.roll_number);
+    const { data: attempts } = await supabaseClient
+      .from("test_attempts")
+      .select("total_correct, total_incorrect")
+      .eq("student_roll", currentCandidate.roll_number);
+
     let totalTests = attempts ? attempts.length : 0;
     let totalCorrect = 0, totalIncorrect = 0;
 
     if (attempts) {
-      attempts.forEach(a => { totalCorrect += (a.total_correct || 0); totalIncorrect += (a.total_incorrect || 0); });
+      attempts.forEach(a => { 
+        totalCorrect += (a.total_correct || 0); 
+        totalIncorrect += (a.total_incorrect || 0); 
+      });
     }
     let accuracy = (totalCorrect + totalIncorrect > 0) ? ((totalCorrect / (totalCorrect + totalIncorrect)) * 100).toFixed(1) : 0;
 
-    const { data: attendance } = await supabaseClient.from("daily_attendance").select("study_date, total_minutes_spent").eq("student_roll", currentCandidate.roll_number);
+    const { data: attendance } = await supabaseClient
+      .from("daily_attendance")
+      .select("study_date, total_minutes_spent")
+      .eq("student_roll", currentCandidate.roll_number);
+
     let totalMins = 0;
     let presentDates = [];
 
@@ -709,7 +1032,9 @@ async function fetchStudentAnalytics() {
     document.getElementById("statStudyTime").innerText = `${Math.floor(totalMins / 60)}h ${totalMins % 60}m`;
 
     renderAttendanceCalendar(presentDates);
-  } catch (err) { console.error("Analytics fetch error:", err); }
+  } catch (err) { 
+    console.error("Analytics fetch error:", err); 
+  }
 }
 
 function renderAttendanceCalendar(presentDates) {

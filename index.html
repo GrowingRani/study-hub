@@ -5,14 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Assessment Engine - Industrial Assessment Portal</title>
   <link rel="stylesheet" href="style.css">
+  
   <!-- Progressive Web App Engine Configuration -->
   <link rel="manifest" href="./manifest.json">
   <meta name="theme-color" content="#0f172a">
-  <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="ExamPortal">
+  <meta name="robots" content="noindex, nofollow">
   <link rel="icon" href="data:,">
   
   <!-- Supabase JS Client CDN -->
@@ -20,7 +21,7 @@
 </head>
 <body class="portal-body">
 
-  <!-- ================= SCREEN 1: CANDIDATE LOGIN GATE ================= -->
+  <!-- ================= SCREEN 1: SECURE AUTHENTICATION & ONBOARDING GATE ================= -->
   <section id="viewLogin" class="view-screen active-view">
     <div class="login-industrial-card">
       <div class="login-header">
@@ -28,19 +29,113 @@
         <h2>Candidate Authentication Gateway</h2>
         <p>National Testing & Assessment Infrastructure</p>
       </div>
-      
-      <form id="loginForm" class="login-form">
+
+      <!-- Auth Navigation Tabs: Sign In / Create Profile -->
+      <div class="auth-tabs" style="display: flex; gap: 8px; margin-bottom: 18px; border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
+        <button type="button" id="tabSignIn" class="auth-tab-btn active" style="flex: 1; padding: 8px; font-weight: 700; font-size: 12px; border: none; background: transparent; color: var(--tcs-blue-accent); cursor: pointer; border-bottom: 2px solid var(--tcs-blue-accent);">Sign In</button>
+        <button type="button" id="tabRegister" class="auth-tab-btn" style="flex: 1; padding: 8px; font-weight: 700; font-size: 12px; border: none; background: transparent; color: #64748b; cursor: pointer;">New Candidate Registration</button>
+      </div>
+
+      <!-- Live Notification & Error Message Banner -->
+      <div id="authErrorMsg" class="auth-error-msg" style="display: none;"></div>
+
+      <!-- 1. SIGN IN FORM (RETURNING CANDIDATE) -->
+      <form id="signInForm" class="login-form">
+        <!-- Google OAuth 1-Click Sign-In -->
+        <button type="button" id="btnGoogleAuth" class="btn-industrial-login" style="background: #ffffff; color: #0f172a; border: 1px solid var(--border-color); display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08);">
+          <svg width="18" height="18" viewBox="0 0 24 24">
+            <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.66v3.05h3.9c2.27-2.09 3.64-5.17 3.64-9.15z"/>
+            <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.9-3.05c-1.08.72-2.45 1.16-4.03 1.16-3.1 0-5.73-2.09-6.67-4.9H1.3v3.14C3.33 21.37 7.37 24 12 24z"/>
+            <path fill="#FBBC05" d="M5.33 14.3c-.24-.72-.38-1.49-.38-2.3s.14-1.58.38-2.3V6.56H1.3C.47 8.21 0 10.05 0 12s.47 3.79 1.3 5.44l4.03-3.14z"/>
+            <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.37 0 3.33 2.63 1.3 6.56l4.03 3.14c.94-2.81 3.57-4.9 6.67-4.9z"/>
+          </svg>
+          Sign in with Google
+        </button>
+
+        <div style="display: flex; align-items: center; text-align: center; margin-bottom: 16px;">
+          <div style="flex: 1; border-bottom: 1px solid var(--border-color);"></div>
+          <span style="padding: 0 10px; font-size: 11px; font-weight: 700; color: #64748b; letter-spacing: 0.5px;">OR REGISTERED CREDENTIALS</span>
+          <div style="flex: 1; border-bottom: 1px solid var(--border-color);"></div>
+        </div>
+
         <div class="form-group">
-          <label for="inputRollNumber">Roll Number / Candidate ID</label>
-          <input type="text" id="inputRollNumber" placeholder="e.g. ROLL-2026-01" required autocomplete="off">
+          <label for="inputSignInEmail">Candidate Email Address</label>
+          <input type="email" id="inputSignInEmail" placeholder="candidate@example.com" required autocomplete="email">
         </div>
         <div class="form-group">
-          <label for="inputPassword">Access PIN</label>
-          <input type="password" id="inputPassword" placeholder="Default PIN: 1234" value="1234" required>
+          <label for="inputSignInPass">Access Password / Security PIN</label>
+          <input type="password" id="inputSignInPass" placeholder="••••••••" required autocomplete="current-password">
         </div>
-        <div id="loginError" class="auth-error-msg" style="display: none;"></div>
-        <button type="submit" class="btn-industrial-login" id="btnLogin">Authenticate & Enter</button>
+        <div style="display: flex; justify-content: flex-end; margin-bottom: 14px;">
+          <button type="button" id="btnOpenForgot" style="background: none; border: none; color: var(--tcs-blue-accent); font-size: 11px; cursor: pointer; text-decoration: underline;">Forgot PIN / Password?</button>
+        </div>
+        <button type="submit" class="btn-industrial-login" id="btnSignInSubmit">Authenticate & Enter</button>
       </form>
+
+      <!-- 2. REGISTRATION FORM (CREATE PROFILE & EMAIL VERIFICATION) -->
+      <form id="registerForm" class="login-form" style="display: none;">
+        <!-- Step A: Candidate Info Collection -->
+        <div id="regFieldsStep">
+          <div class="form-group">
+            <label for="inputRegName">Full Name</label>
+            <input type="text" id="inputRegName" placeholder="e.g. Rahul Sharma" required autocomplete="name">
+          </div>
+          <div class="form-group">
+            <label for="inputRegRoll">Roll Number / Candidate ID</label>
+            <input type="text" id="inputRegRoll" placeholder="e.g. ROLL-2026-88" required autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label for="inputRegEmail">Candidate Email Address</label>
+            <input type="email" id="inputRegEmail" placeholder="rahul@example.com" required autocomplete="email">
+          </div>
+          <div class="form-group">
+            <label for="inputRegPass">Set Access Password / Security PIN</label>
+            <input type="password" id="inputRegPass" placeholder="At least 6 characters" required autocomplete="new-password">
+          </div>
+          <button type="submit" class="btn-industrial-login" id="btnRegisterSubmit">Create Profile & Verify Email</button>
+        </div>
+
+        <!-- Step B: 6-Digit Email OTP Verification -->
+        <div id="regOtpStep" style="display: none;">
+          <p style="font-size: 12px; color: #64748b; margin-bottom: 12px;">A 6-digit confirmation code has been dispatched to your email. Enter it below to activate your candidate profile:</p>
+          <div class="form-group">
+            <label for="inputRegOtp">6-Digit Verification Code</label>
+            <input type="text" id="inputRegOtp" placeholder="123456" maxlength="6" inputmode="numeric" style="letter-spacing: 4px; font-weight: 700; text-align: center; font-size: 18px;">
+          </div>
+          <button type="button" class="btn-industrial-login" id="btnConfirmRegOtp">Verify OTP & Activate Profile</button>
+        </div>
+      </form>
+
+      <!-- 3. FORGOT PASSWORD / PIN RESET FORM -->
+      <form id="forgotForm" class="login-form" style="display: none;">
+        <!-- Step A: Enter Registered Email -->
+        <div id="forgotEmailStep">
+          <p style="font-size: 12px; color: #64748b; margin-bottom: 12px;">Enter your registered candidate email to receive a secure recovery code:</p>
+          <div class="form-group">
+            <label for="inputForgotEmail">Registered Candidate Email</label>
+            <input type="email" id="inputForgotEmail" placeholder="candidate@example.com" required>
+          </div>
+          <button type="submit" class="btn-industrial-login" id="btnSendForgotOtp">Send Reset Code</button>
+        </div>
+
+        <!-- Step B: Verify OTP & Set New Password -->
+        <div id="forgotResetStep" style="display: none;">
+          <div class="form-group">
+            <label for="inputForgotOtp">6-Digit Recovery Code</label>
+            <input type="text" id="inputForgotOtp" placeholder="123456" maxlength="6" inputmode="numeric" style="letter-spacing: 4px; font-weight: 700; text-align: center; font-size: 18px;">
+          </div>
+          <div class="form-group">
+            <label for="inputForgotNewPass">New Password / Security PIN</label>
+            <input type="password" id="inputForgotNewPass" placeholder="••••••••" required>
+          </div>
+          <button type="button" class="btn-industrial-login" id="btnUpdatePassword">Update PIN & Enter</button>
+        </div>
+
+        <div style="text-align: center; margin-top: 14px;">
+          <button type="button" id="btnBackToSignIn" style="background: none; border: none; color: #64748b; font-size: 11px; cursor: pointer; text-decoration: underline;">Back to Sign In</button>
+        </div>
+      </form>
+
     </div>
   </section>
 
@@ -58,10 +153,10 @@
           <span class="user-roll" id="dashCandidateRoll">ROLL: ---</span>
         </div>
         <!-- Dark Mode Toggle -->
-        <button class="btn-dash-logout" id="btnDarkMode" style="padding: 6px 10px; font-size: 14px; border: none; background: transparent; cursor: pointer;">🌙</button>
+        <button id="btnDarkMode">🌙</button>
         <!-- Profile & Logout Buttons -->
-        <button class="tcs-btn btn-primary" id="btnMyProfile" style="padding: 6px 12px; font-size: 12px;">My Profile</button>
-        <button class="btn-dash-logout" id="btnLogout">Sign Out</button>
+        <button id="btnMyProfile">My Profile</button>
+        <button id="btnLogout">Sign Out</button>
       </div>
     </header>
 
@@ -151,7 +246,6 @@
       </section>
 
       <!-- Right Panel: TCS iON Palette Panel -->
-       <!-- Mobile Palette Blur Overlay -->
       <div id="paletteOverlay" class="palette-overlay"></div>
       <aside class="tcs-side-panel">
         <div class="status-summary-matrix">
@@ -214,7 +308,6 @@
     </header>
 
     <main style="padding: 30px; max-width: 900px; margin: 0 auto; width: 100%;">
-      
       <!-- Analytics Banner -->
       <div class="analytics-banner">
         <div class="stat-card">
@@ -250,7 +343,6 @@
           </div>
         </div>
       </div>
-
     </main>
   </section>
 

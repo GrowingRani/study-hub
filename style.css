@@ -74,7 +74,6 @@ body.dark-theme .tcs-side-panel {
 }
 
 /* Accordion Folders & Set Tiles */
-/* Dark Mode: Fix for White Background behind Set Boxes */
 body.dark-theme .topic-accordion-body {
   background: #111827;
 }
@@ -104,6 +103,16 @@ body.dark-theme .sol-content {
   color: #f1f5f9;
 }
 
+body.dark-theme .portal-tag {
+  color: #38bdf8; 
+}
+
+body.dark-theme .node-tag {
+  background: #1e293b;
+  border-color: #334155;
+  color: #94a3b8;
+}
+
 body.dark-theme .subject-chip {
   background: #162032;
   border-color: #334155;
@@ -121,6 +130,51 @@ body.dark-theme .search-filter-box input {
   background: #0b1120;
   border-color: #334155;
   color: #f8fafc;
+}
+
+/* Dark Mode Login Gate & Onboarding Elements */
+body.dark-theme .login-header h2 {
+  color: #f8fafc;
+}
+body.dark-theme .login-header p,
+body.dark-theme .auth-subtext {
+  color: #94a3b8;
+}
+body.dark-theme .auth-tabs {
+  border-bottom-color: #1e293b;
+}
+body.dark-theme .auth-tab-btn {
+  color: #64748b;
+}
+body.dark-theme .auth-tab-btn.active {
+  color: #38bdf8;
+  border-bottom-color: #38bdf8;
+}
+body.dark-theme .login-form label {
+  color: #cbd5e1;
+}
+body.dark-theme .login-form input {
+  background: #0b1120;
+  border-color: #334155;
+  color: #f8fafc;
+}
+body.dark-theme .login-form input:focus {
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.15);
+}
+body.dark-theme #btnGoogleAuth {
+  background: #162032 !important;
+  color: #f8fafc !important;
+  border-color: #334155 !important;
+}
+body.dark-theme #btnGoogleAuth:hover {
+  background: #1e293b !important;
+  border-color: #38bdf8 !important;
+}
+body.dark-theme .auth-error-msg {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: #ef4444;
+  color: #fca5a5;
 }
 
 /* Exam Strip & Question Options */
@@ -286,15 +340,6 @@ body.dark-theme .sol-explanation {
   color: #cbd5e1 !important;
 }
 
-body.dark-theme .portal-tag {
-  color: #38bdf8; 
-}
-
-body.dark-theme .node-tag {
-  background: #1e293b;
-  border-color: #334155;
-  color: #94a3b8;
-}
 /* ==========================================================================
    3. LOGIN SCREEN (SCREEN 1)
    ========================================================================== */
@@ -336,9 +381,37 @@ body.dark-theme .node-tag {
   margin-bottom: 4px; 
 }
 
-.login-header p { 
+.login-header p,
+.auth-subtext { 
   font-size: 12px; 
   color: #64748b; 
+}
+
+/* Auth Navigation Tabs */
+.auth-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 8px;
+}
+
+.auth-tab-btn {
+  flex: 1;
+  padding: 8px;
+  font-weight: 700;
+  font-size: 12px;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.auth-tab-btn.active {
+  color: var(--tcs-blue-accent);
+  border-bottom-color: var(--tcs-blue-accent);
 }
 
 .login-form .form-group { 
@@ -360,6 +433,7 @@ body.dark-theme .node-tag {
   font-size: 14px; 
   outline: none; 
   border-radius: 2px; 
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .login-form input:focus { 
@@ -1070,7 +1144,7 @@ body.dark-theme .node-tag {
 
 /* ==========================================================================
    6. MODALS, SUMMARY & SCORECARD
-   ========================================================================= */
+   ========================================================================== */
 .tcs-modal-overlay { 
   position: fixed; 
   inset: 0; 
@@ -1384,7 +1458,6 @@ body.dark-theme .node-tag {
   }
 
   /* Horizontal Swipeable Carousel (Subjects Bar) */
-  /* Mobile Horizontal Swipeable Subjects Bar FIX */
   .subject-sidebar { 
     width: 100%; 
     border-right: none; 
@@ -1394,7 +1467,7 @@ body.dark-theme .node-tag {
   
   .subject-chips-list {
     display: flex;
-    flex-direction: row; /* बटन्स को एक लाइन में लाने का असली कोड */
+    flex-direction: row;
     flex-wrap: nowrap; 
     overflow-x: auto; 
     gap: 10px; 
@@ -1412,10 +1485,6 @@ body.dark-theme .node-tag {
     font-size: 13px; 
     white-space: nowrap; 
   }
-  .subject-sidebar::-webkit-scrollbar { 
-    display: none; 
-  }
- 
 
   .dash-layout { 
     flex-direction: column; 
