@@ -1,3 +1,4 @@
+/* ================= 1. GLOBAL VARIABLES & RESET ================= */
 :root {
   --bg-primary: #f8fafc;
   --bg-panel: #ffffff;
@@ -16,7 +17,12 @@
   --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
 }
 
-* { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+* { 
+  box-sizing: border-box; 
+  margin: 0; 
+  padding: 0; 
+  user-select: none; 
+}
 
 body.portal-body {
   font-family: var(--font-family);
@@ -25,9 +31,14 @@ body.portal-body {
   overflow: hidden;
 }
 
-.view-screen { width: 100vw; height: 100vh; display: flex; flex-direction: column; }
+.view-screen { 
+  width: 100vw; 
+  height: 100vh; 
+  display: flex; 
+  flex-direction: column; 
+}
 
-/* ================= LOGIN SCREEN STYLING ================= */
+/* ================= 2. LOGIN SCREEN (SCREEN 1) ================= */
 #viewLogin {
   background: radial-gradient(circle at 50% 20%, #1e293b, #0f172a);
   align-items: center;
@@ -40,6 +51,7 @@ body.portal-body {
   border-top: 5px solid var(--tcs-blue-header);
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
   padding: 32px;
+  border-radius: 4px;
 }
 
 .login-header { text-align: center; margin-bottom: 24px; }
@@ -64,10 +76,11 @@ body.portal-body {
   font-weight: 700;
   cursor: pointer;
   letter-spacing: 0.5px;
+  border-radius: 2px;
 }
 .btn-industrial-login:hover { background: #172554; }
 
-/* ================= DASHBOARD STYLING ================= */
+/* ================= 3. DASHBOARD & TAXONOMY (SCREEN 2) ================= */
 .dash-top-bar {
   background: #ffffff;
   border-bottom: 2px solid var(--border-color);
@@ -95,6 +108,7 @@ body.portal-body {
   font-weight: 600;
   cursor: pointer;
   color: #dc2626;
+  border-radius: 2px;
 }
 .btn-dash-logout:hover { background: #fee2e2; border-color: #fca5a5; }
 
@@ -126,13 +140,14 @@ body.portal-body {
   justify-content: space-between;
   align-items: center;
   transition: all 0.15s ease;
+  border-radius: 2px;
 }
 .subject-chip:hover { background: #f1f5f9; border-color: #94a3b8; }
 .subject-chip.active { background: var(--tcs-blue-header); color: #ffffff; border-color: var(--tcs-blue-header); }
 .subject-chip .badge-count { font-size: 11px; padding: 2px 6px; background: rgba(0,0,0,0.06); border-radius: 10px; }
 .subject-chip.active .badge-count { background: rgba(255,255,255,0.2); color: #fff; }
 
-/* Right Viewport */
+/* Right Viewport (Catalog) */
 .catalog-viewport {
   flex: 1;
   padding: 24px 30px;
@@ -144,15 +159,24 @@ body.portal-body {
 .catalog-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 14px; }
 .catalog-header h2 { font-size: 20px; color: #0f172a; margin-bottom: 4px; }
 .catalog-header p { font-size: 13px; color: #64748b; }
-.search-filter-box input { padding: 8px 12px; border: 1px solid var(--border-color); font-size: 13px; width: 240px; }
+.search-filter-box input { padding: 8px 12px; border: 1px solid var(--border-color); font-size: 13px; width: 240px; border-radius: 2px; }
 
-.topics-grid { display: flex; flex-direction: column; gap: 20px; }
+.topics-grid { display: flex; flex-direction: column; gap: 12px; }
 
-.topic-group-card { background: #ffffff; border: 1px solid var(--border-color); box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
-.topic-group-header { background: #f1f5f9; padding: 10px 16px; border-bottom: 1px solid var(--border-color); font-size: 14px; font-weight: 700; color: #1e293b; display: flex; justify-content: space-between; align-items: center; }
+/* Accordion Folders */
+.topic-accordion-card { background: #ffffff; border: 1px solid var(--border-color); border-radius: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.03); }
+.topic-accordion-header { background: #f8fafc; padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: background 0.2s; border-radius: 4px; }
+.topic-accordion-header:hover { background: #f1f5f9; }
+.header-left { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 700; color: #1e293b; }
+.header-right { display: flex; align-items: center; gap: 15px; }
+.icon-folder { font-size: 18px; }
+.toggle-icon { font-size: 12px; color: #64748b; transition: transform 0.3s; }
+.topic-accordion-card.open .toggle-icon { transform: rotate(180deg); }
+.topic-accordion-card.open .topic-accordion-header { border-bottom: 1px solid var(--border-color); border-radius: 4px 4px 0 0; }
+.topic-accordion-body { display: none; padding: 20px; background: #ffffff; border-radius: 0 0 4px 4px; }
 .subtopic-tag { font-size: 12px; font-weight: 500; color: #64748b; }
 
-.sets-card-grid { padding: 16px; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+.sets-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
 
 .set-tile {
   background: #ffffff;
@@ -162,9 +186,10 @@ body.portal-body {
   flex-direction: column;
   justify-content: space-between;
   border-left: 4px solid var(--tcs-blue-accent);
+  border-radius: 2px;
 }
 .set-tile-title { font-size: 13px; font-weight: 700; color: #0f172a; margin-bottom: 8px; line-height: 1.4; }
-.set-tile-meta { font-size: 11px; color: #64748b; margin-bottom: 14px; display: flex; gap: 12px; }
+.set-tile-meta { font-size: 11px; color: #64748b; margin-bottom: 10px; display: flex; gap: 12px; }
 .btn-launch-set {
   padding: 8px 12px;
   background: var(--tcs-blue-accent);
@@ -174,20 +199,22 @@ body.portal-body {
   font-weight: 700;
   cursor: pointer;
   text-align: center;
+  border-radius: 2px;
 }
 .btn-launch-set:hover { background: #1d4ed8; }
 
-/* ================= EXAM CONSOLE STYLING ================= */
+
+/* ================= 4. TCS iON EXAM CONSOLE (SCREEN 3) ================= */
 .tcs-top-bar { background-color: #ffffff; border-bottom: 2px solid var(--border-color); padding: 6px 16px; display: flex; justify-content: space-between; align-items: center; height: 52px; }
 .system-id strong { color: var(--tcs-blue-header); font-family: var(--font-mono); }
-.exam-title-badge { margin-left: 20px; background-color: #f1f5f9; border: 1px solid var(--border-color); padding: 4px 10px; font-size: 13px; font-weight: 600; color: #334155; }
+.exam-title-badge { margin-left: 20px; background-color: #f1f5f9; border: 1px solid var(--border-color); padding: 4px 10px; font-size: 13px; font-weight: 600; color: #334155; border-radius: 2px; }
 .candidate-card { display: flex; align-items: center; gap: 10px; }
-.candidate-avatar { width: 36px; height: 36px; background-color: #f1f5f9; border: 1px solid var(--border-color); display: flex; align-items: center; justify-content: center; }
+.candidate-avatar { width: 36px; height: 36px; background-color: #f1f5f9; border: 1px solid var(--border-color); display: flex; align-items: center; justify-content: center; border-radius: 2px;}
 .candidate-info { display: flex; flex-direction: column; font-size: 11px; line-height: 1.3; }
 
 .tcs-sub-bar { background-color: #0f172a; color: #ffffff; display: flex; justify-content: space-between; align-items: center; padding: 0 16px; height: 36px; }
 .section-tab { background: transparent; color: #ffffff; border: none; font-size: 13px; font-weight: 600; padding: 8px 14px; border-bottom: 3px solid #38bdf8; }
-.utility-tools select { padding: 2px 6px; font-size: 12px; border: 1px solid #475569; background: #1e293b; color: white; }
+.utility-tools select { padding: 2px 6px; font-size: 12px; border: 1px solid #475569; background: #1e293b; color: white; border-radius: 2px;}
 
 .tcs-workspace { display: flex; flex: 1; height: calc(100vh - 140px); }
 .question-workspace { flex: 1; background: var(--bg-panel); border-right: 2px solid var(--border-color); display: flex; flex-direction: column; }
@@ -208,6 +235,7 @@ body.portal-body {
 .status-summary-matrix { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 10px; background: #ffffff; border-bottom: 1px solid var(--border-color); font-size: 11px; }
 .stat-pill { display: flex; align-items: center; gap: 6px; color: #334155; }
 
+/* Geometric Shapes for Status (Used in both matrix and grid) */
 .badge { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; font-weight: bold; font-size: 11px; color: white; }
 .badge.not-visited { background-color: var(--c-not-visited); color: var(--c-not-visited-text); border: 1px solid #94a3b8; border-radius: 2px; }
 .badge.not-answered { background-color: var(--c-not-answered); clip-path: polygon(0 0, 100% 0, 100% 75%, 50% 100%, 0 75%); }
@@ -232,40 +260,27 @@ body.portal-body {
 .palette-btn.ans-review::after { content: ""; position: absolute; bottom: 2px; right: 2px; width: 8px; height: 8px; background-color: #22c55e; border-radius: 50%; border: 1.5px solid white; }
 .palette-btn.active-q { outline: 3px solid #1e3a8a !important; outline-offset: 1px; }
 
-/* Exam Footer */
+/* Exam Footer Actions */
 .tcs-footer-bar { background: #ffffff; border-top: 2px solid var(--border-color); padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; height: 52px; }
 .tcs-btn { padding: 8px 18px; font-size: 13px; font-weight: 600; border-radius: 2px; border: 1px solid transparent; cursor: pointer; }
 .btn-secondary { background: #ffffff; border-color: #94a3b8; color: #334155; margin-right: 8px; }
+.btn-secondary:hover { background: #f1f5f9; }
 .btn-primary { background: var(--tcs-blue-accent); color: white; margin-right: 8px; }
+.btn-primary:hover { background: #1d4ed8; }
 .btn-submit { background: #16a34a; color: white; }
+.btn-submit:hover { background: #15803d; }
 
-/* Modal */
+/* ================= 5. MODALS (SCORECARD) ================= */
 .tcs-modal-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.7); display: flex; align-items: center; justify-content: center; z-index: 9999; }
-.tcs-modal-box { background: #ffffff; width: 580px; border: 2px solid #1e3a8a; }
-.tcs-modal-header { background: #1e3a8a; color: #ffffff; padding: 10px 16px; font-size: 14px; font-weight: 700; }
+.tcs-modal-box { background: #ffffff; width: 580px; border: 2px solid #1e3a8a; border-radius: 4px; overflow: hidden; }
+.tcs-modal-header { background: #1e3a8a; color: #ffffff; padding: 12px 16px; font-size: 14px; font-weight: 700; }
 .tcs-modal-body { padding: 20px; }
 .modal-summary-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 13px; }
-.modal-summary-table th, .modal-summary-table td { border: 1px solid #cbd5e1; padding: 8px 12px; }
+.modal-summary-table th, .modal-summary-table td { border: 1px solid #cbd5e1; padding: 8px 12px; text-align: left; }
 .modal-summary-table th { background: #f1f5f9; }
 .tcs-modal-footer { background: #f8fafc; border-top: 1px solid #cbd5e1; padding: 12px 16px; display: flex; justify-content: flex-end; gap: 10px; }
 
-/* ================= ACCORDION (FOLDER) UI ================= */
-.topic-accordion-card { background: #ffffff; border: 1px solid var(--border-color); margin-bottom: 12px; border-radius: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.03); }
-
-.topic-accordion-header { background: #f8fafc; padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none; transition: background 0.2s; border-radius: 4px; }
-.topic-accordion-header:hover { background: #f1f5f9; }
-
-.header-left { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 700; color: #1e293b; }
-.header-right { display: flex; align-items: center; gap: 15px; }
-
-.icon-folder { font-size: 18px; }
-.toggle-icon { font-size: 12px; color: #64748b; transition: transform 0.3s; }
-.topic-accordion-card.open .toggle-icon { transform: rotate(180deg); }
-.topic-accordion-card.open .topic-accordion-header { border-bottom: 1px solid var(--border-color); border-radius: 4px 4px 0 0; }
-
-.topic-accordion-body { display: none; padding: 20px; background: #ffffff; border-radius: 0 0 4px 4px; } 
-
-/* ================= SOLUTIONS VIEW STYLING ================= */
+/* ================= 6. SOLUTIONS & EXPLANATIONS (SCREEN 4) ================= */
 .solution-card {
   background: #ffffff;
   border: 1px solid var(--border-color);
@@ -320,13 +335,12 @@ body.portal-body {
 }
 .sol-explanation strong { color: var(--tcs-blue-header); display: block; margin-bottom: 6px; }
 
-/* ================= STUDENT ANALYTICS BANNER ================= */
+/* ================= 7. PROFILE & CALENDAR (SCREEN 5) ================= */
 .analytics-banner {
   display: flex;
   gap: 16px;
   margin-bottom: 24px;
 }
-
 .stat-card {
   flex: 1;
   background: #ffffff;
@@ -336,7 +350,6 @@ body.portal-body {
   border-radius: 2px;
   box-shadow: 0 1px 2px rgba(0,0,0,0.03);
 }
-
 .stat-card .stat-value {
   font-size: 26px;
   font-weight: 800;
@@ -344,7 +357,6 @@ body.portal-body {
   margin-bottom: 4px;
   font-family: var(--font-mono);
 }
-
 .stat-card .stat-label {
   font-size: 11px;
   font-weight: 700;
@@ -352,3 +364,48 @@ body.portal-body {
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
+
+.profile-section-card {
+  background: #ffffff;
+  border: 1px solid var(--border-color);
+  padding: 24px;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+.section-title {
+  font-size: 16px;
+  color: var(--tcs-blue-header);
+  margin-bottom: 20px;
+  border-bottom: 2px solid #f1f5f9;
+  padding-bottom: 10px;
+}
+
+/* Calendar Layout */
+.calendar-wrapper { max-width: 450px; }
+.calendar-header { display: flex; justify-content: space-between; align-items: center; font-weight: 700; color: #1e293b; margin-bottom: 15px; font-size: 15px; }
+
+.cal-legend { display: flex; gap: 12px; font-size: 11px; font-weight: 600; color: #64748b; }
+.legend-dot { display: inline-block; width: 10px; height: 10px; border-radius: 2px; }
+.legend-dot.present { background: #16a34a; }
+.legend-dot.absent { background: #e2e8f0; }
+
+.calendar-days-header { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; font-size: 11px; font-weight: 700; color: #94a3b8; margin-bottom: 8px; }
+.calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+
+.cal-day {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 4px;
+  background: #f8fafc;
+  color: #94a3b8;
+  border: 1px solid #e2e8f0;
+}
+
+.cal-day.empty { background: transparent; border: none; }
+.cal-day.present { background: #dcfce7; color: #15803d; border-color: #bbf7d0; font-weight: 700; box-shadow: inset 0 0 0 1px #16a34a; }
+.cal-day.absent { background: #f1f5f9; color: #64748b; }
+.cal-day.future { background: transparent; color: #cbd5e1; border-color: transparent; }

@@ -1,13 +1,14 @@
-// ================= CONFIGURATION =================
+// ================= 1. CONFIGURATION & SUPABASE INIT =================
 const SUPABASE_URL = "https://hqrbqqdjbswbvfhhqefw.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhxcmJxcWRqYnN3YnZmaGhxZWZ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE0NjI5ODgsImV4cCI6MjEwNzAzODk4OH0.iTay17X_Ysep1r-NLPSWpAzlQF-fmBb0sw1v7ptsdpE"; // Apni anon public key dalein
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhxcmJxcWRqYnN3YnZmaGhxZWZ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE0NjI5ODgsImV4cCI6MjEwNzAzODk4OH0.iTay17X_Ysep1r-NLPSWpAzlQF-fmBb0sw1v7ptsdpE"; // यहाँ अपनी वास्तविक Anon Key डालें
 
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// ================= GLOBAL STATE =================
+// ================= 2. GLOBAL STATE =================
 let currentCandidate = null;
 let catalogData = [];
 let activeSubject = null;
+let userAttemptHistory = []; // Student की हिस्ट्री स्टोर करने के लिए
 
 // Exam Session State
 let activeTest = null;
@@ -17,20 +18,22 @@ let userResponses = {};
 let timeRemaining = 15 * 60;
 let timerInterval = null;
 
-// ================= APP INITIALIZATION =================
-window.addEventListener("DOMContentLoaded", async () => {
+// ================= 3. APP INITIALIZATION & ROUTER =================
+window.addEventListener("DOMContentLoaded", () => {
   setupAppEvents();
   checkExistingSession();
 });
 
-function switchView(viewId) {
+window.switchView = function(viewId) {
   document.getElementById("viewLogin").style.display = "none";
   document.getElementById("viewDashboard").style.display = "none";
   document.getElementById("viewExam").style.display = "none";
+  document.getElementById("viewSolutions").style.display = "none";
+  document.getElementById("viewProfile").style.display = "none";
   document.getElementById(viewId).style.display = "flex";
-}
+};
 
-// ================= 1. AUTH & SESSION LAYER =================
+// ================= 4. AUTH LAYER =================
 function checkExistingSession() {
   const savedCandidate = localStorage.getItem("candidate_session");
   if (savedCandidate) {
@@ -42,7 +45,7 @@ function checkExistingSession() {
 }
 
 function setupAppEvents() {
-  // Login Form Submit
+  // Login Submit
   document.getElementById("loginForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     const roll = document.getElementById("inputRollNumber").value.trim();
@@ -54,7 +57,6 @@ function setupAppEvents() {
     btn.disabled = true;
 
     try {
-      // Students table me roll_number verify karein
       const { data: student, error } = await supabaseClient
         .from("students")
         .select("*")
@@ -62,11 +64,7 @@ function setupAppEvents() {
         .maybeSingle();
 
       if (error || !student) {
-        // Fallback: Agar entry database me na ho to auto-session create karein
-        currentCandidate = {
-          roll_number: roll,
-          full_name: "Candidate " + roll
-        };
+        currentCandidate = { roll_number: roll, full_name: "Candidate " + roll };
       } else {
         currentCandidate = student;
       }
@@ -82,14 +80,20 @@ function setupAppEvents() {
     }
   });
 
-  // Logout Button
+  // Logout
   document.getElementById("btnLogout").addEventListener("click", () => {
     localStorage.removeItem("candidate_session");
     currentCandidate = null;
     switchView("viewLogin");
   });
 
-  // Exam Engine Controls
+  // Open Profile
+  document.getElementById("btnMyProfile").addEventListener("click", () => {
+    fetchStudentAnalytics(); 
+    switchView("viewProfile");
+  });
+
+  // Exam Action Buttons
   document.getElementById("btnSaveNext").addEventListener("click", () => {
     if (!userResponses[currentIndex]) return;
     const state = userResponses[currentIndex];
@@ -115,32 +119,30 @@ function setupAppEvents() {
     showExamSummaryModal();
   });
 
-  // Search Filter in Dashboard
+  // Dashboard Search
   document.getElementById("topicSearchInput").addEventListener("input", (e) => {
-    filterTopics(e.target.value.toLowerCase());
+    const query = e.target.value.toLowerCase();
+    document.querySelectorAll(".topic-accordion-card").forEach(card => {
+      const text = card.innerText.toLowerCase();
+      card.style.display = text.includes(query) ? "block" : "none";
+    });
   });
 }
 
-// ================= 2. DASHBOARD & TAXONOMY LAYER =================
+// ================= 5. DASHBOARD & TAXONOMY LAYER =================
 async function mountDashboard() {
   document.getElementById("dashCandidateName").innerText = currentCandidate.full_name;
   document.getElementById("dashCandidateRoll").innerText = "ROLL: " + currentCandidate.roll_number;
 
   switchView("viewDashboard");
-  
-  // दोनों डेटा लोडिंग फ़ंक्शन्स एक साथ चलाएं
-  await fetchStudentAnalytics();
+  await fetchStudentAnalytics(); // Background update
   await fetchTestCatalog();
 }
 
-// Global variable history store karne ke liye (top par add karein agar nahi hai)
-let userAttemptHistory = [];
-
 async function fetchTestCatalog() {
   const container = document.getElementById("topicsContainer");
-  container.innerHTML = "<p style='padding:20px; color:#64748b;'>Loading assessment taxonomy & your history...</p>";
+  container.innerHTML = "<p style='padding:20px; color:#64748b;'>Loading assessment taxonomy & history...</p>";
 
-  // 1. Catalog Data Fetch karein
   const { data: catalog, error: catErr } = await supabaseClient
     .from("view_test_catalog")
     .select("*");
@@ -151,7 +153,7 @@ async function fetchTestCatalog() {
   }
   catalogData = catalog;
 
-  // 2. Student ki History Fetch karein (Naya Addition)
+  // Student History Fetch karein
   const { data: history } = await supabaseClient
     .from("test_attempts")
     .select("test_id, score, attempt_date")
@@ -160,7 +162,6 @@ async function fetchTestCatalog() {
     
   userAttemptHistory = history || [];
 
-  // 3. Unique Subjects extract karein
   const subjectsMap = {};
   catalogData.forEach(row => {
     const s = row.subject || "General Studies";
@@ -168,8 +169,6 @@ async function fetchTestCatalog() {
   });
 
   renderSubjectSidebar(subjectsMap);
-
-  // Default: Pehle subject ko select karein
   const firstSubject = Object.keys(subjectsMap)[0];
   selectSubject(firstSubject);
 }
@@ -177,7 +176,6 @@ async function fetchTestCatalog() {
 function renderSubjectSidebar(subjectsMap) {
   const list = document.getElementById("subjectChipsContainer");
   list.innerHTML = "";
-
   Object.entries(subjectsMap).forEach(([subName, count]) => {
     const chip = document.createElement("button");
     chip.className = "subject-chip";
@@ -189,19 +187,13 @@ function renderSubjectSidebar(subjectsMap) {
 
 function selectSubject(subjectName) {
   activeSubject = subjectName;
-
-  // Active chip highlight
   document.querySelectorAll(".subject-chip").forEach(el => {
     el.classList.toggle("active", el.innerText.includes(subjectName));
   });
-
   document.getElementById("activeSubjectTitle").innerText = subjectName;
   document.getElementById("activeSubjectMeta").innerText = `Available practice sets under ${subjectName}`;
-
   renderTopicSets();
 }
-
-// ================= SMART ACCORDION RENDERER =================
 
 function renderTopicSets() {
   const container = document.getElementById("topicsContainer");
@@ -209,7 +201,6 @@ function renderTopicSets() {
 
   const filtered = catalogData.filter(r => (r.subject || "General Studies") === activeSubject);
   const grouped = {};
-  
   filtered.forEach(item => {
     const groupKey = item.topic || "Core Practice";
     if (!grouped[groupKey]) grouped[groupKey] = [];
@@ -223,14 +214,8 @@ function renderTopicSets() {
     const header = document.createElement("div");
     header.className = "topic-accordion-header";
     header.innerHTML = `
-      <div class="header-left">
-        <span class="icon-folder">📁</span>
-        <span class="topic-title">${topicName}</span>
-      </div>
-      <div class="header-right">
-        <span class="subtopic-tag">${sets.length} Test Sets</span>
-        <span class="toggle-icon">▼</span>
-      </div>
+      <div class="header-left"><span class="icon-folder">📁</span><span class="topic-title">${topicName}</span></div>
+      <div class="header-right"><span class="subtopic-tag">${sets.length} Test Sets</span><span class="toggle-icon">▼</span></div>
     `;
 
     const body = document.createElement("div");
@@ -239,15 +224,12 @@ function renderTopicSets() {
     setsGrid.className = "sets-card-grid";
 
     sets.forEach(setItem => {
-      // Is set ke liye student ke pichle attempts filter karein
       const attemptsForThisSet = userAttemptHistory.filter(a => String(a.test_id) === String(setItem.test_id));
       let historyHtml = `<div style="font-size:11.5px; color:#64748b; margin-bottom:10px; font-weight:500;">Status: Unattempted</div>`;
       
       if (attemptsForThisSet.length > 0) {
         const bestScore = Math.max(...attemptsForThisSet.map(a => parseFloat(a.score)));
-        historyHtml = `<div style="font-size:11.5px; color:#16a34a; margin-bottom:10px; font-weight:600;">
-          ★ Best Score: ${bestScore} | Total Attempts: ${attemptsForThisSet.length}
-        </div>`;
+        historyHtml = `<div style="font-size:11.5px; color:#16a34a; margin-bottom:10px; font-weight:600;">★ Best Score: ${bestScore} | Total Attempts: ${attemptsForThisSet.length}</div>`;
       }
 
       const tile = document.createElement("div");
@@ -255,10 +237,7 @@ function renderTopicSets() {
       tile.innerHTML = `
         <div>
           <div class="set-tile-title">${setItem.test_title}</div>
-          <div class="set-tile-meta">
-            <span>⏱ ${setItem.total_duration_minutes} Mins</span>
-            <span>📝 ${setItem.total_questions} Qs</span>
-          </div>
+          <div class="set-tile-meta"><span>⏱ ${setItem.total_duration_minutes} Mins</span><span>📝 ${setItem.total_questions} Qs</span></div>
           ${historyHtml}
         </div>
         <button class="btn-launch-set" onclick="launchAssessment(${setItem.test_id})">
@@ -287,55 +266,29 @@ function renderTopicSets() {
   });
 }
 
-function filterTopics(query) {
-  document.querySelectorAll(".topic-group-card").forEach(card => {
-    const text = card.innerText.toLowerCase();
-    card.style.display = text.includes(query) ? "block" : "none";
-  });
-}
-
-// ================= 3. EXAM LAUNCH & STATE MACHINE =================
+// ================= 6. EXAM ENGINE LAYER =================
 window.launchAssessment = async function(testId) {
   switchView("viewExam");
   document.getElementById("examCandidateRoll").innerText = currentCandidate.roll_number;
   document.getElementById("questionContent").innerText = "Configuring assessment runtime...";
 
-  // 1. Test Details
-  const { data: testInfo } = await supabaseClient
-    .from("tests")
-    .select("id, title, total_duration_minutes")
-    .eq("id", testId)
-    .single();
-
+  const { data: testInfo } = await supabaseClient.from("tests").select("id, title, total_duration_minutes").eq("id", testId).single();
   activeTest = testInfo;
   document.getElementById("examTitle").innerText = activeTest.title;
   timeRemaining = (activeTest.total_duration_minutes || 15) * 60;
 
-  // 2. Sections
-  const { data: sections } = await supabaseClient
-    .from("test_sections")
-    .select("id, section_name")
-    .eq("test_id", testId)
-    .limit(1);
-
+  const { data: sections } = await supabaseClient.from("test_sections").select("id, section_name").eq("test_id", testId).limit(1);
   const section = sections[0];
   document.getElementById("subjectLabel").innerText = section ? section.section_name : "Core Section";
   document.getElementById("sectionTabs").innerHTML = `<button class="section-tab">Section 1: ${section ? section.section_name : "General"}</button>`;
 
-  // 3. Questions
   const { data: qData, error } = await supabaseClient
     .from("test_section_questions")
-    .select(`
-      question_number,
-      questions (
-        id, content, options, correct_answer, explanation
-      )
-    `)
-    .eq("section_id", section.id)
-    .order("question_number", { ascending: true });
+    .select(`question_number, questions (id, content, options, correct_answer, explanation)`)
+    .eq("section_id", section.id).order("question_number", { ascending: true });
 
   if (error || !qData || qData.length === 0) {
-    alert("Is test ke questions link nahi hain!");
+    alert("Is test ke questions load nahi ho sake!");
     mountDashboard();
     return;
   }
@@ -349,7 +302,6 @@ window.launchAssessment = async function(testId) {
     explanation: item.questions.explanation
   }));
 
-  // Responses reset
   userResponses = {};
   testQuestions.forEach((q, idx) => {
     userResponses[idx] = { selected: null, status: idx === 0 ? 1 : 0, timeSpent: 0 };
@@ -369,16 +321,9 @@ function renderQuestion(index) {
 
   document.getElementById("qDisplayNumber").innerText = q.qNum;
 
-  // Text Parse
-  let qText = "";
-  if (typeof q.content === "object" && q.content !== null) {
-    qText = q.content.en || q.content.hi || JSON.stringify(q.content);
-  } else {
-    qText = String(q.content);
-  }
+  let qText = typeof q.content === "object" && q.content !== null ? (q.content.en || q.content.hi || JSON.stringify(q.content)) : String(q.content);
   document.getElementById("questionContent").innerText = qText;
 
-  // Options
   const optContainer = document.getElementById("optionsContainer");
   optContainer.innerHTML = "";
 
@@ -393,9 +338,7 @@ function renderQuestion(index) {
     radio.value = String(opt.id);
     if (state.selected === String(opt.id)) radio.checked = true;
 
-    radio.addEventListener("change", () => {
-      userResponses[currentIndex].selected = String(opt.id);
-    });
+    radio.addEventListener("change", () => { userResponses[currentIndex].selected = String(opt.id); });
 
     const span = document.createElement("span");
     span.innerText = opt.text || opt.en || JSON.stringify(opt);
@@ -412,7 +355,6 @@ function renderQuestion(index) {
 function renderPaletteGrid() {
   const grid = document.getElementById("paletteGrid");
   grid.innerHTML = "";
-
   testQuestions.forEach((q, idx) => {
     const btn = document.createElement("button");
     btn.className = "palette-btn";
@@ -433,12 +375,8 @@ function renderPaletteGrid() {
 }
 
 function advanceNextQuestion() {
-  if (currentIndex + 1 < testQuestions.length) {
-    renderQuestion(currentIndex + 1);
-  } else {
-    renderPaletteGrid();
-    updateStatusMatrix();
-  }
+  if (currentIndex + 1 < testQuestions.length) renderQuestion(currentIndex + 1);
+  else { renderPaletteGrid(); updateStatusMatrix(); }
 }
 
 function updateStatusMatrix() {
@@ -450,7 +388,6 @@ function updateStatusMatrix() {
     else if (r.status === 3) rev++;
     else if (r.status === 4) ansRev++;
   });
-
   document.getElementById("cntAnswered").innerText = ans;
   document.getElementById("cntNotAnswered").innerText = notAns;
   document.getElementById("cntNotVisited").innerText = notVis;
@@ -461,7 +398,6 @@ function updateStatusMatrix() {
 function startExamTimer() {
   if (timerInterval) clearInterval(timerInterval);
   const display = document.getElementById("timerDisplay");
-
   timerInterval = setInterval(() => {
     if (timeRemaining <= 0) {
       clearInterval(timerInterval);
@@ -475,15 +411,11 @@ function startExamTimer() {
   }, 1000);
 }
 
-// ================= 4. SUBMISSION & SCORECARD =================
+// ================= 7. SUBMISSION, SCORECARD & TELEMETRY =================
 function showExamSummaryModal() {
   let ans = 0, notAns = 0, notVis = 0, rev = 0, ansRev = 0;
   Object.values(userResponses).forEach(r => {
-    if (r.status === 0) notVis++;
-    else if (r.status === 1) notAns++;
-    else if (r.status === 2) ans++;
-    else if (r.status === 3) rev++;
-    else if (r.status === 4) ansRev++;
+    if (r.status === 0) notVis++; else if (r.status === 1) notAns++; else if (r.status === 2) ans++; else if (r.status === 3) rev++; else if (r.status === 4) ansRev++;
   });
 
   const modal = document.getElementById("submitModalContainer");
@@ -492,7 +424,7 @@ function showExamSummaryModal() {
 
   modal.innerHTML = `
     <div class="tcs-modal-box">
-      <div class="tcs-modal-header">Exam Final Summary - ${activeTest.title}</div>
+      <div class="tcs-modal-header">Exam Final Summary</div>
       <div class="tcs-modal-body">
         <table class="modal-summary-table">
           <thead><tr><th>Status Category</th><th>Total Count</th></tr></thead>
@@ -505,7 +437,6 @@ function showExamSummaryModal() {
             <tr><td>Not Visited</td><td>${notVis}</td></tr>
           </tbody>
         </table>
-        <p style="font-size:12px; color:#64748b;">Submit karne ke baad responses edit nahi ho sakenge.</p>
       </div>
       <div class="tcs-modal-footer">
         <button class="tcs-btn btn-secondary" onclick="document.getElementById('submitModalContainer').style.display='none'">Back to Exam</button>
@@ -531,48 +462,27 @@ async function renderScorecard() {
   });
 
   const score = (correct * 2.00) - (incorrect * 0.50);
-  
-  // Time tracking logic
   const totalDurationSecs = (activeTest.total_duration_minutes || 15) * 60;
   const timeSpentSecs = totalDurationSecs - timeRemaining;
   const timeSpentMins = Math.ceil(timeSpentSecs / 60);
 
-  // 1. Data Save: Test Attempt
   try {
+    // 1. Save Test Attempt
     await supabaseClient.from("test_attempts").insert({
-      student_roll: currentCandidate.roll_number,
-      test_id: activeTest.id,
-      score: score,
-      total_correct: correct,
-      total_incorrect: incorrect,
-      time_spent_seconds: timeSpentSecs
+      student_roll: currentCandidate.roll_number, test_id: activeTest.id, score: score, total_correct: correct, total_incorrect: incorrect, time_spent_seconds: timeSpentSecs
     });
 
-    // 2. Data Save: Daily Attendance (Time Update)
+    // 2. Update Daily Attendance
     const today = new Date().toISOString().split('T')[0];
-    const { data: attRecord } = await supabaseClient
-      .from("daily_attendance")
-      .select("id, total_minutes_spent")
-      .eq("student_roll", currentCandidate.roll_number)
-      .eq("study_date", today)
-      .maybeSingle();
+    const { data: attRecord } = await supabaseClient.from("daily_attendance").select("id, total_minutes_spent").eq("student_roll", currentCandidate.roll_number).eq("study_date", today).maybeSingle();
 
     if (attRecord) {
-      await supabaseClient.from("daily_attendance")
-        .update({ total_minutes_spent: attRecord.total_minutes_spent + timeSpentMins })
-        .eq("id", attRecord.id);
+      await supabaseClient.from("daily_attendance").update({ total_minutes_spent: attRecord.total_minutes_spent + timeSpentMins }).eq("id", attRecord.id);
     } else {
-      await supabaseClient.from("daily_attendance").insert({
-        student_roll: currentCandidate.roll_number,
-        study_date: today,
-        total_minutes_spent: timeSpentMins
-      });
+      await supabaseClient.from("daily_attendance").insert({ student_roll: currentCandidate.roll_number, study_date: today, total_minutes_spent: timeSpentMins });
     }
-  } catch (err) {
-    console.error("Telemetry save error:", err);
-  }
+  } catch (err) { console.error("Telemetry save error:", err); }
 
-  // 3. Render Scorecard UI
   const modal = document.getElementById("submitModalContainer");
   modal.innerHTML = `
     <div class="tcs-modal-box" style="width: 620px;">
@@ -600,29 +510,12 @@ async function renderScorecard() {
   `;
 }
 
-// Naya helper function jisse history refresh ho jaye
 window.closeExamAndReload = async function() {
-  document.getElementById("submitModalContainer").style.display = "none";
-  // Wapas dashboard par jayenge aur naya history data laane ke liye fetch call karenge
-  switchView("viewDashboard");
-  await fetchTestCatalog();
-};
-
-window.closeExamAndReturnToDashboard = function() {
   document.getElementById("submitModalContainer").style.display = "none";
   mountDashboard();
 };
 
-function switchView(viewId) {
-  document.getElementById("viewLogin").style.display = "none";
-  document.getElementById("viewDashboard").style.display = "none";
-  document.getElementById("viewExam").style.display = "none";
-  document.getElementById("viewSolutions").style.display = "none"; // Naya view hide kiya
-  document.getElementById(viewId).style.display = "flex";
-}
-
-
-// ================= 5. SOLUTIONS & EXPLANATIONS VIEW =================
+// ================= 8. SOLUTIONS & EXPLANATIONS VIEW =================
 window.openSolutionsView = function() {
   document.getElementById("submitModalContainer").style.display = "none";
   document.getElementById("solExamTitle").innerText = activeTest.title;
@@ -635,29 +528,17 @@ window.openSolutionsView = function() {
     const userAns = userResponses[idx].selected;
     const correctAns = String(q.correctAnswer);
     
-    // Status Badge Logic
     let statusText = "Unattempted";
     let statusClass = "sol-status-unattempted";
     if (userAns) {
-      if (String(userAns) === correctAns) {
-        statusText = "Correct";
-        statusClass = "sol-status-correct";
-      } else {
-        statusText = "Incorrect";
-        statusClass = "sol-status-incorrect";
-      }
+      if (String(userAns) === correctAns) { statusText = "Correct"; statusClass = "sol-status-correct"; } 
+      else { statusText = "Incorrect"; statusClass = "sol-status-incorrect"; }
     }
 
-    // Question Text Parsing
     let qText = typeof q.content === "object" && q.content !== null ? (q.content.en || q.content.hi || JSON.stringify(q.content)) : String(q.content);
-    
-    // Explanation Text Parsing
     let expText = "No explanation provided.";
-    if (q.explanation) {
-       expText = typeof q.explanation === "object" ? (q.explanation.en || q.explanation.hi || JSON.stringify(q.explanation)) : String(q.explanation);
-    }
+    if (q.explanation) expText = typeof q.explanation === "object" ? (q.explanation.en || q.explanation.hi || JSON.stringify(q.explanation)) : String(q.explanation);
 
-    // Generate Options HTML
     let optionsHtml = "";
     const optionsList = Array.isArray(q.options) ? q.options : [];
     
@@ -666,93 +547,83 @@ window.openSolutionsView = function() {
       let optClass = "sol-option";
       let icon = "⚪";
 
-      if (optId === correctAns) {
-        optClass += " sol-opt-correct";
-        icon = "✔️";
-      } else if (optId === String(userAns) && optId !== correctAns) {
-        optClass += " sol-opt-wrong";
-        icon = "❌";
-      }
+      if (optId === correctAns) { optClass += " sol-opt-correct"; icon = "✔️"; } 
+      else if (optId === String(userAns) && optId !== correctAns) { optClass += " sol-opt-wrong"; icon = "❌"; }
 
-      optionsHtml += `
-        <div class="${optClass}">
-          <span>${icon}</span>
-          <span>${opt.text || opt.en || JSON.stringify(opt)}</span>
-        </div>
-      `;
+      optionsHtml += `<div class="${optClass}"><span>${icon}</span><span>${opt.text || opt.en || JSON.stringify(opt)}</span></div>`;
     });
 
-    // Build the Card
     const card = document.createElement("div");
     card.className = "solution-card";
     card.innerHTML = `
-      <div class="sol-q-header">
-        <span>Question ${q.qNum}</span>
-        <span class="sol-status-badge ${statusClass}">${statusText}</span>
-      </div>
+      <div class="sol-q-header"><span>Question ${q.qNum}</span><span class="sol-status-badge ${statusClass}">${statusText}</span></div>
       <div class="sol-content">${qText}</div>
-      <div style="margin-bottom: 16px;">
-        ${optionsHtml}
-      </div>
-      <div class="sol-explanation">
-        <strong>Explanation:</strong>
-        ${expText}
-      </div>
+      <div style="margin-bottom: 16px;">${optionsHtml}</div>
+      <div class="sol-explanation"><strong>Explanation:</strong>${expText}</div>
     `;
-    
     container.appendChild(card);
   });
 };
 
-
-// ================= DASHBOARD ANALYTICS ENGINE =================
+// ================= 9. STUDENT ANALYTICS & CALENDAR =================
 async function fetchStudentAnalytics() {
   try {
-    // 1. कुल अटेम्प्ट्स और एक्यूरेसी निकालें
-    const { data: attempts } = await supabaseClient
-      .from("test_attempts")
-      .select("total_correct, total_incorrect")
-      .eq("student_roll", currentCandidate.roll_number);
+    const { data: attempts } = await supabaseClient.from("test_attempts").select("total_correct, total_incorrect").eq("student_roll", currentCandidate.roll_number);
+    let totalTests = attempts ? attempts.length : 0;
+    let totalCorrect = 0, totalIncorrect = 0;
 
-    let totalTests = 0;
-    let totalCorrect = 0;
-    let totalIncorrect = 0;
-
-    if (attempts && attempts.length > 0) {
-      totalTests = attempts.length;
-      attempts.forEach(a => {
-        totalCorrect += (a.total_correct || 0);
-        totalIncorrect += (a.total_incorrect || 0);
-      });
+    if (attempts) {
+      attempts.forEach(a => { totalCorrect += (a.total_correct || 0); totalIncorrect += (a.total_incorrect || 0); });
     }
+    let accuracy = (totalCorrect + totalIncorrect > 0) ? ((totalCorrect / (totalCorrect + totalIncorrect)) * 100).toFixed(1) : 0;
 
-    let accuracy = 0;
-    if (totalCorrect + totalIncorrect > 0) {
-      accuracy = ((totalCorrect / (totalCorrect + totalIncorrect)) * 100).toFixed(1);
-    }
-
-    // 2. कुल पढ़ाई का समय (Daily Attendance) निकालें
-    const { data: attendance } = await supabaseClient
-      .from("daily_attendance")
-      .select("total_minutes_spent")
-      .eq("student_roll", currentCandidate.roll_number);
-    
+    const { data: attendance } = await supabaseClient.from("daily_attendance").select("study_date, total_minutes_spent").eq("student_roll", currentCandidate.roll_number);
     let totalMins = 0;
-    if (attendance && attendance.length > 0) {
+    let presentDates = [];
+
+    if (attendance) {
       attendance.forEach(record => {
         totalMins += (record.total_minutes_spent || 0);
+        presentDates.push(record.study_date);
       });
     }
 
-    const hours = Math.floor(totalMins / 60);
-    const mins = totalMins % 60;
-
-    // 3. UI को अपडेट करें
     document.getElementById("statTotalTests").innerText = totalTests;
     document.getElementById("statAccuracy").innerText = accuracy + "%";
-    document.getElementById("statStudyTime").innerText = `${hours}h ${mins}m`;
+    document.getElementById("statStudyTime").innerText = `${Math.floor(totalMins / 60)}h ${totalMins % 60}m`;
 
-  } catch (err) {
-    console.error("Analytics fetch error:", err);
+    renderAttendanceCalendar(presentDates);
+  } catch (err) { console.error("Analytics fetch error:", err); }
+}
+
+function renderAttendanceCalendar(presentDates) {
+  const calGrid = document.getElementById("attendanceCalendarGrid");
+  if (!calGrid) return;
+  calGrid.innerHTML = "";
+  
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  
+  const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  document.getElementById("calMonthYear").innerText = `${monthNames[month]} ${year}`;
+
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const firstDayIndex = new Date(year, month, 1).getDay(); 
+  const todayDate = now.getDate();
+
+  for (let i = 0; i < firstDayIndex; i++) {
+    calGrid.innerHTML += `<div class="cal-day empty"></div>`;
+  }
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const isPresent = presentDates.includes(dateStr);
+    
+    let statusClass = "absent";
+    if (isPresent) statusClass = "present";
+    else if (d > todayDate) statusClass = "future"; 
+
+    calGrid.innerHTML += `<div class="cal-day ${statusClass}">${d}</div>`;
   }
 }

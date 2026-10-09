@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Assessment Engine - Industrial Assessment Portal</title>
   <link rel="stylesheet" href="style.css">
+  <!-- Supabase JS Client CDN -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body class="portal-body">
@@ -46,6 +47,8 @@
           <span class="user-name" id="dashCandidateName">Candidate</span>
           <span class="user-roll" id="dashCandidateRoll">ROLL: ---</span>
         </div>
+        <!-- Profile & Logout Buttons -->
+        <button class="tcs-btn btn-primary" id="btnMyProfile" style="padding: 6px 12px; font-size: 12px;">My Profile</button>
         <button class="btn-dash-logout" id="btnLogout">Sign Out</button>
       </div>
     </header>
@@ -62,21 +65,6 @@
 
       <!-- Right Main Catalog Area -->
       <main class="catalog-viewport">
-        <!-- ================= STUDENT ANALYTICS BANNER ================= -->
-        <div class="analytics-banner">
-          <div class="stat-card">
-            <div class="stat-value" id="statTotalTests">0</div>
-            <div class="stat-label">Total Tests Attempted</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-value" id="statAccuracy">0.0%</div>
-            <div class="stat-label">Overall Accuracy</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-value" id="statStudyTime">0h 0m</div>
-            <div class="stat-label">Total Study Time</div>
-          </div>
-        </div>
         <div class="catalog-header">
           <div>
             <h2 id="activeSubjectTitle">Select Subject</h2>
@@ -88,7 +76,7 @@
         </div>
 
         <div class="topics-grid" id="topicsContainer">
-          <!-- Dynamic Topic Cards & Sets injected via script.js -->
+          <!-- Dynamic Topic Accordion Cards injected via script.js -->
         </div>
       </main>
     </div>
@@ -149,7 +137,7 @@
           <div class="stat-pill"><span class="badge answered" id="cntAnswered">0</span> Answered</div>
           <div class="stat-pill"><span class="badge not-answered" id="cntNotAnswered">0</span> Not Answered</div>
           <div class="stat-pill"><span class="badge not-visited" id="cntNotVisited">25</span> Not Visited</div>
-          <div class="stat-pill"><span class="badge review" id="cntReview">0</span> Marked for Review</div>
+          <div class="stat-pill"><span class="badge review" id="cntReview">0</span> Marked</div>
           <div class="stat-pill"><span class="badge ans-review" id="cntAnsReview">0</span> Ans & Review</div>
         </div>
 
@@ -195,9 +183,59 @@
     </main>
   </section>
 
-  <!-- Submit & Scorecard Modal Mount -->
+  <!-- ================= SCREEN 5: STUDENT PROFILE & ATTENDANCE ================= -->
+  <section id="viewProfile" class="view-screen" style="display: none; background: #f8fafc; overflow-y: auto;">
+    <header class="dash-top-bar" style="position: sticky; top: 0; z-index: 10;">
+      <div class="dash-brand">
+        <span class="portal-tag">MY PROFILE & ANALYTICS</span>
+      </div>
+      <button class="tcs-btn btn-secondary" onclick="switchView('viewDashboard')">Back to Tests</button>
+    </header>
+
+    <main style="padding: 30px; max-width: 900px; margin: 0 auto; width: 100%;">
+      
+      <!-- Analytics Banner -->
+      <div class="analytics-banner">
+        <div class="stat-card">
+          <div class="stat-value" id="statTotalTests">0</div>
+          <div class="stat-label">Tests Attempted</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="statAccuracy">0.0%</div>
+          <div class="stat-label">Overall Accuracy</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="statStudyTime">0h 0m</div>
+          <div class="stat-label">Total Study Time</div>
+        </div>
+      </div>
+
+      <!-- Attendance Calendar Section -->
+      <div class="profile-section-card">
+        <h3 class="section-title">Monthly Attendance Record</h3>
+        <div class="calendar-wrapper">
+          <div class="calendar-header">
+            <span id="calMonthYear">October 2026</span>
+            <div class="cal-legend">
+              <span class="legend-dot present"></span> Present
+              <span class="legend-dot absent"></span> Absent
+            </div>
+          </div>
+          <div class="calendar-days-header">
+            <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+          </div>
+          <div class="calendar-grid" id="attendanceCalendarGrid">
+            <!-- Calendar JS se banega -->
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </section>
+
+  <!-- ================= SUBMIT & SCORECARD MODAL MOUNT ================= -->
   <div id="submitModalContainer" style="display: none;"></div>
-   
+
   <script src="script.js"></script>
 </body>
 </html>
