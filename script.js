@@ -29,7 +29,7 @@ if ("serviceWorker" in navigator) {
   });
 }
 
-// द्विभाषी टेक्स्ट फॉलबैक हेल्पर (Bilingual Fallback Helper)
+// द्विभाषी टेक्स्ट फॉलबैक हेल्पर
 function getLocalizedText(obj) {
   if (typeof obj === "object" && obj !== null) {
     if (currentLang === "hi") {
@@ -70,79 +70,77 @@ window.switchView = function(viewId) {
 // ==========================================================================
 // 4. SUPABASE AUTH LAYER & SESSION MANAGEMENT
 // ==========================================================================
-
-// ================= SAFE AUTH SESSION WATCHER =================
-
-// ==========================================================================
-// 4. SUPABASE AUTH LAYER & SESSION MANAGEMENT
-// ==========================================================================
 function initAuthSessionWatcher() {
-  // 1. Initial Page Load Guard
+  // 1. Initial Page Load Check
   supabaseClient.auth.getSession().then(({ data: { session } }) => {
-    // STRICT GUARD: केवल तभी अंदर जाने दें जब ईमेल Verify हो चुका हो
-    if (session && session.user && session.user.email_confirmed_at != null) {
+    if (session && session.user && session.user.email_confirmed_at) {
       initCandidateSession(session.user);
     } else {
+      currentCandidate = null;
       switchView("viewLogin");
     }
   });
 
-  // 2. Real-time Event Guard
+  // 2. Real-time Auth Event Listener
   supabaseClient.auth.onAuthStateChange(async (event, session) => {
-    // अगर सेशन नहीं है, या ईमेल अभी तक OTP से Verify नहीं हुआ है, तो तुरंत बाहर रोकें
-    if (!session || !session.user || session.user.email_confirmed_at == null) {
+    if (event === "SIGNED_OUT" || !session || !session.user) {
       currentCandidate = null;
       switchView("viewLogin");
-      return; // कोड यहीं रुक जाएगा, डेटाबेस में कोई एंट्री नहीं जाएगी
+      return;
     }
 
-    // अगर ईमेल Verified है, तभी डैशबोर्ड में भेजें
-    if (!currentCandidate || currentCandidate.id !== session.user.id) {
+    // सख्त पहरा: बिना ईमेल वेरिफिकेशन के डैशबोर्ड में जाने की सख्त मनाही
+    if (!session.user.email_confirmed_at) {
+      currentCandidate = null;
+      switchView("viewLogin");
+      return;
+    }
+
+    if (!currentCandidate || currentCandidate.email !== session.user.email.toLowerCase()) {
       initCandidateSession(session.user);
     }
   });
 }
 
+// केवल वेरीफाइड यूजर के लिए प्रोफाइल लोड करने वाला सुरक्षित फंक्शन
 async function initCandidateSession(user) {
   try {
     const userEmail = (user.email || "").toLowerCase();
     
-    // Check if candidate profile exists in public.students database table
-    const { data: student } = await supabaseClient
+    // Check if candidate profile exists in public.students
+    const { data: student, error } = await supabaseClient
       .from("students")
       .select("*")
-      .or(`email.eq.${userEmail},roll_number.eq.${userEmail.split("@")[0].toUpperCase()}`)
+      .eq("email", userEmail)
       .maybeSingle();
 
     if (student) {
       currentCandidate = student;
+      mountDashboard();
     } else {
-      currentCandidate = {
-        id: user.id,
-        email: userEmail,
-        roll_number: user.user_metadata?.roll_number || userEmail.split("@")[0].toUpperCase(),
-        full_name: user.user_metadata?.full_name || userEmail.split("@")[0]
-      };
-      
-      // Upsert record into public.students table
-      await supabaseClient.from("students").upsert({
-        roll_number: currentCandidate.roll_number,
-        full_name: currentCandidate.full_name,
-        email: currentCandidate.email
-      }, { onConflict: "roll_number" });
+      // अगर यूजर ऑथेंटिकेटेड है लेकिन students टेबल में नहीं है (जैसे Google OAuth से पहली बार आना)
+      const roll = user.user_metadata?.roll_number || "ROLL-" + Math.floor(1000 + Math.random() * 9000);
+      const name = user.user_metadata?.full_name || user.user_metadata?.name || userEmail.split("@")[0];
+
+      const { data: newStudent, error: insErr } = await supabaseClient
+        .from("students")
+        .upsert({
+          roll_number: roll,
+          full_name: name,
+          email: userEmail
+        }, { onConflict: "email" })
+        .select()
+        .single();
+
+      if (insErr) throw insErr;
+      currentCandidate = newStudent;
+      mountDashboard();
     }
   } catch (err) {
     console.error("Candidate session init error:", err);
-    const userEmail = (user.email || "").toLowerCase();
-    currentCandidate = {
-      id: user.id,
-      email: userEmail,
-      roll_number: user.user_metadata?.roll_number || userEmail.split("@")[0].toUpperCase(),
-      full_name: user.user_metadata?.full_name || userEmail.split("@")[0]
-    };
+    showAuthNotice("Candidate profile load nahi ho saki: " + err.message);
+    switchView("viewLogin");
   }
-
-  mountDashboard();
 }
 
 function showAuthNotice(msg, isError = true) {
@@ -223,7 +221,7 @@ function setupAppEvents() {
     });
   }
 
-  // 4. Candidate Sign-In (Returning User)
+  // 4. Candidate Sign-In (Returning User) - सुरक्षित गार्ड के साथ
   if (signInForm) {
     signInForm.addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -242,7 +240,14 @@ function setupAppEvents() {
         });
 
         if (error) throw error;
-        if (data.user) await initCandidateSession(data.user);
+
+        // कड़ा चेक: क्या ईमेल वेरिफ़ाई हो चुका है?
+        if (!data.user || !data.user.email_confirmed_at) {
+          await supabaseClient.auth.signOut();
+          throw new Error("Aapka email verify nahi hua hai. Kripya pehle email par aaya OTP enter karke account activate karein.");
+        }
+
+        await initCandidateSession(data.user);
       } catch (err) {
         showAuthNotice(err.message || "Invalid candidate email or PIN.");
       } finally {
@@ -253,6 +258,7 @@ function setupAppEvents() {
   }
 
   // 5. New Candidate Registration (Step A: Info Submit & Trigger OTP)
+  // ध्यान दें: यहाँ डेटाबेस में कोई एंट्री नहीं की जाएगी!
   if (registerForm) {
     registerForm.addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -263,7 +269,7 @@ function setupAppEvents() {
       const btn = document.getElementById("btnRegisterSubmit");
 
       authErrBox.style.display = "none";
-      btn.innerText = "Creating Profile...";
+      btn.innerText = "Generating Security OTP...";
       btn.disabled = true;
 
       try {
@@ -277,10 +283,12 @@ function setupAppEvents() {
 
         if (error) throw error;
 
+        // डेटा को केवल मेमोरी में रखें, डेटाबेस में अभी कुछ नहीं भेजना
         pendingRegData = { name, roll, email };
+        
         document.getElementById("regFieldsStep").style.display = "none";
         document.getElementById("regOtpStep").style.display = "block";
-        showAuthNotice("Verification code sent to your email. Please check your inbox.", false);
+        showAuthNotice("6-Digit OTP aapke email par bhej diya gaya hai. Inbox/Spam check karein.", false);
       } catch (err) {
         showAuthNotice(err.message || "Registration failed.");
       } finally {
@@ -290,18 +298,23 @@ function setupAppEvents() {
     });
   }
 
-  // New Candidate Registration (Step B: Confirm OTP & Save Profile)
+  // New Candidate Registration (Step B: केवल सही OTP डालने पर ही डेटाबेस में सेव होगा)
   const btnConfirmRegOtp = document.getElementById("btnConfirmRegOtp");
   if (btnConfirmRegOtp) {
     btnConfirmRegOtp.addEventListener("click", async () => {
       const token = document.getElementById("inputRegOtp").value.trim();
 
       if (token.length !== 6) {
-        showAuthNotice("Please enter the complete 6-digit OTP.");
+        showAuthNotice("Kripya poora 6-digit OTP darj karein.");
         return;
       }
 
-      btnConfirmRegOtp.innerText = "Activating Account...";
+      if (!pendingRegData || !pendingRegData.email) {
+        showAuthNotice("Registration session expire ho gaya. Kripya form dobara bharein.");
+        return;
+      }
+
+      btnConfirmRegOtp.innerText = "Verifying & Activating Profile...";
       btnConfirmRegOtp.disabled = true;
 
       try {
@@ -313,16 +326,19 @@ function setupAppEvents() {
 
         if (error) throw error;
 
-        // Persist candidate profile in public.students database table
-        await supabaseClient.from("students").upsert({
+        // केवल OTP सफल होने पर ही students टेबल में ओरिजिनल डेटा सेव होगा
+        const { error: dbErr } = await supabaseClient.from("students").upsert({
           roll_number: pendingRegData.roll,
           full_name: pendingRegData.name,
           email: pendingRegData.email
-        }, { onConflict: "roll_number" });
+        }, { onConflict: "email" });
 
+        if (dbErr) throw dbErr;
+
+        showAuthNotice("Account verified successfully! Logging in...", false);
         if (data.user) await initCandidateSession(data.user);
       } catch (err) {
-        showAuthNotice(err.message || "Invalid or expired OTP.");
+        showAuthNotice(err.message || "Invalid ya Expired OTP code.");
       } finally {
         btnConfirmRegOtp.innerText = "Verify OTP & Activate Profile";
         btnConfirmRegOtp.disabled = false;
@@ -348,7 +364,7 @@ function setupAppEvents() {
         pendingForgotEmail = email;
         document.getElementById("forgotEmailStep").style.display = "none";
         document.getElementById("forgotResetStep").style.display = "block";
-        showAuthNotice("Recovery OTP sent to your registered email.", false);
+        showAuthNotice("Recovery OTP registered email par bhej diya gaya hai.", false);
       } catch (err) {
         showAuthNotice(err.message || "Failed to send reset code.");
       } finally {
@@ -366,7 +382,7 @@ function setupAppEvents() {
       const newPass = document.getElementById("inputForgotNewPass").value;
 
       if (!token || newPass.length < 6) {
-        showAuthNotice("Please enter a valid OTP and a password with at least 6 characters.");
+        showAuthNotice("Kripya 6-digit OTP aur kam se kam 6 aksharon ka password daalein.");
         return;
       }
 
@@ -386,10 +402,10 @@ function setupAppEvents() {
         });
         if (updateErr) throw updateErr;
 
-        showAuthNotice("Password updated successfully! Redirecting...", false);
+        showAuthNotice("Password update ho gaya! Redirecting...", false);
         if (data.user) await initCandidateSession(data.user);
       } catch (err) {
-        showAuthNotice(err.message || "Password update failed.");
+        showAuthNotice(err.message || "Password update fail hua.");
       } finally {
         btnUpdatePassword.innerText = "Update PIN & Enter";
         btnUpdatePassword.disabled = false;
@@ -417,7 +433,7 @@ function setupAppEvents() {
     });
   }
 
-  // 9. Eye-Care High-Tech Dark Mode Toggle & Sync
+  // 9. High-Tech Dark Mode Toggle & Sync
   const btnDarkMode = document.getElementById("btnDarkMode");
   if (localStorage.getItem("theme") === "dark") {
     document.body.classList.add("dark-theme");
