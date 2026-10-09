@@ -11,6 +11,16 @@ let activeSubject = null;
 let userAttemptHistory = []; // Student की हिस्ट्री स्टोर करने के लिए
 let currentLang = "en"; // डिफ़ॉल्ट भाषा इंग्लिश
 
+// Register Service Worker for Native PWA Installation
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker
+      .register("./service-worker.js")
+      .then((reg) => console.log("Service Worker Active, Scope:", reg.scope))
+      .catch((err) => console.error("SW Registration Failed:", err));
+  });
+}
+
 // --- स्मार्ट लैंग्वेज फॉलबैक हेल्पर ---
 function getLocalizedText(obj) {
   if (typeof obj === "object" && obj !== null) {
