@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Assessment Engine - Industrial Assessment Portal</title>
   <link rel="stylesheet" href="style.css">
+  
   <!-- Supabase JS Client CDN -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -121,8 +122,15 @@
       <!-- Left Panel: Question Workspace -->
       <section class="question-workspace">
         <div class="q-meta-strip">
-          <div class="q-index-tag">Question No. <span id="qDisplayNumber">1</span></div>
-          <div class="marking-scheme">Marks: <span class="mark-positive">+2.00</span> | <span class="mark-negative">-0.50</span></div>
+          <div class="q-meta-left">
+            <div class="q-index-tag">Question No. <span id="qDisplayNumber">1</span></div>
+            <div class="marking-scheme">Marks: <span class="mark-positive">+2.00</span> | <span class="mark-negative">-0.50</span></div>
+          </div>
+          <!-- Mobile Specific: Timer & Palette Button -->
+          <div class="mobile-exam-controls" style="display: none;">
+            <span class="m-timer" id="mobileTimerDisplay">15:00</span>
+            <button id="btnMobilePalette" class="btn-mobile-palette">▦ Palette</button>
+          </div>
         </div>
 
         <div class="q-scroll-area">
@@ -132,6 +140,8 @@
       </section>
 
       <!-- Right Panel: TCS iON Palette Panel -->
+       <!-- Mobile Palette Blur Overlay -->
+      <div id="paletteOverlay" class="palette-overlay"></div>
       <aside class="tcs-side-panel">
         <div class="status-summary-matrix">
           <div class="stat-pill"><span class="badge answered" id="cntAnswered">0</span> Answered</div>

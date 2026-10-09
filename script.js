@@ -149,7 +149,22 @@ function setupAppEvents() {
       renderQuestion(currentIndex);
     }
   });
+
+  // Mobile Palette Drawer Toggle
+  document.getElementById("btnMobilePalette").addEventListener("click", () => {
+    document.querySelector(".tcs-side-panel").classList.add("open");
+    document.getElementById("paletteOverlay").classList.add("open");
+  });
+
+  // Close Drawer by clicking on Blur Overlay
+  document.getElementById("paletteOverlay").addEventListener("click", () => {
+    document.querySelector(".tcs-side-panel").classList.remove("open");
+    document.getElementById("paletteOverlay").classList.remove("open");
+  });
+
 }
+
+
 
 
 
@@ -375,6 +390,11 @@ function renderQuestion(index) {
 
   renderPaletteGrid();
   updateStatusMatrix();
+  // Mobile par jab sawal select ho, toh drawer auto-close ho jaye
+  if (window.innerWidth <= 768) {
+    document.querySelector(".tcs-side-panel").classList.remove("open");
+    document.getElementById("paletteOverlay").classList.remove("open");
+  }
 }
 
 function renderPaletteGrid() {
@@ -434,6 +454,7 @@ function startExamTimer() {
     const secs = timeRemaining % 60;
     display.innerText = `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
   }, 1000);
+  document.getElementById("mobileTimerDisplay").innerText = `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
 }
 
 // ================= 7. SUBMISSION, SCORECARD & TELEMETRY =================
