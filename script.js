@@ -130,23 +130,34 @@ async function mountDashboard() {
   await fetchTestCatalog();
 }
 
+// Global variable history store karne ke liye (top par add karein agar nahi hai)
+let userAttemptHistory = [];
+
 async function fetchTestCatalog() {
   const container = document.getElementById("topicsContainer");
-  container.innerHTML = "<p style='padding:20px; color:#64748b;'>Loading assessment taxonomy from database...</p>";
+  container.innerHTML = "<p style='padding:20px; color:#64748b;'>Loading assessment taxonomy & your history...</p>";
 
-  // view_test_catalog se structured data uthayein
-  const { data, error } = await supabaseClient
+  // 1. Catalog Data Fetch karein
+  const { data: catalog, error: catErr } = await supabaseClient
     .from("view_test_catalog")
     .select("*");
 
-  if (error || !data || data.length === 0) {
-    container.innerHTML = "<p style='padding:20px; color:#dc2626;'>Database Catalog View load nahi ho saka. Ensure 'view_test_catalog' is created.</p>";
+  if (catErr || !catalog || catalog.length === 0) {
+    container.innerHTML = "<p style='padding:20px; color:#dc2626;'>Database Catalog View load nahi ho saka.</p>";
     return;
   }
+  catalogData = catalog;
 
-  catalogData = data;
+  // 2. Student ki History Fetch karein (Naya Addition)
+  const { data: history } = await supabaseClient
+    .from("test_attempts")
+    .select("test_id, score, attempt_date")
+    .eq("student_roll", currentCandidate.roll_number)
+    .order("attempt_date", { ascending: false });
+    
+  userAttemptHistory = history || [];
 
-  // Unique Subjects extract karein
+  // 3. Unique Subjects extract karein
   const subjectsMap = {};
   catalogData.forEach(row => {
     const s = row.subject || "General Studies";
@@ -187,15 +198,15 @@ function selectSubject(subjectName) {
   renderTopicSets();
 }
 
+// ================= SMART ACCORDION RENDERER =================
+
 function renderTopicSets() {
   const container = document.getElementById("topicsContainer");
   container.innerHTML = "";
 
-  // Active Subject ke sets filter karein
   const filtered = catalogData.filter(r => (r.subject || "General Studies") === activeSubject);
-
-  // Group by topic/sub_topic
   const grouped = {};
+  
   filtered.forEach(item => {
     const groupKey = item.topic || "Core Practice";
     if (!grouped[groupKey]) grouped[groupKey] = [];
@@ -204,17 +215,38 @@ function renderTopicSets() {
 
   Object.entries(grouped).forEach(([topicName, sets]) => {
     const groupCard = document.createElement("div");
-    groupCard.className = "topic-group-card";
+    groupCard.className = "topic-accordion-card";
 
     const header = document.createElement("div");
-    header.className = "topic-group-header";
-    header.innerHTML = `<span>${topicName}</span> <span class="subtopic-tag">${sets.length} Test Sets</span>`;
-    groupCard.appendChild(header);
+    header.className = "topic-accordion-header";
+    header.innerHTML = `
+      <div class="header-left">
+        <span class="icon-folder">📁</span>
+        <span class="topic-title">${topicName}</span>
+      </div>
+      <div class="header-right">
+        <span class="subtopic-tag">${sets.length} Test Sets</span>
+        <span class="toggle-icon">▼</span>
+      </div>
+    `;
 
+    const body = document.createElement("div");
+    body.className = "topic-accordion-body";
     const setsGrid = document.createElement("div");
     setsGrid.className = "sets-card-grid";
 
     sets.forEach(setItem => {
+      // Is set ke liye student ke pichle attempts filter karein
+      const attemptsForThisSet = userAttemptHistory.filter(a => String(a.test_id) === String(setItem.test_id));
+      let historyHtml = `<div style="font-size:11.5px; color:#64748b; margin-bottom:10px; font-weight:500;">Status: Unattempted</div>`;
+      
+      if (attemptsForThisSet.length > 0) {
+        const bestScore = Math.max(...attemptsForThisSet.map(a => parseFloat(a.score)));
+        historyHtml = `<div style="font-size:11.5px; color:#16a34a; margin-bottom:10px; font-weight:600;">
+          ★ Best Score: ${bestScore} | Total Attempts: ${attemptsForThisSet.length}
+        </div>`;
+      }
+
       const tile = document.createElement("div");
       tile.className = "set-tile";
       tile.innerHTML = `
@@ -222,16 +254,33 @@ function renderTopicSets() {
           <div class="set-tile-title">${setItem.test_title}</div>
           <div class="set-tile-meta">
             <span>⏱ ${setItem.total_duration_minutes} Mins</span>
-            <span>📝 ${setItem.total_questions} Questions</span>
+            <span>📝 ${setItem.total_questions} Qs</span>
           </div>
+          ${historyHtml}
         </div>
-        <button class="btn-launch-set" onclick="launchAssessment(${setItem.test_id})">Start Assessment</button>
+        <button class="btn-launch-set" onclick="launchAssessment(${setItem.test_id})">
+          ${attemptsForThisSet.length > 0 ? 'Retake Assessment' : 'Start Assessment'}
+        </button>
       `;
       setsGrid.appendChild(tile);
     });
 
-    groupCard.appendChild(setsGrid);
+    body.appendChild(setsGrid);
+    groupCard.appendChild(header);
+    groupCard.appendChild(body);
     container.appendChild(groupCard);
+
+    header.addEventListener("click", () => {
+      const isOpen = groupCard.classList.contains("open");
+      document.querySelectorAll(".topic-accordion-card").forEach(c => {
+        c.classList.remove("open");
+        c.querySelector(".topic-accordion-body").style.display = "none";
+      });
+      if (!isOpen) {
+        groupCard.classList.add("open");
+        body.style.display = "block";
+      }
+    });
   });
 }
 
@@ -468,7 +517,7 @@ function showExamSummaryModal() {
   });
 }
 
-function renderScorecard() {
+async function renderScorecard() {
   let correct = 0, incorrect = 0, unattempted = 0;
 
   testQuestions.forEach((q, idx) => {
@@ -479,7 +528,48 @@ function renderScorecard() {
   });
 
   const score = (correct * 2.00) - (incorrect * 0.50);
+  
+  // Time tracking logic
+  const totalDurationSecs = (activeTest.total_duration_minutes || 15) * 60;
+  const timeSpentSecs = totalDurationSecs - timeRemaining;
+  const timeSpentMins = Math.ceil(timeSpentSecs / 60);
 
+  // 1. Data Save: Test Attempt
+  try {
+    await supabaseClient.from("test_attempts").insert({
+      student_roll: currentCandidate.roll_number,
+      test_id: activeTest.id,
+      score: score,
+      total_correct: correct,
+      total_incorrect: incorrect,
+      time_spent_seconds: timeSpentSecs
+    });
+
+    // 2. Data Save: Daily Attendance (Time Update)
+    const today = new Date().toISOString().split('T')[0];
+    const { data: attRecord } = await supabaseClient
+      .from("daily_attendance")
+      .select("id, total_minutes_spent")
+      .eq("student_roll", currentCandidate.roll_number)
+      .eq("study_date", today)
+      .maybeSingle();
+
+    if (attRecord) {
+      await supabaseClient.from("daily_attendance")
+        .update({ total_minutes_spent: attRecord.total_minutes_spent + timeSpentMins })
+        .eq("id", attRecord.id);
+    } else {
+      await supabaseClient.from("daily_attendance").insert({
+        student_roll: currentCandidate.roll_number,
+        study_date: today,
+        total_minutes_spent: timeSpentMins
+      });
+    }
+  } catch (err) {
+    console.error("Telemetry save error:", err);
+  }
+
+  // 3. Render Scorecard UI
   const modal = document.getElementById("submitModalContainer");
   modal.innerHTML = `
     <div class="tcs-modal-box" style="width: 620px;">
@@ -487,7 +577,7 @@ function renderScorecard() {
       <div class="tcs-modal-body">
         <div style="text-align:center; padding: 15px; background:#f1f5f9; margin-bottom:15px;">
           <h2 style="font-size:26px; color:#1e3a8a;">Score: ${score.toFixed(2)} / ${testQuestions.length * 2}</h2>
-          <p style="font-size:12px; color:#64748b;">Marking: +2.00 Correct | -0.50 Negative</p>
+          <p style="font-size:12px; color:#64748b;">Time Taken: ${Math.floor(timeSpentSecs / 60)}m ${timeSpentSecs % 60}s | Marking: +2.00 | -0.50</p>
         </div>
         <table class="modal-summary-table">
           <tbody>
@@ -497,13 +587,22 @@ function renderScorecard() {
             <tr><td>Accuracy</td><td>${(correct + incorrect) > 0 ? ((correct / (correct + incorrect)) * 100).toFixed(1) : 0}%</td></tr>
           </tbody>
         </table>
+        <div style="font-size:12px; color:#16a34a; text-align:center; font-weight:600;">✔ Progress & Attendance Synced Successfully</div>
       </div>
       <div class="tcs-modal-footer">
-        <button class="tcs-btn btn-primary" onclick="closeExamAndReturnToDashboard()">Return to Repository Dashboard</button>
+        <button class="tcs-btn btn-primary" onclick="closeExamAndReload()">Return to Repository</button>
       </div>
     </div>
   `;
 }
+
+// Naya helper function jisse history refresh ho jaye
+window.closeExamAndReload = async function() {
+  document.getElementById("submitModalContainer").style.display = "none";
+  // Wapas dashboard par jayenge aur naya history data laane ke liye fetch call karenge
+  switchView("viewDashboard");
+  await fetchTestCatalog();
+};
 
 window.closeExamAndReturnToDashboard = function() {
   document.getElementById("submitModalContainer").style.display = "none";
