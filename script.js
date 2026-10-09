@@ -1,143 +1,323 @@
-// 1. Supabase Credentials
-//const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhxcmJxcWRqYnN3YnZmaGhxZWZ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE0NjI5ODgsImV4cCI6MjEwNzAzODk4OH0.iTay17X_Ysep1r-NLPSWpAzlQF-fmBb0sw1v7ptsdpE"; // Apni anon key dalein
-
+// ================= CONFIGURATION =================
 const SUPABASE_URL = "https://hqrbqqdjbswbvfhhqefw.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhxcmJxcWRqYnN3YnZmaGhxZWZ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE0NjI5ODgsImV4cCI6MjEwNzAzODk4OH0.iTay17X_Ysep1r-NLPSWpAzlQF-fmBb0sw1v7ptsdpE"; // Apni anon key dalein
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhxcmJxcWRqYnN3YnZmaGhxZWZ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE0NjI5ODgsImV4cCI6MjEwNzAzODk4OH0.iTay17X_Ysep1r-NLPSWpAzlQF-fmBb0sw1v7ptsdpE"; // Apni anon public key dalein
 
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// STATE CONTROLLER
-let availableTests = [];
-let currentTestId = null;
+// ================= GLOBAL STATE =================
+let currentCandidate = null;
+let catalogData = [];
+let activeSubject = null;
+
+// Exam Session State
+let activeTest = null;
 let testQuestions = [];
 let currentIndex = 0;
 let userResponses = {}; 
 let timeRemaining = 15 * 60;
 let timerInterval = null;
 
-// INIT ASSESSMENT
+// ================= APP INITIALIZATION =================
 window.addEventListener("DOMContentLoaded", async () => {
-  await loadTestList();
-  setupEventListeners();
+  setupAppEvents();
+  checkExistingSession();
 });
 
-// 1. सभी टेस्ट्स की लिस्ट लाएं और ड्रॉपडाउन में भरें
-async function loadTestList() {
-  const { data: tests, error } = await supabaseClient
-    .from("tests")
-    .select("id, title, total_duration_minutes")
-    .order("id", { ascending: true });
+function switchView(viewId) {
+  document.getElementById("viewLogin").style.display = "none";
+  document.getElementById("viewDashboard").style.display = "none";
+  document.getElementById("viewExam").style.display = "none";
+  document.getElementById(viewId).style.display = "flex";
+}
 
-  if (error || !tests || tests.length === 0) {
-    document.getElementById("questionContent").innerText = "Database से टेस्ट लिस्ट लोड नहीं हो सकी।";
-    return;
+// ================= 1. AUTH & SESSION LAYER =================
+function checkExistingSession() {
+  const savedCandidate = localStorage.getItem("candidate_session");
+  if (savedCandidate) {
+    currentCandidate = JSON.parse(savedCandidate);
+    mountDashboard();
+  } else {
+    switchView("viewLogin");
   }
+}
 
-  availableTests = tests;
-  const dropdown = document.getElementById("testSelectDropdown");
-  dropdown.innerHTML = "";
+function setupAppEvents() {
+  // Login Form Submit
+  document.getElementById("loginForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const roll = document.getElementById("inputRollNumber").value.trim();
+    const btn = document.getElementById("btnLogin");
+    const errBox = document.getElementById("loginError");
+    
+    errBox.style.display = "none";
+    btn.innerText = "Authenticating...";
+    btn.disabled = true;
 
-  tests.forEach(t => {
-    const opt = document.createElement("option");
-    opt.value = t.id;
-    opt.innerText = t.title;
-    dropdown.appendChild(opt);
+    try {
+      // Students table me roll_number verify karein
+      const { data: student, error } = await supabaseClient
+        .from("students")
+        .select("*")
+        .eq("roll_number", roll)
+        .maybeSingle();
+
+      if (error || !student) {
+        // Fallback: Agar entry database me na ho to auto-session create karein
+        currentCandidate = {
+          roll_number: roll,
+          full_name: "Candidate " + roll
+        };
+      } else {
+        currentCandidate = student;
+      }
+
+      localStorage.setItem("candidate_session", JSON.stringify(currentCandidate));
+      mountDashboard();
+    } catch (err) {
+      errBox.innerText = "Network Error: " + err.message;
+      errBox.style.display = "block";
+    } finally {
+      btn.innerText = "Authenticate & Enter";
+      btn.disabled = false;
+    }
   });
 
-  // पहला टेस्ट लोड करें
-  currentTestId = tests[0].id;
-  await loadSelectedTest(currentTestId);
+  // Logout Button
+  document.getElementById("btnLogout").addEventListener("click", () => {
+    localStorage.removeItem("candidate_session");
+    currentCandidate = null;
+    switchView("viewLogin");
+  });
 
-  // ड्रॉपडाउन बदलने पर नया टेस्ट लोड हो
-  dropdown.addEventListener("change", async (e) => {
-    currentTestId = e.target.value;
-    await loadSelectedTest(currentTestId);
+  // Exam Engine Controls
+  document.getElementById("btnSaveNext").addEventListener("click", () => {
+    if (!userResponses[currentIndex]) return;
+    const state = userResponses[currentIndex];
+    state.status = (state.selected !== null) ? 2 : 1;
+    advanceNextQuestion();
+  });
+
+  document.getElementById("btnMarkReview").addEventListener("click", () => {
+    if (!userResponses[currentIndex]) return;
+    const state = userResponses[currentIndex];
+    state.status = (state.selected !== null) ? 4 : 3;
+    advanceNextQuestion();
+  });
+
+  document.getElementById("btnClear").addEventListener("click", () => {
+    if (!userResponses[currentIndex]) return;
+    userResponses[currentIndex].selected = null;
+    userResponses[currentIndex].status = 1;
+    renderQuestion(currentIndex);
+  });
+
+  document.getElementById("btnSubmit").addEventListener("click", () => {
+    showExamSummaryModal();
+  });
+
+  // Search Filter in Dashboard
+  document.getElementById("topicSearchInput").addEventListener("input", (e) => {
+    filterTopics(e.target.value.toLowerCase());
   });
 }
 
-// 2. सिलेक्टेड टेस्ट के सवाल और सेक्शन लोड करें
-async function loadSelectedTest(testId) {
-  const testInfo = availableTests.find(t => String(t.id) === String(testId));
-  timeRemaining = (testInfo?.total_duration_minutes || 15) * 60;
+// ================= 2. DASHBOARD & TAXONOMY LAYER =================
+async function mountDashboard() {
+  document.getElementById("dashCandidateName").innerText = currentCandidate.full_name;
+  document.getElementById("dashCandidateRoll").innerText = "ROLL: " + currentCandidate.roll_number;
 
-  // सेक्शन प्राप्त करें
+  switchView("viewDashboard");
+  await fetchTestCatalog();
+}
+
+async function fetchTestCatalog() {
+  const container = document.getElementById("topicsContainer");
+  container.innerHTML = "<p style='padding:20px; color:#64748b;'>Loading assessment taxonomy from database...</p>";
+
+  // view_test_catalog se structured data uthayein
+  const { data, error } = await supabaseClient
+    .from("view_test_catalog")
+    .select("*");
+
+  if (error || !data || data.length === 0) {
+    container.innerHTML = "<p style='padding:20px; color:#dc2626;'>Database Catalog View load nahi ho saka. Ensure 'view_test_catalog' is created.</p>";
+    return;
+  }
+
+  catalogData = data;
+
+  // Unique Subjects extract karein
+  const subjectsMap = {};
+  catalogData.forEach(row => {
+    const s = row.subject || "General Studies";
+    subjectsMap[s] = (subjectsMap[s] || 0) + 1;
+  });
+
+  renderSubjectSidebar(subjectsMap);
+
+  // Default: Pehle subject ko select karein
+  const firstSubject = Object.keys(subjectsMap)[0];
+  selectSubject(firstSubject);
+}
+
+function renderSubjectSidebar(subjectsMap) {
+  const list = document.getElementById("subjectChipsContainer");
+  list.innerHTML = "";
+
+  Object.entries(subjectsMap).forEach(([subName, count]) => {
+    const chip = document.createElement("button");
+    chip.className = "subject-chip";
+    chip.innerHTML = `<span>${subName}</span> <span class="badge-count">${count} Sets</span>`;
+    chip.addEventListener("click", () => selectSubject(subName));
+    list.appendChild(chip);
+  });
+}
+
+function selectSubject(subjectName) {
+  activeSubject = subjectName;
+
+  // Active chip highlight
+  document.querySelectorAll(".subject-chip").forEach(el => {
+    el.classList.toggle("active", el.innerText.includes(subjectName));
+  });
+
+  document.getElementById("activeSubjectTitle").innerText = subjectName;
+  document.getElementById("activeSubjectMeta").innerText = `Available practice sets under ${subjectName}`;
+
+  renderTopicSets();
+}
+
+function renderTopicSets() {
+  const container = document.getElementById("topicsContainer");
+  container.innerHTML = "";
+
+  // Active Subject ke sets filter karein
+  const filtered = catalogData.filter(r => (r.subject || "General Studies") === activeSubject);
+
+  // Group by topic/sub_topic
+  const grouped = {};
+  filtered.forEach(item => {
+    const groupKey = item.topic || "Core Practice";
+    if (!grouped[groupKey]) grouped[groupKey] = [];
+    grouped[groupKey].push(item);
+  });
+
+  Object.entries(grouped).forEach(([topicName, sets]) => {
+    const groupCard = document.createElement("div");
+    groupCard.className = "topic-group-card";
+
+    const header = document.createElement("div");
+    header.className = "topic-group-header";
+    header.innerHTML = `<span>${topicName}</span> <span class="subtopic-tag">${sets.length} Test Sets</span>`;
+    groupCard.appendChild(header);
+
+    const setsGrid = document.createElement("div");
+    setsGrid.className = "sets-card-grid";
+
+    sets.forEach(setItem => {
+      const tile = document.createElement("div");
+      tile.className = "set-tile";
+      tile.innerHTML = `
+        <div>
+          <div class="set-tile-title">${setItem.test_title}</div>
+          <div class="set-tile-meta">
+            <span>⏱ ${setItem.total_duration_minutes} Mins</span>
+            <span>📝 ${setItem.total_questions} Questions</span>
+          </div>
+        </div>
+        <button class="btn-launch-set" onclick="launchAssessment(${setItem.test_id})">Start Assessment</button>
+      `;
+      setsGrid.appendChild(tile);
+    });
+
+    groupCard.appendChild(setsGrid);
+    container.appendChild(groupCard);
+  });
+}
+
+function filterTopics(query) {
+  document.querySelectorAll(".topic-group-card").forEach(card => {
+    const text = card.innerText.toLowerCase();
+    card.style.display = text.includes(query) ? "block" : "none";
+  });
+}
+
+// ================= 3. EXAM LAUNCH & STATE MACHINE =================
+window.launchAssessment = async function(testId) {
+  switchView("viewExam");
+  document.getElementById("examCandidateRoll").innerText = currentCandidate.roll_number;
+  document.getElementById("questionContent").innerText = "Configuring assessment runtime...";
+
+  // 1. Test Details
+  const { data: testInfo } = await supabaseClient
+    .from("tests")
+    .select("id, title, total_duration_minutes")
+    .eq("id", testId)
+    .single();
+
+  activeTest = testInfo;
+  document.getElementById("examTitle").innerText = activeTest.title;
+  timeRemaining = (activeTest.total_duration_minutes || 15) * 60;
+
+  // 2. Sections
   const { data: sections } = await supabaseClient
     .from("test_sections")
     .select("id, section_name")
     .eq("test_id", testId)
     .limit(1);
 
-  const activeSection = sections && sections.length > 0 ? sections[0] : null;
-  const secName = activeSection ? activeSection.section_name : "General Awareness";
+  const section = sections[0];
+  document.getElementById("subjectLabel").innerText = section ? section.section_name : "Core Section";
+  document.getElementById("sectionTabs").innerHTML = `<button class="section-tab">Section 1: ${section ? section.section_name : "General"}</button>`;
 
-  // UI अपडेट: सेक्शन टैब और कैंडिडेट सब्जेक्ट
-  document.getElementById("subjectLabel").innerText = secName;
-  const tabContainer = document.getElementById("sectionTabs");
-  tabContainer.innerHTML = `<button class="section-tab active">Section 1: ${secName}</button>`;
-
-  // सवाल फेच करें
-  const { data: mappingData, error: mapErr } = await supabaseClient
+  // 3. Questions
+  const { data: qData, error } = await supabaseClient
     .from("test_section_questions")
     .select(`
       question_number,
       questions (
-        id,
-        subject,
-        sub_topic,
-        content,
-        options,
-        correct_answer,
-        explanation
+        id, content, options, correct_answer, explanation
       )
     `)
-    .eq("section_id", activeSection.id)
+    .eq("section_id", section.id)
     .order("question_number", { ascending: true });
 
-  if (mapErr || !mappingData || mappingData.length === 0) {
-    document.getElementById("questionContent").innerText = "इस टेस्ट में कोई सवाल नहीं मिले।";
+  if (error || !qData || qData.length === 0) {
+    alert("Is test ke questions link nahi hain!");
+    mountDashboard();
     return;
   }
 
-  testQuestions = mappingData.map(item => ({
+  testQuestions = qData.map(item => ({
     qNum: item.question_number,
     id: item.questions.id,
-    subject: item.questions.subject,
-    subTopic: item.questions.sub_topic,
     content: item.questions.content,
     options: item.questions.options,
     correctAnswer: item.questions.correct_answer,
     explanation: item.questions.explanation
   }));
 
-  // स्टेट रीसेट: पहला सवाल Not Answered (1), बाकी Not Visited (0)
+  // Responses reset
   userResponses = {};
   testQuestions.forEach((q, idx) => {
-    userResponses[idx] = {
-      selected: null,
-      status: idx === 0 ? 1 : 0, 
-      timeSpent: 0
-    };
+    userResponses[idx] = { selected: null, status: idx === 0 ? 1 : 0, timeSpent: 0 };
   });
 
   renderQuestion(0);
-  startTimer();
-}
+  startExamTimer();
+};
 
-// 3. सवाल रेंडर लॉजिक
 function renderQuestion(index) {
   if (!testQuestions[index]) return;
   currentIndex = index;
   const q = testQuestions[index];
   const state = userResponses[index];
 
-  // अगर Not Visited था, तो Not Answered बनाएं
-  if (state.status === 0) {
-    state.status = 1;
-  }
+  if (state.status === 0) state.status = 1;
 
   document.getElementById("qDisplayNumber").innerText = q.qNum;
 
-  // सवाल का टेक्स्ट
+  // Text Parse
   let qText = "";
   if (typeof q.content === "object" && q.content !== null) {
     qText = q.content.en || q.content.hi || JSON.stringify(q.content);
@@ -146,7 +326,7 @@ function renderQuestion(index) {
   }
   document.getElementById("questionContent").innerText = qText;
 
-  // ऑप्शंस रेंडर
+  // Options
   const optContainer = document.getElementById("optionsContainer");
   optContainer.innerHTML = "";
 
@@ -157,11 +337,9 @@ function renderQuestion(index) {
 
     const radio = document.createElement("input");
     radio.type = "radio";
-    radio.name = "currentOption";
+    radio.name = "currentOpt";
     radio.value = String(opt.id);
-    if (state.selected === String(opt.id)) {
-      radio.checked = true;
-    }
+    if (state.selected === String(opt.id)) radio.checked = true;
 
     radio.addEventListener("change", () => {
       userResponses[currentIndex].selected = String(opt.id);
@@ -175,12 +353,11 @@ function renderQuestion(index) {
     optContainer.appendChild(row);
   });
 
-  renderPalette();
+  renderPaletteGrid();
   updateStatusMatrix();
 }
 
-// 4. पैलेट ग्रिड रेंडर (कलर क्लासेस और एक्टिव बॉर्डर के साथ)
-function renderPalette() {
+function renderPaletteGrid() {
   const grid = document.getElementById("paletteGrid");
   grid.innerHTML = "";
 
@@ -189,63 +366,31 @@ function renderPalette() {
     btn.className = "palette-btn";
     btn.innerText = q.qNum;
 
-    // एक्टिव सवाल पर आउटलाइन
-    if (idx === currentIndex) {
-      btn.classList.add("active-q");
-    }
+    if (idx === currentIndex) btn.classList.add("active-q");
 
-    // कलर और शेप क्लास
-    const status = userResponses[idx].status;
-    if (status === 0) btn.classList.add("not-visited");
-    else if (status === 1) btn.classList.add("not-answered");
-    else if (status === 2) btn.classList.add("answered");
-    else if (status === 3) btn.classList.add("review");
-    else if (status === 4) btn.classList.add("ans-review");
+    const st = userResponses[idx].status;
+    if (st === 0) btn.classList.add("not-visited");
+    else if (st === 1) btn.classList.add("not-answered");
+    else if (st === 2) btn.classList.add("answered");
+    else if (st === 3) btn.classList.add("review");
+    else if (st === 4) btn.classList.add("ans-review");
 
     btn.addEventListener("click", () => renderQuestion(idx));
     grid.appendChild(btn);
   });
 }
 
-// 5. बटन्स के इवेंट लिसनर्स
-function setupEventListeners() {
-  document.getElementById("btnSaveNext").addEventListener("click", () => {
-    const state = userResponses[currentIndex];
-    state.status = (state.selected !== null) ? 2 : 1;
-    goToNextQuestion();
-  });
-
-  document.getElementById("btnMarkReview").addEventListener("click", () => {
-    const state = userResponses[currentIndex];
-    state.status = (state.selected !== null) ? 4 : 3;
-    goToNextQuestion();
-  });
-
-  document.getElementById("btnClear").addEventListener("click", () => {
-    userResponses[currentIndex].selected = null;
-    userResponses[currentIndex].status = 1;
-    renderQuestion(currentIndex);
-  });
-
-  // सबमिट बटन हैंडलर
-  document.getElementById("btnSubmit").addEventListener("click", () => {
-    showSubmitSummaryModal();
-  });
-}
-
-function goToNextQuestion() {
+function advanceNextQuestion() {
   if (currentIndex + 1 < testQuestions.length) {
     renderQuestion(currentIndex + 1);
   } else {
-    renderPalette();
+    renderPaletteGrid();
     updateStatusMatrix();
   }
 }
 
-// 6. स्टेटस मैट्रिक्स काउंटर
 function updateStatusMatrix() {
   let ans = 0, notAns = 0, notVis = 0, rev = 0, ansRev = 0;
-
   Object.values(userResponses).forEach(r => {
     if (r.status === 0) notVis++;
     else if (r.status === 1) notAns++;
@@ -261,8 +406,25 @@ function updateStatusMatrix() {
   document.getElementById("cntAnsReview").innerText = ansRev;
 }
 
-// 7. सबमिट मोडल और स्कोरकार्ड
-function showSubmitSummaryModal() {
+function startExamTimer() {
+  if (timerInterval) clearInterval(timerInterval);
+  const display = document.getElementById("timerDisplay");
+
+  timerInterval = setInterval(() => {
+    if (timeRemaining <= 0) {
+      clearInterval(timerInterval);
+      showExamSummaryModal();
+      return;
+    }
+    timeRemaining--;
+    const mins = Math.floor(timeRemaining / 60);
+    const secs = timeRemaining % 60;
+    display.innerText = `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+  }, 1000);
+}
+
+// ================= 4. SUBMISSION & SCORECARD =================
+function showExamSummaryModal() {
   let ans = 0, notAns = 0, notVis = 0, rev = 0, ansRev = 0;
   Object.values(userResponses).forEach(r => {
     if (r.status === 0) notVis++;
@@ -272,21 +434,16 @@ function showSubmitSummaryModal() {
     else if (r.status === 4) ansRev++;
   });
 
-  const modalContainer = document.getElementById("submitModalContainer");
-  modalContainer.style.display = "flex";
-  modalContainer.className = "tcs-modal-overlay";
+  const modal = document.getElementById("submitModalContainer");
+  modal.style.display = "flex";
+  modal.className = "tcs-modal-overlay";
 
-  modalContainer.innerHTML = `
+  modal.innerHTML = `
     <div class="tcs-modal-box">
-      <div class="tcs-modal-header">Exam Summary</div>
+      <div class="tcs-modal-header">Exam Final Summary - ${activeTest.title}</div>
       <div class="tcs-modal-body">
         <table class="modal-summary-table">
-          <thead>
-            <tr>
-              <th>Status Category</th>
-              <th>Total Questions</th>
-            </tr>
-          </thead>
+          <thead><tr><th>Status Category</th><th>Total Count</th></tr></thead>
           <tbody>
             <tr><td>Total Questions</td><td>${testQuestions.length}</td></tr>
             <tr><td>Answered</td><td style="color:#16a34a; font-weight:bold;">${ans}</td></tr>
@@ -296,46 +453,41 @@ function showSubmitSummaryModal() {
             <tr><td>Not Visited</td><td>${notVis}</td></tr>
           </tbody>
         </table>
-        <p style="font-size:13px; color:#475569;">Are you sure you want to submit the assessment?</p>
+        <p style="font-size:12px; color:#64748b;">Submit karne ke baad responses edit nahi ho sakenge.</p>
       </div>
       <div class="tcs-modal-footer">
         <button class="tcs-btn btn-secondary" onclick="document.getElementById('submitModalContainer').style.display='none'">Back to Exam</button>
-        <button class="tcs-btn btn-submit" id="btnFinalSubmitConfirm">Confirm & Submit</button>
+        <button class="tcs-btn btn-submit" id="btnConfirmSubmit">Confirm & Submit Exam</button>
       </div>
     </div>
   `;
 
-  document.getElementById("btnFinalSubmitConfirm").addEventListener("click", () => {
+  document.getElementById("btnConfirmSubmit").addEventListener("click", () => {
     if (timerInterval) clearInterval(timerInterval);
-    generateScorecard();
+    renderScorecard();
   });
 }
 
-// 8. स्कोरकार्ड और रिजल्ट कैलकुलेशन
-function generateScorecard() {
+function renderScorecard() {
   let correct = 0, incorrect = 0, unattempted = 0;
 
   testQuestions.forEach((q, idx) => {
     const userAns = userResponses[idx].selected;
-    if (!userAns) {
-      unattempted++;
-    } else if (String(userAns) === String(q.correctAnswer)) {
-      correct++;
-    } else {
-      incorrect++;
-    }
+    if (!userAns) unattempted++;
+    else if (String(userAns) === String(q.correctAnswer)) correct++;
+    else incorrect++;
   });
 
-  const totalScore = (correct * 2.00) - (incorrect * 0.50);
+  const score = (correct * 2.00) - (incorrect * 0.50);
 
-  const modalContainer = document.getElementById("submitModalContainer");
-  modalContainer.innerHTML = `
+  const modal = document.getElementById("submitModalContainer");
+  modal.innerHTML = `
     <div class="tcs-modal-box" style="width: 620px;">
-      <div class="tcs-modal-header" style="background:#16a34a;">Assessment Result & Scorecard</div>
+      <div class="tcs-modal-header" style="background:#16a34a;">Assessment Scorecard & Analysis</div>
       <div class="tcs-modal-body">
-        <div style="text-align:center; padding: 15px; background:#f1f5f9; margin-bottom:15px; border-radius:4px;">
-          <h2 style="font-size:28px; color:#1e3a8a;">Total Score: ${totalScore.toFixed(2)} / ${testQuestions.length * 2}</h2>
-          <p style="font-size:12px; color:#64748b;">Marking Scheme: +2.00 Correct | -0.50 Incorrect</p>
+        <div style="text-align:center; padding: 15px; background:#f1f5f9; margin-bottom:15px;">
+          <h2 style="font-size:26px; color:#1e3a8a;">Score: ${score.toFixed(2)} / ${testQuestions.length * 2}</h2>
+          <p style="font-size:12px; color:#64748b;">Marking: +2.00 Correct | -0.50 Negative</p>
         </div>
         <table class="modal-summary-table">
           <tbody>
@@ -347,26 +499,13 @@ function generateScorecard() {
         </table>
       </div>
       <div class="tcs-modal-footer">
-        <button class="tcs-btn btn-primary" onclick="window.location.reload()">Take Another Test</button>
+        <button class="tcs-btn btn-primary" onclick="closeExamAndReturnToDashboard()">Return to Repository Dashboard</button>
       </div>
     </div>
   `;
 }
 
-// 9. टाइमर इंजन
-function startTimer() {
-  if (timerInterval) clearInterval(timerInterval);
-  const display = document.getElementById("timerDisplay");
-
-  timerInterval = setInterval(() => {
-    if (timeRemaining <= 0) {
-      clearInterval(timerInterval);
-      showSubmitSummaryModal();
-      return;
-    }
-    timeRemaining--;
-    const mins = Math.floor(timeRemaining / 60);
-    const secs = timeRemaining % 60;
-    display.innerText = `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
-  }, 1000);
-}
+window.closeExamAndReturnToDashboard = function() {
+  document.getElementById("submitModalContainer").style.display = "none";
+  mountDashboard();
+};

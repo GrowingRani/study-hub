@@ -3,122 +3,165 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Assessment Console - TCS iON Industrial Layout</title>
+  <title>Assessment Engine - Industrial Assessment Portal</title>
   <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-<body class="exam-body">
+<body class="portal-body">
 
-  <!-- TOP ENTERPRISE BANNER -->
-  <header class="tcs-top-bar">
-    <div class="exam-meta">
-      <span class="system-id">System Name: <strong>C-104</strong></span>
-      <!-- DYNAMIC TEST SELECTOR DROPDOWN -->
-      <select id="testSelectDropdown" class="test-select-input">
-        <option value="">Loading Available Tests...</option>
-      </select>
-    </div>
-    
-    <div class="candidate-card">
-      <div class="candidate-avatar">
-        <svg viewBox="0 0 24 24" fill="#64748b" width="36" height="36"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+  <!-- ================= SCREEN 1: CANDIDATE LOGIN GATE ================= -->
+  <section id="viewLogin" class="view-screen active-view">
+    <div class="login-industrial-card">
+      <div class="login-header">
+        <div class="login-badge">EXAM NODE: C-104</div>
+        <h2>Candidate Authentication Gateway</h2>
+        <p>National Testing & Assessment Infrastructure</p>
       </div>
-      <div class="candidate-info">
-        <span class="c-name">CANDIDATE: <strong>STUDENT_ROLL_2026</strong></span>
-        <span class="c-subject">Subject: <span id="subjectLabel">Loading...</span></span>
-      </div>
-    </div>
-  </header>
-
-  <!-- SUB-HEADER: SECTION TABS & UTILITY STRIP -->
-  <div class="tcs-sub-bar">
-    <!-- DYNAMIC SECTION CONTAINER (Rendered by script.js) -->
-    <div class="section-tabs-container" id="sectionTabs"></div>
-
-    <div class="utility-tools">
-      <div class="lang-selector">
-        <label for="langSwitch">View in:</label>
-        <select id="langSwitch">
-          <option value="en">English</option>
-          <option value="hi">Hindi</option>
-        </select>
-      </div>
-      <div class="font-resizer">
-        <button id="btnFontDec">A-</button>
-        <button id="btnFontReset">A</button>
-        <button id="btnFontInc">A+</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- WORKSPACE SPLIT (75% LEFT, 25% RIGHT) -->
-  <main class="tcs-workspace">
-    
-    <!-- LEFT PANEL: QUESTION RUNNER -->
-    <section class="question-workspace">
-      <div class="q-meta-strip">
-        <div class="q-index-tag">
-          Question No. <span id="qDisplayNumber">1</span>
-        </div>
-        <div class="marking-scheme">
-          Marks for correct answer: <span class="mark-positive">+2.00</span> | Negative: <span class="mark-negative">-0.50</span>
-        </div>
-      </div>
-
-      <div class="q-scroll-area">
-        <div class="question-text-box" id="questionContent">
-          Loading Question Content...
-        </div>
-
-        <div class="options-container" id="optionsContainer">
-          <!-- Dynamic Radio Options Rendered by script.js -->
-        </div>
-      </div>
-    </section>
-
-    <!-- RIGHT PANEL: INDUSTRIAL PALETTE & STATUS DASHBOARD -->
-    <aside class="tcs-side-panel">
       
-      <!-- REAL-TIME STATUS MATRIX (TCS iON COUNTS) -->
-      <div class="status-summary-matrix">
-        <div class="stat-pill"><span class="badge answered" id="cntAnswered">0</span> Answered</div>
-        <div class="stat-pill"><span class="badge not-answered" id="cntNotAnswered">0</span> Not Answered</div>
-        <div class="stat-pill"><span class="badge not-visited" id="cntNotVisited">25</span> Not Visited</div>
-        <div class="stat-pill"><span class="badge review" id="cntReview">0</span> Marked for Review</div>
-        <div class="stat-pill"><span class="badge ans-review" id="cntAnsReview">0</span> Ans & Marked for Review</div>
-      </div>
-
-      <!-- TIMER DISPLAY -->
-      <div class="industrial-timer-box">
-        <span class="timer-label">Time Remaining:</span>
-        <span class="timer-digits" id="timerDisplay">15:00</span>
-      </div>
-
-      <!-- PALETTE TITLE -->
-      <div class="palette-header-strip">
-        CHOOSE A QUESTION
-      </div>
-
-      <!-- 25-GRID BUTTONS -->
-      <div class="palette-grid-viewport" id="paletteGrid">
-        <!-- Buttons injected dynamically by script.js -->
-      </div>
-    </aside>
-  </main>
-
-  <!-- INDUSTRIAL FOOTER: ACTION BAR -->
-  <footer class="tcs-footer-bar">
-    <div class="footer-left">
-      <button class="tcs-btn btn-secondary" id="btnMarkReview">Mark for Review & Next</button>
-      <button class="tcs-btn btn-secondary" id="btnClear">Clear Response</button>
+      <form id="loginForm" class="login-form">
+        <div class="form-group">
+          <label for="inputRollNumber">Roll Number / Candidate ID</label>
+          <input type="text" id="inputRollNumber" placeholder="e.g. ROLL-2026-01" required autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label for="inputPassword">Access PIN</label>
+          <input type="password" id="inputPassword" placeholder="Default PIN: 1234" value="1234" required>
+        </div>
+        <div id="loginError" class="auth-error-msg" style="display: none;"></div>
+        <button type="submit" class="btn-industrial-login" id="btnLogin">Authenticate & Enter</button>
+      </form>
     </div>
-    <div class="footer-right">
-      <button class="tcs-btn btn-primary" id="btnSaveNext">Save & Next</button>
-      <button class="tcs-btn btn-submit" id="btnSubmit">Submit Exam</button>
-    </div>
-  </footer>
+  </section>
 
-  <!-- SUBMISSION MODAL MOUNT CONTAINER -->
+  <!-- ================= SCREEN 2: SUBJECT & SET DASHBOARD ================= -->
+  <section id="viewDashboard" class="view-screen" style="display: none;">
+    <!-- Top Bar -->
+    <header class="dash-top-bar">
+      <div class="dash-brand">
+        <span class="portal-tag">ASSESSMENT REPOSITORY</span>
+        <span class="node-tag">NODE: C-104</span>
+      </div>
+      <div class="dash-user-controls">
+        <div class="user-meta">
+          <span class="user-name" id="dashCandidateName">Candidate</span>
+          <span class="user-roll" id="dashCandidateRoll">ROLL: ---</span>
+        </div>
+        <button class="btn-dash-logout" id="btnLogout">Sign Out</button>
+      </div>
+    </header>
+
+    <!-- Subject Navigator & Catalog Area -->
+    <div class="dash-layout">
+      <!-- Left Subject Nav Sidebar -->
+      <aside class="subject-sidebar">
+        <div class="sidebar-heading">TEST SUBJECTS</div>
+        <div class="subject-chips-list" id="subjectChipsContainer">
+          <!-- Injected via script.js -->
+        </div>
+      </aside>
+
+      <!-- Right Main Catalog Area -->
+      <main class="catalog-viewport">
+        <div class="catalog-header">
+          <div>
+            <h2 id="activeSubjectTitle">Select Subject</h2>
+            <p id="activeSubjectMeta">Choose a topic and set to launch the assessment console</p>
+          </div>
+          <div class="search-filter-box">
+            <input type="text" id="topicSearchInput" placeholder="Filter topics or sets...">
+          </div>
+        </div>
+
+        <div class="topics-grid" id="topicsContainer">
+          <!-- Dynamic Topic Cards & Sets injected via script.js -->
+        </div>
+      </main>
+    </div>
+  </section>
+
+  <!-- ================= SCREEN 3: TCS iON EXAM CONSOLE ================= -->
+  <section id="viewExam" class="view-screen" style="display: none;">
+    <!-- Top Enterprise Banner -->
+    <header class="tcs-top-bar">
+      <div class="exam-meta">
+        <span class="system-id">System Name: <strong>C-104</strong></span>
+        <span class="exam-title-badge" id="examTitle">Assessment Console</span>
+      </div>
+      
+      <div class="candidate-card">
+        <div class="candidate-avatar">
+          <svg viewBox="0 0 24 24" fill="#64748b" width="34" height="34"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+        </div>
+        <div class="candidate-info">
+          <span class="c-name">CANDIDATE: <strong id="examCandidateRoll">ROLL-2026-01</strong></span>
+          <span class="c-subject">Subject: <span id="subjectLabel">General Studies</span></span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Sub-Header: Section Tabs & Utility Strip -->
+    <div class="tcs-sub-bar">
+      <div class="section-tabs-container" id="sectionTabs"></div>
+      <div class="utility-tools">
+        <div class="lang-selector">
+          <label for="langSwitch">View in:</label>
+          <select id="langSwitch">
+            <option value="en">English</option>
+            <option value="hi">Hindi</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Workspace Split -->
+    <main class="tcs-workspace">
+      <!-- Left Panel: Question Workspace -->
+      <section class="question-workspace">
+        <div class="q-meta-strip">
+          <div class="q-index-tag">Question No. <span id="qDisplayNumber">1</span></div>
+          <div class="marking-scheme">Marks: <span class="mark-positive">+2.00</span> | <span class="mark-negative">-0.50</span></div>
+        </div>
+
+        <div class="q-scroll-area">
+          <div class="question-text-box" id="questionContent">Loading Assessment...</div>
+          <div class="options-container" id="optionsContainer"></div>
+        </div>
+      </section>
+
+      <!-- Right Panel: TCS iON Palette Panel -->
+      <aside class="tcs-side-panel">
+        <div class="status-summary-matrix">
+          <div class="stat-pill"><span class="badge answered" id="cntAnswered">0</span> Answered</div>
+          <div class="stat-pill"><span class="badge not-answered" id="cntNotAnswered">0</span> Not Answered</div>
+          <div class="stat-pill"><span class="badge not-visited" id="cntNotVisited">25</span> Not Visited</div>
+          <div class="stat-pill"><span class="badge review" id="cntReview">0</span> Marked for Review</div>
+          <div class="stat-pill"><span class="badge ans-review" id="cntAnsReview">0</span> Ans & Review</div>
+        </div>
+
+        <div class="industrial-timer-box">
+          <span class="timer-label">Time Remaining</span>
+          <span class="timer-digits" id="timerDisplay">15:00</span>
+        </div>
+
+        <div class="palette-header-strip">QUESTION PALETTE</div>
+        <div class="palette-grid-viewport" id="paletteGrid"></div>
+      </aside>
+    </main>
+
+    <!-- Bottom Action Footer -->
+    <footer class="tcs-footer-bar">
+      <div class="footer-left">
+        <button class="tcs-btn btn-secondary" id="btnMarkReview">Mark for Review & Next</button>
+        <button class="tcs-btn btn-secondary" id="btnClear">Clear Response</button>
+      </div>
+      <div class="footer-right">
+        <button class="tcs-btn btn-primary" id="btnSaveNext">Save & Next</button>
+        <button class="tcs-btn btn-submit" id="btnSubmit">Submit Exam</button>
+      </div>
+    </footer>
+  </section>
+
+  <!-- Submit & Scorecard Modal Mount -->
   <div id="submitModalContainer" style="display: none;"></div>
 
   <script src="script.js"></script>
