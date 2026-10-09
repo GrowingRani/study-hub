@@ -1,5 +1,5 @@
 /* ==========================================================================
-   1. GLOBAL VARIABLES & SYSTEM RESET
+1. GLOBAL VARIABLES & SYSTEM RESET
    ========================================================================== */
 :root {
   --bg-primary: #f8fafc;
@@ -127,9 +127,14 @@ body.dark-theme .subject-chip.active {
 }
 
 body.dark-theme .search-filter-box input {
-  background: #0b1120;
-  border-color: #334155;
-  color: #f8fafc;
+  background: #0b1120 !important;
+  border-color: #334155 !important;
+  color: #f8fafc !important;
+}
+
+body.dark-theme .search-filter-box input:focus {
+  border-color: #38bdf8 !important;
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.25) !important;
 }
 
 /* Dark Mode Login Gate & Onboarding Elements */
@@ -649,7 +654,7 @@ body.dark-theme .sol-explanation {
   color: #ffffff; 
 }
 
-/* Right Catalog Viewport */
+/* Right Catalog Viewport & Modern Search Bar */
 .catalog-viewport {
   flex: 1;
   padding: 24px 30px;
@@ -659,28 +664,32 @@ body.dark-theme .sol-explanation {
 }
 
 .catalog-header { 
-  display: flex; 
-  justify-content: space-between; 
-  align-items: flex-end; 
-  margin-bottom: 20px; 
+  display: block; 
+  margin-bottom: 16px; 
   border-bottom: 1px solid var(--border-color); 
   padding-bottom: 14px; 
 }
-.catalog-header h2 { 
-  font-size: 20px; 
-  color: #0f172a; 
-  margin-bottom: 4px; 
+
+.search-filter-box {
+  width: 100%;
 }
-.catalog-header p { 
-  font-size: 13px; 
-  color: #64748b; 
-}
+
 .search-filter-box input { 
-  padding: 8px 12px; 
+  width: 100%;
+  padding: 12px 16px; 
   border: 1px solid var(--border-color); 
-  font-size: 13px; 
-  width: 240px; 
-  border-radius: 2px; 
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 13.5px; 
+  border-radius: 6px; 
+  outline: none;
+  box-sizing: border-box;
+  transition: all 0.2s ease-in-out;
+}
+
+.search-filter-box input:focus {
+  border-color: var(--tcs-blue-accent);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
 }
 
 .topics-grid { 

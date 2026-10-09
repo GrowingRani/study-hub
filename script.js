@@ -7,6 +7,23 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // ==========================================================================
+// CRITICAL FIX: RECOVERY GUARD (Blocks Dashboard completely during Reset)
+// ==========================================================================
+let initHash = window.location.hash || window.location.href;
+if (initHash.includes("type=recovery")) {
+  sessionStorage.setItem("recovery_mode", "true");
+}
+
+supabaseClient.auth.onAuthStateChange((event, session) => {
+  if (event === "PASSWORD_RECOVERY") {
+    sessionStorage.setItem("recovery_mode", "true");
+    if (document.getElementById("resetPasswordForm")) {
+      showPasswordResetUI();
+    }
+  }
+});
+
+// ==========================================================================
 // 2. GLOBAL STATE
 // ==========================================================================
 let currentCandidate = null;
@@ -15,7 +32,6 @@ let activeSubject = null;
 let userAttemptHistory = [];
 let currentLang = "en";
 
-// Register Service Worker for Native PWA Installation
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
     navigator.serviceWorker
@@ -25,7 +41,6 @@ if ("serviceWorker" in navigator) {
   });
 }
 
-// द्विभाषी टेक्स्ट फॉलबैक हेल्पर
 function getLocalizedText(obj) {
   if (typeof obj === "object" && obj !== null) {
     if (currentLang === "hi") {
@@ -37,7 +52,6 @@ function getLocalizedText(obj) {
   return String(obj || "");
 }
 
-// Exam Session State
 let activeTest = null;
 let testQuestions = [];
 let currentIndex = 0;
@@ -67,8 +81,17 @@ window.switchView = function(viewId) {
 // 4. SUPABASE AUTH LAYER & SESSION MANAGEMENT
 // ==========================================================================
 function initAuthSessionWatcher() {
-  // 1. Initial Page Load Check
+  if (sessionStorage.getItem("recovery_mode") === "true") {
+    showPasswordResetUI();
+    return; // Stop any normal session load
+  }
+
   supabaseClient.auth.getSession().then(({ data: { session } }) => {
+    if (sessionStorage.getItem("recovery_mode") === "true") {
+      showPasswordResetUI();
+      return;
+    }
+
     if (session && session.user && session.user.email_confirmed_at) {
       initCandidateSession(session.user);
     } else {
@@ -77,29 +100,25 @@ function initAuthSessionWatcher() {
     }
   });
 
-  // 2. Real-time Auth Event Listener (Handles One-Click Link & Recovery)
   supabaseClient.auth.onAuthStateChange(async (event, session) => {
-    // A. Password Recovery Event (Triggered by Reset Link in Email)
-    if (event === "PASSWORD_RECOVERY") {
+    if (event === "PASSWORD_RECOVERY" || sessionStorage.getItem("recovery_mode") === "true") {
+      sessionStorage.setItem("recovery_mode", "true");
       showPasswordResetUI();
       return;
     }
 
-    // B. Logout Event
     if (event === "SIGNED_OUT" || !session || !session.user) {
       currentCandidate = null;
       switchView("viewLogin");
       return;
     }
 
-    // C. Strict Guard: Don't allow unconfirmed user into Dashboard
     if (!session.user.email_confirmed_at) {
       currentCandidate = null;
       switchView("viewLogin");
       return;
     }
 
-    // D. Confirmed Login Event (From Email Confirmation Link or Standard Sign-In)
     if (!currentCandidate || currentCandidate.email !== session.user.email.toLowerCase()) {
       initCandidateSession(session.user);
     }
@@ -108,20 +127,50 @@ function initAuthSessionWatcher() {
 
 function showPasswordResetUI() {
   switchView("viewLogin");
-  document.getElementById("signInForm").style.display = "none";
-  document.getElementById("registerForm").style.display = "none";
-  document.getElementById("forgotForm").style.display = "none";
-  document.getElementById("authNavTabs").style.display = "none";
-  document.getElementById("resetPasswordForm").style.display = "block";
-  showAuthNotice("Enter your new security password below.", false);
+  
+  const signInForm = document.getElementById("signInForm");
+  const registerForm = document.getElementById("registerForm");
+  const forgotForm = document.getElementById("forgotForm");
+  const authNavTabs = document.getElementById("authNavTabs");
+  const resetPasswordForm = document.getElementById("resetPasswordForm");
+
+  if (signInForm) signInForm.style.display = "none";
+  if (registerForm) registerForm.style.display = "none";
+  if (forgotForm) forgotForm.style.display = "none";
+  if (authNavTabs) authNavTabs.style.display = "none";
+  if (resetPasswordForm) {
+    resetPasswordForm.style.display = "block";
+    
+    // Add an emergency exit button to clear recovery mode if user gets stuck
+    if (!document.getElementById("btnCancelReset")) {
+      const cancelBtn = document.createElement("button");
+      cancelBtn.id = "btnCancelReset";
+      cancelBtn.type = "button";
+      cancelBtn.innerText = "Cancel & Sign Out";
+      cancelBtn.style.cssText = "background:none; border:none; color:#dc2626; font-size:12px; font-weight:bold; width:100%; margin-top:16px; cursor:pointer; text-decoration:underline;";
+      cancelBtn.addEventListener("click", () => {
+        sessionStorage.removeItem("recovery_mode");
+        supabaseClient.auth.signOut().then(() => {
+          window.location.href = "/";
+        });
+      });
+      resetPasswordForm.appendChild(cancelBtn);
+    }
+  }
+
+  showAuthNotice("Security Verified! Enter your new password below.", false);
 }
 
-// Loads or Creates candidate profile in public.students upon confirmed auth
 async function initCandidateSession(user) {
+  // FINAL GUARD: NEVER load dashboard if recovery mode is active
+  if (sessionStorage.getItem("recovery_mode") === "true") {
+    showPasswordResetUI();
+    return;
+  }
+
   try {
     const userEmail = (user.email || "").toLowerCase();
     
-    // Check if candidate profile already exists in public.students
     const { data: student, error } = await supabaseClient
       .from("students")
       .select("*")
@@ -132,7 +181,6 @@ async function initCandidateSession(user) {
       currentCandidate = student;
       mountDashboard();
     } else {
-      // First-time confirmation link redirect: Extract metadata and create verified student record
       const roll = user.user_metadata?.roll_number || "ROLL-" + Math.floor(1000 + Math.random() * 9000);
       const name = user.user_metadata?.full_name || user.user_metadata?.name || userEmail.split("@")[0];
 
@@ -177,7 +225,6 @@ function setupAppEvents() {
   const resetPasswordForm = document.getElementById("resetPasswordForm");
   const authErrBox = document.getElementById("authErrorMsg");
 
-  // 1. Auth Tabs Switching
   if (tabSignIn && tabRegister) {
     tabSignIn.addEventListener("click", () => {
       tabSignIn.style.borderBottom = "2px solid var(--tcs-blue-accent)";
@@ -206,7 +253,6 @@ function setupAppEvents() {
     });
   }
 
-  // 2. Forgot Password Sub-View Toggles
   const btnOpenForgot = document.getElementById("btnOpenForgot");
   if (btnOpenForgot) {
     btnOpenForgot.addEventListener("click", () => {
@@ -223,7 +269,7 @@ function setupAppEvents() {
   const btnBackToSignIn = document.getElementById("btnBackToSignIn");
   if (btnBackToSignIn && tabSignIn) {
     btnBackToSignIn.addEventListener("click", () => {
-      authNavTabs.style.display = "flex";
+      if (authNavTabs) authNavTabs.style.display = "flex";
       tabSignIn.click();
     });
   }
@@ -231,12 +277,11 @@ function setupAppEvents() {
   const btnBackToSignInFromReg = document.getElementById("btnBackToSignInFromReg");
   if (btnBackToSignInFromReg && tabSignIn) {
     btnBackToSignInFromReg.addEventListener("click", () => {
-      authNavTabs.style.display = "flex";
+      if (authNavTabs) authNavTabs.style.display = "flex";
       tabSignIn.click();
     });
   }
 
-  // 3. Google OAuth 1-Click Sign-In
   const btnGoogleAuth = document.getElementById("btnGoogleAuth");
   if (btnGoogleAuth) {
     btnGoogleAuth.addEventListener("click", async () => {
@@ -244,14 +289,13 @@ function setupAppEvents() {
       const { error } = await supabaseClient.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: window.location.origin
+          redirectTo: "https://my-assessment-portal.netlify.app"
         }
       });
       if (error) showAuthNotice(error.message);
     });
   }
 
-  // 4. Candidate Sign-In (Returning User - Validates Confirmation)
   if (signInForm) {
     signInForm.addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -271,7 +315,6 @@ function setupAppEvents() {
 
         if (error) throw error;
 
-        // Check if user confirmed their email
         if (!data.user || !data.user.email_confirmed_at) {
           await supabaseClient.auth.signOut();
           throw new Error("Aapka email verify nahi hua hai. Kripya pehle apne inbox me aaye 'Confirm email address' link par click karein.");
@@ -287,7 +330,6 @@ function setupAppEvents() {
     });
   }
 
-  // 5. New Candidate Registration (Dispatches One-Click Confirmation Link)
   if (registerForm) {
     registerForm.addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -313,7 +355,6 @@ function setupAppEvents() {
 
         if (error) throw error;
 
-        // Hide input fields and show instructions
         document.getElementById("regFieldsStep").style.display = "none";
         document.getElementById("regSuccessCard").style.display = "block";
         showAuthNotice("Confirmation email dispatched successfully! Please check your inbox.", false);
@@ -326,7 +367,6 @@ function setupAppEvents() {
     });
   }
 
-  // 6. Forgot Password (Request Recovery Link)
   if (forgotForm) {
     forgotForm.addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -339,7 +379,7 @@ function setupAppEvents() {
 
       try {
         const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
-          redirectTo: window.location.origin
+          redirectTo: "https://my-assessment-portal.netlify.app"
         });
         if (error) throw error;
 
@@ -355,7 +395,7 @@ function setupAppEvents() {
     });
   }
 
-  // 7. Reset Password (Saves New Password After Recovery Link Click)
+  // 7. Reset Password (Saves New Password & Removes Recovery Block)
   if (resetPasswordForm) {
     resetPasswordForm.addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -378,8 +418,16 @@ function setupAppEvents() {
 
         showAuthNotice("Password updated successfully! Redirecting to Dashboard...", false);
         
+        // 1. रिकवरी मोड का ब्लॉक हटाएँ
+        sessionStorage.removeItem("recovery_mode");
+        
+        // 2. URL से हैश टोकन साफ़ करें
+        if (window.history && window.history.replaceState) {
+          window.history.replaceState(null, null, window.location.pathname);
+        }
+
         setTimeout(async () => {
-          authNavTabs.style.display = "flex";
+          if (authNavTabs) authNavTabs.style.display = "flex";
           if (data.user) await initCandidateSession(data.user);
         }, 1200);
       } catch (err) {
@@ -391,18 +439,17 @@ function setupAppEvents() {
     });
   }
 
-  // 8. Candidate Sign Out
   const btnLogout = document.getElementById("btnLogout");
   if (btnLogout) {
     btnLogout.addEventListener("click", async () => {
       await supabaseClient.auth.signOut();
       currentCandidate = null;
+      sessionStorage.removeItem("recovery_mode");
       switchView("viewLogin");
       if (tabSignIn) tabSignIn.click();
     });
   }
 
-  // 9. Student Profile & Analytics View Trigger
   const btnMyProfile = document.getElementById("btnMyProfile");
   if (btnMyProfile) {
     btnMyProfile.addEventListener("click", () => {
@@ -411,7 +458,6 @@ function setupAppEvents() {
     });
   }
 
-  // 10. Eye-Care High-Tech Dark Mode Toggle & Sync
   const btnDarkMode = document.getElementById("btnDarkMode");
   if (localStorage.getItem("theme") === "dark") {
     document.body.classList.add("dark-theme");
@@ -431,7 +477,57 @@ function setupAppEvents() {
     });
   }
 
-  // 11. Exam Console Action Handlers
+  const searchInput = document.getElementById("topicSearchInput");
+  if (searchInput) {
+    searchInput.addEventListener("input", (e) => {
+      const query = e.target.value.trim().toLowerCase();
+      const cards = document.querySelectorAll(".topic-accordion-card");
+
+      cards.forEach(card => {
+        const headerTitle = card.querySelector(".topic-title")?.innerText.toLowerCase() || "";
+        const body = card.querySelector(".topic-accordion-body");
+        const tiles = card.querySelectorAll(".set-tile");
+
+        if (!query) {
+          card.style.display = "block";
+          card.classList.remove("open");
+          if (body) body.style.display = "none";
+          tiles.forEach(tile => (tile.style.display = ""));
+          return;
+        }
+
+        if (headerTitle.includes(query)) {
+          card.style.display = "block";
+          card.classList.add("open");
+          if (body) body.style.display = "block";
+          tiles.forEach(tile => (tile.style.display = ""));
+          return;
+        }
+
+        let matchingSetsCount = 0;
+        tiles.forEach(tile => {
+          const setTitle = tile.querySelector(".set-tile-title")?.innerText.toLowerCase() || "";
+          if (setTitle.includes(query)) {
+            tile.style.display = ""; 
+            matchingSetsCount++;
+          } else {
+            tile.style.display = "none"; 
+          }
+        });
+
+        if (matchingSetsCount > 0) {
+          card.style.display = "block";
+          card.classList.add("open");
+          if (body) body.style.display = "block";
+        } else {
+          card.style.display = "none";
+          card.classList.remove("open");
+          if (body) body.style.display = "none";
+        }
+      });
+    });
+  }
+
   document.getElementById("btnSaveNext").addEventListener("click", () => {
     if (!userResponses[currentIndex]) return;
     const state = userResponses[currentIndex];
@@ -457,16 +553,6 @@ function setupAppEvents() {
     showExamSummaryModal();
   });
 
-  // 12. Dashboard Topic Filter Search
-  document.getElementById("topicSearchInput").addEventListener("input", (e) => {
-    const query = e.target.value.toLowerCase();
-    document.querySelectorAll(".topic-accordion-card").forEach(card => {
-      const text = card.innerText.toLowerCase();
-      card.style.display = text.includes(query) ? "block" : "none";
-    });
-  });
-
-  // 13. Bilingual Language Switcher
   document.getElementById("langSwitch").addEventListener("change", (e) => {
     currentLang = e.target.value;
     if (document.getElementById("viewExam").style.display === "flex") {
@@ -474,13 +560,11 @@ function setupAppEvents() {
     }
   });
 
-  // 14. Mobile Bottom-Sheet Palette Drawer Trigger
   document.getElementById("btnMobilePalette").addEventListener("click", () => {
     document.querySelector(".tcs-side-panel").classList.add("open");
     document.getElementById("paletteOverlay").classList.add("open");
   });
 
-  // 15. Close Mobile Drawer via Backdrop Click
   document.getElementById("paletteOverlay").addEventListener("click", () => {
     document.querySelector(".tcs-side-panel").classList.remove("open");
     document.getElementById("paletteOverlay").classList.remove("open");
@@ -513,7 +597,6 @@ async function fetchTestCatalog() {
   }
   catalogData = catalog;
 
-  // Student Attempt History Fetch
   const { data: history } = await supabaseClient
     .from("test_attempts")
     .select("test_id, score, attempt_date")
@@ -550,8 +633,13 @@ function selectSubject(subjectName) {
   document.querySelectorAll(".subject-chip").forEach(el => {
     el.classList.toggle("active", el.innerText.includes(subjectName));
   });
-  document.getElementById("activeSubjectTitle").innerText = subjectName;
-  document.getElementById("activeSubjectMeta").innerText = `Available practice sets under ${subjectName}`;
+
+  const titleEl = document.getElementById("activeSubjectTitle");
+  if (titleEl) titleEl.innerText = subjectName;
+
+  const metaEl = document.getElementById("activeSubjectMeta");
+  if (metaEl) metaEl.innerText = `Available practice sets under ${subjectName}`;
+
   renderTopicSets();
 }
 

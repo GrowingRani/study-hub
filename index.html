@@ -14,7 +14,10 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="ExamPortal">
   <meta name="robots" content="noindex, nofollow">
-  <link rel="icon" href="data:,">
+  
+  <!-- Unified PWA App Icon & Favicon -->
+  <link rel="icon" type="image/png" href="./icon.png">
+  <link rel="apple-touch-icon" href="./icon.png">
   
   <!-- Supabase JS Client CDN -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -176,13 +179,14 @@
 
       <!-- Right Main Catalog Area -->
       <main class="catalog-viewport">
-        <div class="catalog-header">
-          <div>
-            <h2 id="activeSubjectTitle">Select Subject</h2>
-            <p id="activeSubjectMeta">Choose a topic and set to launch the assessment console</p>
-          </div>
-          <div class="search-filter-box">
-            <input type="text" id="topicSearchInput" placeholder="Filter topics or sets...">
+        <!-- Clean Full-Width Search Header (Redundant Subject Title Removed) -->
+        <div class="catalog-header" style="margin-bottom: 16px;">
+          <!-- Hidden spans to maintain script safety -->
+          <span id="activeSubjectTitle" style="display: none;"></span>
+          <span id="activeSubjectMeta" style="display: none;"></span>
+
+          <div class="search-filter-box" style="width: 100%;">
+            <input type="text" id="topicSearchInput" placeholder="🔍 Search Set number or Topic (e.g. Set 14, Kiran)..." style="width: 100%;">
           </div>
         </div>
 
