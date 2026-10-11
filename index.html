@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Assessment Engine - Industrial Assessment Portal</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="./manifest.json">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="ExamPortal">
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" type="image/png" href="./icon.png">
+  <link rel="apple-touch-icon" href="./icon.png">
+
+  <!-- Supabase & Chart.js CDNs -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="portal-body">
+
+  <!-- ================= SCREEN 1: SECURE AUTHENTICATION ================= -->
+  <section id="viewLogin" class="view-screen active-view">
+    <div class="login-industrial-card">
+      <div class="login-header">
+        <div class="login-badge">EXAM NODE: C-104</div>
+        <h2>Candidate Authentication Gateway</h2>
+        <p>National Testing & Assessment Infrastructure</p>
+      </div>
+
+      <div class="auth-tabs" id="authNavTabs">
+        <button type="button" id="tabSignIn" class="auth-tab-btn active">Sign In</button>
+        <button type="button" id="tabRegister" class="auth-tab-btn">New Candidate Registration</button>
+      </div>
+
+      <div id="authErrorMsg" class="auth-error-msg" style="display: none;"></div>
+
+      <!-- Sign In Form -->
+      <form id="signInForm" class="login-form">
+        <button type="button" id="btnGoogleAuth" class="btn-industrial-login" style="background: #ffffff; color: #0f172a; border: 1px solid var(--border-color); display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08);">
+          <svg width="18" height="18" viewBox="0 0 24 24">
+            <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.66v3.05h3.9c2.27-2.09 3.64-5.17 3.64-9.15z"/>
+            <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.9-3.05c-1.08.72-2.45 1.16-4.03 1.16-3.1 0-5.73-2.09-6.67-4.9H1.3v3.14C3.33 21.37 7.37 24 12 24z"/>
+            <path fill="#FBBC05" d="M5.33 14.3c-.24-.72-.38-1.49-.38-2.3s.14-1.58.38-2.3V6.56H1.3C.47 8.21 0 10.05 0 12s.47 3.79 1.3 5.44l4.03-3.14z"/>
+            <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.37 0 3.33 2.63 1.3 6.56l4.03 3.14c.94-2.81 3.57-4.9 6.67-4.9z"/>
+          </svg>
+          Sign in with Google
+        </button>
+
+        <div style="display: flex; align-items: center; text-align: center; margin-bottom: 16px;">
+          <div style="flex: 1; border-bottom: 1px solid var(--border-color);"></div>
+          <span style="padding: 0 10px; font-size: 11px; font-weight: 700; color: #64748b; letter-spacing: 0.5px;">OR REGISTERED CREDENTIALS</span>
+          <div style="flex: 1; border-bottom: 1px solid var(--border-color);"></div>
+        </div>
+
+        <div class="form-group">
+          <label for="inputSignInEmail">Candidate Email Address</label>
+          <input type="email" id="inputSignInEmail" placeholder="candidate@example.com" required autocomplete="email">
+        </div>
+        <div class="form-group">
+          <label for="inputSignInPass">Access Password / Security PIN</label>
+          <input type="password" id="inputSignInPass" placeholder="••••••••" required autocomplete="current-password">
+        </div>
+        <div style="display: flex; justify-content: flex-end; margin-bottom: 14px;">
+          <button type="button" id="btnOpenForgot" style="background: none; border: none; color: var(--tcs-blue-accent); font-size: 11px; cursor: pointer; text-decoration: underline;">Forgot PIN / Password?</button>
+        </div>
+        <button type="submit" class="btn-industrial-login" id="btnSignInSubmit">Authenticate & Enter</button>
+      </form>
+
+      <!-- Registration Form -->
+      <form id="registerForm" class="login-form" style="display: none;">
+        <div id="regFieldsStep">
+          <div class="form-group">
+            <label for="inputRegName">Full Name</label>
+            <input type="text" id="inputRegName" placeholder="e.g. Rahul Sharma" required autocomplete="name">
+          </div>
+          <div class="form-group">
+            <label for="inputRegRoll">Roll Number / Candidate ID</label>
+            <input type="text" id="inputRegRoll" placeholder="e.g. ROLL-2026-88" required autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label for="inputRegEmail">Candidate Email Address</label>
+            <input type="email" id="inputRegEmail" placeholder="rahul@example.com" required autocomplete="email">
+          </div>
+          <div class="form-group">
+            <label for="inputRegPass">Set Access Password / Security PIN</label>
+            <input type="password" id="inputRegPass" placeholder="At least 6 characters" required autocomplete="new-password">
+          </div>
+          <button type="submit" class="btn-industrial-login" id="btnRegisterSubmit">Create Profile & Send Verification Link</button>
+        </div>
+        <div id="regSuccessCard" style="display: none; text-align: center; padding: 15px; background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.3); border-radius: 6px;">
+          <div style="font-size: 28px; margin-bottom: 8px;">📩</div>
+          <h4 style="color: #22c55e; margin-bottom: 6px; font-size: 15px;">Verification Link Dispatched</h4>
+          <p style="font-size: 12px; color: #94a3b8; line-height: 1.5; margin-bottom: 14px;">A confirmation link has been sent to your email. Click <strong>"Confirm email address"</strong> in your inbox to automatically activate your profile.</p>
+          <button type="button" class="btn-industrial-login" id="btnBackToSignInFromReg" style="background: transparent; border: 1px solid var(--tcs-blue-accent); color: var(--tcs-blue-accent); padding: 8px;">Back to Sign In</button>
+        </div>
+      </form>
+
+      <!-- Forgot Password Form -->
+      <form id="forgotForm" class="login-form" style="display: none;">
+        <div id="forgotEmailStep">
+          <p style="font-size: 12px; color: #64748b; margin-bottom: 12px;">Enter your registered candidate email to receive a secure password recovery link:</p>
+          <div class="form-group">
+            <label for="inputForgotEmail">Registered Candidate Email</label>
+            <input type="email" id="inputForgotEmail" placeholder="candidate@example.com" required>
+          </div>
+          <button type="submit" class="btn-industrial-login" id="btnSendForgotOtp">Send Password Recovery Link</button>
+        </div>
+        <div id="forgotSuccessStep" style="display: none; text-align: center; padding: 15px; background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.3); border-radius: 6px;">
+          <div style="font-size: 28px; margin-bottom: 8px;">🔐</div>
+          <h4 style="color: #22c55e; margin-bottom: 6px; font-size: 15px;">Recovery Link Sent</h4>
+          <p style="font-size: 12px; color: #94a3b8; line-height: 1.5; margin-bottom: 14px;">Please check your email and click the password reset link. It will automatically redirect you here.</p>
+        </div>
+        <div style="text-align: center; margin-top: 14px;">
+          <button type="button" id="btnBackToSignIn" style="background: none; border: none; color: #64748b; font-size: 11px; cursor: pointer; text-decoration: underline;">Back to Sign In</button>
+        </div>
+      </form>
+
+      <!-- Password Reset Form -->
+      <form id="resetPasswordForm" class="login-form" style="display: none;">
+        <div style="text-align: center; margin-bottom: 14px;">
+          <h4 style="color: var(--tcs-blue-accent); font-size: 15px;">Set New Password</h4>
+          <p style="font-size: 12px; color: #64748b;">Enter your new security password / PIN below to restore access:</p>
+        </div>
+        <div class="form-group">
+          <label for="inputNewPassword">New Password / PIN</label>
+          <input type="password" id="inputNewPassword" placeholder="At least 6 characters" required autocomplete="new-password">
+        </div>
+        <button type="submit" class="btn-industrial-login" id="btnSaveNewPassword">Update Password & Enter Portal</button>
+      </form>
+    </div>
+  </section>
+
+  <!-- ================= SCREEN 2: DASHBOARD (Home) ================= -->
+  <section id="viewDashboard" class="view-screen main-app-view" style="display: none;">
+    <header class="dash-top-bar glass-header">
+      <div class="dash-brand">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--tcs-blue-accent);">
+          <path d="M22 10v6M2 10l10-5 10 5-10 5z"></path>
+          <path d="M6 12v5c3 3 9 3 12 0v-5"></path>
+        </svg>
+        <span class="portal-tag">STUDY HUB</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <button class="theme-toggle-btn btn-ghost icon-btn" title="Toggle Theme">🌙</button>
+        <div class="dash-user-controls hide-on-mobile" style="display: flex; align-items: center; gap: 6px;">
+          <button class="btn-ghost" onclick="fetchStudentAnalytics(); switchView('viewAnalytics');" style="display: flex; gap: 6px; align-items: center;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="20" x2="18" y2="10"></line>
+              <line x1="12" y1="20" x2="12" y2="4"></line>
+              <line x1="6" y1="20" x2="6" y2="14"></line>
+            </svg> Analytics
+          </button>
+          <button class="btn-ghost" style="display: flex; gap: 6px; align-items: center;" onclick="toggleProfileDrawer()">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+              <circle cx="12" cy="7" r="4"></circle>
+            </svg> Profile & Settings
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <div class="dash-layout">
+      <aside class="subject-sidebar">
+        <div class="sidebar-heading">TEST SUBJECTS</div>
+        <div class="subject-chips-list" id="subjectChipsContainer"></div>
+      </aside>
+
+      <main class="catalog-viewport">
+        <div class="catalog-header" style="margin-bottom: 16px;">
+          <span id="activeSubjectTitle" style="display: none;"></span>
+          <div class="search-filter-box" style="width: 100%;">
+            <input type="text" id="topicSearchInput" placeholder="🔍 Search Set number or Topic (e.g. Set 14, Kiran)..." style="width: 100%;">
+          </div>
+        </div>
+        <div class="topics-grid" id="topicsContainer"></div>
+      </main>
+    </div>
+  </section>
+
+  <!-- ================= SCREEN 3: ANALYTICS DASHBOARD ================= -->
+  <section id="viewAnalytics" class="view-screen main-app-view" style="display: none;">
+    <header class="dash-top-bar glass-header">
+      <div class="dash-brand">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--tcs-blue-accent);">
+          <path d="M22 10v6M2 10l10-5 10 5-10 5z"></path>
+          <path d="M6 12v5c3 3 9 3 12 0v-5"></path>
+        </svg>
+        <span class="portal-tag">PERFORMANCE</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <button class="theme-toggle-btn btn-ghost icon-btn" title="Toggle Theme">🌙</button>
+        <div class="dash-user-controls hide-on-mobile">
+          <button class="btn-ghost" onclick="switchView('viewDashboard')">Back to Home</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="catalog-viewport" style="padding: 24px 30px; max-width: 1000px; margin: 0 auto; width: 100%;">
+      <!-- Key Metrics Banner with Sparklines -->
+      <div class="analytics-banner" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px;">
+        <div class="stat-card">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+            <div>
+              <div class="stat-value" id="statAccuracy">0.0%</div>
+              <div class="stat-label">Overall Accuracy</div>
+            </div>
+            <div id="sparkAccuracy" style="width:60px; height:30px;"></div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+            <div>
+              <div class="stat-value" id="statStreak">0 🔥</div>
+              <div class="stat-label">Day Streak</div>
+            </div>
+            <div id="sparkStreak" style="width:60px; height:30px;"></div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+            <div>
+              <div class="stat-value" id="statSpeed">0s</div>
+              <div class="stat-label">Avg Time / Question</div>
+            </div>
+            <div id="sparkSpeed" style="width:60px; height:30px;"></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="extraAnalyticsSummary" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-bottom: 24px;"></div>
+
+      <!-- Advanced Analytics Grid (Radar, Insights, Heatmap) -->
+      <div class="advanced-analytics-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 24px;">
+        <!-- Radar Chart -->
+        <div class="profile-section-card" style="padding: 20px; display: flex; flex-direction: column; align-items: center;">
+          <h3 class="section-title" style="width: 100%; text-align: left; margin-bottom: 10px; border-bottom: none;">Subject Mastery (Radar)</h3>
+          <div style="position: relative; height: 250px; width: 100%; display: flex; align-items: center; justify-content: center;">
+            <canvas id="subjectRadarChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Insights -->
+        <div class="profile-section-card" style="padding: 20px; display: flex; flex-direction: column; gap: 12px;">
+          <h3 class="section-title" style="margin-bottom: 5px; border-bottom: none;">Actionable Insights</h3>
+          <div id="insightStrong" class="insight-box" style="padding: 12px; border-left: 4px solid #22c55e; border-radius: 4px; font-size: 13px;"></div>
+          <div id="insightWeak" class="insight-box" style="padding: 12px; border-left: 4px solid #ef4444; border-radius: 4px; font-size: 13px;"></div>
+          <div style="margin-top: 10px; display: flex; justify-content: space-between; align-items: center;">
+            <div class="progress-ring-container" style="transform: scale(0.6); transform-origin: left center; margin: -20px 0;">
+              <svg class="progress-ring" width="160" height="160">
+                <circle class="progress-ring__circle-bg" stroke-width="12" fill="transparent" r="70" cx="80" cy="80"/>
+                <circle class="progress-ring__circle" id="syllabusProgressCircle" stroke-width="12" fill="transparent" r="70" cx="80" cy="80"/>
+              </svg>
+              <div class="progress-ring-text"><span id="syllabusPercentTxt">0%</span></div>
+            </div>
+            <span style="font-size: 11px; font-weight: bold; color: #64748b; text-transform: uppercase;">Syllabus >70% Completion</span>
+          </div>
+        </div>
+
+        <!-- Attendance Heatmap -->
+        <div class="profile-section-card" style="grid-column: 1 / -1;">
+          <h3 class="section-title" style="margin-bottom: 15px; border-bottom: none;">Activity Heatmap (Last 30 Days)</h3>
+          <div class="heatmap-grid" id="heatmapContainer"></div>
+          <div class="cal-legend" style="margin-top: 15px; display:flex; justify-content: flex-end; align-items:center; gap:4px; font-size: 10px; color:#64748b; font-weight:bold;">
+            Less <span class="heatmap-cell absent" style="width:12px;height:12px;"></span><span class="heatmap-cell hm-lvl-1" style="width:12px;height:12px;"></span><span class="heatmap-cell hm-lvl-2" style="width:12px;height:12px;"></span><span class="heatmap-cell hm-lvl-4" style="width:12px;height:12px;"></span> More
+          </div>
+        </div>
+      </div>
+    </main>
+  </section>
+
+  <!-- ================= SLIDE-OUT PROFILE & SETTINGS DRAWER ================= -->
+  <div id="profileDrawerOverlay" class="drawer-overlay" onclick="toggleProfileDrawer()"></div>
+  <aside id="profileDrawer" class="slide-drawer">
+    <div class="drawer-header">
+      <h3>Profile & Settings</h3>
+      <button class="icon-btn btn-ghost" onclick="toggleProfileDrawer()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+    <div class="drawer-body">
+      <div style="text-align:center; margin-bottom: 24px;">
+        <div style="width: 70px; height: 70px; background: #e2e8f0; color: #64748b; font-size: 28px; font-weight: bold; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 10px;">👤</div>
+        <div id="dashCandidateName" style="font-weight: 700; font-size: 16px;">Candidate</div>
+        <div id="dashCandidateRoll" style="font-size: 12px; color: #64748b;">ROLL: ---</div>
+      </div>
+
+      <div class="drawer-section">
+        <label>Full Name</label>
+        <input type="text" id="editProfileName" class="drawer-input" placeholder="Your Name">
+      </div>
+      <div class="drawer-section">
+        <label>Roll Number</label>
+        <input type="text" id="editProfileRoll" class="drawer-input" disabled style="opacity: 0.7;" title="Roll Number cannot be changed">
+      </div>
+      <div class="drawer-section">
+        <label>Target Exam (e.g. SSC CGL, UPSC)</label>
+        <input type="text" id="editProfileTarget" class="drawer-input" placeholder="Target Exam">
+      </div>
+      <button class="tcs-btn btn-primary" style="width: 100%; margin-bottom: 30px;" id="btnSaveProfile">Save Changes</button>
+
+      <div class="drawer-section" style="border-top: 1px solid var(--border-color); padding-top: 20px;">
+        <button id="btnLogoutDrawer" class="btn-ghost danger-ghost" style="width: 100%; justify-content: center; border: 1px solid #fca5a5;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 8px;">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+            <polyline points="16 17 21 12 16 7"></polyline>
+            <line x1="21" y1="12" x2="9" y2="12"></line>
+          </svg> 
+          Sign Out Securely
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ================= MOBILE BOTTOM NAVIGATION ================= -->
+  <nav id="mobileBottomNav" class="mobile-bottom-nav">
+    <button class="nav-item active" onclick="switchView('viewDashboard'); updateBottomNav(this);">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+        <polyline points="9 22 9 12 15 12 15 22"></polyline>
+      </svg>
+      <span>Home</span>
+    </button>
+    <button class="nav-item" onclick="fetchStudentAnalytics(); switchView('viewAnalytics'); updateBottomNav(this);">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="18" y1="20" x2="18" y2="10"></line>
+        <line x1="12" y1="20" x2="12" y2="4"></line>
+        <line x1="6" y1="20" x2="6" y2="14"></line>
+      </svg>
+      <span>Analytics</span>
+    </button>
+    <button class="nav-item" onclick="toggleProfileDrawer();">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+        <circle cx="12" cy="7" r="4"></circle>
+      </svg>
+      <span>Profile</span>
+    </button>
+  </nav>
+
+  <!-- ================= SCREEN 4: TCS iON EXAM CONSOLE ================= -->
+  <section id="viewExam" class="view-screen" style="display: none;">
+    <header class="tcs-top-bar glass-header" style="flex-direction: column; align-items: flex-start; height: auto; padding: 10px 16px;">
+      <div style="display: flex; justify-content: space-between; width: 100%; align-items: center; margin-bottom: 8px;">
+        <div class="exam-meta" style="font-size: 13px; font-weight: 600; color: var(--tcs-blue-header);">
+          <span id="subjectLabelBreadcrumb">Subject</span> 
+          <span style="margin: 0 4px; color:#94a3b8;">❯</span> 
+          <span id="examTitle">Assessment Console</span>
+        </div>
+        <div class="utility-tools" style="display: flex; align-items: center; gap: 10px;">
+          <button class="theme-toggle-btn btn-ghost icon-btn" title="Toggle Theme" style="height: 24px; padding: 0;">🌙</button>
+          <select id="langSwitch" style="padding: 2px 6px; font-size: 12px; border: 1px solid var(--border-color); border-radius: 2px; background: transparent; color: inherit;">
+            <option value="en">English</option>
+            <option value="hi">Hindi</option>
+          </select>
+        </div>
+      </div>
+      <div style="width: 100%; height: 3px; background: var(--border-color); border-radius: 2px; overflow: hidden;">
+        <div id="examProgressLine" style="width: 0%; height: 100%; background: var(--tcs-blue-accent); transition: width 0.3s ease;"></div>
+      </div>
+    </header>
+
+    <main class="tcs-workspace">
+      <section class="question-workspace">
+        <div class="q-meta-strip">
+          <div class="q-meta-left">
+            <div class="q-index-tag">Question No. <span id="qDisplayNumber">1</span></div>
+            <div class="marking-scheme">Marks: <span class="mark-positive">+2.00</span> | <span class="mark-negative">-0.50</span></div>
+          </div>
+          <div class="mobile-exam-controls" style="display: none;">
+            <span class="m-timer" id="mobileTimerDisplay">15:00</span>
+            <button id="btnMobilePalette" class="btn-mobile-palette">▦ Palette</button>
+          </div>
+        </div>
+
+        <div class="q-scroll-area">
+          <div class="question-text-box" id="questionContent">Loading Assessment...</div>
+          <div class="options-container" id="optionsContainer"></div>
+        </div>
+      </section>
+
+      <div id="paletteOverlay" class="palette-overlay"></div>
+      <aside class="tcs-side-panel">
+        <div class="status-summary-matrix">
+          <div class="stat-pill"><span class="badge answered" id="cntAnswered">0</span> Answered</div>
+          <div class="stat-pill"><span class="badge not-answered" id="cntNotAnswered">0</span> Not Answered</div>
+          <div class="stat-pill"><span class="badge not-visited" id="cntNotVisited">25</span> Not Visited</div>
+          <div class="stat-pill"><span class="badge review" id="cntReview">0</span> Marked</div>
+          <div class="stat-pill"><span class="badge ans-review" id="cntAnsReview">0</span> Ans & Review</div>
+        </div>
+        <div class="industrial-timer-box">
+          <span class="timer-label">Time Remaining</span>
+          <span class="timer-digits" id="timerDisplay">15:00</span>
+        </div>
+        <div class="palette-header-strip">QUESTION PALETTE</div>
+        <div class="palette-grid-viewport" id="paletteGrid"></div>
+      </aside>
+    </main>
+
+    <footer class="tcs-footer-bar">
+      <div class="footer-left">
+        <button class="tcs-btn btn-secondary" id="btnMarkReview">Mark for Review & Next</button>
+        <button class="tcs-btn btn-secondary" id="btnClear">Clear Response</button>
+      </div>
+      <div class="footer-right">
+        <button class="tcs-btn btn-primary" id="btnSaveNext">Save & Next</button>
+        <button class="tcs-btn btn-submit" id="btnSubmit" onclick="showExamSummaryModal()">Submit Exam</button>
+      </div>
+    </footer>
+  </section>
+
+  <!-- ================= SCREEN 5: SOLUTIONS VIEW ================= -->
+  <section id="viewSolutions" class="view-screen" style="display: none; background: var(--bg-primary); overflow-y: auto;">
+    <header class="dash-top-bar glass-header" style="position: sticky; top: 0; z-index: 10;">
+      <div class="dash-brand" style="display: flex; align-items: center; gap: 8px; min-width: 0;">
+        <span class="portal-tag">SOLUTIONS</span>
+        <span class="title-separator">›</span>
+        <span class="subtopic-pill" id="solExamTitle">Test Title</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <button class="theme-toggle-btn btn-ghost icon-btn" title="Toggle Theme">🌙</button>
+        <button class="btn-ghost" onclick="closeExamAndReload()" style="display: flex; align-items: center; gap: 6px;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="19" y1="12" x2="5" y2="12"></line>
+            <polyline points="12 19 5 12 12 5"></polyline>
+          </svg>
+          <span class="hide-on-mobile">Dashboard</span>
+        </button>
+      </div>
+    </header>
+    <main style="padding: 30px 20px; margin-bottom: 70px;">
+      <div id="solutionsContainer" style="max-width: 850px; margin: 0 auto; width: 100%; display: flex; flex-direction: column; gap: 20px;"></div>
+    </main>
+  </section>
+
+  <!-- ================= SCREEN 6: PRACTICE VIEW (READ / FLASHCARD / QUIZ) ================= -->
+  <section id="viewPractice" class="view-screen" style="display: none; background: var(--bg-primary); overflow-y: auto;">
+    <header class="dash-top-bar glass-header" style="position: sticky; top: 0; z-index: 10;">
+      <div class="dash-brand" style="display: flex; align-items: center; gap: 8px; min-width: 0;">
+        <span class="portal-tag" id="practiceModeTitle">PRACTICE ENGINE</span>
+        <span class="title-separator">›</span>
+        <span class="subtopic-pill" id="practiceSetTitle">Set Practice</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <button class="theme-toggle-btn btn-ghost icon-btn" title="Toggle Theme">🌙</button>
+        <button class="btn-ghost" onclick="switchView('viewDashboard')" style="display: flex; align-items: center; gap: 6px;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="19" y1="12" x2="5" y2="12"></line>
+            <polyline points="12 19 5 12 12 5"></polyline>
+          </svg>
+          <span class="hide-on-mobile">Exit</span>
+        </button>
+      </div>
+    </header>
+    <main style="padding: 24px 16px; max-width: 850px; margin: 0 auto; width: 100%; margin-bottom: 70px;" id="practiceContainer"></main>
+  </section>
+
+  <!-- Global Assessment Modal Container -->
+  <div id="submitModalContainer" style="display: none;"></div>
+
+  <script src="script.js"></script>
+</body>
+</html>

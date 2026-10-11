@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Control Center - Assessment Platform</title>
+  <link rel="stylesheet" href="admin.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="admin-body">
+
+  <aside class="admin-sidebar">
+    <div class="sidebar-brand">
+      <h3>ADMIN CONSOLE</h3>
+      <p>Node: Master Control</p>
+    </div>
+    <nav class="sidebar-nav">
+      <button class="nav-item active" id="tabDashboard">📊 Dashboard</button>
+      <button class="nav-item" id="tabStudents">👥 Students List</button>
+      <button class="nav-item" id="tabTests">📝 Test Management</button>
+    </nav>
+  </aside>
+
+  <main class="admin-main">
+    <header class="admin-header">
+      <h2>Platform Overview</h2>
+      <div class="admin-profile">Admin User</div>
+    </header>
+
+    <div class="admin-content">
+      
+      <!-- ================= VIEW 1: DASHBOARD ================= -->
+      <div id="viewDashboard" class="admin-view-section">
+        <div class="admin-stats-grid">
+          <div class="admin-stat-card">
+            <div class="stat-title">Total Registered Students</div>
+            <div class="stat-value" id="adTotalStudents">0</div>
+          </div>
+          <div class="admin-stat-card">
+            <div class="stat-title">Total Tests Attempted</div>
+            <div class="stat-value" id="adTotalTests">0</div>
+          </div>
+          <div class="admin-stat-card">
+            <div class="stat-title">Platform Average Score</div>
+            <div class="stat-value" id="adAvgScore">0.0</div>
+          </div>
+        </div>
+
+        <div class="activity-section">
+          <h3>Recent Student Activity (Live)</h3>
+          <table class="admin-table">
+            <thead>
+              <tr><th>Date & Time</th><th>Student Roll No.</th><th>Test ID</th><th>Score</th><th>Time Spent</th></tr>
+            </thead>
+            <tbody id="activityTableBody">
+              <tr><td colspan="5">Loading data from database...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ================= VIEW 2: STUDENTS LIST ================= -->
+      <div id="viewStudents" class="admin-view-section" style="display: none;">
+        <div class="activity-section">
+          <h3>Registered Candidates Directory</h3>
+          <table class="admin-table">
+            <thead>
+              <tr><th>Roll Number</th><th>Full Name</th><th>Target Exam</th><th>Registration Date</th></tr>
+            </thead>
+            <tbody id="studentsTableBody">
+              <tr><td colspan="4">Loading students...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ================= VIEW 3: TEST MANAGEMENT ================= -->
+      <div id="viewTests" class="admin-view-section" style="display: none;">
+        <div class="activity-section">
+          <h3>Assessment Repository Catalog</h3>
+          <table class="admin-table">
+            <thead>
+              <tr><th>Test ID</th><th>Test Title</th><th>Subject</th><th>Topic</th><th>Total Qs</th><th>Duration</th></tr>
+            </thead>
+            <tbody id="testsTableBody">
+              <tr><td colspan="6">Loading repository...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <script src="admin.js"></script>
+</body>
+</html>
