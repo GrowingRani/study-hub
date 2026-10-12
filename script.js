@@ -1088,54 +1088,91 @@ function drawSparkline(elementId, dataArray, color) {
 window.fetchStudentAnalytics = async function() {
   try {
     const todayStr = new Date().toISOString().split("T")[0];
-    const { data: attempts } = await supabaseClient.from("test_attempts").select("test_id, score, total_correct, total_incorrect, attempt_date, time_spent_seconds").eq("student_roll", currentCandidate.roll_number);
+    
+    // 1. Fetch Attempts & Attendance Telemetry
+    const { data: attempts } = await supabaseClient
+      .from("test_attempts")
+      .select("test_id, score, total_correct, total_incorrect, attempt_date, time_spent_seconds")
+      .eq("student_roll", currentCandidate.roll_number)
+      .order("attempt_date", { ascending: true });
 
-    let totalTests = attempts ? attempts.length : 0;
-    let totalCorrect = 0, totalIncorrect = 0, totalTimeSecs = 0;
-    let masteredTestIds = new Set();
-    let subjectStats = {};
-    let recentAccuracy = [];
-    let recentSpeed = [];
+    const { data: attendance } = await supabaseClient
+      .from("daily_attendance")
+      .select("study_date, total_minutes_spent")
+      .eq("student_roll", currentCandidate.roll_number);
 
-    if (attempts) {
+    // 2. DEDUPLICATED BEST-ATTEMPT & SUBJECT GROUPING ENGINE
+    const bestAttemptByTest = {};
+    let totalAttemptsCount = attempts ? attempts.length : 0;
+    let totalRawTimeSecs = 0;
+    let totalQuestionsAttempted = 0;
+    let netCorrect = 0;
+    let netIncorrect = 0;
+
+    if (attempts && attempts.length > 0) {
       attempts.forEach(a => {
-        const correct = a.total_correct || 0;
-        const incorrect = a.total_incorrect || 0;
-        const timeSecs = a.time_spent_seconds || 0;
-        const qCount = correct + incorrect;
+        totalRawTimeSecs += (a.time_spent_seconds || 0);
+        totalQuestionsAttempted += ((a.total_correct || 0) + (a.total_incorrect || 0));
+        netCorrect += (a.total_correct || 0);
+        netIncorrect += (a.total_incorrect || 0);
 
-        totalCorrect += correct;
-        totalIncorrect += incorrect;
-        totalTimeSecs += timeSecs;
-
-        let maxMarks = qCount * 2;
-        if (maxMarks === 0) maxMarks = 20;
-        let percentage = (a.score / maxMarks) * 100;
-        if (percentage >= 70 || a.score >= 14) masteredTestIds.add(a.test_id);
-
-        recentAccuracy.push(percentage > 0 ? percentage : 0);
-        if (qCount > 0) {
-          recentSpeed.push(Math.round(timeSecs / qCount));
+        // Retakes fix: Keep only the best score per test_id
+        const tid = String(a.test_id);
+        if (!bestAttemptByTest[tid] || parseFloat(a.score) > parseFloat(bestAttemptByTest[tid].score)) {
+          bestAttemptByTest[tid] = a;
         }
-
-        let cat = catalogData.find(c => String(c.test_id) === String(a.test_id));
-        let subj = cat ? cat.subject : "General";
-        if (!subjectStats[subj]) subjectStats[subj] = { score: 0, max: 0 };
-        subjectStats[subj].score += a.score;
-        subjectStats[subj].max += maxMarks;
       });
     }
 
-    let accuracy = (totalCorrect + totalIncorrect > 0) ? ((totalCorrect / (totalCorrect + totalIncorrect)) * 100).toFixed(1) : 0;
-    let avgSpeed = (totalCorrect + totalIncorrect > 0) ? Math.round(totalTimeSecs / (totalCorrect + totalIncorrect)) : 0;
+    // 3. SUBJECT MASTERY & COVERAGE ACCUMULATOR
+    const subjectStats = {};
+    const masteredTestIds = new Set();
+    const recentAccuracyTrends = [];
+    const uniqueAttemptedList = Object.values(bestAttemptByTest);
 
-    const { data: attendance } = await supabaseClient.from("daily_attendance").select("study_date, total_minutes_spent").eq("student_roll", currentCandidate.roll_number);
-    let totalMins = 0;
+    uniqueAttemptedList.forEach(a => {
+      const c = a.total_correct || 0;
+      const w = a.total_incorrect || 0;
+      const qCount = c + w;
+      const maxMarks = qCount > 0 ? qCount * 2 : 20;
+      const pct = maxMarks > 0 ? Math.max(0, (a.score / maxMarks) * 100) : 0;
+
+      if (pct >= 70 || a.score >= 14) {
+        masteredTestIds.add(String(a.test_id));
+      }
+      recentAccuracyTrends.push(Math.round(pct));
+
+      // Resolve subject from catalog
+      const cat = catalogData.find(item => String(item.test_id) === String(a.test_id));
+      const subj = cat ? (cat.subject || "General") : "General";
+
+      if (!subjectStats[subj]) {
+        subjectStats[subj] = { 
+          earnedScore: 0, 
+          maxScore: 0, 
+          correct: 0, 
+          incorrect: 0, 
+          attemptedSets: 0 
+        };
+      }
+      subjectStats[subj].earnedScore += parseFloat(a.score);
+      subjectStats[subj].maxScore += maxMarks;
+      subjectStats[subj].correct += c;
+      subjectStats[subj].incorrect += w;
+      subjectStats[subj].attemptedSets += 1;
+    });
+
+    // 4. TOP BANNER METRICS COMPUTATION
+    const totalAttemptedQ = netCorrect + netIncorrect;
+    const accuracyVal = totalAttemptedQ > 0 ? ((netCorrect / totalAttemptedQ) * 100).toFixed(1) : "0.0";
+    const avgSpeedVal = totalAttemptedQ > 0 ? Math.round(totalRawTimeSecs / totalAttemptedQ) : 0;
+
+    // Attendance & Streak Engine
     let todayMins = 0;
     let attendanceMap = {};
     let last7DaysMins = 0;
+    const past7DaysDates = [];
 
-    let past7DaysDates = [];
     for (let i = 0; i < 7; i++) {
       let d = new Date();
       d.setDate(d.getDate() - i);
@@ -1143,155 +1180,271 @@ window.fetchStudentAnalytics = async function() {
     }
 
     if (attendance) {
-      attendance.forEach(record => {
-        const mins = record.total_minutes_spent || 0;
-        totalMins += mins;
-        attendanceMap[record.study_date] = mins;
-        if (record.study_date === todayStr) todayMins = mins;
-        if (past7DaysDates.includes(record.study_date)) last7DaysMins += mins;
+      attendance.forEach(rec => {
+        const m = rec.total_minutes_spent || 0;
+        attendanceMap[rec.study_date] = m;
+        if (rec.study_date === todayStr) todayMins = m;
+        if (past7DaysDates.includes(rec.study_date)) last7DaysMins += m;
       });
     }
 
-    const sortedDates = Object.keys(attendanceMap).sort((a, b) => new Date(a) - new Date(b));
-    let streak = 0, dDate = new Date(todayStr);
+    // Strict Consecutive Day Streak Calculation
+    let streakCount = 0;
+    let checkDate = new Date(todayStr);
     for (let i = 0; i < 30; i++) {
-      let s = dDate.toISOString().split("T")[0];
-      if (attendanceMap[s]) {
-        streak++;
-        dDate.setDate(dDate.getDate() - 1);
+      const s = checkDate.toISOString().split("T")[0];
+      if (attendanceMap[s] && attendanceMap[s] > 0) {
+        streakCount++;
+        checkDate.setDate(checkDate.getDate() - 1);
       } else if (s === todayStr) {
-        dDate.setDate(dDate.getDate() - 1);
+        checkDate.setDate(checkDate.getDate() - 1); // Allow maintaining streak if not studied yet today
       } else {
         break;
       }
     }
 
-    const eTotal = document.getElementById("statTotalTests");
-    if (eTotal) eTotal.innerText = totalTests;
+    // 5. RENDER TOP 3 KPI CARDS WITH CONTEXTUAL TAGS
     const eAcc = document.getElementById("statAccuracy");
-    if (eAcc) eAcc.innerText = accuracy + "%";
-    const eStreak = document.getElementById("statStreak");
-    if (eStreak) eStreak.innerText = streak + " 🔥";
-    const eSpeed = document.getElementById("statSpeed");
-    if (eSpeed) eSpeed.innerText = avgSpeed + "s";
-
-    // Dynamic Sparkline Trends
-    drawSparkline("sparkAccuracy", recentAccuracy.slice(-10), "#38bdf8");
-    drawSparkline("sparkStreak", sortedDates.slice(-10).map(d => attendanceMap[d] || 0), "#f59e0b");
-    drawSparkline("sparkSpeed", recentSpeed.length > 0 ? recentSpeed.slice(-10) : [avgSpeed], "#10b981");
-
-    // Achievement Cards
-    const extraSummaryEl = document.getElementById("extraAnalyticsSummary");
-    if (extraSummaryEl) {
-      extraSummaryEl.innerHTML = `
-        <div class="profile-section-card" style="padding: 20px; border-left: 4px solid #22c55e;">
-          <h4 style="font-size: 14px; margin-bottom: 8px;">🎯 Today's Achievement</h4>
-          <p style="font-size: 13px; margin-bottom: 4px;">Study Time Today: <strong style="color: #22c55e;">${Math.floor(todayMins / 60)}h ${todayMins % 60}m</strong></p>
-          <p style="font-size: 13px;">Tests Mastered (&gt;70%): <strong style="color: #22c55e;">${masteredTestIds.size} Sets</strong></p>
-        </div>
-        <div class="profile-section-card" style="padding: 20px; border-left: 4px solid var(--tcs-blue-accent);">
-          <h4 style="font-size: 14px; margin-bottom: 8px;">📊 Past 7 Days Work Summary</h4>
-          <p style="font-size: 13px; margin-bottom: 4px;">Total Focus Time: <strong style="color: var(--tcs-blue-accent);">${Math.floor(last7DaysMins / 60)}h ${last7DaysMins % 60}m</strong></p>
-          <p style="font-size: 13px;">Consistency Rate: <strong style="color: var(--tcs-blue-accent);">${Object.keys(attendanceMap).filter(d => past7DaysDates.includes(d)).length} / 7 Active Days</strong></p>
+    if (eAcc) {
+      eAcc.innerHTML = `
+        <div style="display:flex; align-items:baseline; gap:6px;">
+          <span>${accuracyVal}%</span>
+          <span style="font-size:10px; font-weight:700; color:#16a34a; font-family:var(--font-family);">+${netCorrect}</span>
+          <span style="font-size:10px; font-weight:700; color:#dc2626; font-family:var(--font-family);">-${netIncorrect}</span>
         </div>
       `;
     }
 
-    const totalAvailableSets = catalogData.length || 1;
+    const eStreak = document.getElementById("statStreak");
+    if (eStreak) {
+      const streakStatus = streakCount > 2 ? "Consistent" : "Starting";
+      eStreak.innerHTML = `
+        <div style="display:flex; align-items:baseline; gap:6px;">
+          <span>${streakCount} 🔥</span>
+          <span style="font-size:10px; font-weight:700; color:#2563eb; font-family:var(--font-family); text-transform:uppercase;">${streakStatus}</span>
+        </div>
+      `;
+    }
+
+    const eSpeed = document.getElementById("statSpeed");
+    if (eSpeed) {
+      let speedBadge = "Balanced";
+      let speedColor = "#2563eb";
+      if (avgSpeedVal > 0 && avgSpeedVal <= 15) { speedBadge = "Rapid"; speedColor = "#16a34a"; }
+      else if (avgSpeedVal > 35) { speedBadge = "Thorough"; speedColor = "#d97706"; }
+
+      eSpeed.innerHTML = `
+        <div style="display:flex; align-items:baseline; gap:6px;">
+          <span>${avgSpeedVal}s</span>
+          <span style="font-size:10px; font-weight:700; color:${speedColor}; font-family:var(--font-family); text-transform:uppercase;">${speedBadge}</span>
+        </div>
+      `;
+    }
+
+    // Sparklines Update
+    const sortedAttendanceDates = Object.keys(attendanceMap).sort((a, b) => new Date(a) - new Date(b));
+    drawSparkline("sparkAccuracy", recentAccuracyTrends.slice(-10), "#38bdf8");
+    drawSparkline("sparkStreak", sortedAttendanceDates.slice(-10).map(d => attendanceMap[d] || 0), "#f59e0b");
+    drawSparkline("sparkSpeed", recentAccuracyTrends.slice(-10).map(() => avgSpeedVal), "#10b981");
+
+    // 6. RENDER UPGRADED SUMMARY CARDS (TODAY'S & 7-DAY SUMMARY)
+    const extraSummaryEl = document.getElementById("extraAnalyticsSummary");
+    if (extraSummaryEl) {
+      // Build 7 mini day-status pills for the past week
+      const dayDotsHtml = past7DaysDates.slice().reverse().map(d => {
+        const isActive = (attendanceMap[d] || 0) > 0;
+        const dayLabel = new Date(d).toLocaleDateString('en-US', { weekday: 'narrow' });
+        const dotBg = isActive ? "var(--tcs-blue-accent)" : "var(--border-color)";
+        const dotColor = isActive ? "#ffffff" : "#64748b";
+        return `
+          <div style="display:flex; flex-direction:column; align-items:center; gap:3px;">
+            <span style="font-size:9px; color:#64748b; font-weight:700;">${dayLabel}</span>
+            <span style="width:18px; height:18px; border-radius:50%; background:${dotBg}; color:${dotColor}; display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:800;">
+              ${isActive ? '✓' : '•'}
+            </span>
+          </div>
+        `;
+      }).join("");
+
+      const activeDaysCount = Object.keys(attendanceMap).filter(d => past7DaysDates.includes(d)).length;
+      const dailyAvgMins = Math.round(last7DaysMins / 7);
+
+      extraSummaryEl.innerHTML = `
+        <div class="profile-section-card" style="padding: 16px; border-left: 4px solid #22c55e;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
+            <h4 style="font-size: 13.5px; font-weight:700; color:var(--tcs-blue-header); margin:0;">🎯 Today's Focus & Output</h4>
+            <span style="font-size:10px; font-weight:800; background:rgba(34,197,94,0.12); color:#16a34a; padding:2px 8px; border-radius:12px;">ACTIVE SESSION</span>
+          </div>
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:10px;">
+            <div style="background:var(--bg-primary); padding:10px; border-radius:6px; border:1px solid var(--border-color);">
+              <span style="font-size:11px; color:#64748b; font-weight:600; display:block;">Time Invested</span>
+              <strong style="font-size:16px; color:#16a34a; font-family:var(--font-mono);">${Math.floor(todayMins / 60)}h ${todayMins % 60}m</strong>
+            </div>
+            <div style="background:var(--bg-primary); padding:10px; border-radius:6px; border:1px solid var(--border-color);">
+              <span style="font-size:11px; color:#64748b; font-weight:600; display:block;">Sets Mastered (&gt;70%)</span>
+              <strong style="font-size:16px; color:#16a34a; font-family:var(--font-mono);">${masteredTestIds.size} Sets</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="profile-section-card" style="padding: 16px; border-left: 4px solid var(--tcs-blue-accent);">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
+            <h4 style="font-size: 13.5px; font-weight:700; color:var(--tcs-blue-header); margin:0;">📊 Weekly Consistency Track</h4>
+            <span style="font-size:11px; font-weight:700; color:var(--tcs-blue-accent); font-family:var(--font-mono);">${activeDaysCount} / 7 Days Active</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; padding: 10px 6px; margin: 8px 0; background:var(--bg-primary); border-radius:6px; border:1px solid var(--border-color);">
+            ${dayDotsHtml}
+          </div>
+          <div style="display:flex; justify-content:space-between; font-size:11.5px; color:#64748b; margin-top:4px;">
+            <span>Total: <strong style="color:var(--tcs-blue-accent); font-family:var(--font-mono);">${Math.floor(last7DaysMins / 60)}h ${last7DaysMins % 60}m</strong></span>
+            <span>Daily Pace: <strong style="color:var(--tcs-blue-accent); font-family:var(--font-mono);">${dailyAvgMins}m / day</strong></span>
+          </div>
+        </div>
+      `;
+    }
+
+    // 7. SYLLABUS COMPLETION LINEAR METER
+    const totalAvailableSets = catalogData.length > 0 ? catalogData.length : 1;
     const syllabusPct = Math.min(100, Math.round((masteredTestIds.size / totalAvailableSets) * 100));
-    
-    // Update Elegant Linear Syllabus Meter (Night-mode friendly)
     const eSyl = document.getElementById("syllabusPercentTxt");
     if (eSyl) {
       eSyl.innerText = syllabusPct + "%";
       eSyl.style.color = "var(--tcs-blue-accent)";
     }
     const linearFill = document.getElementById("syllabusLinearFill");
-    if (linearFill) linearFill.style.width = syllabusPct + "%";
+    if (linearFill) {
+      linearFill.style.width = syllabusPct + "%";
+    }
 
-    // Actionable Insights
-    let bestSubj = { name: "Keep Learning", pct: 0 };
-    let worstSubj = { name: "No Weakness", pct: 101 };
-    let validSubjs = Object.entries(subjectStats).filter(([_, d]) => d.max > 0);
-    if (validSubjs.length > 0) {
-      validSubjs.forEach(([name, data]) => {
-        let pct = (data.score / data.max) * 100;
-        if (pct >= bestSubj.pct) { bestSubj.pct = pct; bestSubj.name = name; }
-        if (pct <= worstSubj.pct) { worstSubj.pct = pct; worstSubj.name = name; }
+    // 8. DIAGNOSTIC ACTIONABLE INSIGHTS (WITH PENALTY DETECTION)
+    let bestSubj = null;
+    let worstSubj = null;
+    const validSubjectEntries = Object.entries(subjectStats);
+
+    if (validSubjectEntries.length > 0) {
+      validSubjectEntries.forEach(([name, data]) => {
+        const accuracy = data.maxScore > 0 ? Math.max(0, (data.earnedScore / data.maxScore) * 100) : 0;
+        const totalQ = data.correct + data.incorrect;
+        const penaltyRatio = totalQ > 0 ? ((data.incorrect * 0.5) / (totalQ * 2)) * 100 : 0;
+
+        const info = { name, accuracy, penaltyRatio, ...data };
+        if (!bestSubj || info.accuracy > bestSubj.accuracy) bestSubj = info;
+        if (!worstSubj || info.accuracy < worstSubj.accuracy) worstSubj = info;
       });
-      if (worstSubj.pct > 100) worstSubj = { name: "None (Consistent)", pct: bestSubj.pct };
-    } else {
-      bestSubj = { name: "Attempt a test", pct: 0 };
-      worstSubj = { name: "None yet", pct: 0 };
     }
 
     const insS = document.getElementById("insightStrong");
-    if (insS) insS.innerHTML = `<strong style="color:inherit">🔥 Strongest:</strong> ${bestSubj.name} (${Math.round(bestSubj.pct)}%)`;
-    
-    const insW = document.getElementById("insightWeak");
-    if (insW) insW.innerHTML = `<strong style="color:inherit">⚠️ Needs Focus:</strong> ${worstSubj.name} (${Math.round(worstSubj.pct)}%)`;
+    if (insS) {
+      if (bestSubj && bestSubj.attemptedSets > 0) {
+        insS.innerHTML = `
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <strong>🔥 Strongest Domain: ${bestSubj.name}</strong>
+            <span style="font-weight:800; font-family:var(--font-mono); color:#16a34a;">${Math.round(bestSubj.accuracy)}%</span>
+          </div>
+          <div style="font-size:11.5px; color:#64748b; margin-top:4px;">
+            High strike-rate across ${bestSubj.attemptedSets} completed sets (${bestSubj.correct} correct answers).
+          </div>
+        `;
+      } else {
+        insS.innerHTML = `<strong>🔥 Strongest:</strong> Complete sets to identify your core strength.`;
+      }
+    }
 
-    // Render Advanced Subject Mastery Matrix
+    const insW = document.getElementById("insightWeak");
+    if (insW) {
+      if (worstSubj && worstSubj.attemptedSets > 0) {
+        const penaltyDeduction = (worstSubj.incorrect * 0.5).toFixed(1);
+        insW.innerHTML = `
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <strong>⚠️ Priority Focus: ${worstSubj.name}</strong>
+            <span style="font-weight:800; font-family:var(--font-mono); color:#dc2626;">${Math.round(worstSubj.accuracy)}%</span>
+          </div>
+          <div style="font-size:11.5px; color:#64748b; margin-top:4px;">
+            Negative marking penalty: <strong style="color:#dc2626;">-${penaltyDeduction} Marks</strong> (${worstSubj.incorrect} wrong). Curtail random guesses.
+          </div>
+        `;
+      } else {
+        insW.innerHTML = `<strong>⚠️ Priority Focus:</strong> Attempt diagnostic assessments to flag weaker domains.`;
+      }
+    }
+
+    // 9. HIGH-TECH SUBJECT MASTERY MATRIX (SORTED + COVERAGE BADGES)
     const barsContainer = document.getElementById("subjectMasteryBars");
     if (barsContainer) {
       barsContainer.innerHTML = "";
 
-      const subjectKeys = Object.keys(subjectStats);
-      if (subjectKeys.length === 0) {
-        barsContainer.innerHTML = `<p style="font-size:12.5px; color:#64748b; text-align:center; padding: 12px;">No subject attempt records yet.</p>`;
-      } else {
-        // Sort subjects by highest mastery first
-        subjectKeys.sort((a, b) => {
-          const pctA = subjectStats[a].max > 0 ? (subjectStats[a].score / subjectStats[a].max) : 0;
-          const pctB = subjectStats[b].max > 0 ? (subjectStats[b].score / subjectStats[b].max) : 0;
-          return pctB - pctA;
-        });
+      // Deduce all unique subjects from catalog
+      const allCatalogSubjects = Array.from(new Set(catalogData.map(c => c.subject || "General Studies")));
+      
+      const subjectMetricsList = allCatalogSubjects.map(subj => {
+        const totalSetsInCatalog = catalogData.filter(c => (c.subject || "General Studies") === subj).length;
+        const stats = subjectStats[subj] || { earnedScore: 0, maxScore: 0, attemptedSets: 0 };
+        const scorePct = stats.maxScore > 0 ? Math.max(0, Math.round((stats.earnedScore / stats.maxScore) * 100)) : 0;
+        return {
+          subject: subj,
+          scorePct: scorePct,
+          attempted: stats.attemptedSets,
+          totalSets: totalSetsInCatalog
+        };
+      });
 
-        subjectKeys.forEach(subj => {
-          const sData = subjectStats[subj];
-          const pct = sData.max > 0 ? Math.round((sData.score / sData.max) * 100) : 0;
+      // Sort: Attempted first (highest score down), then unattempted
+      subjectMetricsList.sort((a, b) => {
+        if (a.attempted > 0 && b.attempted === 0) return -1;
+        if (a.attempted === 0 && b.attempted > 0) return 1;
+        return b.scorePct - a.scorePct;
+      });
 
-          let tierText = "Developing";
-          let tierClass = "mastery-tier-dev";
-          let fillClass = "fill-dev";
-          let icon = "⚡";
+      subjectMetricsList.forEach(item => {
+        let tierText = "Developing";
+        let tierClass = "mastery-tier-dev";
+        let fillClass = "fill-dev";
+        let icon = "⚡";
 
-          if (pct >= 75) {
-            tierText = "Master";
-            tierClass = "mastery-tier-master";
-            fillClass = "fill-master";
-            icon = "🏆";
-          } else if (pct >= 45) {
-            tierText = "Proficient";
-            tierClass = "mastery-tier-pro";
-            fillClass = "fill-pro";
-            icon = "🎯";
-          }
+        if (item.attempted === 0) {
+          tierText = "Untested";
+          tierClass = "mastery-tier-untested";
+          fillClass = "fill-untested";
+          icon = "⏳";
+        } else if (item.scorePct >= 75) {
+          tierText = "Master";
+          tierClass = "mastery-tier-master";
+          fillClass = "fill-master";
+          icon = "🏆";
+        } else if (item.scorePct >= 45) {
+          tierText = "Proficient";
+          tierClass = "mastery-tier-pro";
+          fillClass = "fill-pro";
+          icon = "🎯";
+        }
 
-          const card = document.createElement("div");
-          card.className = "mastery-card-row";
-          card.innerHTML = `
-            <div class="mastery-meta-top">
-              <span class="mastery-subj-name"><span>${icon}</span> ${subj}</span>
-              <div class="mastery-right-info">
-                <span class="mastery-tier-badge ${tierClass}">${tierText}</span>
-                <span class="mastery-score-pct">${pct}%</span>
-              </div>
+        const card = document.createElement("div");
+        card.className = "mastery-card-row";
+        card.innerHTML = `
+          <div class="mastery-meta-top">
+            <span class="mastery-subj-name">
+              <span>${icon}</span> ${item.subject}
+              <small style="font-size:10px; color:#64748b; font-weight:700;">(${item.attempted}/${item.totalSets} Sets)</small>
+            </span>
+            <div class="mastery-right-info">
+              <span class="mastery-tier-badge ${tierClass}">${tierText}</span>
+              <span class="mastery-score-pct">${item.scorePct}%</span>
             </div>
-            <div class="mastery-bar-track">
-              <div class="mastery-bar-fill ${fillClass}" style="width: 0%;"></div>
-            </div>
-          `;
-          barsContainer.appendChild(card);
+          </div>
+          <div class="mastery-bar-track">
+            <div class="mastery-bar-fill ${fillClass}" style="width: 0%;"></div>
+          </div>
+        `;
+        barsContainer.appendChild(card);
 
-          setTimeout(() => {
-            const fillEl = card.querySelector('.mastery-bar-fill');
-            if (fillEl) fillEl.style.width = pct + "%";
-          }, 80);
-        });
-      }
+        setTimeout(() => {
+          const fillEl = card.querySelector('.mastery-bar-fill');
+          if (fillEl) fillEl.style.width = item.scorePct + "%";
+        }, 80);
+      });
     }
 
+    // 10. ACTIVITY HEATMAP (REMAINS UNTOUCHED)
     renderHeatmap(attendanceMap);
 
   } catch (err) {
