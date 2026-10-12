@@ -608,7 +608,7 @@ function renderSubjectHubGrid() {
         let maxMarks = (setItem.total_questions || 10) * 2;
         let pct = (bestScore / maxMarks) * 100;
         sumPercentages += pct;
-        if (pct >= 70) completedSets++;
+        if (pct >= 100) completedSets++;
       }
     });
 
@@ -712,7 +712,7 @@ window.drillDownToSubject = function(subjectName) {
     if (attempts.length > 0) {
       let bestScore = Math.max(...attempts.map(a => parseFloat(a.score)));
       let maxMarks = (s.total_questions || 10) * 2;
-      if ((bestScore / maxMarks) * 100 >= 70) masteredCount++;
+      if ((bestScore / maxMarks) * 100 >= 100) masteredCount++;
     }
   });
 
@@ -770,7 +770,7 @@ function renderTopicSets() {
       let bestScore = Math.max(...attempts.map(a => parseFloat(a.score)));
       let maxMarks = (setItem.total_questions || 10) * 2;
       let pct = (bestScore / maxMarks) * 100;
-      if (pct >= 70) masteredCount++;
+      if (pct >= 100) masteredCount++;
       else reviseCount++;
     }
   });
@@ -804,7 +804,7 @@ function renderTopicSets() {
 
       let status = 'unattempted';
       if (isAttempted) {
-        if (pct >= 70) { status = 'mastered'; topicMastered++; }
+        if (pct >= 100) { status = 'mastered'; topicMastered++; }
         else { status = 'revise'; }
       }
 
@@ -1295,7 +1295,10 @@ function renderScorecard() {
         time_spent_seconds: timeSpentSecs
       });
 
-      const today = new Date().toISOString().split("T")[0];
+      // UTC to Local Timezone Fix for Accurate Daily Streaks
+      const d = new Date();
+      const today = new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split("T")[0];
+      
       const { data: attRecord } = await supabaseClient.from("daily_attendance").select("id, total_minutes_spent").eq("student_roll", currentCandidate.roll_number).eq("study_date", today).maybeSingle();
       if (attRecord) {
         await supabaseClient.from("daily_attendance").update({ total_minutes_spent: attRecord.total_minutes_spent + timeSpentMins }).eq("id", attRecord.id);
@@ -1435,7 +1438,9 @@ window.fetchStudentAnalytics = async function(isSilent = false) {
   _isFetchingStats = true;
   
   try {
-    const todayStr = new Date().toISOString().split("T")[0];
+    // UTC to Local Timezone Fix for Accurate Analytics Dashboard
+    const d = new Date();
+    const todayStr = new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split("T")[0];
     
     const { data: attempts } = await supabaseClient
       .from("test_attempts")
@@ -1477,16 +1482,19 @@ window.fetchStudentAnalytics = async function(isSilent = false) {
     uniqueAttemptedList.forEach(a => {
       const c = a.total_correct || 0;
       const w = a.total_incorrect || 0;
-      const qCount = c + w;
-      const maxMarks = qCount > 0 ? qCount * 2 : 20;
+      
+      // FIXED BUG: Max Marks Logic securely fetching total questions from catalog data
+      const cat = catalogData.find(item => String(item.test_id) === String(a.test_id));
+      const totalQs = cat ? (cat.total_questions || 10) : 10;
+      const maxMarks = totalQs * 2;
       const pct = maxMarks > 0 ? Math.max(0, (a.score / maxMarks) * 100) : 0;
 
-      if (pct >= 70 || a.score >= 14) {
+      // Mastered Threshold locked firmly at 100%
+      if (pct >= 100) {
         masteredTestIds.add(String(a.test_id));
       }
       recentAccuracyTrends.push(Math.round(pct));
 
-      const cat = catalogData.find(item => String(item.test_id) === String(a.test_id));
       const subj = cat ? (cat.subject || "General") : "General";
 
       if (!subjectStats[subj]) {
@@ -1515,9 +1523,10 @@ window.fetchStudentAnalytics = async function(isSilent = false) {
     const past7DaysDates = [];
 
     for (let i = 0; i < 7; i++) {
-      let d = new Date();
-      d.setDate(d.getDate() - i);
-      past7DaysDates.push(d.toISOString().split("T")[0]);
+      let d7 = new Date();
+      d7.setDate(d7.getDate() - i);
+      const tzDate = new Date(d7.getTime() - (d7.getTimezoneOffset() * 60000)).toISOString().split("T")[0];
+      past7DaysDates.push(tzDate);
     }
 
     if (attendance) {
@@ -1530,9 +1539,9 @@ window.fetchStudentAnalytics = async function(isSilent = false) {
     }
 
     let streakCount = 0;
-    let checkDate = new Date(todayStr);
+    let checkDate = new Date(); // Start strictly from today (Local Time)
     for (let i = 0; i < 30; i++) {
-      const s = checkDate.toISOString().split("T")[0];
+      const s = new Date(checkDate.getTime() - (checkDate.getTimezoneOffset() * 60000)).toISOString().split("T")[0];
       if (attendanceMap[s] && attendanceMap[s] > 0) {
         streakCount++;
         checkDate.setDate(checkDate.getDate() - 1);
@@ -1627,7 +1636,7 @@ window.fetchStudentAnalytics = async function(isSilent = false) {
               <strong style="font-size:16px; color:#16a34a; font-family:var(--font-mono);">${Math.floor(todayMins / 60)}h ${todayMins % 60}m</strong>
             </div>
             <div style="background:var(--bg-primary); padding:10px; border-radius:6px; border:1px solid var(--border-color);">
-              <span style="font-size:11px; color:#64748b; font-weight:600; display:block;">Sets Mastered (&gt;70%)</span>
+              <span style="font-size:11px; color:#64748b; font-weight:600; display:block;">Sets Mastered (100%)</span>
               <strong style="font-size:16px; color:#16a34a; font-family:var(--font-mono);">${masteredTestIds.size} Sets</strong>
             </div>
           </div>
@@ -1747,7 +1756,7 @@ window.fetchStudentAnalytics = async function(isSilent = false) {
           tierClass = "mastery-tier-untested";
           fillClass = "fill-untested";
           icon = "⏳";
-        } else if (item.scorePct >= 75) {
+        } else if (item.scorePct >= 100) {
           tierText = "Master";
           tierClass = "mastery-tier-master";
           fillClass = "fill-master";
@@ -1798,11 +1807,14 @@ function renderHeatmap(attendanceMap) {
   const container = document.getElementById("heatmapContainer");
   if (!container) return;
   container.innerHTML = "";
+  
+  // Use strictly local timezone date for the heatmap backward walk
   const today = new Date();
   for (let i = 29; i >= 0; i--) {
     let d = new Date(today);
     d.setDate(d.getDate() - i);
-    const dateStr = d.toISOString().split("T")[0];
+    const dateStr = new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split("T")[0];
+    
     const mins = attendanceMap[dateStr] || 0;
     const cell = document.createElement("div");
     cell.className = "heatmap-cell";
