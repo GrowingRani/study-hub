@@ -959,15 +959,13 @@ body.portal-body {
   align-items: center;
 }
 
-/* Elegant Micro-Pill "● NEW" Badge */
+/* Elegant Micro-Pill "NEW" Badge (No Dots) */
 .set-status-badge.status-new { 
   background: rgba(37, 99, 235, 0.08); 
   color: var(--tcs-blue-accent); 
   border: 1px solid rgba(37, 99, 235, 0.22); 
   font-weight: 800;
 }
-
-
 
 .set-status-badge.status-progress { 
   background: #fef3c7; 
@@ -1071,13 +1069,11 @@ body.portal-body {
   color: #0f172a; 
 }
 
-/* Floating Action Button (Solar Flame Radiant Palette) */
-/* Floating Action Button */
+/* Floating Action Button (Comforting Electric-Blue Gradient) */
 .fab-daily-mix {
   position: fixed;
   bottom: 24px;
   right: 24px;
-  /* ऑरेंज हटाकर यह सॉफ्ट इलेक्ट्रिक-ब्लू ग्रेडिएंट डालें */
   background: linear-gradient(135deg, #0284c7, #1e40af);
   color: #ffffff;
   border: none;
@@ -1085,7 +1081,6 @@ body.portal-body {
   padding: 12px 22px;
   font-size: 13.5px;
   font-weight: 700;
-  /* शैडो को भी सॉफ्ट ब्लू में बदलें */
   box-shadow: 0 4px 18px rgba(2, 132, 199, 0.35);
   cursor: pointer;
   display: flex;
@@ -1338,6 +1333,11 @@ body.portal-body {
   inset: 0;
   background: rgba(15, 23, 42, 0.6);
   z-index: 999;
+}
+
+/* Active State for Mobile Overlay Click to Close */
+.palette-overlay.open {
+  display: block !important;
 }
 
 .status-summary-matrix { 
@@ -2332,14 +2332,12 @@ body.dark-theme .set-tile-title {
   color: #f1f5f9; 
 }
 
-/* Dark Theme Elegant "● NEW" Badge */
+/* Dark Theme Elegant "NEW" Badge (No Dots) */
 body.dark-theme .set-status-badge.status-new {
   background: rgba(56, 189, 248, 0.08);
   color: #38bdf8;
   border-color: rgba(56, 189, 248, 0.28);
 }
-
-
 
 body.dark-theme .set-status-badge.status-progress {
   background: rgba(245, 158, 11, 0.1);
@@ -2424,6 +2422,77 @@ body.dark-theme .danger-ghost:hover { background: rgba(239, 68, 68, 0.1); color:
 body.dark-theme .sol-opt-correct { background: rgba(22, 163, 74, 0.15) !important; border-color: #22c55e !important; color: #4ade80 !important; }
 body.dark-theme .sol-opt-wrong { background: rgba(220, 38, 38, 0.15) !important; border-color: #ef4444 !important; color: #fca5a5 !important; }
 body.dark-theme #flashcardBox { background: #0f172a !important; border-color: #1e293b !important; }
+
+/* Practice & Solutions Top Bar Unified Styling */
+.practice-top-bar {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 8px 16px !important;
+  min-height: 60px !important;
+  height: 60px !important;
+  flex-shrink: 0 !important;
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 20 !important;
+  box-sizing: border-box !important;
+}
+
+.practice-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.practice-title-stack {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.practice-mode-tag {
+  font-size: 14.5px;
+  font-weight: 800;
+  color: var(--tcs-blue-header);
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.practice-set-sub {
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+  font-family: var(--font-mono);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.practice-header-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+body.dark-theme .practice-top-bar {
+  background: rgba(15, 23, 42, 0.92) !important;
+  border-bottom: 1px solid #1e293b !important;
+}
+
+body.dark-theme .practice-mode-tag {
+  color: #38bdf8;
+}
+
+body.dark-theme .practice-set-sub {
+  color: #94a3b8;
+}
 
 /* Exam Console Dark Mode */
 body.dark-theme .exam-meta { color: #cbd5e1 !important; }
@@ -2590,7 +2659,6 @@ body.dark-theme .drawer-avatar { background: #111a2e; color: #94a3b8; }
     height: 48px !important;
     border-radius: 50% !important;
     justify-content: center !important;
-    /* मोबाइल शैडो */
     box-shadow: 0 4px 16px rgba(2, 132, 199, 0.4) !important;
   }
   .fab-daily-mix .fab-icon {
@@ -2656,15 +2724,47 @@ body.dark-theme .drawer-avatar { background: #111a2e; color: #94a3b8; }
 
   .main-app-view { padding-bottom: 60px; }
 
-  /* Exam Console Mobile Workspace */
+  /* Exam Console Mobile Workspace & Palette Overlay Layering */
   .tcs-top-bar { display: none; }
   .tcs-sub-bar { padding: 8px 12px; }
   .tcs-workspace { flex-direction: column; height: calc(100dvh - 120px); }
   .question-workspace { border-right: none; height: 100%; overflow: hidden; display: flex; flex-direction: column; }
   .q-meta-strip { flex-direction: row; justify-content: space-between; align-items: center; padding: 10px 15px; }
-  .mobile-exam-controls { display: flex !important; align-items: center; gap: 10px; }
-  .m-timer { font-family: var(--font-mono); font-weight: 800; color: #dc2626; font-size: 13px; background: #fee2e2; padding: 4px 8px; border-radius: 4px; border: 1px solid #fca5a5; }
-  .btn-mobile-palette { background: var(--tcs-blue-header); color: #ffffff; border: none; padding: 6px 12px; font-size: 12px; font-weight: 700; border-radius: 4px; cursor: pointer; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2); }
+  
+  /* Elevate mobile palette controls so button remains clickable when palette is open */
+  .mobile-exam-controls { 
+    display: flex !important; 
+    align-items: center; 
+    gap: 10px; 
+    position: relative;
+    z-index: 1001;
+  }
+
+  .m-timer { 
+    font-family: var(--font-mono); 
+    font-weight: 800; 
+    color: #dc2626; 
+    font-size: 13px; 
+    background: #fee2e2; 
+    padding: 4px 8px; 
+    border-radius: 4px; 
+    border: 1px solid #fca5a5; 
+  }
+
+  .btn-mobile-palette { 
+    background: var(--tcs-blue-header); 
+    color: #ffffff; 
+    border: none; 
+    padding: 6px 12px; 
+    font-size: 12px; 
+    font-weight: 700; 
+    border-radius: 4px; 
+    cursor: pointer; 
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2); 
+    position: relative;
+    z-index: 1002;
+  }
+
   .q-scroll-area { flex: 1; padding: 15px; overflow-y: auto; padding-bottom: 90px; }
   
   .tcs-footer-bar { 
@@ -2776,53 +2876,4 @@ body.dark-theme .drawer-avatar { background: #111a2e; color: #94a3b8; }
     min-width: 12px !important;
     flex-shrink: 0 !important;
   }
-}
-
-/* प्रैक्टिस व्यू और सॉल्यूशंस हेडर के लिए फ्लेक्स लॉक */
-#viewPractice .dash-top-bar,
-#viewSolutions .dash-top-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  height: 52px;
-  overflow: hidden;
-}
-
-/* लेफ्ट साइड कंटेनर को फ्लेक्स-श्रिंक और एलिप्सिस दें */
-#viewPractice .dash-brand,
-#viewSolutions .dash-brand {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex: 1;
-  min-width: 0; /* टेक्स्ट ट्रंकेशन के लिए बेहद जरूरी */
-  overflow: hidden;
-}
-
-/* मोड का नाम सिकुड़े नहीं लेकिन जगह सीमित रखे */
-#practiceModeTitle {
-  flex-shrink: 0;
-  font-size: 13px;
-  font-weight: 800;
-  white-space: nowrap;
-}
-
-/* सेट टाइटल को एक ही लाइन में रखें और ओवरफ्लो होने पर '...' दिखाएं */
-#practiceSetTitle {
-  flex: 1;
-  min-width: 0;
-  white-space: nowrap !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
-  font-size: 11px;
-}
-
-/* दाईं तरफ के बटन्स (थीम + एग्जिट) कभी न दबें */
-#viewPractice .dash-header-actions,
-#viewPractice header > div:last-child {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0; /* बटनों का साइज हमेशा फिक्स रहेगा */
 }

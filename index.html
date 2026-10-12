@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Study Hub - Industrial Assessment Portal</title>
-  <link rel="stylesheet" href="style.css?v=2.4">
+  <link rel="stylesheet" href="style.css?v=2.5">
   <link rel="manifest" href="./manifest.json" crossorigin="use-credentials">
   <meta name="theme-color" content="#080c14">
   <meta name="mobile-web-app-capable" content="yes">
@@ -263,7 +263,7 @@
       <div class="topics-grid" id="topicsContainer"></div>
     </main>
 
-    <!-- 🚀 Daily 10-Min Mix (Floating Action Button with Solar Flame Radiant Palette) -->
+    <!-- 🚀 Daily 10-Min Mix (Floating Action Button) -->
     <button id="btnDailyMix" class="fab-daily-mix" onclick="launchDailyMix()" title="Start Daily 10-Min Mix">
       <span class="fab-icon">🚀</span>
       <span class="fab-label hide-on-mobile">Daily Mix</span>
@@ -367,7 +367,7 @@
     </main>
   </section>
 
-  <!-- ================= SLIDE-OUT PROFILE & SETTINGS DRAWER ================= -->
+  <!-- ================= SCREEN 3.5: PROFILE & SETTINGS DRAWER ================= -->
   <div id="profileDrawerOverlay" class="drawer-overlay" onclick="toggleProfileDrawer()"></div>
   <aside id="profileDrawer" class="slide-drawer">
     <div class="drawer-header">
@@ -518,50 +518,50 @@
     </footer>
   </section>
 
-  <!-- ================= SCREEN 5: SOLUTIONS VIEW ================= -->
+  <!-- ================= SCREEN 5: SOLUTIONS VIEW (SPACIOUS 2-LINE HEADER) ================= -->
   <section id="viewSolutions" class="view-screen" style="display: none; background: var(--bg-primary); overflow-y: auto;">
-    <header class="dash-top-bar glass-header" style="position: sticky; top: 0; z-index: 10;">
-      <div class="dash-brand" style="display: flex; align-items: center; gap: 8px; min-width: 0;">
-        <span class="portal-tag">SOLUTIONS</span>
-        <span class="title-separator">›</span>
-        <span class="subtopic-pill" id="solExamTitle">Test Title</span>
-      </div>
-      <div style="display: flex; align-items: center; gap: 8px;">
-        <button class="theme-toggle-btn btn-ghost icon-btn" title="Toggle Theme">🌙</button>
-        <button class="btn-ghost" onclick="closeExamAndReload()" style="display: flex; align-items: center; gap: 6px;">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <header class="practice-top-bar glass-header">
+      <div class="practice-header-left">
+        <button class="btn-masthead-back" onclick="closeExamAndReload()" title="Return to Dashboard">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <line x1="19" y1="12" x2="5" y2="12"></line>
             <polyline points="12 19 5 12 12 5"></polyline>
           </svg>
-          <span class="hide-on-mobile">Dashboard</span>
         </button>
+        <div class="practice-title-stack">
+          <span class="practice-mode-tag">SOLUTIONS</span>
+          <span class="practice-set-sub" id="solExamTitle">Test Title</span>
+        </div>
+      </div>
+      <div class="practice-header-right">
+        <button class="theme-toggle-btn btn-ghost icon-btn" title="Toggle Theme">🌙</button>
       </div>
     </header>
-    <main style="padding: 30px 20px; margin-bottom: 70px;">
-      <div id="solutionsContainer" style="max-width: 850px; margin: 0 auto; width: 100%; display: flex; flex-direction: column; gap: 20px;"></div>
+    <main style="padding: 20px 16px; max-width: 850px; margin: 0 auto; width: 100%; margin-bottom: 75px;">
+      <div id="solutionsContainer" style="display: flex; flex-direction: column; gap: 16px;"></div>
     </main>
   </section>
 
   <!-- ================= SCREEN 6: PRACTICE VIEW (READ / FLASHCARD / QUIZ) ================= -->
   <section id="viewPractice" class="view-screen" style="display: none; background: var(--bg-primary); overflow-y: auto;">
-    <header class="dash-top-bar glass-header" style="position: sticky; top: 0; z-index: 10;">
-      <div class="dash-brand" style="display: flex; align-items: center; gap: 8px; min-width: 0;">
-        <span class="portal-tag" id="practiceModeTitle">PRACTICE ENGINE</span>
-        <span class="title-separator">›</span>
-        <span class="subtopic-pill" id="practiceSetTitle">Set Practice</span>
-      </div>
-      <div style="display: flex; align-items: center; gap: 8px;">
-        <button class="theme-toggle-btn btn-ghost icon-btn" title="Toggle Theme">🌙</button>
-        <button class="btn-ghost" onclick="switchView('viewDashboard')" style="display: flex; align-items: center; gap: 6px;">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <header class="practice-top-bar glass-header">
+      <div class="practice-header-left">
+        <button class="btn-masthead-back" onclick="switchView('viewDashboard')" title="Exit Practice">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <line x1="19" y1="12" x2="5" y2="12"></line>
             <polyline points="12 19 5 12 12 5"></polyline>
           </svg>
-          <span class="hide-on-mobile">Exit</span>
         </button>
+        <div class="practice-title-stack">
+          <span class="practice-mode-tag" id="practiceModeTitle">PRACTICE ENGINE</span>
+          <span class="practice-set-sub" id="practiceSetTitle">Set Practice</span>
+        </div>
+      </div>
+      <div class="practice-header-right">
+        <button class="theme-toggle-btn btn-ghost icon-btn" title="Toggle Theme">🌙</button>
       </div>
     </header>
-    <main style="padding: 24px 16px; max-width: 850px; margin: 0 auto; width: 100%; margin-bottom: 70px;" id="practiceContainer"></main>
+    <main style="padding: 18px 14px; max-width: 850px; margin: 0 auto; width: 100%; margin-bottom: 75px;" id="practiceContainer"></main>
   </section>
 
   <!-- Global Assessment Modal Container -->

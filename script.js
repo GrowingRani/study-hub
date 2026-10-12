@@ -510,11 +510,22 @@ function setupAppEvents() {
     };
   }
 
+  // Mobile Exam Palette Toggle Logic (Explicit Opening and Closing)
   const btnMobilePalette = document.getElementById("btnMobilePalette");
   if (btnMobilePalette) {
-    btnMobilePalette.onclick = () => {
-      document.querySelector(".tcs-side-panel")?.classList.add("open");
-      document.getElementById("paletteOverlay")?.classList.add("open");
+    btnMobilePalette.onclick = (e) => {
+      e.stopPropagation();
+      const panel = document.querySelector(".tcs-side-panel");
+      const overlay = document.getElementById("paletteOverlay");
+      const isOpen = panel?.classList.contains("open");
+
+      if (isOpen) {
+        panel?.classList.remove("open");
+        overlay?.classList.remove("open");
+      } else {
+        panel?.classList.add("open");
+        overlay?.classList.add("open");
+      }
     };
   }
 
@@ -1394,7 +1405,7 @@ function renderPaletteGrid() {
     else if (st === 1) btn.classList.add("not-answered"); 
     else if (st === 2) btn.classList.add("answered"); 
     else if (st === 3) btn.classList.add("review"); 
-    else if (st === 4) btn.classList.add("ans-review");
+    else if (st === 4) btn.classList.add("ans-review"); 
     
     btn.onclick = () => renderQuestion(idx); 
     grid.appendChild(btn);
@@ -1848,7 +1859,7 @@ window.launchPracticeMode = async function(testId, mode) {
 
 function renderReadMode() {
   const tEl = document.getElementById("practiceModeTitle");
-  if (tEl) tEl.innerText = "📖 READ MODE";
+  if (tEl) tEl.innerText = "📖 Read Mode";
   const container = document.getElementById("practiceContainer");
   if (!container) return;
   container.innerHTML = "";
@@ -1876,7 +1887,7 @@ function renderReadMode() {
 
 function renderInteractiveQuizMode() {
   const tEl = document.getElementById("practiceModeTitle");
-  if (tEl) tEl.innerText = "⚡ INSTANT QUIZ MODE";
+  if (tEl) tEl.innerText = "⚡ Instant Quiz";
   const container = document.getElementById("practiceContainer");
   if (!container) return;
   container.innerHTML = "";
@@ -1919,7 +1930,7 @@ function renderInteractiveQuizMode() {
 
 function renderFlashcardMode() {
   const tEl = document.getElementById("practiceModeTitle");
-  if (tEl) tEl.innerText = "🗂️ FLASHCARDS";
+  if (tEl) tEl.innerText = "🗂️ Flashcards";
   const container = document.getElementById("practiceContainer");
   if (!container) return;
   const q = practiceQuestions[flashcardIndex];
