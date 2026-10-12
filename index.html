@@ -200,6 +200,7 @@
     </header>
 
     <!-- Clean Responsive Viewport Container -->
+    <!-- Clean Responsive Viewport Container -->
     <main class="catalog-viewport analytics-viewport">
       <!-- Key Metrics Banner with Sparklines -->
       <div class="analytics-banner">
@@ -232,41 +233,48 @@
         </div>
       </div>
 
-      <!-- Extra Analytics Cards Grid (Dynamic JS Container) -->
+      <!-- Extra Analytics Cards Grid -->
       <div id="extraAnalyticsSummary" class="extra-summary-grid"></div>
 
-      <!-- Advanced Analytics Grid (Radar, Insights, Heatmap) -->
+      <!-- REDESIGNED Advanced Analytics Grid -->
       <div class="advanced-analytics-grid">
-        <!-- Radar Chart -->
-        <div class="profile-section-card" style="padding: 20px; display: flex; flex-direction: column; align-items: center;">
-          <h3 class="section-title" style="width: 100%; text-align: left; margin-bottom: 10px; border-bottom: none;">Subject Mastery (Radar)</h3>
-          <div style="position: relative; height: 250px; width: 100%; display: flex; align-items: center; justify-content: center;">
-            <canvas id="subjectRadarChart"></canvas>
+        
+        <!-- 1. Subject Mastery (Skill Bars replacing Radar) -->
+        <div class="profile-section-card">
+          <h3 class="section-title">Subject Mastery</h3>
+          <div id="subjectMasteryBars" class="skill-bars-container">
+            <!-- Bars will be injected by JS -->
           </div>
         </div>
 
-        <!-- Insights & Syllabus Completion (Mobile 360px Scaled) -->
-        <div class="profile-section-card" style="padding: 20px; display: flex; flex-direction: column; gap: 12px;">
-          <h3 class="section-title" style="margin-bottom: 5px; border-bottom: none;">Actionable Insights</h3>
-          <div id="insightStrong" class="insight-box" style="padding: 12px; border-left: 4px solid #22c55e; border-radius: 4px; font-size: 13px;"></div>
-          <div id="insightWeak" class="insight-box" style="padding: 12px; border-left: 4px solid #ef4444; border-radius: 4px; font-size: 13px;"></div>
-          <div style="margin-top: 14px; display: flex; justify-content: space-between; align-items: center; gap: 12px; width: 100%; min-width: 0;">
-            <div class="progress-ring-container">
-              <svg class="progress-ring" width="80" height="80" viewBox="0 0 160 160">
-                <circle class="progress-ring__circle-bg" stroke-width="14" fill="transparent" r="70" cx="80" cy="80"/>
-                <circle class="progress-ring__circle" id="syllabusProgressCircle" stroke-width="14" fill="transparent" r="70" cx="80" cy="80"/>
-              </svg>
-              <div class="progress-ring-text"><span id="syllabusPercentTxt">0%</span></div>
+        <!-- 2. Insights & Syllabus (Linear Meter replacing SVG Ring) -->
+        <div class="profile-section-card" style="display: flex; flex-direction: column; gap: 16px;">
+          <h3 class="section-title" style="margin-bottom: 0;">Actionable Insights</h3>
+          
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <div id="insightStrong" class="insight-box" style="padding: 12px; border-left: 4px solid #22c55e; border-radius: 4px; font-size: 13px;"></div>
+            <div id="insightWeak" class="insight-box" style="padding: 12px; border-left: 4px solid #ef4444; border-radius: 4px; font-size: 13px;"></div>
+          </div>
+
+          <div class="linear-meter-box" style="margin-top: 8px; padding-top: 16px; border-top: 1px dashed var(--border-color);">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+              <span style="font-size: 11px; font-weight: bold; color: #64748b; text-transform: uppercase;">Syllabus Completion</span>
+              <span id="syllabusPercentTxt" style="font-size: 13px; font-weight: 800; color: var(--tcs-blue-accent); font-family: var(--font-mono);">0%</span> </div>
+            <div style="width: 100%; height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden;">
+              <div id="syllabusLinearFill" style="height: 100%; width: 0%; background: var(--tcs-blue-accent); transition: width 0.8s ease-in-out;"></div>
             </div>
-            <span style="font-size: 11px; font-weight: bold; color: #64748b; text-transform: uppercase; flex: 1; text-align: right; line-height: 1.4;">Syllabus >70% Completion</span>
           </div>
         </div>
 
-        <!-- Attendance Heatmap (Spans full width) -->
+        <!-- 3. Attendance Heatmap (Now inside a Swipeable Scroll Wrapper) -->
         <div class="profile-section-card" style="grid-column: 1 / -1;">
-          <h3 class="section-title" style="margin-bottom: 15px; border-bottom: none;">Activity Heatmap (Last 30 Days)</h3>
-          <div class="heatmap-grid" id="heatmapContainer"></div>
-          <div class="cal-legend" style="margin-top: 15px; display:flex; justify-content: flex-end; align-items:center; gap:4px; font-size: 10px; color:#64748b; font-weight:bold;">
+          <h3 class="section-title" style="margin-bottom: 15px;">Activity Heatmap (Last 30 Days)</h3>
+          
+          <div class="heatmap-scroll-wrapper" style="width: 100%; overflow-x: auto; padding-bottom: 8px; -webkit-overflow-scrolling: touch;">
+            <div class="heatmap-grid" id="heatmapContainer" style="min-width: 450px;"></div>
+          </div>
+          
+          <div class="cal-legend" style="margin-top: 10px; display:flex; justify-content: flex-end; align-items:center; gap:4px; font-size: 10px; color:#64748b; font-weight:bold;">
             Less <span class="heatmap-cell absent" style="width:12px;height:12px;"></span><span class="heatmap-cell hm-lvl-1" style="width:12px;height:12px;"></span><span class="heatmap-cell hm-lvl-2" style="width:12px;height:12px;"></span><span class="heatmap-cell hm-lvl-4" style="width:12px;height:12px;"></span> More
           </div>
         </div>

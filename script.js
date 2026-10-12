@@ -5,7 +5,6 @@ const SUPABASE_URL = "https://hqrbqqdjbswbvfhhqefw.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhxcmJxcWRqYnN3YnZmaGhxZWZ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE0NjI5ODgsImV4cCI6MjEwNzAzODk4OH0.iTay17X_Ysep1r-NLPSWpAzlQF-fmBb0sw1v7ptsdpE";
 
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-let radarChartInstance = null; // Global instance tracker for Chart.js
 
 // ==========================================================================
 // 2. UNIVERSAL ANSWER NORMALIZATION
@@ -1200,10 +1199,15 @@ window.fetchStudentAnalytics = async function() {
 
     const totalAvailableSets = catalogData.length || 1;
     const syllabusPct = Math.min(100, Math.round((masteredTestIds.size / totalAvailableSets) * 100));
+    
+    // Update Elegant Linear Syllabus Meter (Night-mode friendly)
     const eSyl = document.getElementById("syllabusPercentTxt");
-    if (eSyl) eSyl.innerText = syllabusPct + "%";
-    const circle = document.getElementById("syllabusProgressCircle");
-    if (circle) circle.style.strokeDashoffset = 439.82 - (syllabusPct / 100) * 439.82;
+    if (eSyl) {
+      eSyl.innerText = syllabusPct + "%";
+      eSyl.style.color = "var(--tcs-blue-accent)";
+    }
+    const linearFill = document.getElementById("syllabusLinearFill");
+    if (linearFill) linearFill.style.width = syllabusPct + "%";
 
     // Actionable Insights
     let bestSubj = { name: "Keep Learning", pct: 0 };
@@ -1222,61 +1226,74 @@ window.fetchStudentAnalytics = async function() {
     }
 
     const insS = document.getElementById("insightStrong");
-    if (insS) {
-      insS.style.color = "";
-      insS.innerHTML = `<strong style="color:inherit">🔥 Strongest:</strong> ${bestSubj.name} (${Math.round(bestSubj.pct)}%)`;
-    }
+    if (insS) insS.innerHTML = `<strong style="color:inherit">🔥 Strongest:</strong> ${bestSubj.name} (${Math.round(bestSubj.pct)}%)`;
+    
     const insW = document.getElementById("insightWeak");
-    if (insW) {
-      insW.style.color = "";
-      insW.innerHTML = `<strong style="color:inherit">⚠️ Needs Focus:</strong> ${worstSubj.name} (${Math.round(worstSubj.pct)}%)`;
+    if (insW) insW.innerHTML = `<strong style="color:inherit">⚠️ Needs Focus:</strong> ${worstSubj.name} (${Math.round(worstSubj.pct)}%)`;
+
+    // Render Advanced Subject Mastery Matrix
+    const barsContainer = document.getElementById("subjectMasteryBars");
+    if (barsContainer) {
+      barsContainer.innerHTML = "";
+
+      const subjectKeys = Object.keys(subjectStats);
+      if (subjectKeys.length === 0) {
+        barsContainer.innerHTML = `<p style="font-size:12.5px; color:#64748b; text-align:center; padding: 12px;">No subject attempt records yet.</p>`;
+      } else {
+        // Sort subjects by highest mastery first
+        subjectKeys.sort((a, b) => {
+          const pctA = subjectStats[a].max > 0 ? (subjectStats[a].score / subjectStats[a].max) : 0;
+          const pctB = subjectStats[b].max > 0 ? (subjectStats[b].score / subjectStats[b].max) : 0;
+          return pctB - pctA;
+        });
+
+        subjectKeys.forEach(subj => {
+          const sData = subjectStats[subj];
+          const pct = sData.max > 0 ? Math.round((sData.score / sData.max) * 100) : 0;
+
+          let tierText = "Developing";
+          let tierClass = "mastery-tier-dev";
+          let fillClass = "fill-dev";
+          let icon = "⚡";
+
+          if (pct >= 75) {
+            tierText = "Master";
+            tierClass = "mastery-tier-master";
+            fillClass = "fill-master";
+            icon = "🏆";
+          } else if (pct >= 45) {
+            tierText = "Proficient";
+            tierClass = "mastery-tier-pro";
+            fillClass = "fill-pro";
+            icon = "🎯";
+          }
+
+          const card = document.createElement("div");
+          card.className = "mastery-card-row";
+          card.innerHTML = `
+            <div class="mastery-meta-top">
+              <span class="mastery-subj-name"><span>${icon}</span> ${subj}</span>
+              <div class="mastery-right-info">
+                <span class="mastery-tier-badge ${tierClass}">${tierText}</span>
+                <span class="mastery-score-pct">${pct}%</span>
+              </div>
+            </div>
+            <div class="mastery-bar-track">
+              <div class="mastery-bar-fill ${fillClass}" style="width: 0%;"></div>
+            </div>
+          `;
+          barsContainer.appendChild(card);
+
+          setTimeout(() => {
+            const fillEl = card.querySelector('.mastery-bar-fill');
+            if (fillEl) fillEl.style.width = pct + "%";
+          }, 80);
+        });
+      }
     }
 
     renderHeatmap(attendanceMap);
 
-    // Chart.js Radar Chart
-    const ctx = document.getElementById('subjectRadarChart');
-    if (ctx && window.Chart) {
-      if (radarChartInstance) radarChartInstance.destroy();
-      const isDark = document.body.classList.contains('dark-theme');
-      const tColor = isDark ? '#cbd5e1' : '#64748b';
-      const gColor = isDark ? '#1e293b' : '#e2e8f0';
-
-      const subjectKeys = Object.keys(subjectStats);
-      const labels = subjectKeys.length > 0 ? subjectKeys : ['Polity', 'History', 'Maths', 'GK'];
-      const dataPts = subjectKeys.length > 0
-        ? subjectKeys.map(s => s.max > 0 ? Math.round((s.score / s.max) * 100) : 0)
-        : [0, 0, 0, 0];
-
-      radarChartInstance = new Chart(ctx, {
-        type: 'radar',
-        data: {
-          labels: labels,
-          datasets: [{
-            label: 'Mastery %',
-            data: dataPts,
-            backgroundColor: 'rgba(56, 189, 248, 0.2)',
-            borderColor: '#38bdf8',
-            borderWidth: 2
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          scales: {
-            r: {
-              angleLines: { color: gColor },
-              grid: { color: gColor },
-              pointLabels: { color: tColor },
-              ticks: { display: false, min: 0, max: 100 }
-            }
-          },
-          plugins: {
-            legend: { display: false }
-          }
-        }
-      });
-    }
   } catch (err) {
     console.error("Analytics fetch error:", err);
   }

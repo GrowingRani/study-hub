@@ -563,7 +563,7 @@ body.portal-body {
 
 /* ==========================================================================
    5. SCREEN 4: TCS iON EXAM CONSOLE WORKSPACE
-   ========================================================================== */
+   ========================================================================= */
 .tcs-top-bar { 
   background-color: #ffffff; 
   border-bottom: 2px solid var(--border-color); 
@@ -845,7 +845,7 @@ body.portal-body {
 .palette-btn.answered { 
   background-color: var(--c-answered) !important; 
   color: #ffffff !important; 
-  clip-path: polygon(50% 0%, 100% 25%, 100% 100%, 0 100%, 0 25%) !important; 
+  clip-path: polygon(50% 0%, 100% 25%, 100% 100%, 0 100%, 0 25%); 
   border-radius: 0 !important;
   border: none !important;
 }
@@ -1121,60 +1121,130 @@ body.dark-theme .sol-content {
   padding-bottom: 10px; 
 }
 
-/* Progress Ring Component (Scaled 80px Geometric Footprint) */
-.progress-ring-container { 
-  width: 80px !important;
-  height: 80px !important;
-  min-width: 80px !important;
-  position: relative !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  flex-shrink: 0 !important;
-  margin: 0 !important;
+/* ==========================================================================
+   ADVANCED SUBJECT MASTERY MATRIX & SKILL BARS
+   ========================================================================== */
+.skill-bars-container {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
 
-.progress-ring-container .progress-ring {
-  width: 80px !important;
-  height: 80px !important;
-  position: static !important;
-  transform: none !important;
+.mastery-card-row {
+  background: #f8fafc;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: all 0.2s ease;
 }
 
-.progress-ring__circle-bg { 
-  stroke: #e2e8f0; 
+.mastery-card-row:hover {
+  border-color: #94a3b8;
+  background: #ffffff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
 }
 
-.progress-ring__circle { 
-  stroke: var(--tcs-blue-accent); 
-  stroke-dasharray: 439.82; 
-  stroke-dashoffset: 439.82; 
-  stroke-linecap: round; 
-  transition: stroke-dashoffset 1s ease-in-out; 
-  transform: rotate(-90deg); 
-  transform-origin: 50% 50%; 
+.mastery-meta-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
-.progress-ring-text { 
-  position: absolute; 
-  display: flex; 
-  flex-direction: column; 
-  align-items: center; 
-  justify-content: center; 
+.mastery-subj-name {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
-.progress-ring-text span { 
-  font-size: 18px !important; 
-  font-weight: 800; 
-  color: var(--tcs-blue-header); 
-  font-family: var(--font-mono); 
+.mastery-right-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.progress-ring-text small { 
-  font-size: 10px; 
-  color: #64748b; 
-  font-weight: 600; 
-  text-transform: uppercase; 
+.mastery-tier-badge {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 4px;
+  letter-spacing: 0.4px;
+}
+
+.mastery-tier-master {
+  background: rgba(34, 197, 94, 0.12);
+  color: #16a34a;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.mastery-tier-pro {
+  background: rgba(37, 99, 235, 0.1);
+  color: #2563eb;
+  border: 1px solid rgba(37, 99, 235, 0.25);
+}
+
+.mastery-tier-dev {
+  background: rgba(245, 158, 11, 0.12);
+  color: #d97706;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.mastery-score-pct {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 800;
+  color: #0f172a;
+  min-width: 36px;
+  text-align: right;
+}
+
+.mastery-bar-track {
+  width: 100%;
+  height: 8px;
+  background: #e2e8f0;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.mastery-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.9s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.fill-master {
+  background: linear-gradient(90deg, #22c55e, #16a34a);
+}
+
+.fill-pro {
+  background: linear-gradient(90deg, #38bdf8, #2563eb);
+}
+
+.fill-dev {
+  background: linear-gradient(90deg, #f59e0b, #d97706);
+}
+
+/* Linear Meter & Swipeable Heatmap Wrapper */
+.linear-meter-box {
+  border-top: 1px dashed var(--border-color);
+}
+
+.heatmap-scroll-wrapper::-webkit-scrollbar {
+  height: 6px;
+}
+.heatmap-scroll-wrapper::-webkit-scrollbar-track {
+  background: #f1f5f9; 
+  border-radius: 4px;
+}
+.heatmap-scroll-wrapper::-webkit-scrollbar-thumb {
+  background: #cbd5e1; 
+  border-radius: 4px;
 }
 
 /* Heatmap Grid & Day Mode Levels */
@@ -1196,19 +1266,19 @@ body.dark-theme .sol-content {
 }
 
 .hm-lvl-1 { 
-  background-color: #bbf7d0 !important; /* 1-15 Mins: Light Soft Green */
+  background-color: #bbf7d0 !important;
 }
 
 .hm-lvl-2 { 
-  background-color: #86efac !important; /* 16-45 Mins: Medium Green */
+  background-color: #86efac !important;
 }
 
 .hm-lvl-3 { 
-  background-color: #22c55e !important; /* 46-90 Mins: Vibrant Green */
+  background-color: #22c55e !important;
 }
 
 .hm-lvl-4 { 
-  background-color: #15803d !important; /* >90 Mins: Dark Forest Green */
+  background-color: #15803d !important;
   box-shadow: 0 0 4px rgba(21, 128, 61, 0.4);
 }
 
@@ -1624,8 +1694,56 @@ body.dark-theme #extraAnalyticsSummary strong[style*="#22c55e"] { color: #4ade80
 body.dark-theme #extraAnalyticsSummary strong[style*="var(--tcs-blue-accent)"] { color: #38bdf8 !important; text-shadow: 0 0 8px rgba(56, 189, 248, 0.3); }
 body.dark-theme #extraAnalyticsSummary .profile-section-card { border-left: 1px solid #1e293b !important; }
 
-body.dark-theme .progress-ring__circle-bg { stroke: #1e293b; }
-body.dark-theme .progress-ring-text span { color: #f8fafc; }
+/* Dark Theme Compatibility for Subject Mastery Matrix & Meters */
+body.dark-theme .mastery-card-row {
+  background: #0b1120;
+  border-color: #1e293b;
+}
+
+body.dark-theme .mastery-card-row:hover {
+  background: #111827;
+  border-color: #334155;
+}
+
+body.dark-theme .mastery-subj-name {
+  color: #f1f5f9;
+}
+
+body.dark-theme .mastery-score-pct {
+  color: #38bdf8;
+}
+
+body.dark-theme .mastery-bar-track {
+  background: #1e293b;
+}
+
+body.dark-theme .mastery-tier-master {
+  color: #4ade80;
+}
+
+body.dark-theme .mastery-tier-pro {
+  color: #38bdf8;
+}
+
+body.dark-theme .mastery-tier-dev {
+  color: #fbbf24;
+}
+
+body.dark-theme .linear-meter-box {
+  border-color: #334155 !important;
+}
+
+body.dark-theme #syllabusPercentTxt {
+  color: #38bdf8 !important;
+}
+
+body.dark-theme .heatmap-scroll-wrapper::-webkit-scrollbar-track {
+  background: #0f172a;
+}
+
+body.dark-theme .heatmap-scroll-wrapper::-webkit-scrollbar-thumb {
+  background: #334155;
+}
 
 body.dark-theme .heatmap-grid {
   border: 1px solid rgba(255, 255, 255, 0.02);
@@ -1789,7 +1907,7 @@ body.dark-theme .drawer-input { background: #0b1120; border-color: #334155; colo
     box-sizing: border-box !important;
   }
 
-  /* Advanced Analytics (Radar, Insights, Heatmap) Hard Flex-Column Lock */
+  /* Advanced Analytics (Subject Mastery, Insights, Heatmap) Hard Flex-Column Lock */
   .advanced-analytics-grid {
     display: flex !important;
     flex-direction: column !important;
@@ -1810,55 +1928,26 @@ body.dark-theme .drawer-input { background: #0b1120; border-color: #334155; colo
     overflow: hidden !important;
   }
 
-  /* Radar Chart Canvas Size Constraint */
-  .profile-section-card canvas#subjectRadarChart {
-    max-width: 100% !important;
+  /* Heatmap Mobile Scroll Fit */
+  .heatmap-scroll-wrapper {
     width: 100% !important;
-    height: auto !important;
-    display: block !important;
+    max-width: 100% !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
   }
 
-  /* Progress Ring Mobile Geometry Lock */
-  .progress-ring-container {
-    width: 80px !important;
-    height: 80px !important;
-    min-width: 80px !important;
-    position: relative !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    flex-shrink: 0 !important;
-    margin: 0 !important;
-  }
-
-  .progress-ring-container .progress-ring {
-    width: 80px !important;
-    height: 80px !important;
-    position: static !important;
-    transform: none !important;
-  }
-
-  .progress-ring-text span {
-    font-size: 18px !important;
-  }
-
-  /* Heatmap Mobile 15-Column Fit */
   .heatmap-grid {
     display: grid !important;
-    grid-template-columns: repeat(15, minmax(0, 1fr)) !important;
-    gap: 3px !important;
-    width: 100% !important;
-    max-width: 100% !important;
+    grid-template-columns: repeat(15, 1fr) !important;
+    gap: 4px !important;
+    min-width: 440px !important;
     box-sizing: border-box !important;
   }
 
-  /* Target ONLY the grid cells, NOT the legend cells */
   .heatmap-grid .heatmap-cell {
-    width: 100% !important;
     min-width: 0 !important;
   }
   
-  /* Protect Legend from exploding the flex column */
   .cal-legend .heatmap-cell {
     width: 12px !important;
     height: 12px !important;
