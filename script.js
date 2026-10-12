@@ -34,6 +34,7 @@ let catalogData = [];
 let activeSubject = null;
 let userAttemptHistory = [];
 let currentLang = "en";
+let currentFilter = "all";
 
 let activeTest = null;
 let testQuestions = [];
@@ -167,7 +168,9 @@ function showPasswordResetUI() {
       cancelBtn.style.cssText = "background:none; border:none; color:#dc2626; font-size:12px; font-weight:bold; width:100%; margin-top:16px; cursor:pointer; text-decoration:underline;";
       cancelBtn.addEventListener("click", () => {
         sessionStorage.removeItem("recovery_mode");
-        supabaseClient.auth.signOut().then(() => { window.location.href = "/"; });
+        supabaseClient.auth.signOut().then(() => { 
+          window.location.href = window.location.pathname; 
+        });
       });
       resetForm.appendChild(cancelBtn);
     }
@@ -228,12 +231,8 @@ function setupAppEvents() {
   const authErrBox = document.getElementById("authErrorMsg");
 
   tabSignIn?.addEventListener("click", () => {
-    tabSignIn.style.borderBottom = "2px solid var(--tcs-blue-accent)";
-    tabSignIn.style.color = "var(--tcs-blue-accent)";
-    if (tabRegister) {
-      tabRegister.style.borderBottom = "none";
-      tabRegister.style.color = "#64748b";
-    }
+    tabSignIn.classList.add("active");
+    tabRegister?.classList.remove("active");
     if (signInForm) signInForm.style.display = "block";
     if (registerForm) registerForm.style.display = "none";
     if (forgotForm) forgotForm.style.display = "none";
@@ -242,12 +241,8 @@ function setupAppEvents() {
   });
 
   tabRegister?.addEventListener("click", () => {
-    tabRegister.style.borderBottom = "2px solid var(--tcs-blue-accent)";
-    tabRegister.style.color = "var(--tcs-blue-accent)";
-    if (tabSignIn) {
-      tabSignIn.style.borderBottom = "none";
-      tabSignIn.style.color = "#64748b";
-    }
+    tabRegister.classList.add("active");
+    tabSignIn?.classList.remove("active");
     if (registerForm) registerForm.style.display = "block";
     const regFields = document.getElementById("regFieldsStep");
     const regSuccess = document.getElementById("regSuccessCard");
@@ -302,7 +297,7 @@ function setupAppEvents() {
       if (error) throw error;
       if (!data.user || !data.user.email_confirmed_at) {
         await supabaseClient.auth.signOut();
-        throw new Error("Email not verified.");
+        throw new Error("Email not verified. Please verify using the link dispatched to your inbox.");
       }
       await initCandidateSession(data.user);
     } catch (err) {
@@ -408,6 +403,17 @@ function setupAppEvents() {
     };
   });
 
+  // Filter Chips in Sets Explorer
+  document.querySelectorAll('.filter-chip-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      document.querySelectorAll('.filter-chip-btn').forEach(b => b.classList.remove('active'));
+      e.target.classList.add('active');
+      currentFilter = e.target.getAttribute('data-filter');
+      renderTopicSets();
+    });
+  });
+
+  // Topic Accordion Search Binding
   document.getElementById("topicSearchInput")?.addEventListener("input", (e) => {
     const query = e.target.value.trim().toLowerCase();
     document.querySelectorAll(".topic-accordion-card").forEach(card => {
@@ -516,67 +522,242 @@ function setupAppEvents() {
 }
 
 // ==========================================================================
-// 6. DASHBOARD & TAXONOMY LAYER
+// 6. DASHBOARD & SUBJECT COMMAND HUB (2-STAGE ARCHITECTURE)
 // ==========================================================================
+function updateDynamicGreeting(name) {
+  const greetingEl = document.getElementById("dynamicGreeting");
+  const subEl = document.getElementById("dynamicGreetingSub");
+  if (!greetingEl || !subEl) return;
+
+  const hour = new Date().getHours();
+  let greeting = "Good Morning";
+  let subText = "Let's crack your goals today! 🚀";
+
+  if (hour >= 12 && hour < 17) {
+    greeting = "Good Afternoon";
+    subText = "Keep up the momentum! 🎯";
+  } else if (hour >= 17 && hour < 22) {
+    greeting = "Good Evening";
+    subText = "Perfect time for a quick revision! 📚";
+  } else if (hour >= 22 || hour < 4) {
+    greeting = "Late Night Hustle";
+    subText = "Great effort! Stay focused. 🌙";
+  }
+
+  const firstName = (name || "Candidate").split(" ")[0];
+  greetingEl.innerText = `${greeting}, ${firstName}!`;
+  subEl.innerText = subText;
+}
+
 async function mountDashboard() {
   const cName = document.getElementById("dashCandidateName");
   if (cName) cName.innerText = currentCandidate.full_name || "Candidate";
   const rollEl = document.getElementById("dashCandidateRoll");
   if (rollEl) rollEl.innerText = "ROLL: " + (currentCandidate.roll_number || "---");
+  
+  updateDynamicGreeting(currentCandidate.full_name);
+  
+  // Return to Stage 1 Hub by default
+  const hubStage = document.getElementById("subjectHubStage");
+  const explorerStage = document.getElementById("setsExplorerStage");
+  if (hubStage) hubStage.style.display = "block";
+  if (explorerStage) explorerStage.style.display = "none";
+
+  // Pre-fetch analytics silently to populate header gamification stats
+  fetchStudentAnalytics(true); 
+
   switchView("viewDashboard");
   updateBottomNav(document.querySelector('.nav-item.active'));
   await fetchTestCatalog();
 }
 
 async function fetchTestCatalog() {
-  const container = document.getElementById("topicsContainer");
-  if (!container) return;
-  container.innerHTML = "<p style='padding:20px; color:#64748b;'>Loading assessment taxonomy & history...</p>";
+  const hubContainer = document.getElementById("subjectHubContainer");
+  if (!hubContainer) return;
+  hubContainer.innerHTML = "<p style='padding:20px; color:#64748b;'>Compiling Subject Mastery Matrix...</p>";
 
   const { data: catalog, error: catErr } = await supabaseClient.from("view_test_catalog").select("*");
   if (catErr || !catalog || catalog.length === 0) {
-    return container.innerHTML = "<p style='padding:20px; color:#dc2626;'>Database Catalog View load nahi ho saka.</p>";
+    return hubContainer.innerHTML = "<p style='padding:20px; color:#dc2626;'>Database Catalog View could not load.</p>";
   }
   catalogData = catalog;
 
   const { data: history } = await supabaseClient.from("test_attempts").select("test_id, score, attempt_date").eq("student_roll", currentCandidate.roll_number).order("attempt_date", { ascending: false });
   userAttemptHistory = history || [];
 
+  renderSubjectHubGrid();
+}
+
+function renderSubjectHubGrid() {
+  const container = document.getElementById("subjectHubContainer");
+  if (!container) return;
+  container.innerHTML = "";
+
   const subjectsMap = {};
   catalogData.forEach(row => {
     const s = row.subject || "General Studies";
-    subjectsMap[s] = (subjectsMap[s] || 0) + 1;
+    if (!subjectsMap[s]) {
+      subjectsMap[s] = { sets: [] };
+    }
+    subjectsMap[s].sets.push(row);
   });
 
-  renderSubjectSidebar(subjectsMap);
-  selectSubject(Object.keys(subjectsMap)[0]);
-}
+  Object.entries(subjectsMap).forEach(([subName, data]) => {
+    const totalSets = data.sets.length;
+    let completedSets = 0;
+    let totalAttemptsForSubject = 0;
+    let sumPercentages = 0;
+    let attemptedSetsCount = 0;
 
-function renderSubjectSidebar(subjectsMap) {
-  const list = document.getElementById("subjectChipsContainer");
-  if (!list) return;
-  list.innerHTML = "";
-  Object.entries(subjectsMap).forEach(([subName, count]) => {
-    const chip = document.createElement("button");
-    chip.className = "subject-chip";
-    chip.innerHTML = `<span>${subName}</span> <span class="badge-count">${count} Sets</span>`;
-    chip.addEventListener("click", () => selectSubject(subName));
-    list.appendChild(chip);
+    data.sets.forEach(setItem => {
+      const attempts = userAttemptHistory.filter(a => String(a.test_id) === String(setItem.test_id));
+      if (attempts.length > 0) {
+        totalAttemptsForSubject += attempts.length;
+        attemptedSetsCount++;
+        let bestScore = Math.max(...attempts.map(a => parseFloat(a.score)));
+        let maxMarks = (setItem.total_questions || 10) * 2;
+        let pct = (bestScore / maxMarks) * 100;
+        sumPercentages += pct;
+        if (pct >= 70) completedSets++;
+      }
+    });
+
+    const remainingSets = totalSets - completedSets;
+    const progressPct = totalSets > 0 ? Math.round((completedSets / totalSets) * 100) : 0;
+    const avgScorePct = attemptedSetsCount > 0 ? Math.round(sumPercentages / attemptedSetsCount) : 0;
+
+    let statusClass = "pill-untested";
+    let statusText = "Untested";
+    if (completedSets === totalSets && totalSets > 0) {
+      statusClass = "pill-mastered";
+      statusText = "Mastered";
+    } else if (attemptedSetsCount > 0) {
+      statusClass = "pill-progress";
+      statusText = `${progressPct}% Complete`;
+    }
+
+    const tile = document.createElement("div");
+    tile.className = "subject-mastery-tile";
+    tile.innerHTML = `
+      <div class="tile-top-row">
+        <span class="tile-subject-title">${subName}</span>
+        <span class="tile-status-pill ${statusClass}">${statusText}</span>
+      </div>
+
+      <div class="tile-progress-container">
+        <div class="tile-progress-labels">
+          <span>Mastery Progress</span>
+          <span>${progressPct}%</span>
+        </div>
+        <div class="tile-progress-track">
+          <div class="tile-progress-fill" style="width: ${progressPct}%;"></div>
+        </div>
+      </div>
+
+      <div class="tile-metrics-grid">
+        <div class="tile-metric-item">
+          <span class="tile-metric-label">Mastered</span>
+          <span class="tile-metric-value" style="color:#16a34a;">${completedSets} <small style="font-size:10px; color:#64748b;">/${totalSets}</small></span>
+        </div>
+        <div class="tile-metric-item">
+          <span class="tile-metric-label">Remaining</span>
+          <span class="tile-metric-value" style="color:#d97706;">${remainingSets} Sets</span>
+        </div>
+        <div class="tile-metric-item">
+          <span class="tile-metric-label">Avg Accuracy</span>
+          <span class="tile-metric-value">${avgScorePct > 0 ? avgScorePct + '%' : '--'}</span>
+        </div>
+      </div>
+
+      <div class="tile-action-footer">
+        <span style="color:#64748b; font-size:11px; font-weight:600;">${totalAttemptsForSubject} Attempts Logged</span>
+        <span>Explore Sets ➔</span>
+      </div>
+    `;
+
+    tile.addEventListener("click", () => drillDownToSubject(subName));
+    container.appendChild(tile);
   });
 }
 
-function selectSubject(subjectName) {
+// Stage Switchers: Hub ➔ Sets Explorer
+window.drillDownToSubject = function(subjectName) {
   activeSubject = subjectName;
-  document.querySelectorAll(".subject-chip").forEach(el => el.classList.toggle("active", el.innerText.includes(subjectName)));
-  const titleEl = document.getElementById("activeSubjectTitle");
+  
+  const hubStage = document.getElementById("subjectHubStage");
+  const explorerStage = document.getElementById("setsExplorerStage");
+  const titleEl = document.getElementById("explorerSubjectTitle");
+  const hiddenTitleEl = document.getElementById("activeSubjectTitle");
+
   if (titleEl) titleEl.innerText = subjectName;
+  if (hiddenTitleEl) hiddenTitleEl.innerText = subjectName;
+  if (hubStage) hubStage.style.display = "none";
+  if (explorerStage) explorerStage.style.display = "block";
+
+  currentFilter = "all";
+  document.querySelectorAll('.filter-chip-btn').forEach(b => {
+    b.classList.toggle('active', b.getAttribute('data-filter') === 'all');
+  });
+
   renderTopicSets();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+
+window.returnToSubjectHub = function() {
+  const hubStage = document.getElementById("subjectHubStage");
+  const explorerStage = document.getElementById("setsExplorerStage");
+
+  if (explorerStage) explorerStage.style.display = "none";
+  if (hubStage) hubStage.style.display = "block";
+
+  renderSubjectHubGrid();
+};
+
+// Compact Single-Line Quick Action Banner
+function renderHeroBanner() {
+  const heroContainer = document.getElementById("heroResumeContainer");
+  if (!heroContainer) return;
+
+  const subjectSets = catalogData.filter(r => (r.subject || "General Studies") === activeSubject);
+  if (subjectSets.length === 0) {
+    heroContainer.style.display = "none";
+    return;
+  }
+
+  let targetSet = subjectSets.find(s => !userAttemptHistory.some(a => String(a.test_id) === String(s.test_id)));
+  
+  if (!targetSet) {
+    targetSet = subjectSets.find(s => {
+      const attempts = userAttemptHistory.filter(a => String(a.test_id) === String(s.test_id));
+      let bestScore = Math.max(...attempts.map(a => parseFloat(a.score)));
+      let maxMarks = (s.total_questions || 10) * 2;
+      return (bestScore / maxMarks) * 100 < 70;
+    });
+  }
+
+  if (targetSet) {
+    heroContainer.style.display = "block";
+    heroContainer.innerHTML = `
+      <div class="hero-compact-strip">
+        <div class="hero-text">
+          <span style="font-size: 10px; font-weight:800; background:rgba(255,255,255,0.2); padding:2px 6px; border-radius:3px; margin-right:6px;">NEXT</span>
+          ${targetSet.topic ? targetSet.topic + ' - ' : ''}${targetSet.test_title} (${targetSet.total_questions} Qs)
+        </div>
+        <button class="hero-action-btn" onclick="launchAssessment(${targetSet.test_id})">Start ➔</button>
+      </div>
+    `;
+  } else {
+    heroContainer.style.display = "none";
+  }
 }
 
 function renderTopicSets() {
   const container = document.getElementById("topicsContainer");
   if (!container) return;
   container.innerHTML = "";
+
+  renderHeroBanner();
+
   const filtered = catalogData.filter(r => (r.subject || "General Studies") === activeSubject);
   const grouped = {};
   filtered.forEach(item => {
@@ -586,8 +767,35 @@ function renderTopicSets() {
   });
 
   Object.entries(grouped).forEach(([topicName, sets]) => {
+    let masteredCount = 0;
+    const processedSets = [];
+
+    sets.forEach(setItem => {
+      const attempts = userAttemptHistory.filter(a => String(a.test_id) === String(setItem.test_id));
+      let isAttempted = attempts.length > 0;
+      let bestScore = isAttempted ? Math.max(...attempts.map(a => parseFloat(a.score))) : 0;
+      let maxMarks = (setItem.total_questions || 10) * 2;
+      let pct = isAttempted ? (bestScore / maxMarks) * 100 : 0;
+
+      let status = 'unattempted';
+      if (isAttempted) {
+        if (pct >= 70) { status = 'mastered'; masteredCount++; }
+        else { status = 'revise'; }
+      }
+
+      if (currentFilter === 'all' || currentFilter === status) {
+        processedSets.push({ setItem, status, isAttempted, bestScore, maxMarks, pct, attemptsCount: attempts.length });
+      }
+    });
+
+    if (processedSets.length === 0 && currentFilter !== 'all') return;
+
+    let progressPct = sets.length > 0 ? (masteredCount / sets.length) * 100 : 0;
+
     const groupCard = document.createElement("div");
     groupCard.className = "topic-accordion-card";
+    if (currentFilter !== 'all') groupCard.classList.add("open");
+
     const header = document.createElement("div");
     header.className = "topic-accordion-header";
     header.innerHTML = `
@@ -596,47 +804,73 @@ function renderTopicSets() {
         <span class="topic-title">${topicName}</span>
       </div>
       <div class="header-right">
-        <span class="subtopic-tag">${sets.length} Test Sets</span>
+        <span class="subtopic-tag" style="background:transparent; border:none; color:#64748b !important;">${masteredCount}/${sets.length} Mastered</span>
         <svg class="toggle-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="6 9 12 15 18 9"></polyline>
         </svg>
-      </div>`;
+      </div>
+      <div class="acc-progress-track">
+        <div class="acc-progress-fill" style="width: ${progressPct}%;"></div>
+      </div>
+    `;
+
     const body = document.createElement("div");
     body.className = "topic-accordion-body";
+    if (currentFilter !== 'all') body.style.display = "block";
+
     const setsGrid = document.createElement("div");
     setsGrid.className = "sets-card-grid";
 
-    sets.forEach(setItem => {
-      const attemptsForThisSet = userAttemptHistory.filter(a => String(a.test_id) === String(setItem.test_id));
-      let historyHtml = `<div style="font-size:11.5px; color:#64748b; margin-bottom:10px; font-weight:500;">Status: Unattempted</div>`;
-      if (attemptsForThisSet.length > 0) {
-        const bestScore = Math.max(...attemptsForThisSet.map(a => parseFloat(a.score)));
-        historyHtml = `<div style="font-size:11.5px; color:#16a34a; margin-bottom:10px; font-weight:600;">★ Best Score: ${bestScore} | Total Attempts: ${attemptsForThisSet.length}</div>`;
-      }
+    const iconTarget = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="2"></circle></svg>`;
+    const iconRetake = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>`;
+    const clockSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>`;
+    const docSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>`;
 
+    processedSets.forEach(({ setItem, status, bestScore, maxMarks, pct, attemptsCount }) => {
       const tile = document.createElement("div");
       tile.className = "set-tile";
-      const iconTarget = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="2"></circle></svg>`;
-      const iconRetake = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>`;
-      let examIcon = attemptsForThisSet.length > 0 ? iconRetake : iconTarget;
-      let examText = attemptsForThisSet.length > 0 ? 'Retake Exam' : 'Official Exam';
-      const clockSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>`;
-      const docSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>`;
+      
+      let badgeClass = 'status-new';
+      let badgeText = 'NEW';
+      let examIcon = iconTarget;
+      let examText = 'Official Exam';
+      let historyHtml = `<span style="color:#64748b;">Not attempted yet</span>`;
+
+      if (status === 'mastered') {
+        badgeClass = 'status-mastered';
+        badgeText = `MASTERED ${bestScore}/${maxMarks}`;
+        examIcon = iconRetake;
+        examText = 'Retake Exam';
+        historyHtml = `<span style="color:#16a34a;">★ Best Score: ${bestScore} (${Math.round(pct)}%) | Att: ${attemptsCount}</span>`;
+      } else if (status === 'revise') {
+        badgeClass = 'status-progress';
+        badgeText = `IN PROGRESS`;
+        examIcon = iconRetake;
+        examText = 'Retake Exam';
+        historyHtml = `<span style="color:#d97706;">Needs Review: ${bestScore}/${maxMarks} | Att: ${attemptsCount}</span>`;
+      }
 
       tile.innerHTML = `
-        <div>
+        <div class="set-tile-header">
           <div class="set-tile-title">${setItem.test_title}</div>
-          <div class="set-tile-meta">
-            <span style="display:flex; align-items:center; gap:4px;">${clockSvg} ${setItem.total_duration_minutes} Mins</span>
-            <span style="display:flex; align-items:center; gap:4px;">${docSvg} ${setItem.total_questions} Qs</span>
-          </div>
+          <div class="set-status-badge ${badgeClass}">${badgeText}</div>
+        </div>
+        <div class="set-tile-meta">
+          <span>${clockSvg} ${setItem.total_duration_minutes}m</span>
+          <span>${docSvg} ${setItem.total_questions} Qs</span>
+        </div>
+        <div class="set-score-info">
           ${historyHtml}
         </div>
-        <div style="display: flex; gap: 6px; margin-top: 10px; align-items: stretch;">
-          <button class="btn-mode-icon" title="Read Mode" onclick="launchPracticeMode(${setItem.test_id}, 'read')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg></button>
-          <button class="btn-mode-icon" title="Flashcards" onclick="launchPracticeMode(${setItem.test_id}, 'flashcard')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="14" height="14" rx="2" ry="2"></rect><path d="M21 7v12a2 2 0 0 1-2 2H7"></path></svg></button>
-          <button class="btn-mode-icon" title="Instant Quiz" onclick="launchPracticeMode(${setItem.test_id}, 'quiz')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg></button>
-          <button class="btn-launch-set" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;" onclick="launchAssessment(${setItem.test_id})">${examIcon} ${examText}</button>
+        <div class="set-action-footer">
+          <button class="btn-launch-set" onclick="launchAssessment(${setItem.test_id})">
+            ${examIcon} ${examText}
+          </button>
+          <div class="secondary-modes-strip">
+            <button class="btn-mode-icon" title="Read Mode" onclick="launchPracticeMode(${setItem.test_id}, 'read')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg> Read</button>
+            <button class="btn-mode-icon" title="Flashcards" onclick="launchPracticeMode(${setItem.test_id}, 'flashcard')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="14" height="14" rx="2" ry="2"></rect><path d="M21 7v12a2 2 0 0 1-2 2H7"></path></svg> Cards</button>
+            <button class="btn-mode-icon" title="Instant Quiz" onclick="launchPracticeMode(${setItem.test_id}, 'quiz')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg> Quiz</button>
+          </div>
         </div>
       `;
       setsGrid.appendChild(tile);
@@ -649,20 +883,91 @@ function renderTopicSets() {
 
     header.addEventListener("click", () => {
       const isOpen = groupCard.classList.contains("open");
-      document.querySelectorAll(".topic-accordion-card").forEach(c => {
-        c.classList.remove("open");
-        c.querySelector(".topic-accordion-body").style.display = "none";
-      });
       if (!isOpen) {
         groupCard.classList.add("open");
         body.style.display = "block";
+      } else {
+        groupCard.classList.remove("open");
+        body.style.display = "none";
       }
     });
   });
 }
 
 // ==========================================================================
-// 7. TCS iON EXAM ENGINE LAYER
+// 7. DAILY 10-MIN QUICK MIX ENGINE
+// ==========================================================================
+window.launchDailyMix = async function() {
+  const btn = document.getElementById("btnDailyMix");
+  if (btn) btn.innerHTML = `<span>⏳</span> <span class="hide-on-mobile">Generating Mix...</span>`;
+  
+  try {
+    const { data: attempts } = await supabaseClient.from("test_attempts").select("test_id, score").eq("student_roll", currentCandidate.roll_number);
+    if (!attempts || attempts.length === 0) throw new Error("Complete at least one set to unlock Daily Mix.");
+    
+    const masteredTestIds = [...new Set(attempts.map(a => a.test_id))];
+
+    // Resolve section IDs corresponding to mastered test IDs
+    const { data: sectionRows } = await supabaseClient
+      .from("test_sections")
+      .select("id")
+      .in("test_id", masteredTestIds);
+
+    const validSectionIds = sectionRows ? sectionRows.map(s => s.id) : [];
+
+    let candidateQuestions = [];
+    if (validSectionIds.length > 0) {
+      const { data: mixedData } = await supabaseClient
+        .from("test_section_questions")
+        .select(`questions (id, content, options, correct_answer, explanation)`)
+        .in("section_id", validSectionIds)
+        .limit(50);
+      if (mixedData && mixedData.length > 0) {
+        candidateQuestions = mixedData.map(item => Array.isArray(item.questions) ? item.questions[0] : item.questions).filter(Boolean);
+      }
+    }
+
+    if (candidateQuestions.length === 0) {
+      const { data: randomQ } = await supabaseClient.from("questions").select("*").limit(30);
+      if (!randomQ || randomQ.length === 0) throw new Error("Could not fetch question bank.");
+      candidateQuestions = randomQ;
+    }
+
+    practiceQuestions = candidateQuestions
+      .sort(() => 0.5 - Math.random())
+      .slice(0, 10)
+      .map((q, i) => {
+        let parsedOptions = [];
+        if (typeof q.options === 'string') {
+          try { parsedOptions = JSON.parse(q.options); } catch(e) { parsedOptions = []; }
+        } else if (Array.isArray(q.options)) {
+          parsedOptions = q.options;
+        }
+        return {
+          qNum: i + 1,
+          content: q.content,
+          options: parsedOptions,
+          correctAnswer: getNormalizedCorrectAnswerId(q.correct_answer, parsedOptions),
+          explanation: q.explanation
+        };
+      });
+
+    if (practiceQuestions.length === 0) throw new Error("No questions available for mix.");
+
+    const tEl = document.getElementById("practiceSetTitle");
+    if (tEl) tEl.innerText = "Daily 10-Min Revision Mix";
+    switchView("viewPractice");
+    renderInteractiveQuizMode();
+
+  } catch (err) {
+    alert(err.message);
+  } finally {
+    if (btn) btn.innerHTML = `<span class="fab-icon">🚀</span> <span class="fab-label hide-on-mobile">Daily Mix</span>`;
+  }
+};
+
+// ==========================================================================
+// 8. TCS iON EXAM ENGINE LAYER
 // ==========================================================================
 window.launchAssessment = async function(testId) {
   switchView("viewExam");
@@ -824,7 +1129,6 @@ function startExamTimer() {
   }, 1000);
 }
 
-// Dedicated Safe Modal Close Function
 window.closeExamModal = function() {
   const m = document.getElementById("submitModalContainer");
   if (m) {
@@ -834,7 +1138,6 @@ window.closeExamModal = function() {
   }
 };
 
-// Exam Final Summary Modal
 window.showExamSummaryModal = function() {
   let ans = 0, notAns = 0, notVis = 0, rev = 0, ansRev = 0;
   Object.values(userResponses).forEach(r => { 
@@ -892,7 +1195,6 @@ window.confirmAndFinishExam = function() {
   renderScorecard();
 };
 
-// Instant Scorecard Rendering + Non-blocking Telemetry Sync
 function renderScorecard() {
   let correct = 0, incorrect = 0, unattempted = 0;
   testQuestions.forEach((q, idx) => {
@@ -920,8 +1222,8 @@ function renderScorecard() {
     <div class="tcs-modal-box" style="width: 620px;">
       <div class="tcs-modal-header" style="background:#16a34a;">Assessment Scorecard & Analysis</div>
       <div class="tcs-modal-body">
-        <div class="score-highlight-card" style="text-align:center; padding: 15px; margin-bottom:15px; border-radius: 4px;">
-          <h2 class="score-highlight-title" style="font-size:26px;">Score: ${score.toFixed(2)} / ${(testQuestions.length * 2)}</h2>
+        <div class="score-highlight-card">
+          <h2 class="score-highlight-title">Score: ${score.toFixed(2)} / ${(testQuestions.length * 2)}</h2>
           <p style="font-size:12px; color:#64748b; margin-top: 4px;">Time Taken: ${Math.floor(timeSpentSecs / 60)}m ${timeSpentSecs % 60}s | Marking: +2.00 | -0.50</p>
         </div>
         <table class="modal-summary-table">
@@ -940,7 +1242,6 @@ function renderScorecard() {
       </div>
     </div>`;
 
-  // Background Database Telemetry
   (async () => {
     try {
       await supabaseClient.from("test_attempts").insert({
@@ -1070,7 +1371,7 @@ function renderPaletteGrid() {
 }
 
 // ==========================================================================
-// 8. ADVANCED ANALYTICS & ATTENDANCE TELEMETRY
+// 9. ADVANCED ANALYTICS & ATTENDANCE TELEMETRY
 // ==========================================================================
 function drawSparkline(elementId, dataArray, color) {
   const el = document.getElementById(elementId);
@@ -1085,11 +1386,15 @@ function drawSparkline(elementId, dataArray, color) {
   el.innerHTML = `<svg width="100%" height="100%" viewBox="0 0 60 30" preserveAspectRatio="none"><polyline points="${points}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 }
 
-window.fetchStudentAnalytics = async function() {
+let _isFetchingStats = false;
+
+window.fetchStudentAnalytics = async function(isSilent = false) {
+  if (_isFetchingStats) return;
+  _isFetchingStats = true;
+  
   try {
     const todayStr = new Date().toISOString().split("T")[0];
     
-    // 1. Fetch Attempts & Attendance Telemetry
     const { data: attempts } = await supabaseClient
       .from("test_attempts")
       .select("test_id, score, total_correct, total_incorrect, attempt_date, time_spent_seconds")
@@ -1101,7 +1406,6 @@ window.fetchStudentAnalytics = async function() {
       .select("study_date, total_minutes_spent")
       .eq("student_roll", currentCandidate.roll_number);
 
-    // 2. DEDUPLICATED BEST-ATTEMPT & SUBJECT GROUPING ENGINE
     const bestAttemptByTest = {};
     let totalAttemptsCount = attempts ? attempts.length : 0;
     let totalRawTimeSecs = 0;
@@ -1116,7 +1420,6 @@ window.fetchStudentAnalytics = async function() {
         netCorrect += (a.total_correct || 0);
         netIncorrect += (a.total_incorrect || 0);
 
-        // Retakes fix: Keep only the best score per test_id
         const tid = String(a.test_id);
         if (!bestAttemptByTest[tid] || parseFloat(a.score) > parseFloat(bestAttemptByTest[tid].score)) {
           bestAttemptByTest[tid] = a;
@@ -1124,7 +1427,6 @@ window.fetchStudentAnalytics = async function() {
       });
     }
 
-    // 3. SUBJECT MASTERY & COVERAGE ACCUMULATOR
     const subjectStats = {};
     const masteredTestIds = new Set();
     const recentAccuracyTrends = [];
@@ -1142,7 +1444,6 @@ window.fetchStudentAnalytics = async function() {
       }
       recentAccuracyTrends.push(Math.round(pct));
 
-      // Resolve subject from catalog
       const cat = catalogData.find(item => String(item.test_id) === String(a.test_id));
       const subj = cat ? (cat.subject || "General") : "General";
 
@@ -1162,12 +1463,10 @@ window.fetchStudentAnalytics = async function() {
       subjectStats[subj].attemptedSets += 1;
     });
 
-    // 4. TOP BANNER METRICS COMPUTATION
     const totalAttemptedQ = netCorrect + netIncorrect;
     const accuracyVal = totalAttemptedQ > 0 ? ((netCorrect / totalAttemptedQ) * 100).toFixed(1) : "0.0";
     const avgSpeedVal = totalAttemptedQ > 0 ? Math.round(totalRawTimeSecs / totalAttemptedQ) : 0;
 
-    // Attendance & Streak Engine
     let todayMins = 0;
     let attendanceMap = {};
     let last7DaysMins = 0;
@@ -1188,7 +1487,6 @@ window.fetchStudentAnalytics = async function() {
       });
     }
 
-    // Strict Consecutive Day Streak Calculation
     let streakCount = 0;
     let checkDate = new Date(todayStr);
     for (let i = 0; i < 30; i++) {
@@ -1197,13 +1495,22 @@ window.fetchStudentAnalytics = async function() {
         streakCount++;
         checkDate.setDate(checkDate.getDate() - 1);
       } else if (s === todayStr) {
-        checkDate.setDate(checkDate.getDate() - 1); // Allow maintaining streak if not studied yet today
+        checkDate.setDate(checkDate.getDate() - 1);
       } else {
         break;
       }
     }
 
-    // 5. RENDER TOP 3 KPI CARDS WITH CONTEXTUAL TAGS
+    const hcStreak = document.getElementById("headerStreakCount");
+    if (hcStreak) hcStreak.innerText = streakCount + (window.innerWidth <= 768 ? "" : " Days");
+    const hcAcc = document.getElementById("headerAccuracyCount");
+    if (hcAcc) hcAcc.innerText = accuracyVal + "%";
+
+    if (isSilent) {
+      _isFetchingStats = false;
+      return;
+    }
+
     const eAcc = document.getElementById("statAccuracy");
     if (eAcc) {
       eAcc.innerHTML = `
@@ -1241,16 +1548,13 @@ window.fetchStudentAnalytics = async function() {
       `;
     }
 
-    // Sparklines Update
     const sortedAttendanceDates = Object.keys(attendanceMap).sort((a, b) => new Date(a) - new Date(b));
     drawSparkline("sparkAccuracy", recentAccuracyTrends.slice(-10), "#38bdf8");
     drawSparkline("sparkStreak", sortedAttendanceDates.slice(-10).map(d => attendanceMap[d] || 0), "#f59e0b");
     drawSparkline("sparkSpeed", recentAccuracyTrends.slice(-10).map(() => avgSpeedVal), "#10b981");
 
-    // 6. RENDER UPGRADED SUMMARY CARDS (TODAY'S & 7-DAY SUMMARY)
     const extraSummaryEl = document.getElementById("extraAnalyticsSummary");
     if (extraSummaryEl) {
-      // Build 7 mini day-status pills for the past week
       const dayDotsHtml = past7DaysDates.slice().reverse().map(d => {
         const isActive = (attendanceMap[d] || 0) > 0;
         const dayLabel = new Date(d).toLocaleDateString('en-US', { weekday: 'narrow' });
@@ -1303,7 +1607,6 @@ window.fetchStudentAnalytics = async function() {
       `;
     }
 
-    // 7. SYLLABUS COMPLETION LINEAR METER
     const totalAvailableSets = catalogData.length > 0 ? catalogData.length : 1;
     const syllabusPct = Math.min(100, Math.round((masteredTestIds.size / totalAvailableSets) * 100));
     const eSyl = document.getElementById("syllabusPercentTxt");
@@ -1316,7 +1619,6 @@ window.fetchStudentAnalytics = async function() {
       linearFill.style.width = syllabusPct + "%";
     }
 
-    // 8. DIAGNOSTIC ACTIONABLE INSIGHTS (WITH PENALTY DETECTION)
     let bestSubj = null;
     let worstSubj = null;
     const validSubjectEntries = Object.entries(subjectStats);
@@ -1368,12 +1670,10 @@ window.fetchStudentAnalytics = async function() {
       }
     }
 
-    // 9. HIGH-TECH SUBJECT MASTERY MATRIX (SORTED + COVERAGE BADGES)
     const barsContainer = document.getElementById("subjectMasteryBars");
     if (barsContainer) {
       barsContainer.innerHTML = "";
 
-      // Deduce all unique subjects from catalog
       const allCatalogSubjects = Array.from(new Set(catalogData.map(c => c.subject || "General Studies")));
       
       const subjectMetricsList = allCatalogSubjects.map(subj => {
@@ -1388,7 +1688,6 @@ window.fetchStudentAnalytics = async function() {
         };
       });
 
-      // Sort: Attempted first (highest score down), then unattempted
       subjectMetricsList.sort((a, b) => {
         if (a.attempted > 0 && b.attempted === 0) return -1;
         if (a.attempted === 0 && b.attempted > 0) return 1;
@@ -1444,11 +1743,12 @@ window.fetchStudentAnalytics = async function() {
       });
     }
 
-    // 10. ACTIVITY HEATMAP (REMAINS UNTOUCHED)
     renderHeatmap(attendanceMap);
 
   } catch (err) {
     console.error("Analytics fetch error:", err);
+  } finally {
+    _isFetchingStats = false;
   }
 };
 
@@ -1474,7 +1774,7 @@ function renderHeatmap(attendanceMap) {
 }
 
 // ==========================================================================
-// 9. MULTI-MODE PRACTICE ENGINE (READ, QUIZ, FLASHCARDS)
+// 10. MULTI-MODE PRACTICE ENGINE (READ, QUIZ, FLASHCARDS)
 // ==========================================================================
 window.launchPracticeMode = async function(testId, mode) {
   const { data: testInfo } = await supabaseClient.from("tests").select("id, title").eq("id", testId).single();

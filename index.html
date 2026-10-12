@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Assessment Engine - Industrial Assessment Portal</title>
-  <link rel="stylesheet" href="style.css?v=2.0">
+  <link rel="stylesheet" href="style.css?v=2.1">
   <link rel="manifest" href="./manifest.json" crossorigin="use-credentials">
   <meta name="theme-color" content="#0f172a">
   <meta name="mobile-web-app-capable" content="yes">
@@ -22,24 +22,43 @@
 <body class="portal-body">
 
   <!-- ================= SCREEN 1: SECURE AUTHENTICATION ================= -->
-  <section id="viewLogin" class="view-screen active-view">
+  <section id="viewLogin" class="view-screen active-view" style="position: relative; overflow: hidden;">
+    <div class="auth-ambient-glow-1"></div>
+    <div class="auth-ambient-glow-2"></div>
+
     <div class="login-industrial-card">
       <div class="login-header">
         <div class="login-badge">EXAM NODE: C-104</div>
         <h2>Candidate Authentication Gateway</h2>
-        <p>National Testing & Assessment Infrastructure</p>
+        <p style="margin-bottom: 16px;">National Testing & Assessment Infrastructure</p>
+
+        <!-- Feature Highlights -->
+        <div class="login-features-list">
+          <div class="feature-item">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            <span>5-State Official Exam Engine</span>
+          </div>
+          <div class="feature-item">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            <span>AI-Powered Subject Mastery Matrix</span>
+          </div>
+          <div class="feature-item">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            <span>100% Offline-Ready (PWA) Architecture</span>
+          </div>
+        </div>
       </div>
 
       <div class="auth-tabs" id="authNavTabs">
         <button type="button" id="tabSignIn" class="auth-tab-btn active">Sign In</button>
-        <button type="button" id="tabRegister" class="auth-tab-btn">New Candidate Registration</button>
+        <button type="button" id="tabRegister" class="auth-tab-btn">New Candidate</button>
       </div>
 
       <div id="authErrorMsg" class="auth-error-msg" style="display: none;"></div>
 
       <!-- Sign In Form -->
       <form id="signInForm" class="login-form">
-        <button type="button" id="btnGoogleAuth" class="btn-industrial-login" style="background: #ffffff; color: #0f172a; border: 1px solid var(--border-color); display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08);">
+        <button type="button" id="btnGoogleAuth" class="btn-industrial-login btn-google-auth">
           <svg width="18" height="18" viewBox="0 0 24 24">
             <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.66v3.05h3.9c2.27-2.09 3.64-5.17 3.64-9.15z"/>
             <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.9-3.05c-1.08.72-2.45 1.16-4.03 1.16-3.1 0-5.73-2.09-6.67-4.9H1.3v3.14C3.33 21.37 7.37 24 12 24z"/>
@@ -49,10 +68,10 @@
           Sign in with Google
         </button>
 
-        <div style="display: flex; align-items: center; text-align: center; margin-bottom: 16px;">
-          <div style="flex: 1; border-bottom: 1px solid var(--border-color);"></div>
-          <span style="padding: 0 10px; font-size: 11px; font-weight: 700; color: #64748b; letter-spacing: 0.5px;">OR REGISTERED CREDENTIALS</span>
-          <div style="flex: 1; border-bottom: 1px solid var(--border-color);"></div>
+        <div class="auth-divider">
+          <div class="divider-line"></div>
+          <span>OR REGISTERED CREDENTIALS</span>
+          <div class="divider-line"></div>
         </div>
 
         <div class="form-group">
@@ -63,8 +82,8 @@
           <label for="inputSignInPass">Access Password / Security PIN</label>
           <input type="password" id="inputSignInPass" placeholder="••••••••" required autocomplete="current-password">
         </div>
-        <div style="display: flex; justify-content: flex-end; margin-bottom: 14px;">
-          <button type="button" id="btnOpenForgot" style="background: none; border: none; color: var(--tcs-blue-accent); font-size: 11px; cursor: pointer; text-decoration: underline;">Forgot PIN / Password?</button>
+        <div class="auth-action-row">
+          <button type="button" id="btnOpenForgot" class="btn-link">Forgot PIN / Password?</button>
         </div>
         <button type="submit" class="btn-industrial-login" id="btnSignInSubmit">Authenticate & Enter</button>
       </form>
@@ -88,41 +107,41 @@
             <label for="inputRegPass">Set Access Password / Security PIN</label>
             <input type="password" id="inputRegPass" placeholder="At least 6 characters" required autocomplete="new-password">
           </div>
-          <button type="submit" class="btn-industrial-login" id="btnRegisterSubmit">Create Profile & Send Verification Link</button>
+          <button type="submit" class="btn-industrial-login" id="btnRegisterSubmit">Create Profile & Send Link</button>
         </div>
-        <div id="regSuccessCard" style="display: none; text-align: center; padding: 15px; background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.3); border-radius: 6px;">
-          <div style="font-size: 28px; margin-bottom: 8px;">📩</div>
-          <h4 style="color: #22c55e; margin-bottom: 6px; font-size: 15px;">Verification Link Dispatched</h4>
-          <p style="font-size: 12px; color: #94a3b8; line-height: 1.5; margin-bottom: 14px;">A confirmation link has been sent to your email. Click <strong>"Confirm email address"</strong> in your inbox to automatically activate your profile.</p>
-          <button type="button" class="btn-industrial-login" id="btnBackToSignInFromReg" style="background: transparent; border: 1px solid var(--tcs-blue-accent); color: var(--tcs-blue-accent); padding: 8px;">Back to Sign In</button>
+        <div id="regSuccessCard" class="auth-success-card" style="display: none;">
+          <div class="success-icon">📩</div>
+          <h4 class="success-title">Verification Link Dispatched</h4>
+          <p class="success-desc">A confirmation link has been sent to your email. Click <strong>"Confirm email address"</strong> in your inbox to automatically activate your profile.</p>
+          <button type="button" class="btn-industrial-login btn-outline" id="btnBackToSignInFromReg">Back to Sign In</button>
         </div>
       </form>
 
       <!-- Forgot Password Form -->
       <form id="forgotForm" class="login-form" style="display: none;">
         <div id="forgotEmailStep">
-          <p style="font-size: 12px; color: #64748b; margin-bottom: 12px;">Enter your registered candidate email to receive a secure password recovery link:</p>
+          <p class="form-instruction">Enter your registered candidate email to receive a secure password recovery link:</p>
           <div class="form-group">
             <label for="inputForgotEmail">Registered Candidate Email</label>
             <input type="email" id="inputForgotEmail" placeholder="candidate@example.com" required>
           </div>
           <button type="submit" class="btn-industrial-login" id="btnSendForgotOtp">Send Password Recovery Link</button>
         </div>
-        <div id="forgotSuccessStep" style="display: none; text-align: center; padding: 15px; background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.3); border-radius: 6px;">
-          <div style="font-size: 28px; margin-bottom: 8px;">🔐</div>
-          <h4 style="color: #22c55e; margin-bottom: 6px; font-size: 15px;">Recovery Link Sent</h4>
-          <p style="font-size: 12px; color: #94a3b8; line-height: 1.5; margin-bottom: 14px;">Please check your email and click the password reset link. It will automatically redirect you here.</p>
+        <div id="forgotSuccessStep" class="auth-success-card" style="display: none;">
+          <div class="success-icon">🔐</div>
+          <h4 class="success-title">Recovery Link Sent</h4>
+          <p class="success-desc">Please check your email and click the password reset link. It will automatically redirect you here.</p>
         </div>
-        <div style="text-align: center; margin-top: 14px;">
-          <button type="button" id="btnBackToSignIn" style="background: none; border: none; color: #64748b; font-size: 11px; cursor: pointer; text-decoration: underline;">Back to Sign In</button>
+        <div class="auth-bottom-nav">
+          <button type="button" id="btnBackToSignIn" class="btn-link">Back to Sign In</button>
         </div>
       </form>
 
       <!-- Password Reset Form -->
       <form id="resetPasswordForm" class="login-form" style="display: none;">
-        <div style="text-align: center; margin-bottom: 14px;">
-          <h4 style="color: var(--tcs-blue-accent); font-size: 15px;">Set New Password</h4>
-          <p style="font-size: 12px; color: #64748b;">Enter your new security password / PIN below to restore access:</p>
+        <div class="reset-header">
+          <h4 class="reset-title">Set New Password</h4>
+          <p class="reset-desc">Enter your new security password / PIN below to restore access:</p>
         </div>
         <div class="form-group">
           <label for="inputNewPassword">New Password / PIN</label>
@@ -133,65 +152,111 @@
     </div>
   </section>
 
-  <!-- ================= SCREEN 2: DASHBOARD (Home) ================= -->
-  <section id="viewDashboard" class="view-screen main-app-view" style="display: none;">
+  <!-- ================= SCREEN 2: DASHBOARD (HOME HUB & SETS EXPLORER) ================= -->
+  <section id="viewDashboard" class="view-screen main-app-view" style="display: none; position: relative;">
     <header class="dash-top-bar glass-header">
       <div class="dash-brand">
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--tcs-blue-accent);">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="brand-icon">
           <path d="M22 10v6M2 10l10-5 10 5-10 5z"></path>
           <path d="M6 12v5c3 3 9 3 12 0v-5"></path>
         </svg>
-        <span class="portal-tag">STUDY HUB</span>
+        <div class="brand-titles">
+          <span class="portal-tag" id="dynamicGreeting">STUDY HUB</span>
+          <span class="portal-sub" id="dynamicGreetingSub">Welcome Back</span>
+        </div>
       </div>
-      <div style="display: flex; align-items: center; gap: 6px;">
+
+      <!-- Responsive Header Gamification Micro-Badges -->
+      <div class="dash-gamification">
+        <div title="Current Study Streak" class="gamify-badge streak-badge">
+          <span>🔥</span> <span id="headerStreakCount">-- Days</span>
+        </div>
+        <div title="Overall Accuracy" class="gamify-badge accuracy-badge">
+          <span>🎯</span> <span id="headerAccuracyCount">--%</span>
+        </div>
+      </div>
+
+      <div class="dash-header-actions">
         <button class="theme-toggle-btn btn-ghost icon-btn" title="Toggle Theme">🌙</button>
-        <div class="dash-user-controls hide-on-mobile" style="display: flex; align-items: center; gap: 6px;">
-          <button class="btn-ghost" onclick="fetchStudentAnalytics(); switchView('viewAnalytics');" style="display: flex; gap: 6px; align-items: center;">
+        <div class="dash-user-controls hide-on-mobile">
+          <button class="btn-ghost" onclick="fetchStudentAnalytics(); switchView('viewAnalytics');">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <line x1="18" y1="20" x2="18" y2="10"></line>
               <line x1="12" y1="20" x2="12" y2="4"></line>
               <line x1="6" y1="20" x2="6" y2="14"></line>
             </svg> Analytics
           </button>
-          <button class="btn-ghost" style="display: flex; gap: 6px; align-items: center;" onclick="toggleProfileDrawer()">
+          <button class="btn-ghost" onclick="toggleProfileDrawer()">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
               <circle cx="12" cy="7" r="4"></circle>
-            </svg> Profile & Settings
+            </svg> Profile
           </button>
         </div>
       </div>
     </header>
 
-    <div class="dash-layout">
-      <aside class="subject-sidebar">
-        <div class="sidebar-heading">TEST SUBJECTS</div>
-        <div class="subject-chips-list" id="subjectChipsContainer"></div>
-      </aside>
+    <!-- STAGE 1: ALL SUBJECTS GRID VIEW (PRIMARY PORTFOLIO) -->
+    <main id="subjectHubStage" class="catalog-viewport" style="display: block;">
+      <div class="hub-header">
+        <h2 class="hub-title">Subject Mastery Portfolio</h2>
+        <p class="hub-subtitle">Select a subject domain to explore topics, syllabus completion, and assessments.</p>
+      </div>
+      <div class="subject-hub-grid" id="subjectHubContainer">
+        <!-- Rendered via renderSubjectHubGrid() in script.js -->
+      </div>
+    </main>
 
-      <main class="catalog-viewport">
-        <div class="catalog-header" style="margin-bottom: 16px;">
-          <span id="activeSubjectTitle" style="display: none;"></span>
-          <div class="search-filter-box" style="width: 100%;">
-            <input type="text" id="topicSearchInput" placeholder="🔍 Search Set number or Topic (e.g. Set 14, Kiran)..." style="width: 100%;">
-          </div>
+    <!-- STAGE 2: TOPIC SETS EXPLORER VIEW (ON SUBJECT CLICK) -->
+    <main id="setsExplorerStage" class="catalog-viewport" style="display: none;">
+      <!-- Breadcrumb Navigation & Hub Return -->
+      <div class="explorer-nav-strip">
+        <button class="btn-back-hub" onclick="returnToSubjectHub()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
+          <span>All Subjects</span>
+        </button>
+        <div class="active-hub-subject-name" id="explorerSubjectTitle">Subject</div>
+        <span id="activeSubjectTitle" style="display: none;"></span>
+      </div>
+
+      <!-- Compact Single-Line Quick Action Banner -->
+      <div id="heroResumeContainer" style="display: none; margin-bottom: 14px;"></div>
+
+      <div class="catalog-header" style="margin-bottom: 14px;">
+        <div class="search-filter-box" style="width: 100%;">
+          <input type="text" id="topicSearchInput" placeholder="🔍 Search Sets or Topics (e.g. Set 14, Article 136)..." style="width: 100%;">
         </div>
-        <div class="topics-grid" id="topicsContainer"></div>
-      </main>
-    </div>
+
+        <!-- Smart Filter Chips Bar -->
+        <div class="catalog-filter-bar" id="catalogFilterChips">
+          <button type="button" class="filter-chip-btn active" data-filter="all">All Sets</button>
+          <button type="button" class="filter-chip-btn" data-filter="unattempted">⚡ Unattempted</button>
+          <button type="button" class="filter-chip-btn" data-filter="revise">🔄 Revise (&lt;70%)</button>
+          <button type="button" class="filter-chip-btn" data-filter="mastered">🏆 Mastered</button>
+        </div>
+      </div>
+
+      <div class="topics-grid" id="topicsContainer"></div>
+    </main>
+
+    <!-- 🚀 Daily 10-Min Mix (Floating Action Button: Responsive Position) -->
+    <button id="btnDailyMix" class="fab-daily-mix" onclick="launchDailyMix()" title="Start Daily 10-Min Mix">
+      <span class="fab-icon">🚀</span>
+      <span class="fab-label hide-on-mobile">Daily Mix</span>
+    </button>
   </section>
 
   <!-- ================= SCREEN 3: ANALYTICS DASHBOARD ================= -->
   <section id="viewAnalytics" class="view-screen main-app-view" style="display: none;">
     <header class="dash-top-bar glass-header">
       <div class="dash-brand">
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--tcs-blue-accent);">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="brand-icon">
           <path d="M22 10v6M2 10l10-5 10 5-10 5z"></path>
           <path d="M6 12v5c3 3 9 3 12 0v-5"></path>
         </svg>
         <span class="portal-tag">PERFORMANCE</span>
       </div>
-      <div style="display: flex; align-items: center; gap: 6px;">
+      <div class="dash-header-actions">
         <button class="theme-toggle-btn btn-ghost icon-btn" title="Toggle Theme">🌙</button>
         <div class="dash-user-controls hide-on-mobile">
           <button class="btn-ghost" onclick="switchView('viewDashboard')">Back to Home</button>
@@ -199,36 +264,34 @@
       </div>
     </header>
 
-    <!-- Clean Responsive Viewport Container -->
-    <!-- Clean Responsive Viewport Container -->
     <main class="catalog-viewport analytics-viewport">
       <!-- Key Metrics Banner with Sparklines -->
       <div class="analytics-banner">
         <div class="stat-card">
-          <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+          <div class="stat-card-row">
             <div>
               <div class="stat-value" id="statAccuracy">0.0%</div>
               <div class="stat-label">Overall Accuracy</div>
             </div>
-            <div id="sparkAccuracy" style="width:60px; height:30px;"></div>
+            <div id="sparkAccuracy" class="sparkline-box"></div>
           </div>
         </div>
         <div class="stat-card">
-          <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+          <div class="stat-card-row">
             <div>
               <div class="stat-value" id="statStreak">0 🔥</div>
               <div class="stat-label">Day Streak</div>
             </div>
-            <div id="sparkStreak" style="width:60px; height:30px;"></div>
+            <div id="sparkStreak" class="sparkline-box"></div>
           </div>
         </div>
         <div class="stat-card">
-          <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+          <div class="stat-card-row">
             <div>
               <div class="stat-value" id="statSpeed">0s</div>
               <div class="stat-label">Avg Time / Question</div>
             </div>
-            <div id="sparkSpeed" style="width:60px; height:30px;"></div>
+            <div id="sparkSpeed" class="sparkline-box"></div>
           </div>
         </div>
       </div>
@@ -236,46 +299,44 @@
       <!-- Extra Analytics Cards Grid -->
       <div id="extraAnalyticsSummary" class="extra-summary-grid"></div>
 
-      <!-- REDESIGNED Advanced Analytics Grid -->
+      <!-- Advanced Analytics Grid -->
       <div class="advanced-analytics-grid">
-        
-        <!-- 1. Subject Mastery (Skill Bars replacing Radar) -->
+        <!-- 1. Subject Mastery -->
         <div class="profile-section-card">
           <h3 class="section-title">Subject Mastery</h3>
-          <div id="subjectMasteryBars" class="skill-bars-container">
-            <!-- Bars will be injected by JS -->
-          </div>
+          <div id="subjectMasteryBars" class="skill-bars-container"></div>
         </div>
 
-        <!-- 2. Insights & Syllabus (Linear Meter replacing SVG Ring) -->
+        <!-- 2. Actionable Insights & Syllabus Meter -->
         <div class="profile-section-card" style="display: flex; flex-direction: column; gap: 16px;">
           <h3 class="section-title" style="margin-bottom: 0;">Actionable Insights</h3>
           
           <div style="display: flex; flex-direction: column; gap: 10px;">
-            <div id="insightStrong" class="insight-box" style="padding: 12px; border-left: 4px solid #22c55e; border-radius: 4px; font-size: 13px;"></div>
-            <div id="insightWeak" class="insight-box" style="padding: 12px; border-left: 4px solid #ef4444; border-radius: 4px; font-size: 13px;"></div>
+            <div id="insightStrong" class="insight-box insight-box-strong"></div>
+            <div id="insightWeak" class="insight-box insight-box-weak"></div>
           </div>
 
-          <div class="linear-meter-box" style="margin-top: 8px; padding-top: 16px; border-top: 1px dashed var(--border-color);">
-            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-              <span style="font-size: 11px; font-weight: bold; color: #64748b; text-transform: uppercase;">Syllabus Completion</span>
-              <span id="syllabusPercentTxt" style="font-size: 13px; font-weight: 800; color: var(--tcs-blue-accent); font-family: var(--font-mono);">0%</span> </div>
-            <div style="width: 100%; height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden;">
-              <div id="syllabusLinearFill" style="height: 100%; width: 0%; background: var(--tcs-blue-accent); transition: width 0.8s ease-in-out;"></div>
+          <div class="linear-meter-box">
+            <div class="linear-meter-labels">
+              <span class="meter-title">Syllabus Completion</span>
+              <span id="syllabusPercentTxt" class="meter-percent">0%</span>
+            </div>
+            <div class="linear-meter-track">
+              <div id="syllabusLinearFill" class="linear-meter-fill"></div>
             </div>
           </div>
         </div>
 
-        <!-- 3. Attendance Heatmap (Now inside a Swipeable Scroll Wrapper) -->
+        <!-- 3. Attendance Heatmap -->
         <div class="profile-section-card" style="grid-column: 1 / -1;">
           <h3 class="section-title" style="margin-bottom: 15px;">Activity Heatmap (Last 30 Days)</h3>
           
-          <div class="heatmap-scroll-wrapper" style="width: 100%; overflow-x: auto; padding-bottom: 8px; -webkit-overflow-scrolling: touch;">
-            <div class="heatmap-grid" id="heatmapContainer" style="min-width: 450px;"></div>
+          <div class="heatmap-scroll-wrapper">
+            <div class="heatmap-grid" id="heatmapContainer"></div>
           </div>
           
-          <div class="cal-legend" style="margin-top: 10px; display:flex; justify-content: flex-end; align-items:center; gap:4px; font-size: 10px; color:#64748b; font-weight:bold;">
-            Less <span class="heatmap-cell absent" style="width:12px;height:12px;"></span><span class="heatmap-cell hm-lvl-1" style="width:12px;height:12px;"></span><span class="heatmap-cell hm-lvl-2" style="width:12px;height:12px;"></span><span class="heatmap-cell hm-lvl-4" style="width:12px;height:12px;"></span> More
+          <div class="cal-legend">
+            Less <span class="heatmap-cell absent"></span><span class="heatmap-cell hm-lvl-1"></span><span class="heatmap-cell hm-lvl-2"></span><span class="heatmap-cell hm-lvl-4"></span> More
           </div>
         </div>
       </div>
@@ -295,28 +356,28 @@
       </button>
     </div>
     <div class="drawer-body">
-      <div style="text-align:center; margin-bottom: 24px;">
-        <div style="width: 70px; height: 70px; background: #e2e8f0; color: #64748b; font-size: 28px; font-weight: bold; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 10px;">👤</div>
-        <div id="dashCandidateName" style="font-weight: 700; font-size: 16px;">Candidate</div>
-        <div id="dashCandidateRoll" style="font-size: 12px; color: #64748b;">ROLL: ---</div>
+      <div class="drawer-user-avatar-wrap">
+        <div class="drawer-avatar">👤</div>
+        <div id="dashCandidateName" class="drawer-user-name">Candidate</div>
+        <div id="dashCandidateRoll" class="drawer-user-roll">ROLL: ---</div>
       </div>
 
       <div class="drawer-section">
-        <label>Full Name</label>
+        <label for="editProfileName">Full Name</label>
         <input type="text" id="editProfileName" class="drawer-input" placeholder="Your Name">
       </div>
       <div class="drawer-section">
-        <label>Roll Number</label>
+        <label for="editProfileRoll">Roll Number</label>
         <input type="text" id="editProfileRoll" class="drawer-input" disabled style="opacity: 0.7;" title="Roll Number cannot be changed">
       </div>
       <div class="drawer-section">
-        <label>Target Exam (e.g. SSC CGL, UPSC)</label>
+        <label for="editProfileTarget">Target Exam (e.g. SSC CGL, High Court)</label>
         <input type="text" id="editProfileTarget" class="drawer-input" placeholder="Target Exam">
       </div>
       <button class="tcs-btn btn-primary" style="width: 100%; margin-bottom: 30px;" id="btnSaveProfile">Save Changes</button>
 
-      <div class="drawer-section" style="border-top: 1px solid var(--border-color); padding-top: 20px;">
-        <button id="btnLogoutDrawer" class="btn-ghost danger-ghost" style="width: 100%; justify-content: center; border: 1px solid #fca5a5;">
+      <div class="drawer-section drawer-logout-section">
+        <button id="btnLogoutDrawer" class="btn-ghost danger-ghost" style="width: 100%; justify-content: center;">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 8px;">
             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
             <polyline points="16 17 21 12 16 7"></polyline>
@@ -360,21 +421,29 @@
       <div style="display: flex; justify-content: space-between; width: 100%; align-items: center; margin-bottom: 8px;">
         <div class="exam-meta">
           <span id="subjectLabelBreadcrumb">Subject</span> 
-          <span style="margin: 0 4px; color:#64748b;">❯</span> 
+          <span class="exam-breadcrumb-sep">❯</span> 
           <span id="examTitle">Assessment Console</span>
         </div>
         <div class="utility-tools" style="display: flex; align-items: center; gap: 10px;">
           <button class="theme-toggle-btn btn-ghost icon-btn" title="Toggle Theme" style="height: 24px; padding: 0;">🌙</button>
-          <select id="langSwitch" style="padding: 2px 6px; font-size: 12px; border: 1px solid var(--border-color); border-radius: 2px; background: transparent; color: inherit;">
+          <select id="langSwitch" class="lang-selector">
             <option value="en">English</option>
             <option value="hi">Hindi</option>
           </select>
         </div>
       </div>
-      <div style="width: 100%; height: 3px; background: var(--border-color); border-radius: 2px; overflow: hidden;">
-        <div id="examProgressLine" style="width: 0%; height: 100%; background: var(--tcs-blue-accent); transition: width 0.3s ease;"></div>
+      <div class="exam-progress-track">
+        <div id="examProgressLine" class="exam-progress-fill"></div>
       </div>
     </header>
+
+    <!-- Sub-bar for Section Tabs and Roll Number Verification -->
+    <div class="tcs-sub-bar" id="examSubBar">
+      <div id="sectionTabs" class="section-tabs-wrap"></div>
+      <div class="exam-candidate-roll-badge">
+        Roll: <span id="examCandidateRoll">---</span>
+      </div>
+    </div>
 
     <main class="tcs-workspace">
       <section class="question-workspace">
