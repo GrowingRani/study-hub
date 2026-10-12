@@ -482,7 +482,7 @@ body.portal-body {
    ========================================================================== */
 .catalog-viewport { 
   flex: 1; 
-  padding: 24px 30px; 
+  padding: 20px 24px; 
   overflow-y: auto; 
   display: flex; 
   flex-direction: column; 
@@ -625,178 +625,184 @@ body.portal-body {
 }
 
 /* ==========================================================================
-   STAGE 2: BREADCRUMB & NAVIGATION BAR (ELEGANT UPGRADE)
+   STAGE 2: MORPHING MASTHEAD (BORDERLESS GHOST BUTTONS)
    ========================================================================== */
-.explorer-breadcrumb-bar {
+.explorer-masthead {
+  background: transparent;
+  border: none;
+  padding: 4px 0 12px 0;
+  margin-bottom: 8px;
+  min-height: 48px;
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 16px;
-  padding: 8px 14px;
-  background: #ffffff;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
-.btn-breadcrumb-back {
-  display: inline-flex;
+.masthead-default-bar {
+  display: flex;
   align-items: center;
-  gap: 6px;
-  background: #f1f5f9;
-  border: 1px solid var(--border-color);
-  color: #334155;
-  font-size: 12px;
-  font-weight: 700;
-  padding: 6px 12px;
-  border-radius: 4px;
+  gap: 8px;
+  width: 100%;
+}
+
+/* Borderless Ghost Navigation Buttons */
+.btn-masthead-back,
+.btn-masthead-search {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: none !important;
+  background: transparent !important;
+  color: #475569;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
+  flex-shrink: 0;
   transition: all 0.2s ease;
 }
 
-.btn-breadcrumb-back:hover {
-  background: #e2e8f0;
-  color: #0f172a;
+.btn-masthead-back:hover,
+.btn-masthead-search:hover {
+  background: rgba(37, 99, 235, 0.08) !important;
+  color: var(--tcs-blue-accent);
 }
 
-.breadcrumb-chevron {
-  color: #94a3b8;
-  font-size: 16px;
-  font-weight: 600;
-  line-height: 1;
-}
-
-.breadcrumb-active-node {
+.masthead-title-stack {
   display: flex;
-  align-items: center;
-  gap: 10px;
+  flex-direction: column;
   flex: 1;
   min-width: 0;
 }
 
-.breadcrumb-subject-text {
-  font-size: 15px;
+.masthead-subject-title {
+  font-size: 16px;
   font-weight: 800;
   color: var(--tcs-blue-header);
+  line-height: 1.2;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  margin: 0;
 }
 
-.breadcrumb-count-badge {
+.masthead-subject-subtitle {
   font-size: 11px;
   font-weight: 700;
   color: #64748b;
-  background: #f1f5f9;
-  border: 1px solid var(--border-color);
-  padding: 3px 8px;
-  border-radius: 12px;
-  white-space: nowrap;
   font-family: var(--font-mono);
-}
-
-/* Compact Single-Line Quick Action Banner */
-.hero-compact-strip {
-  background: linear-gradient(135deg, #1e3a8a, #2563eb);
-  color: #ffffff;
-  border-radius: 6px;
-  padding: 8px 14px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.2);
-}
-
-.hero-compact-strip .hero-text {
-  font-size: 12px;
-  font-weight: 600;
+  margin-top: 2px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.hero-compact-strip .hero-action-btn {
-  background: #ffffff;
-  color: #1e3a8a;
-  border: none;
-  padding: 6px 14px;
-  font-size: 12px;
-  font-weight: 800;
-  border-radius: 4px;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: opacity 0.15s ease;
-}
-
-.hero-compact-strip .hero-action-btn:hover {
-  opacity: 0.9;
-}
-
-.catalog-header { 
-  display: block; 
-  margin-bottom: 16px; 
-  border-bottom: 1px solid var(--border-color); 
-  padding-bottom: 14px; 
-}
-
-.search-filter-box input { 
-  width: 100%; 
-  padding: 12px 16px; 
-  border: 1px solid var(--border-color); 
-  background: #ffffff; 
-  color: #0f172a; 
-  font-size: 13.5px; 
-  border-radius: 6px; 
-  outline: none; 
-  transition: all 0.2s; 
-}
-
-.search-filter-box input:focus { 
-  border-color: var(--tcs-blue-accent); 
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15); 
-}
-
-.catalog-filter-bar {
+/* Active Search Bar Morphing Capsule */
+.masthead-search-bar {
   display: flex;
+  align-items: center;
   gap: 8px;
-  margin-top: 12px;
+  width: 100%;
+  height: 42px;
+  background: #ffffff;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 0 10px;
+  animation: mastheadSearchFadeIn 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+}
+
+.search-bar-icon {
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.masthead-search-input {
+  flex: 1;
+  height: 100%;
+  border: none;
+  background: transparent;
+  color: #0f172a;
+  font-size: 13.5px;
+  font-family: var(--font-family);
+  outline: none;
+  width: 100%;
+}
+
+.masthead-search-input::placeholder {
+  color: #94a3b8;
+}
+
+.btn-masthead-close-search {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.btn-masthead-close-search:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+@keyframes mastheadSearchFadeIn {
+  from { opacity: 0; transform: translateY(-2px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Slim Micro-Segmented Filter Tabs Bar */
+.micro-segmented-bar {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 14px;
   overflow-x: auto;
-  padding-bottom: 4px;
+  padding: 2px 0 6px 0;
   scrollbar-width: none;
 }
 
-.catalog-filter-bar::-webkit-scrollbar {
+.micro-segmented-bar::-webkit-scrollbar {
   display: none;
 }
 
-.filter-chip-btn {
+.segment-tab-btn {
   background: #f1f5f9;
   border: 1px solid var(--border-color);
   color: #475569;
-  padding: 6px 14px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 700;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
   white-space: nowrap;
 }
 
-.filter-chip-btn:hover {
+.segment-tab-btn:hover {
   background: #e2e8f0;
+  color: #0f172a;
 }
 
-.filter-chip-btn.active {
+.segment-tab-btn.active {
   background: rgba(37, 99, 235, 0.1);
   color: var(--tcs-blue-accent);
   border-color: var(--tcs-blue-accent);
 }
 
+/* Accordion Stream Architecture */
 .topics-grid { 
   display: flex; 
   flex-direction: column; 
-  gap: 12px; 
+  gap: 10px; 
   margin-bottom: 85px;
 }
 
@@ -806,11 +812,12 @@ body.portal-body {
   border-radius: 6px; 
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03); 
   overflow: hidden;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .topic-accordion-header { 
   background: #f8fafc; 
-  padding: 14px 18px; 
+  padding: 12px 16px; 
   display: flex; 
   justify-content: space-between; 
   align-items: center; 
@@ -842,8 +849,8 @@ body.portal-body {
 .header-left { 
   display: flex; 
   align-items: center; 
-  gap: 10px; 
-  font-size: 14.5px; 
+  gap: 8px; 
+  font-size: 14px; 
   font-weight: 700; 
   color: #1e293b; 
 }
@@ -852,6 +859,20 @@ body.portal-body {
   display: flex !important;
   align-items: center !important;
   gap: 10px !important;
+}
+
+/* Dedicated Clean Micro-Status Pill for '1/31 Mastered' */
+.subtopic-tag { 
+  font-size: 11px !important; 
+  font-weight: 700 !important; 
+  font-family: var(--font-mono) !important;
+  color: var(--tcs-blue-accent) !important; 
+  background: rgba(37, 99, 235, 0.08) !important; 
+  border: 1px solid rgba(37, 99, 235, 0.22) !important;
+  padding: 3px 8px !important; 
+  border-radius: 12px !important; 
+  letter-spacing: 0.3px !important;
+  white-space: nowrap !important;
 }
 
 .toggle-icon {
@@ -876,25 +897,25 @@ body.portal-body {
 
 .topic-accordion-body { 
   display: none; 
-  padding: 16px 18px; 
+  padding: 14px 16px; 
   background: #ffffff; 
 }
 
 .sets-card-grid { 
   display: grid; 
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); 
-  gap: 14px; 
+  gap: 12px; 
 }
 
 /* ==========================================================================
-   MODERN SET TILE STRUCTURE & ELEGANT "NEW" BADGE
+   MODERN SET TILE & SINGLE-ROW ACTION FOOTER
    ========================================================================== */
 .set-tile { 
   position: relative;
   z-index: 1;
   background: #ffffff; 
   border: 1px solid var(--border-color); 
-  padding: 16px; 
+  padding: 14px 16px; 
   display: flex; 
   flex-direction: column; 
   justify-content: space-between; 
@@ -905,15 +926,20 @@ body.portal-body {
   transition: all 0.2s ease;
 }
 
+.set-tile:hover {
+  border-color: #94a3b8;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
 .set-tile-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 .set-tile-title { 
-  font-size: 14px; 
+  font-size: 13.5px; 
   font-weight: 700; 
   color: #0f172a; 
   line-height: 1.4; 
@@ -933,7 +959,7 @@ body.portal-body {
   align-items: center;
 }
 
-/* Elegant Micro-Pill "NEW" Badge */
+/* Elegant Micro-Pill "● NEW" Badge */
 .set-status-badge.status-new { 
   background: rgba(37, 99, 235, 0.08); 
   color: var(--tcs-blue-accent); 
@@ -941,12 +967,7 @@ body.portal-body {
   font-weight: 800;
 }
 
-.set-status-badge.status-new::before {
-  content: "●";
-  font-size: 8px;
-  margin-right: 4px;
-  color: var(--tcs-blue-accent);
-}
+
 
 .set-status-badge.status-progress { 
   background: #fef3c7; 
@@ -963,7 +984,7 @@ body.portal-body {
 .set-tile-meta { 
   font-size: 11px; 
   color: #64748b; 
-  margin-bottom: 12px; 
+  margin-bottom: 8px; 
   display: flex; 
   gap: 14px; 
 }
@@ -978,24 +999,29 @@ body.portal-body {
 .set-score-info {
   font-size: 11.5px;
   font-weight: 600;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
   display: flex;
   align-items: center;
   gap: 6px;
 }
 
+/* Single-Row Action Strip */
 .set-action-footer {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 6px !important;
+  width: 100%;
 }
 
 .btn-launch-set { 
-  padding: 10px 12px; 
+  flex: 1;
+  height: 36px;
+  padding: 0 10px; 
   background: var(--tcs-blue-accent); 
   color: #ffffff; 
   border: none; 
-  font-size: 13px; 
+  font-size: 12px; 
   font-weight: 700; 
   cursor: pointer; 
   text-align: center; 
@@ -1004,8 +1030,8 @@ body.portal-body {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  width: 100%;
+  gap: 5px;
+  white-space: nowrap;
 }
 
 .btn-launch-set:hover { 
@@ -1015,28 +1041,29 @@ body.portal-body {
 .secondary-modes-strip {
   display: flex;
   gap: 6px;
+  flex-shrink: 0;
 }
 
+/* Compact Icon Buttons (Housing existing Read, Cards, Quiz SVGs) */
 .btn-mode-icon { 
-  flex: 1;
+  width: 36px;
+  height: 36px;
   display: flex; 
   align-items: center; 
   justify-content: center; 
-  gap: 4px;
-  font-size: 11px; 
-  font-weight: 600;
-  padding: 6px 0; 
   border-radius: 4px; 
   background: #f8fafc; 
   border: 1px solid var(--border-color); 
   color: #475569; 
   cursor: pointer; 
   transition: all 0.2s ease; 
+  padding: 0;
+  flex-shrink: 0;
 }
 
 .btn-mode-icon svg {
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
 }
 
 .btn-mode-icon:hover { 
@@ -1044,19 +1071,22 @@ body.portal-body {
   color: #0f172a; 
 }
 
-/* Floating Action Button (FAB) */
+/* Floating Action Button (Solar Flame Radiant Palette) */
+/* Floating Action Button */
 .fab-daily-mix {
   position: fixed;
   bottom: 24px;
   right: 24px;
-  background: linear-gradient(135deg, #2563eb, #1e3a8a);
+  /* ऑरेंज हटाकर यह सॉफ्ट इलेक्ट्रिक-ब्लू ग्रेडिएंट डालें */
+  background: linear-gradient(135deg, #0284c7, #1e40af);
   color: #ffffff;
   border: none;
   border-radius: 50px;
   padding: 12px 22px;
   font-size: 13.5px;
   font-weight: 700;
-  box-shadow: 0 4px 18px rgba(37, 99, 235, 0.35);
+  /* शैडो को भी सॉफ्ट ब्लू में बदलें */
+  box-shadow: 0 4px 18px rgba(2, 132, 199, 0.35);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -1067,7 +1097,7 @@ body.portal-body {
 
 .fab-daily-mix:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 22px rgba(37, 99, 235, 0.45);
+  box-shadow: 0 6px 22px rgba(2, 132, 199, 0.5);
 }
 
 .fab-daily-mix .fab-icon {
@@ -2174,47 +2204,67 @@ body.dark-theme .tile-metric-value { color: #38bdf8; }
 body.dark-theme .tile-progress-track { background: #1e293b; }
 body.dark-theme .tile-progress-fill { background: linear-gradient(90deg, #0284c7, #38bdf8); }
 
-/* Stage 2: Explorer Breadcrumb Bar Dark Styling */
-body.dark-theme .explorer-breadcrumb-bar {
-  background: #0f172a;
-  border-color: #1e293b;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+/* Stage 2: Masthead Ghost Buttons Dark Styling */
+body.dark-theme .btn-masthead-back,
+body.dark-theme .btn-masthead-search {
+  border: none !important;
+  background: transparent !important;
+  color: #94a3b8;
 }
 
-body.dark-theme .btn-breadcrumb-back {
+body.dark-theme .btn-masthead-back:hover,
+body.dark-theme .btn-masthead-search:hover {
+  background: rgba(56, 189, 248, 0.1) !important;
+  color: #38bdf8;
+}
+
+body.dark-theme .masthead-subject-title {
+  color: #f1f5f9;
+}
+
+body.dark-theme .masthead-subject-subtitle {
+  color: #64748b;
+}
+
+body.dark-theme .masthead-search-bar {
   background: #111a2e;
   border-color: #1e293b;
-  color: #cbd5e1;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
 }
 
-body.dark-theme .btn-breadcrumb-back:hover {
-  background: #1e293b;
-  color: #38bdf8;
-  border-color: #38bdf8;
+body.dark-theme .masthead-search-input {
+  color: #f8fafc;
 }
 
-body.dark-theme .breadcrumb-chevron {
-  color: #475569;
+body.dark-theme .masthead-search-input::placeholder {
+  color: #64748b;
 }
 
-body.dark-theme .breadcrumb-subject-text {
-  color: #38bdf8;
+body.dark-theme .btn-masthead-close-search {
+  color: #94a3b8;
 }
 
-body.dark-theme .breadcrumb-count-badge {
+body.dark-theme .btn-masthead-close-search:hover {
+  color: #f87171;
+  background: rgba(239, 68, 68, 0.12);
+}
+
+/* Stage 2: Micro-Segmented Tabs Dark Styling */
+body.dark-theme .segment-tab-btn {
   background: #111a2e;
   border-color: #1e293b;
   color: #94a3b8;
 }
 
-body.dark-theme .hero-compact-strip {
-  background: linear-gradient(135deg, #0f172a, #1e3a8a);
-  border: 1px solid #334155;
+body.dark-theme .segment-tab-btn:hover {
+  background: #1e293b;
+  color: #cbd5e1;
 }
 
-body.dark-theme .hero-compact-strip .hero-action-btn {
-  background: #38bdf8;
-  color: #080c14;
+body.dark-theme .segment-tab-btn.active {
+  background: rgba(56, 189, 248, 0.1);
+  color: #38bdf8;
+  border-color: #38bdf8;
 }
 
 /* Stage 2: Subtopics Accordion Unified Dark Colors */
@@ -2250,6 +2300,12 @@ body.dark-theme .header-left {
   color: #f1f5f9; 
 }
 
+body.dark-theme .subtopic-tag {
+  color: #38bdf8 !important;
+  background: rgba(56, 189, 248, 0.08) !important;
+  border-color: rgba(56, 189, 248, 0.22) !important;
+}
+
 body.dark-theme .toggle-icon {
   color: #64748b !important;
 }
@@ -2276,17 +2332,14 @@ body.dark-theme .set-tile-title {
   color: #f1f5f9; 
 }
 
-/* Dark Theme Elegant "NEW" Badge */
+/* Dark Theme Elegant "● NEW" Badge */
 body.dark-theme .set-status-badge.status-new {
   background: rgba(56, 189, 248, 0.08);
   color: #38bdf8;
   border-color: rgba(56, 189, 248, 0.28);
 }
 
-body.dark-theme .set-status-badge.status-new::before {
-  color: #38bdf8;
-  text-shadow: 0 0 6px rgba(56, 189, 248, 0.8);
-}
+
 
 body.dark-theme .set-status-badge.status-progress {
   background: rgba(245, 158, 11, 0.1);
@@ -2340,17 +2393,6 @@ body.dark-theme .sol-q-header,
 body.dark-theme .sol-content,
 body.dark-theme .drawer-user-name { 
   color: #f1f5f9; 
-}
-
-body.dark-theme .search-filter-box input { 
-  background: #0b1120 !important; 
-  border-color: #1e293b !important; 
-  color: #f8fafc !important; 
-}
-
-body.dark-theme .search-filter-box input:focus { 
-  border-color: #38bdf8 !important; 
-  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.25) !important; 
 }
 
 body.dark-theme .login-header h2 { color: #f8fafc; }
@@ -2523,18 +2565,6 @@ body.dark-theme .drawer-header h3 { color: #f8fafc; }
 body.dark-theme .drawer-input { background: #0b1120; border-color: #1e293b; color: #f8fafc; }
 body.dark-theme .drawer-avatar { background: #111a2e; color: #94a3b8; }
 
-body.dark-theme .filter-chip-btn {
-  background: #111a2e;
-  border-color: #1e293b;
-  color: #94a3b8;
-}
-body.dark-theme .filter-chip-btn:hover { background: #1e293b; color: #cbd5e1; }
-body.dark-theme .filter-chip-btn.active {
-  background: rgba(56, 189, 248, 0.1);
-  color: #38bdf8;
-  border-color: #38bdf8;
-}
-
 /* ==========================================================================
    12. MOBILE RESPONSIVENESS & BOTTOM NAVIGATION (<= 768px)
    ========================================================================== */
@@ -2560,7 +2590,8 @@ body.dark-theme .filter-chip-btn.active {
     height: 48px !important;
     border-radius: 50% !important;
     justify-content: center !important;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25) !important;
+    /* मोबाइल शैडो */
+    box-shadow: 0 4px 16px rgba(2, 132, 199, 0.4) !important;
   }
   .fab-daily-mix .fab-icon {
     font-size: 20px !important;
@@ -2574,20 +2605,20 @@ body.dark-theme .filter-chip-btn.active {
   }
 
   .catalog-viewport { 
-    padding: 14px 14px 85px 14px !important; 
+    padding: 12px 12px 85px 12px !important; 
   }
   
   .sets-card-grid { 
     grid-template-columns: 1fr; 
   }
 
-  .explorer-breadcrumb-bar {
-    padding: 6px 10px;
-    gap: 8px;
+  .explorer-masthead {
+    padding: 2px 0 10px 0;
+    margin-bottom: 6px;
   }
 
-  .breadcrumb-subject-text {
-    font-size: 13.5px;
+  .masthead-subject-title {
+    font-size: 15px;
   }
 
   /* Bottom Sticky Nav Bar */
@@ -2745,4 +2776,53 @@ body.dark-theme .filter-chip-btn.active {
     min-width: 12px !important;
     flex-shrink: 0 !important;
   }
+}
+
+/* प्रैक्टिस व्यू और सॉल्यूशंस हेडर के लिए फ्लेक्स लॉक */
+#viewPractice .dash-top-bar,
+#viewSolutions .dash-top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  height: 52px;
+  overflow: hidden;
+}
+
+/* लेफ्ट साइड कंटेनर को फ्लेक्स-श्रिंक और एलिप्सिस दें */
+#viewPractice .dash-brand,
+#viewSolutions .dash-brand {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0; /* टेक्स्ट ट्रंकेशन के लिए बेहद जरूरी */
+  overflow: hidden;
+}
+
+/* मोड का नाम सिकुड़े नहीं लेकिन जगह सीमित रखे */
+#practiceModeTitle {
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+/* सेट टाइटल को एक ही लाइन में रखें और ओवरफ्लो होने पर '...' दिखाएं */
+#practiceSetTitle {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  font-size: 11px;
+}
+
+/* दाईं तरफ के बटन्स (थीम + एग्जिट) कभी न दबें */
+#viewPractice .dash-header-actions,
+#viewPractice header > div:last-child {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0; /* बटनों का साइज हमेशा फिक्स रहेगा */
 }

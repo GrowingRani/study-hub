@@ -220,6 +220,49 @@ function showAuthNotice(msg, isError = true) {
 // ==========================================================================
 // 5. APPLICATION EVENT BINDINGS
 // ==========================================================================
+function filterAccordionCards(query) {
+  document.querySelectorAll(".topic-accordion-card").forEach(card => {
+    const headerTitle = card.querySelector(".topic-title")?.innerText.toLowerCase() || "";
+    const body = card.querySelector(".topic-accordion-body");
+    const tiles = card.querySelectorAll(".set-tile");
+
+    if (!query) {
+      card.style.display = "block";
+      card.classList.remove("open");
+      if (body) body.style.display = "none";
+      tiles.forEach(t => t.style.display = "");
+      return;
+    }
+
+    if (headerTitle.includes(query)) {
+      card.style.display = "block";
+      card.classList.add("open");
+      if (body) body.style.display = "block";
+      tiles.forEach(t => t.style.display = "");
+      return;
+    }
+
+    let matchingSets = 0;
+    tiles.forEach(tile => {
+      const setTitle = tile.querySelector(".set-tile-title")?.innerText.toLowerCase() || "";
+      if (setTitle.includes(query)) {
+        tile.style.display = "";
+        matchingSets++;
+      } else {
+        tile.style.display = "none";
+      }
+    });
+
+    if (matchingSets > 0) {
+      card.style.display = "block";
+      card.classList.add("open");
+      if (body) body.style.display = "block";
+    } else {
+      card.style.display = "none";
+    }
+  });
+}
+
 function setupAppEvents() {
   const tabSignIn = document.getElementById("tabSignIn");
   const tabRegister = document.getElementById("tabRegister");
@@ -403,59 +446,22 @@ function setupAppEvents() {
     };
   });
 
-  // Filter Chips in Sets Explorer
+  // Micro-Segmented Filter Tabs Bindings
   document.querySelectorAll('.filter-chip-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
       document.querySelectorAll('.filter-chip-btn').forEach(b => b.classList.remove('active'));
-      e.target.classList.add('active');
-      currentFilter = e.target.getAttribute('data-filter');
-      renderTopicSets();
+      const targetBtn = e.target.closest('.filter-chip-btn');
+      if (targetBtn) {
+        targetBtn.classList.add('active');
+        currentFilter = targetBtn.getAttribute('data-filter') || "all";
+        renderTopicSets();
+      }
     });
   });
 
-  // Topic Accordion Search Binding
+  // Morphing Search Input Listener
   document.getElementById("topicSearchInput")?.addEventListener("input", (e) => {
-    const query = e.target.value.trim().toLowerCase();
-    document.querySelectorAll(".topic-accordion-card").forEach(card => {
-      const headerTitle = card.querySelector(".topic-title")?.innerText.toLowerCase() || "";
-      const body = card.querySelector(".topic-accordion-body");
-      const tiles = card.querySelectorAll(".set-tile");
-
-      if (!query) {
-        card.style.display = "block";
-        card.classList.remove("open");
-        if (body) body.style.display = "none";
-        tiles.forEach(t => t.style.display = "");
-        return;
-      }
-
-      if (headerTitle.includes(query)) {
-        card.style.display = "block";
-        card.classList.add("open");
-        if (body) body.style.display = "block";
-        tiles.forEach(t => t.style.display = "");
-        return;
-      }
-
-      let matchingSets = 0;
-      tiles.forEach(tile => {
-        const setTitle = tile.querySelector(".set-tile-title")?.innerText.toLowerCase() || "";
-        if (setTitle.includes(query)) {
-          tile.style.display = "";
-          matchingSets++;
-        } else {
-          tile.style.display = "none";
-        }
-      });
-
-      if (matchingSets > 0) {
-        card.style.display = "block";
-        card.classList.add("open");
-        if (body) body.style.display = "block";
-      } else {
-        card.style.display = "none";
-      }
-    });
+    filterAccordionCards(e.target.value.trim().toLowerCase());
   });
 
   // Dedicated Exam Controls
@@ -526,9 +532,9 @@ function setupAppEvents() {
 // ==========================================================================
 async function mountDashboard() {
   const cName = document.getElementById("dashCandidateName");
-  if (cName) cName.innerText = currentCandidate.full_name || "Candidate";
+  if (cName) cName.innerText = currentCandidate?.full_name || "Candidate";
   const rollEl = document.getElementById("dashCandidateRoll");
-  if (rollEl) rollEl.innerText = "ROLL: " + (currentCandidate.roll_number || "---");
+  if (rollEl) rollEl.innerText = "ROLL: " + (currentCandidate?.roll_number || "---");
   
   // Return to Stage 1 Hub by default
   const hubStage = document.getElementById("subjectHubStage");
@@ -653,6 +659,31 @@ function renderSubjectHubGrid() {
   });
 }
 
+// Morphing Search Controller (WhatsApp / Spotify Pattern)
+window.toggleMastheadSearch = function(isOpen) {
+  const defaultBar = document.getElementById("mastheadDefaultBar");
+  const searchBar = document.getElementById("mastheadSearchBar");
+  const searchInput = document.getElementById("topicSearchInput");
+
+  if (isOpen) {
+    if (defaultBar) defaultBar.style.display = "none";
+    if (searchBar) {
+      searchBar.style.display = "flex";
+      if (searchInput) {
+        searchInput.value = "";
+        searchInput.focus();
+      }
+    }
+  } else {
+    if (searchBar) searchBar.style.display = "none";
+    if (defaultBar) defaultBar.style.display = "flex";
+    if (searchInput) {
+      searchInput.value = "";
+      filterAccordionCards("");
+    }
+  }
+};
+
 // Stage Switchers: Hub ➔ Sets Explorer
 window.drillDownToSubject = function(subjectName) {
   activeSubject = subjectName;
@@ -660,8 +691,8 @@ window.drillDownToSubject = function(subjectName) {
   const hubStage = document.getElementById("subjectHubStage");
   const explorerStage = document.getElementById("setsExplorerStage");
   const titleEl = document.getElementById("explorerSubjectTitle");
+  const statsEl = document.getElementById("explorerSubjectStats");
   const hiddenTitleEl = document.getElementById("activeSubjectTitle");
-  const statsBadge = document.getElementById("explorerSubjectStats");
 
   const subjectSets = catalogData.filter(r => (r.subject || "General Studies") === subjectName);
   let masteredCount = 0;
@@ -675,8 +706,11 @@ window.drillDownToSubject = function(subjectName) {
   });
 
   if (titleEl) titleEl.innerText = subjectName;
+  if (statsEl) statsEl.innerText = `${subjectSets.length} Sets • ${masteredCount} Mastered`;
   if (hiddenTitleEl) hiddenTitleEl.innerText = subjectName;
-  if (statsBadge) statsBadge.innerText = `${subjectSets.length} Sets • ${masteredCount} Mastered`;
+
+  // Reset expandable search to default state
+  toggleMastheadSearch(false);
 
   if (hubStage) hubStage.style.display = "none";
   if (explorerStage) explorerStage.style.display = "block";
@@ -694,58 +728,51 @@ window.returnToSubjectHub = function() {
   const hubStage = document.getElementById("subjectHubStage");
   const explorerStage = document.getElementById("setsExplorerStage");
 
+  // Reset search bar when returning
+  toggleMastheadSearch(false);
+
   if (explorerStage) explorerStage.style.display = "none";
   if (hubStage) hubStage.style.display = "block";
 
   renderSubjectHubGrid();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 };
-
-// Compact Single-Line Quick Action Banner
-function renderHeroBanner() {
-  const heroContainer = document.getElementById("heroResumeContainer");
-  if (!heroContainer) return;
-
-  const subjectSets = catalogData.filter(r => (r.subject || "General Studies") === activeSubject);
-  if (subjectSets.length === 0) {
-    heroContainer.style.display = "none";
-    return;
-  }
-
-  let targetSet = subjectSets.find(s => !userAttemptHistory.some(a => String(a.test_id) === String(s.test_id)));
-  
-  if (!targetSet) {
-    targetSet = subjectSets.find(s => {
-      const attempts = userAttemptHistory.filter(a => String(a.test_id) === String(s.test_id));
-      let bestScore = Math.max(...attempts.map(a => parseFloat(a.score)));
-      let maxMarks = (s.total_questions || 10) * 2;
-      return (bestScore / maxMarks) * 100 < 70;
-    });
-  }
-
-  if (targetSet) {
-    heroContainer.style.display = "block";
-    heroContainer.innerHTML = `
-      <div class="hero-compact-strip">
-        <div class="hero-text">
-          <span style="font-size: 10px; font-weight:800; background:rgba(255,255,255,0.2); padding:2px 6px; border-radius:3px; margin-right:6px;">NEXT</span>
-          ${targetSet.topic ? targetSet.topic + ' - ' : ''}${targetSet.test_title} (${targetSet.total_questions} Qs)
-        </div>
-        <button class="hero-action-btn" onclick="launchAssessment(${targetSet.test_id})">Start ➔</button>
-      </div>
-    `;
-  } else {
-    heroContainer.style.display = "none";
-  }
-}
 
 function renderTopicSets() {
   const container = document.getElementById("topicsContainer");
   if (!container) return;
   container.innerHTML = "";
 
-  renderHeroBanner();
-
   const filtered = catalogData.filter(r => (r.subject || "General Studies") === activeSubject);
+
+  // Dynamic filter count calculations for segmented tabs
+  let totalSubjectSets = filtered.length;
+  let unattemptedCount = 0;
+  let reviseCount = 0;
+  let masteredCount = 0;
+
+  filtered.forEach(setItem => {
+    const attempts = userAttemptHistory.filter(a => String(a.test_id) === String(setItem.test_id));
+    if (attempts.length === 0) {
+      unattemptedCount++;
+    } else {
+      let bestScore = Math.max(...attempts.map(a => parseFloat(a.score)));
+      let maxMarks = (setItem.total_questions || 10) * 2;
+      let pct = (bestScore / maxMarks) * 100;
+      if (pct >= 70) masteredCount++;
+      else reviseCount++;
+    }
+  });
+
+  document.querySelectorAll('.filter-chip-btn').forEach(btn => {
+    const f = btn.getAttribute('data-filter');
+    if (f === 'all') btn.innerText = `All (${totalSubjectSets})`;
+    else if (f === 'unattempted') btn.innerText = `⚡ Unattempted (${unattemptedCount})`;
+    else if (f === 'revise') btn.innerText = `🔄 Revise (${reviseCount})`;
+    else if (f === 'mastered') btn.innerText = `🏆 Mastered (${masteredCount})`;
+  });
+
+  // Group by Topics / Subtopics
   const grouped = {};
   filtered.forEach(item => {
     const key = item.topic || "Core Practice";
@@ -754,7 +781,7 @@ function renderTopicSets() {
   });
 
   Object.entries(grouped).forEach(([topicName, sets]) => {
-    let masteredCount = 0;
+    let topicMastered = 0;
     const processedSets = [];
 
     sets.forEach(setItem => {
@@ -766,7 +793,7 @@ function renderTopicSets() {
 
       let status = 'unattempted';
       if (isAttempted) {
-        if (pct >= 70) { status = 'mastered'; masteredCount++; }
+        if (pct >= 70) { status = 'mastered'; topicMastered++; }
         else { status = 'revise'; }
       }
 
@@ -777,7 +804,7 @@ function renderTopicSets() {
 
     if (processedSets.length === 0 && currentFilter !== 'all') return;
 
-    let progressPct = sets.length > 0 ? (masteredCount / sets.length) * 100 : 0;
+    let progressPct = sets.length > 0 ? (topicMastered / sets.length) * 100 : 0;
 
     const groupCard = document.createElement("div");
     groupCard.className = "topic-accordion-card";
@@ -790,7 +817,7 @@ function renderTopicSets() {
         <span class="topic-title">${topicName}</span>
       </div>
       <div class="header-right">
-        <span class="subtopic-tag">${masteredCount}/${sets.length} Mastered</span>
+        <span class="subtopic-tag">${topicMastered}/${sets.length} Mastered</span>
         <svg class="toggle-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="6 9 12 15 18 9"></polyline>
         </svg>
@@ -806,10 +833,10 @@ function renderTopicSets() {
     const setsGrid = document.createElement("div");
     setsGrid.className = "sets-card-grid";
 
-    const iconTarget = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="2"></circle></svg>`;
-    const iconRetake = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>`;
-    const clockSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>`;
-    const docSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>`;
+    const iconTarget = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="2"></circle></svg>`;
+    const iconRetake = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>`;
+    const clockSvg = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>`;
+    const docSvg = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>`;
 
     processedSets.forEach(({ setItem, status, bestScore, maxMarks, pct, attemptsCount }) => {
       const tile = document.createElement("div");
@@ -818,23 +845,24 @@ function renderTopicSets() {
       let badgeClass = 'status-new';
       let badgeText = 'NEW';
       let examIcon = iconTarget;
-      let examText = 'Official Exam';
+      let examText = 'Exam';
       let historyHtml = `<span style="color:#64748b;">Not attempted yet</span>`;
 
       if (status === 'mastered') {
         badgeClass = 'status-mastered';
         badgeText = `MASTERED ${bestScore}/${maxMarks}`;
         examIcon = iconRetake;
-        examText = 'Retake Exam';
+        examText = 'Retake';
         historyHtml = `<span style="color:#16a34a;">★ Best Score: ${bestScore} (${Math.round(pct)}%) | Att: ${attemptsCount}</span>`;
       } else if (status === 'revise') {
         badgeClass = 'status-progress';
         badgeText = `IN PROGRESS`;
         examIcon = iconRetake;
-        examText = 'Retake Exam';
+        examText = 'Retake';
         historyHtml = `<span style="color:#d97706;">Needs Review: ${bestScore}/${maxMarks} | Att: ${attemptsCount}</span>`;
       }
 
+      // Single-Row Action Strip with Exact Preferred SVG Icons
       tile.innerHTML = `
         <div class="set-tile-header">
           <div class="set-tile-title">${setItem.test_title}</div>
@@ -849,12 +877,18 @@ function renderTopicSets() {
         </div>
         <div class="set-action-footer">
           <button class="btn-launch-set" onclick="launchAssessment(${setItem.test_id})">
-            ${examIcon} ${examText}
+            ${examIcon} <span>${examText}</span>
           </button>
           <div class="secondary-modes-strip">
-            <button class="btn-mode-icon" title="Read Mode" onclick="launchPracticeMode(${setItem.test_id}, 'read')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg> Read</button>
-            <button class="btn-mode-icon" title="Flashcards" onclick="launchPracticeMode(${setItem.test_id}, 'flashcard')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="14" height="14" rx="2" ry="2"></rect><path d="M21 7v12a2 2 0 0 1-2 2H7"></path></svg> Cards</button>
-            <button class="btn-mode-icon" title="Instant Quiz" onclick="launchPracticeMode(${setItem.test_id}, 'quiz')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg> Quiz</button>
+            <button class="btn-mode-icon" title="Read Mode" onclick="launchPracticeMode(${setItem.test_id}, 'read')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
+            </button>
+            <button class="btn-mode-icon" title="Flashcards" onclick="launchPracticeMode(${setItem.test_id}, 'flashcard')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="14" height="14" rx="2" ry="2"></rect><path d="M21 7v12a2 2 0 0 1-2 2H7"></path></svg>
+            </button>
+            <button class="btn-mode-icon" title="Instant Quiz" onclick="launchPracticeMode(${setItem.test_id}, 'quiz')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+            </button>
           </div>
         </div>
       `;
@@ -870,7 +904,7 @@ function renderTopicSets() {
     header.addEventListener("click", () => {
       const isOpen = groupCard.classList.contains("open");
 
-      // Close all open accordions first
+      // Close all other accordions first
       container.querySelectorAll(".topic-accordion-card").forEach(c => {
         if (c !== groupCard) {
           c.classList.remove("open");

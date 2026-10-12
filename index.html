@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Study Hub - Industrial Assessment Portal</title>
-  <link rel="stylesheet" href="style.css?v=2.2">
+  <link rel="stylesheet" href="style.css?v=2.4">
   <link rel="manifest" href="./manifest.json" crossorigin="use-credentials">
   <meta name="theme-color" content="#080c14">
   <meta name="mobile-web-app-capable" content="yes">
@@ -209,44 +209,61 @@
 
     <!-- STAGE 2: TOPIC SETS EXPLORER VIEW (ON SUBJECT CLICK) -->
     <main id="setsExplorerStage" class="catalog-viewport" style="display: none;">
-      <!-- Elegant Breadcrumb Navigation Bar -->
-      <div class="explorer-breadcrumb-bar">
-        <button class="btn-breadcrumb-back" onclick="returnToSubjectHub()" title="Back to All Subjects">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="19" y1="12" x2="5" y2="12"></line>
-            <polyline points="12 19 5 12 12 5"></polyline>
-          </svg>
-          <span>All Subjects</span>
-        </button>
-        <span class="breadcrumb-chevron">›</span>
-        <div class="breadcrumb-active-node">
-          <span class="breadcrumb-subject-text" id="explorerSubjectTitle">Subject</span>
-          <span class="breadcrumb-count-badge" id="explorerSubjectStats">Loading sets...</span>
+      <!-- Expandable / Morphing Subject Masthead (WhatsApp / Spotify Pattern) -->
+      <div class="explorer-masthead" id="explorerMasthead">
+        <!-- Default State: Ghost Back + 2-Line Title/Stats + Ghost Search Icon -->
+        <div class="masthead-default-bar" id="mastheadDefaultBar">
+          <button class="btn-masthead-back" onclick="returnToSubjectHub()" title="Back to All Subjects">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="19" y1="12" x2="5" y2="12"></line>
+              <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+          </button>
+          <div class="masthead-title-stack">
+            <h2 class="masthead-subject-title" id="explorerSubjectTitle">Subject</h2>
+            <span class="masthead-subject-subtitle" id="explorerSubjectStats">Loading sets...</span>
+          </div>
+          <button type="button" class="btn-masthead-search" id="btnOpenSearch" onclick="toggleMastheadSearch(true)" title="Search Topics & Sets">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+          </button>
         </div>
-        <span id="activeSubjectTitle" style="display: none;"></span>
+
+        <!-- Active Search State: Full-Width Morphing Search Bar with Crisp Cross '✕' Icon -->
+        <div class="masthead-search-bar" id="mastheadSearchBar" style="display: none;">
+          <span class="search-bar-icon">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+          </span>
+          <input type="text" id="topicSearchInput" class="masthead-search-input" placeholder="Search sets or topics (e.g. Set 14, Kiran)..." autocomplete="off">
+          <button type="button" class="btn-masthead-close-search" id="btnCloseSearch" onclick="toggleMastheadSearch(false)" title="Close Search">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
       </div>
 
-      <!-- Compact Single-Line Quick Action Banner -->
-      <div id="heroResumeContainer" style="display: none; margin-bottom: 14px;"></div>
+      <span id="activeSubjectTitle" style="display: none;"></span>
 
-      <div class="catalog-header" style="margin-bottom: 14px;">
-        <div class="search-filter-box" style="width: 100%;">
-          <input type="text" id="topicSearchInput" placeholder="🔍 Search Sets or Topics (e.g. Set 14, Article 136)..." style="width: 100%;">
-        </div>
-
-        <!-- Smart Filter Chips Bar -->
-        <div class="catalog-filter-bar" id="catalogFilterChips">
-          <button type="button" class="filter-chip-btn active" data-filter="all">All Sets</button>
-          <button type="button" class="filter-chip-btn" data-filter="unattempted">⚡ Unattempted</button>
-          <button type="button" class="filter-chip-btn" data-filter="revise">🔄 Revise (&lt;70%)</button>
-          <button type="button" class="filter-chip-btn" data-filter="mastered">🏆 Mastered</button>
-        </div>
+      <!-- Slim Micro-Segmented Filter Tabs Bar -->
+      <div class="catalog-filter-bar micro-segmented-bar" id="catalogFilterChips">
+        <button type="button" class="filter-chip-btn segment-tab-btn active" data-filter="all">All Sets</button>
+        <button type="button" class="filter-chip-btn segment-tab-btn" data-filter="unattempted">⚡ Unattempted</button>
+        <button type="button" class="filter-chip-btn segment-tab-btn" data-filter="revise">🔄 Revise (&lt;70%)</button>
+        <button type="button" class="filter-chip-btn segment-tab-btn" data-filter="mastered">🏆 Mastered</button>
       </div>
 
+      <!-- Topics / Subtopics Accordion Stream -->
       <div class="topics-grid" id="topicsContainer"></div>
     </main>
 
-    <!-- 🚀 Daily 10-Min Mix (Floating Action Button) -->
+    <!-- 🚀 Daily 10-Min Mix (Floating Action Button with Solar Flame Radiant Palette) -->
     <button id="btnDailyMix" class="fab-daily-mix" onclick="launchDailyMix()" title="Start Daily 10-Min Mix">
       <span class="fab-icon">🚀</span>
       <span class="fab-label hide-on-mobile">Daily Mix</span>
