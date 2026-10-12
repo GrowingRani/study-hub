@@ -617,7 +617,7 @@ function renderTopicSets() {
 
       const tile = document.createElement("div");
       tile.className = "set-tile";
-      const iconTarget = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>`;
+      const iconTarget = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="2"></circle></svg>`;
       const iconRetake = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>`;
       let examIcon = attemptsForThisSet.length > 0 ? iconRetake : iconTarget;
       let examText = attemptsForThisSet.length > 0 ? 'Retake Exam' : 'Official Exam';
@@ -1096,19 +1096,28 @@ window.fetchStudentAnalytics = async function() {
     let masteredTestIds = new Set();
     let subjectStats = {};
     let recentAccuracy = [];
+    let recentSpeed = [];
 
     if (attempts) {
       attempts.forEach(a => {
-        totalCorrect += (a.total_correct || 0);
-        totalIncorrect += (a.total_incorrect || 0);
-        totalTimeSecs += (a.time_spent_seconds || 0);
+        const correct = a.total_correct || 0;
+        const incorrect = a.total_incorrect || 0;
+        const timeSecs = a.time_spent_seconds || 0;
+        const qCount = correct + incorrect;
 
-        let maxMarks = ((a.total_correct || 0) + (a.total_incorrect || 0)) * 2;
+        totalCorrect += correct;
+        totalIncorrect += incorrect;
+        totalTimeSecs += timeSecs;
+
+        let maxMarks = qCount * 2;
         if (maxMarks === 0) maxMarks = 20;
         let percentage = (a.score / maxMarks) * 100;
         if (percentage >= 70 || a.score >= 14) masteredTestIds.add(a.test_id);
 
         recentAccuracy.push(percentage > 0 ? percentage : 0);
+        if (qCount > 0) {
+          recentSpeed.push(Math.round(timeSecs / qCount));
+        }
 
         let cat = catalogData.find(c => String(c.test_id) === String(a.test_id));
         let subj = cat ? cat.subject : "General";
@@ -1144,7 +1153,7 @@ window.fetchStudentAnalytics = async function() {
       });
     }
 
-    const sortedDates = Object.keys(attendanceMap).sort((a, b) => new Date(b) - new Date(a));
+    const sortedDates = Object.keys(attendanceMap).sort((a, b) => new Date(a) - new Date(b));
     let streak = 0, dDate = new Date(todayStr);
     for (let i = 0; i < 30; i++) {
       let s = dDate.toISOString().split("T")[0];
@@ -1167,10 +1176,10 @@ window.fetchStudentAnalytics = async function() {
     const eSpeed = document.getElementById("statSpeed");
     if (eSpeed) eSpeed.innerText = avgSpeed + "s";
 
-    // Sparkline Trends
+    // Dynamic Sparkline Trends
     drawSparkline("sparkAccuracy", recentAccuracy.slice(-10), "#38bdf8");
-    drawSparkline("sparkStreak", sortedDates.slice(0, 10).map(d => attendanceMap[d] || 0), "#f59e0b");
-    drawSparkline("sparkSpeed", recentAccuracy.slice(-10).map(() => avgSpeed), "#10b981");
+    drawSparkline("sparkStreak", sortedDates.slice(-10).map(d => attendanceMap[d] || 0), "#f59e0b");
+    drawSparkline("sparkSpeed", recentSpeed.length > 0 ? recentSpeed.slice(-10) : [avgSpeed], "#10b981");
 
     // Achievement Cards
     const extraSummaryEl = document.getElementById("extraAnalyticsSummary");

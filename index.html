@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Assessment Engine - Industrial Assessment Portal</title>
   <link rel="stylesheet" href="style.css">
-  <!-- <link rel="manifest" href="./manifest.json"> -->
   <link rel="manifest" href="./manifest.json" crossorigin="use-credentials">
   <meta name="theme-color" content="#0f172a">
   <meta name="mobile-web-app-capable" content="yes">
@@ -203,36 +202,35 @@
     <!-- Clean Responsive Viewport Container -->
     <main class="catalog-viewport analytics-viewport">
       <!-- Key Metrics Banner with Sparklines -->
-      <!-- Sahi clean structure: -->
-<div class="analytics-banner">
-  <div class="stat-card">
-    <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-      <div>
-        <div class="stat-value" id="statAccuracy">0.0%</div>
-        <div class="stat-label">Overall Accuracy</div>
+      <div class="analytics-banner">
+        <div class="stat-card">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+            <div>
+              <div class="stat-value" id="statAccuracy">0.0%</div>
+              <div class="stat-label">Overall Accuracy</div>
+            </div>
+            <div id="sparkAccuracy" style="width:60px; height:30px;"></div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+            <div>
+              <div class="stat-value" id="statStreak">0 🔥</div>
+              <div class="stat-label">Day Streak</div>
+            </div>
+            <div id="sparkStreak" style="width:60px; height:30px;"></div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+            <div>
+              <div class="stat-value" id="statSpeed">0s</div>
+              <div class="stat-label">Avg Time / Question</div>
+            </div>
+            <div id="sparkSpeed" style="width:60px; height:30px;"></div>
+          </div>
+        </div>
       </div>
-      <div id="sparkAccuracy" style="width:60px; height:30px;"></div>
-    </div>
-  </div>
-  <div class="stat-card">
-    <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-      <div>
-        <div class="stat-value" id="statStreak">0 🔥</div>
-        <div class="stat-label">Day Streak</div>
-      </div>
-      <div id="sparkStreak" style="width:60px; height:30px;"></div>
-    </div>
-  </div>
-  <div class="stat-card">
-    <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-      <div>
-        <div class="stat-value" id="statSpeed">0s</div>
-        <div class="stat-label">Avg Time / Question</div>
-      </div>
-      <div id="sparkSpeed" style="width:60px; height:30px;"></div>
-    </div>
-  </div>
-</div>
 
       <!-- Extra Analytics Cards Grid (Dynamic JS Container) -->
       <div id="extraAnalyticsSummary" class="extra-summary-grid"></div>
@@ -247,20 +245,20 @@
           </div>
         </div>
 
-        <!-- Insights & Syllabus Completion -->
+        <!-- Insights & Syllabus Completion (Mobile 360px Scaled) -->
         <div class="profile-section-card" style="padding: 20px; display: flex; flex-direction: column; gap: 12px;">
           <h3 class="section-title" style="margin-bottom: 5px; border-bottom: none;">Actionable Insights</h3>
           <div id="insightStrong" class="insight-box" style="padding: 12px; border-left: 4px solid #22c55e; border-radius: 4px; font-size: 13px;"></div>
           <div id="insightWeak" class="insight-box" style="padding: 12px; border-left: 4px solid #ef4444; border-radius: 4px; font-size: 13px;"></div>
-          <div style="margin-top: 10px; display: flex; justify-content: space-between; align-items: center;">
+          <div style="margin-top: 14px; display: flex; justify-content: space-between; align-items: center; gap: 12px; width: 100%; min-width: 0;">
             <div class="progress-ring-container">
-              <svg class="progress-ring" width="160" height="160">
-                <circle class="progress-ring__circle-bg" stroke-width="12" fill="transparent" r="70" cx="80" cy="80"/>
-                <circle class="progress-ring__circle" id="syllabusProgressCircle" stroke-width="12" fill="transparent" r="70" cx="80" cy="80"/>
+              <svg class="progress-ring" width="80" height="80" viewBox="0 0 160 160">
+                <circle class="progress-ring__circle-bg" stroke-width="14" fill="transparent" r="70" cx="80" cy="80"/>
+                <circle class="progress-ring__circle" id="syllabusProgressCircle" stroke-width="14" fill="transparent" r="70" cx="80" cy="80"/>
               </svg>
               <div class="progress-ring-text"><span id="syllabusPercentTxt">0%</span></div>
             </div>
-            <span style="font-size: 11px; font-weight: bold; color: #64748b; text-transform: uppercase;">Syllabus >70% Completion</span>
+            <span style="font-size: 11px; font-weight: bold; color: #64748b; text-transform: uppercase; flex: 1; text-align: right; line-height: 1.4;">Syllabus >70% Completion</span>
           </div>
         </div>
 
