@@ -42,7 +42,7 @@ body.portal-body {
 }
 
 /* ==========================================================================
-   2. SHARED COMPONENT PRIMITIVES & UI BADGES
+   2. SHARED COMPONENT PRIMITIVES, HEADERS & UI BADGES
    ========================================================================== */
 .glass-header { 
   background: rgba(255, 255, 255, 0.85) !important; 
@@ -483,7 +483,10 @@ body.portal-body {
   gap: 14px; 
 }
 
+/* Card Stacking & Touch Highlight Clean Architecture */
 .set-tile { 
+  position: relative;
+  z-index: 1;
   background: #ffffff; 
   border: 1px solid #cbd5e1; 
   padding: 14px; 
@@ -492,6 +495,9 @@ body.portal-body {
   justify-content: space-between; 
   border-left: 4px solid var(--tcs-blue-accent); 
   border-radius: 4px; 
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  transition: all 0.25s ease-in-out;
 }
 
 .set-tile-title { 
@@ -561,6 +567,14 @@ body.portal-body {
   height: 52px; 
 }
 
+.exam-meta {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--tcs-blue-header);
+  display: flex;
+  align-items: center;
+}
+
 .tcs-sub-bar { 
   background-color: #0f172a; 
   color: #ffffff; 
@@ -625,12 +639,10 @@ body.portal-body {
   gap: 12px; 
 }
 
-/* ==========================================================================
-   OPTION ROW RADIO BUTTON VERTICAL CENTERING FIX
-   ========================================================================== */
+/* Radio Button Vertical Centering & Geometry Alignment */
 .option-row { 
   display: flex !important; 
-  align-items: center !important; /* flex-start ki jagah center */
+  align-items: center !important; 
   gap: 12px; 
   padding: 12px 14px; 
   border: 1px solid var(--border-color); 
@@ -639,13 +651,12 @@ body.portal-body {
   transition: all 0.15s ease;
 }
 
-/* Radio button dot ko height ke exact center mein align karein */
 .option-row input[type="radio"] {
-  margin: 0 !important; /* Browser ka extra margin hatane ke liye */
+  margin: 0 !important; 
   cursor: pointer;
   width: 17px;
   height: 17px;
-  flex-shrink: 0; /* Text lamba hone par dot shrink nahi hoga */
+  flex-shrink: 0; 
   accent-color: var(--tcs-blue-accent);
 }
 
@@ -981,6 +992,10 @@ body.portal-body {
   color: #1e293b;
 }
 
+body.dark-theme .sol-content {
+  color: #f1f5f9 !important;
+}
+
 .sol-option { 
   padding: 12px 16px; 
   border: 1px solid #cbd5e1; 
@@ -1025,35 +1040,62 @@ body.portal-body {
 /* ==========================================================================
    9. PERFORMANCE ANALYTICS & ATTENDANCE HEATMAP
    ========================================================================== */
+.analytics-viewport {
+  max-width: 1000px;
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 24px 20px;
+}
+
+/* Responsive Auto-fit Grid to prevent card truncating */
 .analytics-banner { 
-  display: flex; 
-  gap: 16px; 
-  margin-bottom: 24px; 
+  display: grid !important; 
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)) !important; 
+  gap: 14px !important; 
+  margin-bottom: 24px !important; 
+  width: 100% !important;
+  box-sizing: border-box !important;
 }
 
 .stat-card { 
-  flex: 1; 
   background: #ffffff; 
   border: 1px solid var(--border-color); 
   border-left: 4px solid var(--tcs-blue-header); 
-  padding: 16px 20px; 
-  border-radius: 2px; 
+  padding: 14px 16px !important; 
+  border-radius: 4px; 
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03); 
+  min-width: 0 !important;
+  box-sizing: border-box !important;
 }
 
 .stat-card .stat-value { 
-  font-size: 26px; 
+  font-size: 24px !important; 
   font-weight: 800; 
   color: #0f172a; 
   margin-bottom: 4px; 
   font-family: var(--font-mono); 
+  line-height: 1.1;
 }
 
 .stat-card .stat-label { 
-  font-size: 11px; 
+  font-size: 11px !important; 
   font-weight: 700; 
   color: #64748b; 
   text-transform: uppercase; 
+  line-height: 1.3 !important;
+  white-space: normal !important;
+  word-break: normal !important;
+}
+
+.extra-summary-grid,
+.advanced-analytics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .profile-section-card { 
@@ -1072,12 +1114,22 @@ body.portal-body {
   padding-bottom: 10px; 
 }
 
-/* Progress Ring */
+/* Progress Ring Component (Locked Geometry) */
 .progress-ring-container { 
-  position: relative; 
-  display: inline-flex; 
-  align-items: center; 
-  justify-content: center; 
+  width: 90px !important;
+  height: 90px !important;
+  position: relative !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-shrink: 0 !important;
+  margin: 0 !important;
+}
+
+.progress-ring-container .progress-ring {
+  position: absolute !important;
+  transform: scale(0.56) !important;
+  transform-origin: center center !important;
 }
 
 .progress-ring__circle-bg { 
@@ -1288,7 +1340,6 @@ body.dark-theme .topic-accordion-body {
 
 body.dark-theme .login-industrial-card, 
 body.dark-theme .topic-accordion-card, 
-body.dark-theme .set-tile, 
 body.dark-theme .profile-section-card, 
 body.dark-theme .solution-card {
   background: #0f172a; 
@@ -1297,7 +1348,20 @@ body.dark-theme .solution-card {
   transition: all 0.25s ease-in-out;
 }
 
-body.dark-theme .set-tile:hover, 
+/* Card 360-Degree Glowing Hover State */
+body.dark-theme .set-tile {
+  background: #0f172a; 
+  border: 1px solid #1e293b; 
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5), 0 0 10px var(--neon-glow); 
+}
+
+body.dark-theme .set-tile:hover,
+body.dark-theme .set-tile:active {
+  border-color: #38bdf8 !important;
+  box-shadow: 0 0 20px rgba(56, 189, 248, 0.45) !important;
+  z-index: 10 !important;
+}
+
 body.dark-theme .solution-card:hover { 
   border-color: #38bdf8; 
   box-shadow: 0 0 18px rgba(56, 189, 248, 0.4); 
@@ -1416,6 +1480,17 @@ body.dark-theme .toggle-icon {
 }
 
 body.dark-theme .topic-accordion-card.open .toggle-icon {
+  color: #38bdf8 !important;
+}
+
+/* Exam Console Dark Mode Breadcrumbs */
+body.dark-theme .exam-meta {
+  color: #cbd5e1 !important;
+}
+body.dark-theme #subjectLabelBreadcrumb {
+  color: #94a3b8 !important;
+}
+body.dark-theme #examTitle {
   color: #38bdf8 !important;
 }
 
@@ -1566,7 +1641,7 @@ body.dark-theme .drawer-header h3 { color: #f8fafc; }
 body.dark-theme .drawer-input { background: #0b1120; border-color: #334155; color: #f8fafc; }
 
 /* ==========================================================================
-   12. MOBILE RESPONSIVENESS & BOTTOM NAVIGATION
+   12. MOBILE RESPONSIVENESS & BOTTOM NAVIGATION (<= 768px)
    ========================================================================== */
 .mobile-bottom-nav { display: none; }
 
@@ -1672,31 +1747,42 @@ body.dark-theme .drawer-input { background: #0b1120; border-color: #334155; colo
     flex-direction: column; 
   }
   .tcs-side-panel.open { transform: translateY(0); }
-  .analytics-banner { flex-direction: column !important; gap: 10px; }
-  .stat-card { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-left: none; border-left: 4px solid var(--tcs-blue-header); }
-  
-  .advanced-analytics-grid { grid-template-columns: 1fr !important; }
-}
 
-/* ==========================================================================
-   EXAM CONSOLE HEADER BREADCRUMB DARK MODE FIX
-   ========================================================================== */
-.exam-meta {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--tcs-blue-header);
-  display: flex;
-  align-items: center;
-}
+  /* Analytics Viewport Mobile Horizontal Overflow Elimination */
+  #viewAnalytics .analytics-viewport {
+    padding: 14px 12px 75px 12px !important;
+    width: 100% !important;
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
+  }
 
-body.dark-theme .exam-meta {
-  color: #cbd5e1 !important;
-}
+  .analytics-banner {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+    width: 100% !important;
+  }
 
-body.dark-theme #subjectLabelBreadcrumb {
-  color: #94a3b8 !important;
-}
+  .extra-summary-grid,
+  .advanced-analytics-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+    width: 100% !important;
+  }
 
-body.dark-theme #examTitle {
-  color: #38bdf8 !important; /* High-contrast neon cyan for test title */
+  .profile-section-card,
+  .stat-card {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    padding: 14px 14px !important;
+  }
+
+  .heatmap-grid {
+    gap: 3px !important;
+    width: 100% !important;
+  }
+
+  .heatmap-cell {
+    width: 100% !important;
+  }
 }
