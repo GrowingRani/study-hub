@@ -845,7 +845,7 @@ body.portal-body {
 .palette-btn.answered { 
   background-color: var(--c-answered) !important; 
   color: #ffffff !important; 
-  clip-path: polygon(50% 0%, 100% 25%, 100% 100%, 0 100%, 0 25%) !important; 
+  clip-path: polygon(50% 0%, 100% 25%, 100% 100%, 0 100%, 0 25%); 
   border-radius: 0 !important;
   border: none !important;
 }
@@ -1775,13 +1775,23 @@ body.dark-theme .drawer-input { background: #0b1120; border-color: #334155; colo
     box-sizing: border-box !important;
   }
 
-  .extra-summary-grid,
+  .extra-summary-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Advanced Analytics (Radar, Insights, Heatmap) Hard Flex-Column Lock */
   .advanced-analytics-grid {
     display: flex !important;
     flex-direction: column !important;
     gap: 12px !important;
     width: 100% !important;
     max-width: 100% !important;
+    min-width: 0 !important;
     box-sizing: border-box !important;
   }
 
@@ -1791,7 +1801,16 @@ body.dark-theme .drawer-input { background: #0b1120; border-color: #334155; colo
     max-width: 100% !important;
     min-width: 0 !important;
     box-sizing: border-box !important;
-    padding: 14px 14px !important;
+    padding: 14px 12px !important;
+    overflow: hidden !important;
+  }
+
+  /* Radar Chart Canvas Size Constraint */
+  .profile-section-card canvas#subjectRadarChart {
+    max-width: 100% !important;
+    width: 100% !important;
+    height: auto !important;
+    display: block !important;
   }
 
   /* Progress Ring Mobile Geometry Lock */
@@ -1818,10 +1837,10 @@ body.dark-theme .drawer-input { background: #0b1120; border-color: #334155; colo
     font-size: 18px !important;
   }
 
-  /* Heatmap Mobile 15-Column Fit */
+  /* Heatmap Mobile 15-Column Scale Lock */
   .heatmap-grid {
     display: grid !important;
-    grid-template-columns: repeat(15, 1fr) !important;
+    grid-template-columns: repeat(15, minmax(0, 1fr)) !important;
     gap: 3px !important;
     width: 100% !important;
     max-width: 100% !important;
