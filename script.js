@@ -524,38 +524,11 @@ function setupAppEvents() {
 // ==========================================================================
 // 6. DASHBOARD & SUBJECT COMMAND HUB (2-STAGE ARCHITECTURE)
 // ==========================================================================
-function updateDynamicGreeting(name) {
-  const greetingEl = document.getElementById("dynamicGreeting");
-  const subEl = document.getElementById("dynamicGreetingSub");
-  if (!greetingEl || !subEl) return;
-
-  const hour = new Date().getHours();
-  let greeting = "Good Morning";
-  let subText = "Let's crack your goals today! 🚀";
-
-  if (hour >= 12 && hour < 17) {
-    greeting = "Good Afternoon";
-    subText = "Keep up the momentum! 🎯";
-  } else if (hour >= 17 && hour < 22) {
-    greeting = "Good Evening";
-    subText = "Perfect time for a quick revision! 📚";
-  } else if (hour >= 22 || hour < 4) {
-    greeting = "Late Night Hustle";
-    subText = "Great effort! Stay focused. 🌙";
-  }
-
-  const firstName = (name || "Candidate").split(" ")[0];
-  greetingEl.innerText = `${greeting}, ${firstName}!`;
-  subEl.innerText = subText;
-}
-
 async function mountDashboard() {
   const cName = document.getElementById("dashCandidateName");
   if (cName) cName.innerText = currentCandidate.full_name || "Candidate";
   const rollEl = document.getElementById("dashCandidateRoll");
   if (rollEl) rollEl.innerText = "ROLL: " + (currentCandidate.roll_number || "---");
-  
-  updateDynamicGreeting(currentCandidate.full_name);
   
   // Return to Stage 1 Hub by default
   const hubStage = document.getElementById("subjectHubStage");
@@ -688,9 +661,23 @@ window.drillDownToSubject = function(subjectName) {
   const explorerStage = document.getElementById("setsExplorerStage");
   const titleEl = document.getElementById("explorerSubjectTitle");
   const hiddenTitleEl = document.getElementById("activeSubjectTitle");
+  const statsBadge = document.getElementById("explorerSubjectStats");
+
+  const subjectSets = catalogData.filter(r => (r.subject || "General Studies") === subjectName);
+  let masteredCount = 0;
+  subjectSets.forEach(s => {
+    const attempts = userAttemptHistory.filter(a => String(a.test_id) === String(s.test_id));
+    if (attempts.length > 0) {
+      let bestScore = Math.max(...attempts.map(a => parseFloat(a.score)));
+      let maxMarks = (s.total_questions || 10) * 2;
+      if ((bestScore / maxMarks) * 100 >= 70) masteredCount++;
+    }
+  });
 
   if (titleEl) titleEl.innerText = subjectName;
   if (hiddenTitleEl) hiddenTitleEl.innerText = subjectName;
+  if (statsBadge) statsBadge.innerText = `${subjectSets.length} Sets • ${masteredCount} Mastered`;
+
   if (hubStage) hubStage.style.display = "none";
   if (explorerStage) explorerStage.style.display = "block";
 
@@ -794,7 +781,6 @@ function renderTopicSets() {
 
     const groupCard = document.createElement("div");
     groupCard.className = "topic-accordion-card";
-    if (currentFilter !== 'all') groupCard.classList.add("open");
 
     const header = document.createElement("div");
     header.className = "topic-accordion-header";
@@ -804,7 +790,7 @@ function renderTopicSets() {
         <span class="topic-title">${topicName}</span>
       </div>
       <div class="header-right">
-        <span class="subtopic-tag" style="background:transparent; border:none; color:#64748b !important;">${masteredCount}/${sets.length} Mastered</span>
+        <span class="subtopic-tag">${masteredCount}/${sets.length} Mastered</span>
         <svg class="toggle-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="6 9 12 15 18 9"></polyline>
         </svg>
@@ -816,7 +802,6 @@ function renderTopicSets() {
 
     const body = document.createElement("div");
     body.className = "topic-accordion-body";
-    if (currentFilter !== 'all') body.style.display = "block";
 
     const setsGrid = document.createElement("div");
     setsGrid.className = "sets-card-grid";
@@ -881,8 +866,20 @@ function renderTopicSets() {
     groupCard.appendChild(body);
     container.appendChild(groupCard);
 
+    // Single-Open Exclusive Accordion Logic
     header.addEventListener("click", () => {
       const isOpen = groupCard.classList.contains("open");
+
+      // Close all open accordions first
+      container.querySelectorAll(".topic-accordion-card").forEach(c => {
+        if (c !== groupCard) {
+          c.classList.remove("open");
+          const b = c.querySelector(".topic-accordion-body");
+          if (b) b.style.display = "none";
+        }
+      });
+
+      // Toggle active accordion
       if (!isOpen) {
         groupCard.classList.add("open");
         body.style.display = "block";

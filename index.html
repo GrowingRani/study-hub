@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Assessment Engine - Industrial Assessment Portal</title>
-  <link rel="stylesheet" href="style.css?v=2.1">
+  <title>Study Hub - Industrial Assessment Portal</title>
+  <link rel="stylesheet" href="style.css?v=2.2">
   <link rel="manifest" href="./manifest.json" crossorigin="use-credentials">
-  <meta name="theme-color" content="#0f172a">
+  <meta name="theme-color" content="#080c14">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="ExamPortal">
+  <meta name="apple-mobile-web-app-title" content="StudyHub">
   <meta name="robots" content="noindex, nofollow">
   <link rel="icon" type="image/png" href="./icon.png">
   <link rel="apple-touch-icon" href="./icon.png">
@@ -156,13 +156,13 @@
   <section id="viewDashboard" class="view-screen main-app-view" style="display: none; position: relative;">
     <header class="dash-top-bar glass-header">
       <div class="dash-brand">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="brand-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="brand-icon">
           <path d="M22 10v6M2 10l10-5 10 5-10 5z"></path>
           <path d="M6 12v5c3 3 9 3 12 0v-5"></path>
         </svg>
         <div class="brand-titles">
-          <span class="portal-tag" id="dynamicGreeting">STUDY HUB</span>
-          <span class="portal-sub" id="dynamicGreetingSub">Welcome Back</span>
+          <span class="portal-tag">STUDY HUB</span>
+          <span class="portal-sub">Industrial Assessment Console</span>
         </div>
       </div>
 
@@ -203,19 +203,26 @@
         <p class="hub-subtitle">Select a subject domain to explore topics, syllabus completion, and assessments.</p>
       </div>
       <div class="subject-hub-grid" id="subjectHubContainer">
-        <!-- Rendered via renderSubjectHubGrid() in script.js -->
+        <!-- Rendered dynamically via renderSubjectHubGrid() in script.js -->
       </div>
     </main>
 
     <!-- STAGE 2: TOPIC SETS EXPLORER VIEW (ON SUBJECT CLICK) -->
     <main id="setsExplorerStage" class="catalog-viewport" style="display: none;">
-      <!-- Breadcrumb Navigation & Hub Return -->
-      <div class="explorer-nav-strip">
-        <button class="btn-back-hub" onclick="returnToSubjectHub()">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
+      <!-- Elegant Breadcrumb Navigation Bar -->
+      <div class="explorer-breadcrumb-bar">
+        <button class="btn-breadcrumb-back" onclick="returnToSubjectHub()" title="Back to All Subjects">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="19" y1="12" x2="5" y2="12"></line>
+            <polyline points="12 19 5 12 12 5"></polyline>
+          </svg>
           <span>All Subjects</span>
         </button>
-        <div class="active-hub-subject-name" id="explorerSubjectTitle">Subject</div>
+        <span class="breadcrumb-chevron">›</span>
+        <div class="breadcrumb-active-node">
+          <span class="breadcrumb-subject-text" id="explorerSubjectTitle">Subject</span>
+          <span class="breadcrumb-count-badge" id="explorerSubjectStats">Loading sets...</span>
+        </div>
         <span id="activeSubjectTitle" style="display: none;"></span>
       </div>
 
@@ -239,7 +246,7 @@
       <div class="topics-grid" id="topicsContainer"></div>
     </main>
 
-    <!-- 🚀 Daily 10-Min Mix (Floating Action Button: Responsive Position) -->
+    <!-- 🚀 Daily 10-Min Mix (Floating Action Button) -->
     <button id="btnDailyMix" class="fab-daily-mix" onclick="launchDailyMix()" title="Start Daily 10-Min Mix">
       <span class="fab-icon">🚀</span>
       <span class="fab-label hide-on-mobile">Daily Mix</span>
@@ -250,7 +257,7 @@
   <section id="viewAnalytics" class="view-screen main-app-view" style="display: none;">
     <header class="dash-top-bar glass-header">
       <div class="dash-brand">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="brand-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="brand-icon">
           <path d="M22 10v6M2 10l10-5 10 5-10 5z"></path>
           <path d="M6 12v5c3 3 9 3 12 0v-5"></path>
         </svg>
