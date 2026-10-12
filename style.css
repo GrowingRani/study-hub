@@ -490,6 +490,7 @@ body.portal-body {
   gap: 14px; 
 }
 
+/* Card Stacking & Touch Highlight Clean Architecture */
 .set-tile { 
   position: relative;
   z-index: 1;
@@ -645,6 +646,7 @@ body.portal-body {
   gap: 12px; 
 }
 
+/* Radio Button Vertical Centering & Geometry Alignment */
 .option-row { 
   display: flex !important; 
   align-items: center !important; 
@@ -1053,6 +1055,7 @@ body.dark-theme .sol-content {
   padding: 24px 20px;
 }
 
+/* Responsive Auto-fit Grid to prevent card truncating */
 .analytics-banner { 
   display: grid !important; 
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)) !important; 
