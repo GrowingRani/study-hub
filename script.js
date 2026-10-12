@@ -33,6 +33,7 @@ let currentCandidate = null;
 let catalogData = [];
 let activeSubject = null;
 let userAttemptHistory = [];
+let userWeakQuestions = []; // Mistake Bank Storage
 let currentLang = "en";
 let currentFilter = "all";
 
@@ -539,7 +540,7 @@ function setupAppEvents() {
 }
 
 // ==========================================================================
-// 6. DASHBOARD & SUBJECT COMMAND HUB (2-STAGE ARCHITECTURE)
+// 6. DASHBOARD, CATALOG & MISTAKE BANK FETCHING
 // ==========================================================================
 async function mountDashboard() {
   const cName = document.getElementById("dashCandidateName");
@@ -547,18 +548,35 @@ async function mountDashboard() {
   const rollEl = document.getElementById("dashCandidateRoll");
   if (rollEl) rollEl.innerText = "ROLL: " + (currentCandidate?.roll_number || "---");
   
-  // Return to Stage 1 Hub by default
   const hubStage = document.getElementById("subjectHubStage");
   const explorerStage = document.getElementById("setsExplorerStage");
   if (hubStage) hubStage.style.display = "block";
   if (explorerStage) explorerStage.style.display = "none";
 
-  // Pre-fetch analytics silently to populate header gamification stats
   fetchStudentAnalytics(true); 
-
   switchView("viewDashboard");
   updateBottomNav(document.querySelector('.nav-item.active'));
+  
+  await fetchWeakQuestions();
   await fetchTestCatalog();
+}
+
+async function fetchWeakQuestions() {
+  if (!currentCandidate) return;
+  try {
+    const { data, error } = await supabaseClient
+        .from("student_question_stats")
+        .select("*")
+        .eq("student_roll", currentCandidate.roll_number);
+    
+    if (error) {
+        console.error("Supabase Error Fetching Weak Qs:", error);
+        return;
+    }
+    userWeakQuestions = data || [];
+  } catch (err) {
+    console.error("Mistake Bank Load Error:", err);
+  }
 }
 
 async function fetchTestCatalog() {
@@ -606,7 +624,7 @@ function renderSubjectHubGrid() {
         attemptedSetsCount++;
         let bestScore = Math.max(...attempts.map(a => parseFloat(a.score)));
         let maxMarks = (setItem.total_questions || 10) * 2;
-        let pct = (bestScore / maxMarks) * 100;
+        let pct = maxMarks > 0 ? (bestScore / maxMarks) * 100 : 0;
         sumPercentages += pct;
         if (pct >= 100) completedSets++;
       }
@@ -670,7 +688,6 @@ function renderSubjectHubGrid() {
   });
 }
 
-// Morphing Search Controller (WhatsApp / Spotify Pattern)
 window.toggleMastheadSearch = function(isOpen) {
   const defaultBar = document.getElementById("mastheadDefaultBar");
   const searchBar = document.getElementById("mastheadSearchBar");
@@ -695,7 +712,6 @@ window.toggleMastheadSearch = function(isOpen) {
   }
 };
 
-// Stage Switchers: Hub ➔ Sets Explorer
 window.drillDownToSubject = function(subjectName) {
   activeSubject = subjectName;
   
@@ -712,7 +728,7 @@ window.drillDownToSubject = function(subjectName) {
     if (attempts.length > 0) {
       let bestScore = Math.max(...attempts.map(a => parseFloat(a.score)));
       let maxMarks = (s.total_questions || 10) * 2;
-      if ((bestScore / maxMarks) * 100 >= 100) masteredCount++;
+      if (maxMarks > 0 && (bestScore / maxMarks) * 100 >= 100) masteredCount++;
     }
   });
 
@@ -720,7 +736,6 @@ window.drillDownToSubject = function(subjectName) {
   if (statsEl) statsEl.innerText = `${subjectSets.length} Sets • ${masteredCount} Mastered`;
   if (hiddenTitleEl) hiddenTitleEl.innerText = subjectName;
 
-  // Reset expandable search to default state
   toggleMastheadSearch(false);
 
   if (hubStage) hubStage.style.display = "none";
@@ -739,7 +754,6 @@ window.returnToSubjectHub = function() {
   const hubStage = document.getElementById("subjectHubStage");
   const explorerStage = document.getElementById("setsExplorerStage");
 
-  // Reset search bar when returning
   toggleMastheadSearch(false);
 
   if (explorerStage) explorerStage.style.display = "none";
@@ -756,7 +770,6 @@ function renderTopicSets() {
 
   const filtered = catalogData.filter(r => (r.subject || "General Studies") === activeSubject);
 
-  // Dynamic filter count calculations for segmented tabs
   let totalSubjectSets = filtered.length;
   let unattemptedCount = 0;
   let reviseCount = 0;
@@ -769,7 +782,7 @@ function renderTopicSets() {
     } else {
       let bestScore = Math.max(...attempts.map(a => parseFloat(a.score)));
       let maxMarks = (setItem.total_questions || 10) * 2;
-      let pct = (bestScore / maxMarks) * 100;
+      let pct = maxMarks > 0 ? (bestScore / maxMarks) * 100 : 0;
       if (pct >= 100) masteredCount++;
       else reviseCount++;
     }
@@ -783,7 +796,40 @@ function renderTopicSets() {
     else if (f === 'mastered') btn.innerText = `🏆 Mastered (${masteredCount})`;
   });
 
-  // Group by Topics / Subtopics
+  // TARGETED REVISION MISTAKE BANK CARD (Optimized for Mobile & Dark Mode)
+  const weakQs = userWeakQuestions.filter(q => q.subject === activeSubject && q.times_wrong > q.times_correct);
+  if (weakQs.length > 0) {
+      const mbCard = document.createElement("div");
+      mbCard.className = "topic-accordion-card";
+      mbCard.style.cssText = "border: 1px solid rgba(239, 68, 68, 0.2); border-left: 4px solid #ef4444; margin-bottom: 16px; background: rgba(239, 68, 68, 0.03);";
+      mbCard.innerHTML = `
+          <div style="padding: 16px;">
+              <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 14px; gap: 12px;">
+                  <div style="flex: 1; min-width: 0;">
+                      <h4 style="font-size:14.5px; font-weight:800; color:#ef4444; margin:0 0 4px 0; display:flex; align-items:center; gap:6px;">
+                          <span>🧠</span> TARGETED REVISION
+                      </h4>
+                      <p style="font-size:11.5px; color:#64748b; margin:0; font-weight:600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                          ${weakQs.length} questions need attention
+                      </p>
+                  </div>
+                  <span style="background:rgba(239, 68, 68, 0.12); color:#ef4444; padding:4px 8px; border-radius:4px; font-size:9.5px; font-weight:800; white-space:nowrap; flex-shrink:0; border: 1px solid rgba(239, 68, 68, 0.25); letter-spacing: 0.5px;">MISTAKE BANK</span>
+              </div>
+              <div class="secondary-modes-strip" style="display:flex; gap:8px; width: 100%;">
+                  <button class="btn-launch-set" style="flex:1; background:rgba(239, 68, 68, 0.15); color:#ef4444; border:1px solid rgba(239, 68, 68, 0.3); box-shadow:none;" onclick="launchMistakeBank('quiz')">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg> 
+                      <span style="margin-left:4px;">Practice Qs</span>
+                  </button>
+                  <button class="btn-launch-set" style="flex:1; background:transparent; color:#ef4444; border:1px solid rgba(239, 68, 68, 0.3); box-shadow:none;" onclick="launchMistakeBank('flashcard')">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="14" height="14" rx="2" ry="2"></rect><path d="M21 7v12a2 2 0 0 1-2 2H7"></path></svg>
+                      <span style="margin-left:4px;">Flashcards</span>
+                  </button>
+              </div>
+          </div>
+      `;
+      container.appendChild(mbCard);
+  }
+
   const grouped = {};
   filtered.forEach(item => {
     const key = item.topic || "Core Practice";
@@ -800,7 +846,7 @@ function renderTopicSets() {
       let isAttempted = attempts.length > 0;
       let bestScore = isAttempted ? Math.max(...attempts.map(a => parseFloat(a.score))) : 0;
       let maxMarks = (setItem.total_questions || 10) * 2;
-      let pct = isAttempted ? (bestScore / maxMarks) * 100 : 0;
+      let pct = maxMarks > 0 && isAttempted ? (bestScore / maxMarks) * 100 : 0;
 
       let status = 'unattempted';
       if (isAttempted) {
@@ -873,7 +919,6 @@ function renderTopicSets() {
         historyHtml = `<span style="color:#d97706;">Needs Review: ${bestScore}/${maxMarks} | Att: ${attemptsCount}</span>`;
       }
 
-      // Single-Row Action Strip with Exact Preferred SVG Icons
       tile.innerHTML = `
         <div class="set-tile-header">
           <div class="set-tile-title">${setItem.test_title}</div>
@@ -911,11 +956,9 @@ function renderTopicSets() {
     groupCard.appendChild(body);
     container.appendChild(groupCard);
 
-    // Single-Open Exclusive Accordion Logic
     header.addEventListener("click", () => {
       const isOpen = groupCard.classList.contains("open");
 
-      // Close all other accordions first
       container.querySelectorAll(".topic-accordion-card").forEach(c => {
         if (c !== groupCard) {
           c.classList.remove("open");
@@ -924,7 +967,6 @@ function renderTopicSets() {
         }
       });
 
-      // Toggle active accordion
       if (!isOpen) {
         groupCard.classList.add("open");
         body.style.display = "block";
@@ -935,6 +977,95 @@ function renderTopicSets() {
     });
   });
 }
+
+// ==========================================================================
+// 6.5 MISTAKE BANK TELEMETRY & ENGINE (BULLETPROOF FETCH-UPDATE LOGIC)
+// ==========================================================================
+async function syncMistakeBank(payloads) {
+  if (!payloads || payloads.length === 0) return;
+  try {
+    console.log("Mistake Bank Sync Started:", payloads.length, "items");
+    for (const p of payloads) {
+        const safeQuestionId = p.question_id ? String(p.question_id) : String(Math.abs((p.question_data.content || "").length * 999));
+        
+        const { data: existing, error: fetchErr } = await supabaseClient
+            .from("student_question_stats")
+            .select("id, times_wrong, times_correct")
+            .eq("student_roll", p.student_roll)
+            .eq("question_id", safeQuestionId)
+            .maybeSingle();
+
+        if (fetchErr) {
+            console.error("DB Fetch Error for Mistake Bank:", fetchErr);
+            continue; 
+        }
+
+        if (existing) {
+            const updPayload = {
+                times_wrong: p.isCorrect ? existing.times_wrong : existing.times_wrong + 1,
+                times_correct: p.isCorrect ? existing.times_correct + 1 : existing.times_correct,
+                last_attempt_date: new Date().toISOString(),
+                question_data: p.question_data 
+            };
+            const { error: updErr } = await supabaseClient
+                .from("student_question_stats")
+                .update(updPayload)
+                .eq("id", existing.id);
+            if (updErr) console.error("Mistake Bank Update Error:", updErr);
+            else console.log("Mistake Bank Updated Successfully for Q:", safeQuestionId);
+        } else {
+            const insPayload = {
+                student_roll: p.student_roll,
+                subject: p.subject,
+                question_id: safeQuestionId, 
+                question_data: p.question_data,
+                times_wrong: p.isCorrect ? 0 : 1,
+                times_correct: p.isCorrect ? 1 : 0
+            };
+            const { error: insErr } = await supabaseClient
+                .from("student_question_stats")
+                .insert(insPayload);
+            if (insErr) console.error("Mistake Bank Insert Error:", insErr);
+            else console.log("Mistake Bank Inserted Successfully for Q:", safeQuestionId);
+        }
+    }
+    await fetchWeakQuestions(); 
+  } catch(e) {
+    console.error("Mistake Bank Sync Exception: ", e);
+  }
+}
+
+window.launchMistakeBank = function(mode) {
+  const weakQs = userWeakQuestions.filter(q => q.subject === activeSubject && q.times_wrong > q.times_correct);
+  if(weakQs.length === 0) return;
+
+  practiceQuestions = weakQs.map((item, i) => {
+      let parsedOptions = [];
+      if (typeof item.question_data.options === 'string') {
+          try { parsedOptions = JSON.parse(item.question_data.options); } catch(e) { parsedOptions = []; }
+      } else if (Array.isArray(item.question_data.options)) {
+          parsedOptions = item.question_data.options;
+      }
+      return {
+          qNum: i + 1,
+          id: item.question_id,
+          content: item.question_data.content,
+          options: parsedOptions,
+          correctAnswer: getNormalizedCorrectAnswerId(item.question_data.correct_answer, parsedOptions),
+          explanation: item.question_data.explanation
+      };
+  }).sort(() => 0.5 - Math.random()).slice(0, 50);
+
+  const tEl = document.getElementById("practiceSetTitle");
+  if (tEl) tEl.innerText = "Mistake Bank";
+  switchView("viewPractice");
+
+  if (mode === "quiz") renderInteractiveQuizMode(); 
+  else if (mode === "flashcard") {
+      flashcardIndex = 0;
+      renderFlashcardMode();
+  }
+};
 
 // ==========================================================================
 // 7. DAILY 10-MIN QUICK MIX ENGINE
@@ -949,7 +1080,6 @@ window.launchDailyMix = async function() {
     
     const masteredTestIds = [...new Set(attempts.map(a => a.test_id))];
 
-    // Resolve section IDs corresponding to mastered test IDs
     const { data: sectionRows } = await supabaseClient
       .from("test_sections")
       .select("id")
@@ -987,6 +1117,7 @@ window.launchDailyMix = async function() {
         }
         return {
           qNum: i + 1,
+          id: q.id,
           content: q.content,
           options: parsedOptions,
           correctAnswer: getNormalizedCorrectAnswerId(q.correct_answer, parsedOptions),
@@ -997,7 +1128,7 @@ window.launchDailyMix = async function() {
     if (practiceQuestions.length === 0) throw new Error("No questions available for mix.");
 
     const tEl = document.getElementById("practiceSetTitle");
-    if (tEl) tEl.innerText = "Daily 10-Min Revision Mix";
+    if (tEl) tEl.innerText = "Daily Mix";
     switchView("viewPractice");
     renderInteractiveQuizMode();
 
@@ -1239,11 +1370,21 @@ window.confirmAndFinishExam = function() {
 
 function renderScorecard() {
   let correct = 0, incorrect = 0, unattempted = 0;
+  
+  // Mistake Bank Payload Preparation
+  let statsPayload = [];
+
   testQuestions.forEach((q, idx) => {
     const userAns = userResponses[idx].selected;
     if (!userAns) unattempted++;
-    else if (String(userAns) === String(q.correctAnswer)) correct++;
-    else incorrect++;
+    else if (String(userAns) === String(q.correctAnswer)) {
+        correct++;
+        statsPayload.push({ student_roll: currentCandidate.roll_number, subject: activeSubject || "General", question_id: q.id, question_data: q, isCorrect: true });
+    }
+    else {
+        incorrect++;
+        statsPayload.push({ student_roll: currentCandidate.roll_number, subject: activeSubject || "General", question_id: q.id, question_data: q, isCorrect: false });
+    }
   });
 
   const score = (correct * 2.00) - (incorrect * 0.50);
@@ -1285,8 +1426,14 @@ function renderScorecard() {
     </div>`;
 
   (async () => {
+    // 1. SAFELY DISPATCH MISTAKE BANK TELEMETRY FIRST
+    if (statsPayload.length > 0) {
+        await syncMistakeBank(statsPayload);
+    }
+
+    // 2. DISPATCH TEST ATTEMPT TELEMETRY
     try {
-      await supabaseClient.from("test_attempts").insert({
+      const { error: attErr } = await supabaseClient.from("test_attempts").insert({
         student_roll: currentCandidate.roll_number,
         test_id: activeTest.id,
         score: score,
@@ -1294,8 +1441,13 @@ function renderScorecard() {
         total_incorrect: incorrect,
         time_spent_seconds: timeSpentSecs
       });
+      if (attErr) console.error("Test Attempt Sync Error:", attErr);
+    } catch (err) {
+      console.error("Test Attempt Execution Error:", err);
+    }
 
-      // UTC to Local Timezone Fix for Accurate Daily Streaks
+    // 3. DISPATCH ATTENDANCE TELEMETRY
+    try {
       const d = new Date();
       const today = new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split("T")[0];
       
@@ -1312,7 +1464,7 @@ function renderScorecard() {
         syncMsg.innerText = "✔ Progress & Attendance Synced Successfully";
       }
     } catch (err) {
-      console.error("Telemetry sync error:", err);
+      console.error("Attendance Sync Error:", err);
       const syncMsg = document.getElementById("syncStatusMsg");
       if (syncMsg) {
         syncMsg.style.color = "#dc2626";
@@ -1485,7 +1637,7 @@ window.fetchStudentAnalytics = async function(isSilent = false) {
       
       // FIXED BUG: Max Marks Logic securely fetching total questions from catalog data
       const cat = catalogData.find(item => String(item.test_id) === String(a.test_id));
-      const totalQs = cat ? (cat.total_questions || 10) : 10;
+      const totalQs = cat ? (cat.total_questions || (c + w)) : (c + w);
       const maxMarks = totalQs * 2;
       const pct = maxMarks > 0 ? Math.max(0, (a.score / maxMarks) * 100) : 0;
 
@@ -1761,7 +1913,7 @@ window.fetchStudentAnalytics = async function(isSilent = false) {
           tierClass = "mastery-tier-master";
           fillClass = "fill-master";
           icon = "🏆";
-        } else if (item.scorePct >= 45) {
+        } else if (item.scorePct >= 60) {
           tierText = "Proficient";
           tierClass = "mastery-tier-pro";
           fillClass = "fill-pro";
@@ -1808,7 +1960,6 @@ function renderHeatmap(attendanceMap) {
   if (!container) return;
   container.innerHTML = "";
   
-  // Use strictly local timezone date for the heatmap backward walk
   const today = new Date();
   for (let i = 29; i >= 0; i--) {
     let d = new Date(today);
@@ -1850,6 +2001,7 @@ window.launchPracticeMode = async function(testId, mode) {
 
     return {
       qNum: item.question_number,
+      id: q.id,
       content: q.content,
       options: parsedOptions,
       correctAnswer: getNormalizedCorrectAnswerId(q.correct_answer, parsedOptions),
@@ -1935,6 +2087,14 @@ function renderInteractiveQuizMode() {
         });
         const expEl = document.getElementById(`quizExp_${idx}`);
         if (expEl) expEl.style.display = "block";
+
+        syncMistakeBank([{
+            student_roll: currentCandidate.roll_number,
+            subject: activeSubject || "General",
+            question_id: q.id,
+            question_data: q,
+            isCorrect: isCorrect
+        }]);
       });
     });
   });

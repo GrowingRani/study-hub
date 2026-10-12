@@ -967,6 +967,8 @@ body.portal-body {
   font-weight: 800;
 }
 
+
+
 .set-status-badge.status-progress { 
   background: #fef3c7; 
   color: #d97706; 
@@ -1069,11 +1071,12 @@ body.portal-body {
   color: #0f172a; 
 }
 
-/* Floating Action Button (Comforting Electric-Blue Gradient) */
+/* Floating Action Button */
 .fab-daily-mix {
   position: fixed;
   bottom: 24px;
   right: 24px;
+  /* Soft Electric-Blue Gradient */
   background: linear-gradient(135deg, #0284c7, #1e40af);
   color: #ffffff;
   border: none;
@@ -1081,6 +1084,7 @@ body.portal-body {
   padding: 12px 22px;
   font-size: 13.5px;
   font-weight: 700;
+  /* Soft Blue Shadow */
   box-shadow: 0 4px 18px rgba(2, 132, 199, 0.35);
   cursor: pointer;
   display: flex;
@@ -2659,6 +2663,7 @@ body.dark-theme .drawer-avatar { background: #111a2e; color: #94a3b8; }
     height: 48px !important;
     border-radius: 50% !important;
     justify-content: center !important;
+    /* मोबाइल शैडो */
     box-shadow: 0 4px 16px rgba(2, 132, 199, 0.4) !important;
   }
   .fab-daily-mix .fab-icon {
@@ -2876,4 +2881,64 @@ body.dark-theme .drawer-avatar { background: #111a2e; color: #94a3b8; }
     min-width: 12px !important;
     flex-shrink: 0 !important;
   }
+  
+  /* Mobile Flex-Lock for Practice Header to Avoid Squeezing */
+  #viewPractice .portal-tag {
+    font-size: 11px !important;
+  }
+
+  #practiceSetTitle {
+    max-width: 130px !important; 
+    padding: 2px 8px !important;
+    font-size: 10.5px !important;
+  }
+}
+
+/* प्रैक्टिस व्यू और सॉल्यूशंस हेडर के लिए फ्लेक्स लॉक */
+#viewPractice .dash-top-bar,
+#viewSolutions .dash-top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  height: 52px;
+  overflow: hidden;
+}
+
+/* लेफ्ट साइड कंटेनर को फ्लेक्स-श्रिंक और एलिप्सिस दें */
+#viewPractice .dash-brand,
+#viewSolutions .dash-brand {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0; /* टेक्स्ट ट्रंकेशन के लिए बेहद जरूरी */
+  overflow: hidden;
+}
+
+/* मोड का नाम सिकुड़े नहीं लेकिन जगह सीमित रखे */
+#practiceModeTitle {
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+/* सेट टाइटल को एक ही लाइन में रखें और ओवरफ्लो होने पर '...' दिखाएं */
+#practiceSetTitle {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  font-size: 11px;
+}
+
+/* दाईं तरफ के बटन्स (थीम + एग्जिट) कभी न दबें */
+#viewPractice .dash-header-actions,
+#viewPractice header > div:last-child {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0; /* बटनों का साइज हमेशा फिक्स रहेगा */
 }
