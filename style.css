@@ -490,7 +490,6 @@ body.portal-body {
   gap: 14px; 
 }
 
-/* Card Stacking & Touch Highlight Clean Architecture */
 .set-tile { 
   position: relative;
   z-index: 1;
@@ -646,7 +645,6 @@ body.portal-body {
   gap: 12px; 
 }
 
-/* Radio Button Vertical Centering & Geometry Alignment */
 .option-row { 
   display: flex !important; 
   align-items: center !important; 
@@ -845,7 +843,7 @@ body.portal-body {
 .palette-btn.answered { 
   background-color: var(--c-answered) !important; 
   color: #ffffff !important; 
-  clip-path: polygon(50% 0%, 100% 25%, 100% 100%, 0 100%, 0 25%); 
+  clip-path: polygon(50% 0%, 100% 25%, 100% 100%, 0 100%, 0 25%) !important; 
   border-radius: 0 !important;
   border: none !important;
 }
@@ -1055,7 +1053,6 @@ body.dark-theme .sol-content {
   padding: 24px 20px;
 }
 
-/* Responsive Auto-fit Grid to prevent card truncating */
 .analytics-banner { 
   display: grid !important; 
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)) !important; 
@@ -1614,6 +1611,8 @@ body.dark-theme .insight-box {
   color: #cbd5e1 !important; 
   background: #111827 !important; 
   border: 1px solid #1e293b !important; 
+  white-space: normal !important;
+  word-wrap: break-word !important;
 }
 body.dark-theme .insight-box strong { color: #f8fafc !important; }
 body.dark-theme #extraAnalyticsSummary h4 { color: #38bdf8 !important; }
@@ -1625,9 +1624,12 @@ body.dark-theme #extraAnalyticsSummary .profile-section-card { border-left: 1px 
 body.dark-theme .progress-ring__circle-bg { stroke: #1e293b; }
 body.dark-theme .progress-ring-text span { color: #f8fafc; }
 
+body.dark-theme .heatmap-grid {
+  border: 1px solid rgba(255, 255, 255, 0.02);
+}
+
 body.dark-theme .heatmap-cell { 
   background: #1e293b !important; 
-  border: 1px solid rgba(255, 255, 255, 0.02); 
 }
 body.dark-theme .heatmap-cell.absent {
   background-color: #1e293b !important;
@@ -1837,7 +1839,7 @@ body.dark-theme .drawer-input { background: #0b1120; border-color: #334155; colo
     font-size: 18px !important;
   }
 
-  /* Heatmap Mobile 15-Column Scale Lock */
+  /* Heatmap Mobile 15-Column Fit */
   .heatmap-grid {
     display: grid !important;
     grid-template-columns: repeat(15, minmax(0, 1fr)) !important;
@@ -1847,8 +1849,17 @@ body.dark-theme .drawer-input { background: #0b1120; border-color: #334155; colo
     box-sizing: border-box !important;
   }
 
-  .heatmap-cell {
+  /* Target ONLY the grid cells, NOT the legend cells */
+  .heatmap-grid .heatmap-cell {
     width: 100% !important;
     min-width: 0 !important;
+  }
+  
+  /* Protect Legend from exploding the flex column */
+  .cal-legend .heatmap-cell {
+    width: 12px !important;
+    height: 12px !important;
+    min-width: 12px !important;
+    flex-shrink: 0 !important;
   }
 }
