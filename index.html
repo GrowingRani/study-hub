@@ -474,11 +474,16 @@
       </div>
     </header>
 
-    <!-- Sub-bar for Section Tabs and Roll Number Verification -->
+    <!-- Sub-bar for Section Tabs, Roll Number & Abort Exam Button -->
     <div class="tcs-sub-bar" id="examSubBar">
       <div id="sectionTabs" class="section-tabs-wrap"></div>
-      <div class="exam-candidate-roll-badge">
-        Roll: <span id="examCandidateRoll">---</span>
+      <div style="display: flex; align-items: center; gap: 16px;">
+        <div class="exam-candidate-roll-badge">
+          Roll: <span id="examCandidateRoll">---</span>
+        </div>
+        <button class="btn-abort-exam" onclick="abortExamSession()" title="Exit without saving">
+          <span class="hide-on-mobile">✕ </span><strong>ABORT</strong>
+        </button>
       </div>
     </div>
 

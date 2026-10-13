@@ -617,7 +617,6 @@ async function mountDashboard() {
 async function fetchWeakQuestions() {
   if (!currentCandidate) return;
   try {
-    // 1. सबसे पहले आंकड़े (Stats) मंगाएं
     const { data: statsData, error: statsErr } = await supabaseClient
         .from("student_question_stats")
         .select("*")
@@ -626,7 +625,6 @@ async function fetchWeakQuestions() {
     if (statsErr) throw statsErr;
     let weakQs = statsData || [];
 
-    // 2. BACKGROUND PRE-FETCH: मास्टर टेबल से 100% सही और ओरिजिनल सवाल मंगाएं
     const questionIds = weakQs.map(q => q.question_id).filter(Boolean);
     
     if (questionIds.length > 0) {
@@ -636,7 +634,6 @@ async function fetchWeakQuestions() {
           .in('id', questionIds);
 
        if (freshQs) {
-          // पुराने सड़े-गले question_data को नए फ्रेश डेटा से रिप्लेस कर दें
           userWeakQuestions = weakQs.map(wq => {
              const freshQ = freshQs.find(fq => String(fq.id) === String(wq.question_id));
              return {
@@ -684,81 +681,84 @@ function renderSubjectHubGrid() {
     subjectsMap[s].sets.push(row);
   });
 
-  Object.entries(subjectsMap).forEach(([subName, data]) => {
-    const totalSets = data.sets.length;
-    let completedSets = 0;
-    let totalAttemptsForSubject = 0;
-    let sumPercentages = 0;
-    let attemptedSetsCount = 0;
+  // 🚀 UPDATE: Subjects को Dictionary (A-Z) क्रम में सॉर्ट किया गया
+  Object.entries(subjectsMap)
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .forEach(([subName, data]) => {
+      const totalSets = data.sets.length;
+      let completedSets = 0;
+      let totalAttemptsForSubject = 0;
+      let sumPercentages = 0;
+      let attemptedSetsCount = 0;
 
-    data.sets.forEach(setItem => {
-      const attempts = userAttemptHistory.filter(a => String(a.test_id) === String(setItem.test_id));
-      if (attempts.length > 0) {
-        totalAttemptsForSubject += attempts.length;
-        attemptedSetsCount++;
-        let bestScore = Math.max(...attempts.map(a => parseFloat(a.score)));
-        let maxMarks = (setItem.total_questions || 10) * 2;
-        let pct = maxMarks > 0 ? (bestScore / maxMarks) * 100 : 0;
-        sumPercentages += pct;
-        if (pct >= 100) completedSets++;
+      data.sets.forEach(setItem => {
+        const attempts = userAttemptHistory.filter(a => String(a.test_id) === String(setItem.test_id));
+        if (attempts.length > 0) {
+          totalAttemptsForSubject += attempts.length;
+          attemptedSetsCount++;
+          let bestScore = Math.max(...attempts.map(a => parseFloat(a.score)));
+          let maxMarks = (setItem.total_questions || 10) * 2;
+          let pct = maxMarks > 0 ? (bestScore / maxMarks) * 100 : 0;
+          sumPercentages += pct;
+          if (pct >= 100) completedSets++;
+        }
+      });
+
+      const remainingSets = totalSets - completedSets;
+      const progressPct = totalSets > 0 ? Math.round((completedSets / totalSets) * 100) : 0;
+      const avgScorePct = attemptedSetsCount > 0 ? Math.round(sumPercentages / attemptedSetsCount) : 0;
+
+      let statusClass = "pill-untested";
+      let statusText = "Untested";
+      if (completedSets === totalSets && totalSets > 0) {
+        statusClass = "pill-mastered";
+        statusText = "Mastered";
+      } else if (attemptedSetsCount > 0) {
+        statusClass = "pill-progress";
+        statusText = `${progressPct}% Complete`;
       }
-    });
 
-    const remainingSets = totalSets - completedSets;
-    const progressPct = totalSets > 0 ? Math.round((completedSets / totalSets) * 100) : 0;
-    const avgScorePct = attemptedSetsCount > 0 ? Math.round(sumPercentages / attemptedSetsCount) : 0;
-
-    let statusClass = "pill-untested";
-    let statusText = "Untested";
-    if (completedSets === totalSets && totalSets > 0) {
-      statusClass = "pill-mastered";
-      statusText = "Mastered";
-    } else if (attemptedSetsCount > 0) {
-      statusClass = "pill-progress";
-      statusText = `${progressPct}% Complete`;
-    }
-
-    const tile = document.createElement("div");
-    tile.className = "subject-mastery-tile";
-    tile.innerHTML = `
-      <div class="tile-top-row">
-        <span class="tile-subject-title">${subName}</span>
-        <span class="tile-status-pill ${statusClass}">${statusText}</span>
-      </div>
-
-      <div class="tile-progress-container">
-        <div class="tile-progress-labels">
-          <span>Mastery Progress</span>
-          <span>${progressPct}%</span>
+      const tile = document.createElement("div");
+      tile.className = "subject-mastery-tile";
+      tile.innerHTML = `
+        <div class="tile-top-row">
+          <span class="tile-subject-title">${subName}</span>
+          <span class="tile-status-pill ${statusClass}">${statusText}</span>
         </div>
-        <div class="tile-progress-track">
-          <div class="tile-progress-fill" style="width: ${progressPct}%;"></div>
-        </div>
-      </div>
 
-      <div class="tile-metrics-grid">
-        <div class="tile-metric-item">
-          <span class="tile-metric-label">Mastered</span>
-          <span class="tile-metric-value" style="color:#16a34a;">${completedSets} <small style="font-size:10px; color:#64748b;">/${totalSets}</small></span>
+        <div class="tile-progress-container">
+          <div class="tile-progress-labels">
+            <span>Mastery Progress</span>
+            <span>${progressPct}%</span>
+          </div>
+          <div class="tile-progress-track">
+            <div class="tile-progress-fill" style="width: ${progressPct}%;"></div>
+          </div>
         </div>
-        <div class="tile-metric-item">
-          <span class="tile-metric-label">Remaining</span>
-          <span class="tile-metric-value" style="color:#d97706;">${remainingSets} Sets</span>
-        </div>
-        <div class="tile-metric-item">
-          <span class="tile-metric-label">Avg Accuracy</span>
-          <span class="tile-metric-value">${avgScorePct > 0 ? avgScorePct + '%' : '--'}</span>
-        </div>
-      </div>
 
-      <div class="tile-action-footer">
-        <span style="color:#64748b; font-size:11px; font-weight:600;">${totalAttemptsForSubject} Attempts Logged</span>
-        <span>Explore Sets ➔</span>
-      </div>
-    `;
+        <div class="tile-metrics-grid">
+          <div class="tile-metric-item">
+            <span class="tile-metric-label">Mastered</span>
+            <span class="tile-metric-value" style="color:#16a34a;">${completedSets} <small style="font-size:10px; color:#64748b;">/${totalSets}</small></span>
+          </div>
+          <div class="tile-metric-item">
+            <span class="tile-metric-label">Remaining</span>
+            <span class="tile-metric-value" style="color:#d97706;">${remainingSets} Sets</span>
+          </div>
+          <div class="tile-metric-item">
+            <span class="tile-metric-label">Avg Accuracy</span>
+            <span class="tile-metric-value">${avgScorePct > 0 ? avgScorePct + '%' : '--'}</span>
+          </div>
+        </div>
 
-    tile.addEventListener("click", () => drillDownToSubject(subName));
-    container.appendChild(tile);
+        <div class="tile-action-footer">
+          <span style="color:#64748b; font-size:11px; font-weight:600;">${totalAttemptsForSubject} Attempts Logged</span>
+          <span>Explore Sets ➔</span>
+        </div>
+      `;
+
+      tile.addEventListener("click", () => drillDownToSubject(subName));
+      container.appendChild(tile);
   });
 }
 
@@ -870,7 +870,7 @@ function renderTopicSets() {
     else if (f === 'mastered') btn.innerText = `🏆 Mastered (${masteredCount})`;
   });
 
-  // TARGETED REVISION MISTAKE BANK CARD (Optimized for Mobile & Dark Mode)
+  // TARGETED REVISION MISTAKE BANK CARD
    const weakQs = userWeakQuestions.filter(q => q.subject === activeSubject && q.times_wrong > 0 && (q.mastery_streak || 0) < 4);
   
    if (weakQs.length > 0) {
@@ -912,157 +912,161 @@ function renderTopicSets() {
     grouped[key].push(item);
   });
 
-  Object.entries(grouped).forEach(([topicName, sets]) => {
-    let topicMastered = 0;
-    const processedSets = [];
+  // 🚀 UPDATE: Topics को Dictionary (A-Z) क्रम में सॉर्ट किया गया
+  Object.entries(grouped)
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .forEach(([topicName, sets]) => {
+      let topicMastered = 0;
+      const processedSets = [];
 
-    sets.forEach(setItem => {
-      const attempts = userAttemptHistory.filter(a => String(a.test_id) === String(setItem.test_id));
-      let isAttempted = attempts.length > 0;
-      let bestScore = isAttempted ? Math.max(...attempts.map(a => parseFloat(a.score))) : 0;
-      let maxMarks = (setItem.total_questions || 10) * 2;
-      let pct = maxMarks > 0 && isAttempted ? (bestScore / maxMarks) * 100 : 0;
+      sets.forEach(setItem => {
+        const attempts = userAttemptHistory.filter(a => String(a.test_id) === String(setItem.test_id));
+        let isAttempted = attempts.length > 0;
+        let bestScore = isAttempted ? Math.max(...attempts.map(a => parseFloat(a.score))) : 0;
+        let maxMarks = (setItem.total_questions || 10) * 2;
+        let pct = maxMarks > 0 && isAttempted ? (bestScore / maxMarks) * 100 : 0;
 
-      let status = 'unattempted';
-      if (isAttempted) {
-        if (pct >= 100) { status = 'mastered'; topicMastered++; }
-        else { status = 'revise'; }
-      }
+        let status = 'unattempted';
+        if (isAttempted) {
+          if (pct >= 100) { status = 'mastered'; topicMastered++; }
+          else { status = 'revise'; }
+        }
 
-      if (currentFilter === 'all' || currentFilter === status) {
-        processedSets.push({ setItem, status, isAttempted, bestScore, maxMarks, pct, attemptsCount: attempts.length });
-      }
-    });
-
-    if (processedSets.length === 0 && currentFilter !== 'all') return;
-
-    let progressPct = sets.length > 0 ? (topicMastered / sets.length) * 100 : 0;
-
-    const groupCard = document.createElement("div");
-    groupCard.className = "topic-accordion-card";
-
-    const header = document.createElement("div");
-    header.className = "topic-accordion-header";
-    header.innerHTML = `
-      <div class="header-left">
-        <span class="icon-folder">📁</span>
-        <span class="topic-title">${topicName}</span>
-      </div>
-      <div class="header-right">
-        <span class="subtopic-tag">${topicMastered}/${sets.length} Mastered</span>
-        <svg class="toggle-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="6 9 12 15 18 9"></polyline>
-        </svg>
-      </div>
-      <div class="acc-progress-track">
-        <div class="acc-progress-fill" style="width: ${progressPct}%;"></div>
-      </div>
-    `;
-
-    const body = document.createElement("div");
-    body.className = "topic-accordion-body";
-
-    const setsGrid = document.createElement("div");
-    setsGrid.className = "sets-card-grid";
-
-    const iconTarget = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="2"></circle></svg>`;
-    const iconRetake = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>`;
-    const clockSvg = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>`;
-    const docSvg = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>`;
-
-    processedSets.forEach(({ setItem, status, bestScore, maxMarks, pct, attemptsCount }) => {
-      const tile = document.createElement("div");
-      tile.className = "set-tile";
-      
-      let badgeClass = 'status-new';
-      let badgeText = 'NEW';
-      let examIcon = iconTarget;
-      let examText = 'Exam';
-      let historyHtml = `<span style="color:#64748b;">Not attempted yet</span>`;
-
-      if (status === 'mastered') {
-        badgeClass = 'status-mastered';
-        badgeText = `MASTERED ${bestScore}/${maxMarks}`;
-        examIcon = iconRetake;
-        examText = 'Retake';
-        historyHtml = `<span style="color:#16a34a;">★ Best Score: ${bestScore} (${Math.round(pct)}%) | Att: ${attemptsCount}</span>`;
-      } else if (status === 'revise') {
-        badgeClass = 'status-progress';
-        badgeText = `IN PROGRESS`;
-        examIcon = iconRetake;
-        examText = 'Retake';
-        historyHtml = `<span style="color:#d97706;">Needs Review: ${bestScore}/${maxMarks} | Att: ${attemptsCount}</span>`;
-      }
-
-      tile.innerHTML = `
-        <div class="set-tile-header">
-          <div class="set-tile-title">${setItem.test_title}</div>
-          <div class="set-status-badge ${badgeClass}">${badgeText}</div>
-        </div>
-        <div class="set-tile-meta">
-          <span>${clockSvg} ${setItem.total_duration_minutes}m</span>
-          <span>${docSvg} ${setItem.total_questions} Qs</span>
-        </div>
-        <div class="set-score-info">
-          ${historyHtml}
-        </div>
-        <div class="set-action-footer">
-          <button class="btn-launch-set" onclick="launchAssessment(${setItem.test_id})">
-            ${examIcon} <span>${examText}</span>
-          </button>
-          <div class="secondary-modes-strip">
-            <button class="btn-mode-icon" title="Read Mode" onclick="launchPracticeMode(${setItem.test_id}, 'read')">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
-            </button>
-            <button class="btn-mode-icon" title="Flashcards" onclick="launchPracticeMode(${setItem.test_id}, 'flashcard')">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="14" height="14" rx="2" ry="2"></rect><path d="M21 7v12a2 2 0 0 1-2 2H7"></path></svg>
-            </button>
-            <button class="btn-mode-icon" title="Instant Quiz" onclick="launchPracticeMode(${setItem.test_id}, 'quiz')">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
-            </button>
-          </div>
-        </div>
-      `;
-      setsGrid.appendChild(tile);
-    });
-
-    body.appendChild(setsGrid);
-    groupCard.appendChild(header);
-    groupCard.appendChild(body);
-    container.appendChild(groupCard);
-
-    header.addEventListener("click", () => {
-      const isOpen = groupCard.classList.contains("open");
-
-      container.querySelectorAll(".topic-accordion-card").forEach(c => {
-        if (c !== groupCard) {
-          c.classList.remove("open");
-          const b = c.querySelector(".topic-accordion-body");
-          if (b) b.style.display = "none";
+        if (currentFilter === 'all' || currentFilter === status) {
+          processedSets.push({ setItem, status, isAttempted, bestScore, maxMarks, pct, attemptsCount: attempts.length });
         }
       });
 
-      if (!isOpen) {
-        groupCard.classList.add("open");
-        body.style.display = "block";
-      } else {
-        groupCard.classList.remove("open");
-        body.style.display = "none";
-      }
-    });
+      if (processedSets.length === 0 && currentFilter !== 'all') return;
+
+      // 🚀 UPDATE: Sets को उनके नाम (test_title) के अनुसार A-Z सॉर्ट किया गया
+      processedSets.sort((a, b) => String(a.setItem.test_title || "").localeCompare(String(b.setItem.test_title || "")));
+
+      let progressPct = sets.length > 0 ? (topicMastered / sets.length) * 100 : 0;
+
+      const groupCard = document.createElement("div");
+      groupCard.className = "topic-accordion-card";
+
+      const header = document.createElement("div");
+      header.className = "topic-accordion-header";
+      header.innerHTML = `
+        <div class="header-left">
+          <span class="icon-folder">📁</span>
+          <span class="topic-title">${topicName}</span>
+        </div>
+        <div class="header-right">
+          <span class="subtopic-tag">${topicMastered}/${sets.length} Mastered</span>
+          <svg class="toggle-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="6 9 12 15 18 9"></polyline>
+          </svg>
+        </div>
+        <div class="acc-progress-track">
+          <div class="acc-progress-fill" style="width: ${progressPct}%;"></div>
+        </div>
+      `;
+
+      const body = document.createElement("div");
+      body.className = "topic-accordion-body";
+
+      const setsGrid = document.createElement("div");
+      setsGrid.className = "sets-card-grid";
+
+      const iconTarget = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="2"></circle></svg>`;
+      const iconRetake = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>`;
+      const clockSvg = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>`;
+      const docSvg = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>`;
+
+      processedSets.forEach(({ setItem, status, bestScore, maxMarks, pct, attemptsCount }) => {
+        const tile = document.createElement("div");
+        tile.className = "set-tile";
+        
+        let badgeClass = 'status-new';
+        let badgeText = 'NEW';
+        let examIcon = iconTarget;
+        let examText = 'Exam';
+        let historyHtml = `<span style="color:#64748b;">Not attempted yet</span>`;
+
+        if (status === 'mastered') {
+          badgeClass = 'status-mastered';
+          badgeText = `MASTERED ${bestScore}/${maxMarks}`;
+          examIcon = iconRetake;
+          examText = 'Retake';
+          historyHtml = `<span style="color:#16a34a;">★ Best Score: ${bestScore} (${Math.round(pct)}%) | Att: ${attemptsCount}</span>`;
+        } else if (status === 'revise') {
+          badgeClass = 'status-progress';
+          badgeText = `IN PROGRESS`;
+          examIcon = iconRetake;
+          examText = 'Retake';
+          historyHtml = `<span style="color:#d97706;">Needs Review: ${bestScore}/${maxMarks} | Att: ${attemptsCount}</span>`;
+        }
+
+        tile.innerHTML = `
+          <div class="set-tile-header">
+            <div class="set-tile-title">${setItem.test_title}</div>
+            <div class="set-status-badge ${badgeClass}">${badgeText}</div>
+          </div>
+          <div class="set-tile-meta">
+            <span>${clockSvg} ${setItem.total_duration_minutes}m</span>
+            <span>${docSvg} ${setItem.total_questions} Qs</span>
+          </div>
+          <div class="set-score-info">
+            ${historyHtml}
+          </div>
+          <div class="set-action-footer">
+            <button class="btn-launch-set" onclick="launchAssessment(${setItem.test_id})">
+              ${examIcon} <span>${examText}</span>
+            </button>
+            <div class="secondary-modes-strip">
+              <button class="btn-mode-icon" title="Read Mode" onclick="launchPracticeMode(${setItem.test_id}, 'read')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
+              </button>
+              <button class="btn-mode-icon" title="Flashcards" onclick="launchPracticeMode(${setItem.test_id}, 'flashcard')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="14" height="14" rx="2" ry="2"></rect><path d="M21 7v12a2 2 0 0 1-2 2H7"></path></svg>
+              </button>
+              <button class="btn-mode-icon" title="Instant Quiz" onclick="launchPracticeMode(${setItem.test_id}, 'quiz')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+              </button>
+            </div>
+          </div>
+        `;
+        setsGrid.appendChild(tile);
+      });
+
+      body.appendChild(setsGrid);
+      groupCard.appendChild(header);
+      groupCard.appendChild(body);
+      container.appendChild(groupCard);
+
+      header.addEventListener("click", () => {
+        const isOpen = groupCard.classList.contains("open");
+
+        container.querySelectorAll(".topic-accordion-card").forEach(c => {
+          if (c !== groupCard) {
+            c.classList.remove("open");
+            const b = c.querySelector(".topic-accordion-body");
+            if (b) b.style.display = "none";
+          }
+        });
+
+        if (!isOpen) {
+          groupCard.classList.add("open");
+          body.style.display = "block";
+        } else {
+          groupCard.classList.remove("open");
+          body.style.display = "none";
+        }
+      });
   });
 }
 
 // ==========================================================================
 // 6.5 MISTAKE BANK TELEMETRY & ENGINE (BULLETPROOF FETCH-UPDATE LOGIC)
 // ==========================================================================
-// 5-TIER SPACED REPETITION ENGINE (0 -> 1 -> 4 -> 10 -> 25 DAYS)
 const REVIEW_INTERVALS_DAYS = [1, 3, 6, 15];
 
 async function syncMistakeBank(payloads) {
   if (!payloads || payloads.length === 0) return;
   try {
-    console.log("Mistake Bank Sync Started:", payloads.length, "items");
     for (const p of payloads) {
         const safeQuestionId = p.question_id ? String(p.question_id) : String(Math.abs((p.question_data.content || "").length * 999));
         
@@ -1103,12 +1107,7 @@ async function syncMistakeBank(payloads) {
                 last_attempt_date: new Date().toISOString(),
                 question_data: p.question_data 
             };
-            const { error: updErr } = await supabaseClient
-                .from("student_question_stats")
-                .update(updPayload)
-                .eq("id", existing.id);
-            if (updErr) console.error("Mistake Bank Update Error:", updErr);
-            else console.log("Mistake Bank Updated Successfully for Q:", safeQuestionId);
+            await supabaseClient.from("student_question_stats").update(updPayload).eq("id", existing.id);
         } else {
             let newStreak = p.isCorrect ? 1 : 0;
             let nextReview = new Date();
@@ -1126,11 +1125,7 @@ async function syncMistakeBank(payloads) {
                 mastery_streak: newStreak,
                 next_review_at: nextReview.toISOString()
             };
-            const { error: insErr } = await supabaseClient
-                .from("student_question_stats")
-                .insert(insPayload);
-            if (insErr) console.error("Mistake Bank Insert Error:", insErr);
-            else console.log("Mistake Bank Inserted Successfully for Q:", safeQuestionId);
+            await supabaseClient.from("student_question_stats").insert(insPayload);
         }
     }
     await fetchWeakQuestions(); 
@@ -1164,7 +1159,6 @@ window.launchMistakeBank = function(mode, forceAll = false) {
 
   practiceQuestions = targetList.map((item, i) => {
       const qData = item.question_data || {};
-      
       let parsedOptions = [];
       if (typeof qData.options === 'string') {
           try { parsedOptions = JSON.parse(qData.options); } catch(e) { parsedOptions = []; }
@@ -1272,7 +1266,7 @@ window.launchDailyMix = async function() {
 };
 
 // ==========================================================================
-// 8. TCS iON EXAM ENGINE LAYER
+// 8. TCS iON EXAM ENGINE LAYER (WITH EXIT & AUTO-PALETTE FIXES)
 // ==========================================================================
 window.launchAssessment = async function(testId) {
   switchView("viewExam");
@@ -1341,6 +1335,43 @@ window.launchAssessment = async function(testId) {
   }
 };
 
+// 🚀 NEW: Abort Exam Logic (Custom Beautiful Modal)
+window.abortExamSession = function() {
+  let modal = document.getElementById("submitModalContainer"); 
+  if (!modal) {
+    modal = document.createElement("div");
+    modal.id = "submitModalContainer";
+    document.body.appendChild(modal);
+  }
+  
+  modal.className = "tcs-modal-overlay";
+  modal.style.setProperty("display", "flex", "important");
+  
+  // Custom Alert Modal HTML
+  modal.innerHTML = `
+    <div class="tcs-modal-box" style="max-width: 420px; border-color: #ef4444;">
+      <div class="tcs-modal-header" style="background: #ef4444; color: #ffffff;">
+        ⚠️ Abort Assessment
+      </div>
+      <div class="tcs-modal-body" style="text-align: center; padding: 24px 20px;">
+        <h3 style="margin-bottom: 12px; font-size: 18px;">Exit Assessment?</h3>
+        <p style="color: #64748b; font-size: 13.5px; line-height: 1.5; margin-bottom: 24px;">
+          Are you sure you want to exit? Your current exam progress will <strong>not</strong> be saved.
+        </p>
+        <div style="display: flex; gap: 12px; justify-content: center;">
+          <button class="tcs-btn btn-secondary" onclick="closeExamModal()" style="margin: 0; flex: 1;">Cancel</button>
+          <button class="tcs-btn" onclick="executeAbortExam()" style="margin: 0; flex: 1; background: #ef4444; color: #ffffff; border: none;">Yes, Abort</button>
+        </div>
+      </div>
+    </div>`;
+};
+
+window.executeAbortExam = function() {
+  closeExamModal();
+  if (timerInterval) clearInterval(timerInterval);
+  mountDashboard();
+};
+
 function renderQuestion(index) {
   if (!testQuestions[index]) return;
   currentIndex = index;
@@ -1385,12 +1416,20 @@ function renderQuestion(index) {
   }
 }
 
+// 🚀 NEW: Auto-open palette on Last Question
 function advanceNextQuestion() {
   if (currentIndex + 1 < testQuestions.length) {
     renderQuestion(currentIndex + 1);
   } else {
+    // We are on the last question
     renderPaletteGrid();
     updateStatusMatrix();
+    
+    // Automatically open the palette so user can easily click 'Submit'
+    const panel = document.querySelector(".tcs-side-panel");
+    const overlay = document.getElementById("paletteOverlay");
+    if (panel) panel.classList.add("open");
+    if (overlay && window.innerWidth <= 768) overlay.classList.add("open");
   }
 }
 
@@ -1503,7 +1542,6 @@ window.confirmAndFinishExam = function() {
 function renderScorecard() {
   let correct = 0, incorrect = 0, unattempted = 0;
   
-  // Mistake Bank Payload Preparation
   let statsPayload = [];
 
   testQuestions.forEach((q, idx) => {
@@ -1558,12 +1596,10 @@ function renderScorecard() {
     </div>`;
 
   (async () => {
-    // 1. SAFELY DISPATCH MISTAKE BANK TELEMETRY FIRST
     if (statsPayload.length > 0) {
         await syncMistakeBank(statsPayload);
     }
 
-    // 2. DISPATCH TEST ATTEMPT TELEMETRY
     try {
       const { error: attErr } = await supabaseClient.from("test_attempts").insert({
         student_roll: currentCandidate.roll_number,
@@ -1578,7 +1614,6 @@ function renderScorecard() {
       console.error("Test Attempt Execution Error:", err);
     }
 
-    // 3. DISPATCH ATTENDANCE TELEMETRY
     try {
       const d = new Date();
       const today = new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split("T")[0];
@@ -1722,7 +1757,6 @@ window.fetchStudentAnalytics = async function(isSilent = false) {
   _isFetchingStats = true;
   
   try {
-    // UTC to Local Timezone Fix for Accurate Analytics Dashboard
     const d = new Date();
     const todayStr = new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split("T")[0];
     
@@ -1767,13 +1801,11 @@ window.fetchStudentAnalytics = async function(isSilent = false) {
       const c = a.total_correct || 0;
       const w = a.total_incorrect || 0;
       
-      // FIXED BUG: Max Marks Logic securely fetching total questions from catalog data
       const cat = catalogData.find(item => String(item.test_id) === String(a.test_id));
       const totalQs = cat ? (cat.total_questions || (c + w)) : (c + w);
       const maxMarks = totalQs * 2;
       const pct = maxMarks > 0 ? Math.max(0, (a.score / maxMarks) * 100) : 0;
 
-      // Mastered Threshold locked firmly at 100%
       if (pct >= 100) {
         masteredTestIds.add(String(a.test_id));
       }
@@ -1823,7 +1855,7 @@ window.fetchStudentAnalytics = async function(isSilent = false) {
     }
 
     let streakCount = 0;
-    let checkDate = new Date(); // Start strictly from today (Local Time)
+    let checkDate = new Date();
     for (let i = 0; i < 30; i++) {
       const s = new Date(checkDate.getTime() - (checkDate.getTimezoneOffset() * 60000)).toISOString().split("T")[0];
       if (attendanceMap[s] && attendanceMap[s] > 0) {
@@ -2005,9 +2037,6 @@ window.fetchStudentAnalytics = async function(isSilent = false) {
       }
     }
 
-    // =========================================================================
-    // DYNAMIC RADAR CHART & COMPACT MICRO-GRID ENGINE
-    // =========================================================================
     const allCatalogSubjects = Array.from(new Set(catalogData.map(c => c.subject || "General Studies")));
     
     const subjectMetricsList = allCatalogSubjects.map(subj => {
@@ -2020,7 +2049,6 @@ window.fetchStudentAnalytics = async function(isSilent = false) {
       };
     });
 
-    // 1. RENDER MICRO-GRID VIEW
     const gridContainer = document.getElementById("gridViewport");
     if (gridContainer) {
       gridContainer.innerHTML = "";
@@ -2040,7 +2068,6 @@ window.fetchStudentAnalytics = async function(isSilent = false) {
       });
     }
 
-    // 2. RENDER CHART.JS RADAR MATRIX
     const radarCanvas = document.getElementById("subjectRadarChart");
     if (radarCanvas && window.Chart) {
       const isDark = document.body.classList.contains("dark-theme");
@@ -2118,7 +2145,6 @@ function renderHeatmap(attendanceMap) {
   if (!container) return;
   container.innerHTML = "";
   
-  // Create or select the Custom Tooltip element
   let tooltip = document.getElementById("heatmapTooltip");
   if (!tooltip) {
     tooltip = document.createElement("div");
@@ -2138,14 +2164,12 @@ function renderHeatmap(attendanceMap) {
     const cell = document.createElement("div");
     cell.className = "heatmap-cell";
     
-    // Color Scaling logic
-    if (mins > 90) cell.classList.add("hm-lvl-4");      // Darkest Green
-    else if (mins > 45) cell.classList.add("hm-lvl-3"); // Dark Green
-    else if (mins > 15) cell.classList.add("hm-lvl-2"); // Medium Green
-    else if (mins > 0) cell.classList.add("hm-lvl-1");  // Light Green
-    else cell.classList.add("absent");                  // No Activity
+    if (mins > 90) cell.classList.add("hm-lvl-4");      
+    else if (mins > 45) cell.classList.add("hm-lvl-3"); 
+    else if (mins > 15) cell.classList.add("hm-lvl-2"); 
+    else if (mins > 0) cell.classList.add("hm-lvl-1");  
+    else cell.classList.add("absent");                  
 
-    // Rich Tooltip Hover Logic (With Edge Collision Protection)
     cell.addEventListener("mouseenter", (e) => {
       const hrs = Math.floor(mins / 60);
       const remainingMins = mins % 60;
@@ -2161,27 +2185,21 @@ function renderHeatmap(attendanceMap) {
       
       tooltip.classList.add("show");
       
-      // Get exact dimensions of the cell and the newly populated tooltip
       const rect = cell.getBoundingClientRect();
       const tWidth = tooltip.offsetWidth;
       const tHeight = tooltip.offsetHeight;
       
-      // Default center alignment
       let centerX = rect.left + (rect.width / 2);
-      const screenPadding = 12; // 12px safe area from screen edge
+      const screenPadding = 12; 
       
-      // 🛡️ MOBILE EDGE COLLISION ALGORITHM
       if (centerX - (tWidth / 2) < screenPadding) {
-        // If spilling off the Left edge, push it right
         centerX = (tWidth / 2) + screenPadding;
       } else if (centerX + (tWidth / 2) > window.innerWidth - screenPadding) {
-        // If spilling off the Right edge, push it left
         centerX = window.innerWidth - (tWidth / 2) - screenPadding;
       }
       
-      // Apply precise coordinates
       tooltip.style.left = `${centerX}px`;
-      tooltip.style.top = `${rect.top - tHeight}px`; // Position strictly above the cell
+      tooltip.style.top = `${rect.top - tHeight}px`; 
     });
 
     cell.addEventListener("mouseleave", () => {
@@ -2263,10 +2281,9 @@ function renderReadMode() {
   });
 }
 
-// Local In-Memory State for Instant Quiz (Zero Backend Calls)
 let localQuizState = {
-  answers: {},     // { qIndex: { selected: "1", isCorrect: true/false } }
-  starred: new Set(), // Set of question indices
+  answers: {},     
+  starred: new Set(), 
   isFinished: false,
   filter: "all"
 };
@@ -2277,7 +2294,6 @@ function renderInteractiveQuizMode() {
   const container = document.getElementById("practiceContainer");
   if (!container) return;
 
-  // Reset local quiz state for fresh session
   localQuizState = {
     answers: {},
     starred: new Set(),
@@ -2296,7 +2312,6 @@ function renderQuizUI() {
   const practiceTitle = document.getElementById("practiceSetTitle")?.innerText || "";
   const isMistakeBank = practiceTitle.includes("Mistake Bank");
 
-  // 1. यदि यूज़र 'Finish' कर चुका है, तो टॉप पर 6-कार्ड Scorecard Banner दिखाएं
   if (localQuizState.isFinished) {
     const totalQ = practiceQuestions.length;
     const attemptedCount = Object.keys(localQuizState.answers).length;
@@ -2394,14 +2409,12 @@ function renderQuizUI() {
     container.appendChild(banner);
   }
 
-  // 2. सवाल रेंडर करना (फ़िल्टर के अनुसार)
   practiceQuestions.forEach((q, idx) => {
     const isAnswered = localQuizState.answers[idx] !== undefined;
     const isWrong = isAnswered && !localQuizState.answers[idx].isCorrect;
     const isUnattempted = !isAnswered;
     const isStarred = localQuizState.starred.has(idx);
 
-    // Filter Logic with Updated Priority Review (Mistakes + Starred + Unattempted)
     if (localQuizState.isFinished) {
       if (localQuizState.filter === 'wrong' && !isWrong) return;
       if (localQuizState.filter === 'starred' && !isStarred) return;
@@ -2466,14 +2479,12 @@ function renderQuizUI() {
 
     container.appendChild(card);
 
-    // Option click listener (Only if not already answered)
     if (!savedAnswer) {
       card.querySelectorAll(`.quiz-opt-${idx}`).forEach(row => {
         row.addEventListener("click", () => {
           const selectedId = row.getAttribute("data-opt-id");
           const isCorrect = selectedId === String(q.correctAnswer);
 
-          // Save in local state
           localQuizState.answers[idx] = { selected: selectedId, isCorrect: isCorrect };
 
           const badge = document.getElementById(`quizBadge_${idx}`);
@@ -2491,7 +2502,6 @@ function renderQuizUI() {
           const expEl = document.getElementById(`quizExp_${idx}`);
           if (expEl) expEl.style.display = "block";
 
-          // अगर यह सेशन 'Mistake Bank' का है, तो बैकएंड में Spaced Repetition स्ट्रीक अपडेट करें
           if (isMistakeBank) {
               syncMistakeBank([{
                   student_roll: currentCandidate.roll_number,
@@ -2506,7 +2516,6 @@ function renderQuizUI() {
     }
   });
 
-  // 3. यदि क्विज़ अभी फिनिश नहीं हुआ है, तो नीचे 'Finish & Check Score' बटन दिखाएं
   if (!localQuizState.isFinished) {
     const footerAction = document.createElement("div");
     footerAction.className = "quiz-footer-actions";

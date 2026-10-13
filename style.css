@@ -1184,6 +1184,7 @@ body.portal-body {
   cursor: pointer;
 }
 
+/* Exam Candidate Roll Number Badge */
 .exam-candidate-roll-badge {
   font-size: 12px;
   font-family: var(--font-mono);
@@ -1193,6 +1194,25 @@ body.portal-body {
 .exam-candidate-roll-badge span {
   color: #ffffff;
   font-weight: 700;
+}
+
+/* 🚀 NEW: Exit / Abort Exam Button Styling */
+.btn-abort-exam {
+  background: transparent;
+  color: #fca5a5;
+  border: 1px solid #ef4444;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.btn-abort-exam:hover {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
 }
 
 .tcs-workspace { 
@@ -1680,14 +1700,14 @@ body.portal-body {
   background: #dcfce7; 
   border-color: #16a34a; 
   color: #15803d; 
-  /* font-weight: 600; HATA DIYA - No bolding */
+  font-weight: normal !important;
 }
 
 .sol-opt-wrong { 
   background: #fee2e2; 
   border-color: #dc2626; 
   color: #b91c1c; 
-  /* font-weight: 600; HATA DIYA - No bolding */
+  font-weight: normal !important;
 }
 
 .sol-explanation { 
