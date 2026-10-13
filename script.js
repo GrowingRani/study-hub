@@ -7,11 +7,30 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // ==========================================================================
-// 2. UNIVERSAL ANSWER NORMALIZATION
+// 2. UNIVERSAL ANSWER NORMALIZATION (BULLETPROOF UPGRADE)
 // ==========================================================================
 function getNormalizedCorrectAnswerId(rawAnswer, optionsArray) {
-  if (!optionsArray || !Array.isArray(optionsArray)) return rawAnswer;
-  let ca = String(rawAnswer || "").trim().toUpperCase();
+  if (!optionsArray || !Array.isArray(optionsArray)) return String(rawAnswer || "");
+  
+  let ca = "";
+  
+  if (typeof rawAnswer === "object" && rawAnswer !== null) {
+      ca = String(rawAnswer.en || rawAnswer.text || rawAnswer.id || "").trim().toUpperCase();
+  } else {
+      ca = String(rawAnswer || "").trim();
+      
+      if (ca.startsWith("{") && ca.endsWith("}")) {
+          try {
+              let parsed = JSON.parse(ca);
+              ca = String(parsed.en || parsed.text || parsed.id || "").trim().toUpperCase();
+          } catch(e) {
+              ca = ca.toUpperCase();
+          }
+      } else {
+          ca = ca.toUpperCase();
+      }
+  }
+
   let matchedOpt = optionsArray.find(o => {
     let oid = String(o.id).trim().toUpperCase();
     let otext = String(o.en || o.text || "").trim().toUpperCase();
@@ -23,7 +42,8 @@ function getNormalizedCorrectAnswerId(rawAnswer, optionsArray) {
            (ca === '3' && oid === 'C') || (ca === '4' && oid === 'D') ||
            o.isCorrect === true || o.is_correct === true;
   });
-  return matchedOpt ? String(matchedOpt.id) : String(rawAnswer);
+  
+  return matchedOpt ? String(matchedOpt.id) : (ca || String(rawAnswer));
 }
 
 // ==========================================================================
@@ -67,7 +87,6 @@ function getLocalizedText(obj) {
     text = String(obj || "");
   }
 
-  // अगर डेटाबेस से literal escaped "\n" आ रहा हो, तो उसे असली Newline में बदलें
   if (typeof text === "string") {
     text = text.replace(/\\n/g, "\n");
   }
@@ -598,18 +617,39 @@ async function mountDashboard() {
 async function fetchWeakQuestions() {
   if (!currentCandidate) return;
   try {
-    const { data, error } = await supabaseClient
+    // 1. सबसे पहले आंकड़े (Stats) मंगाएं
+    const { data: statsData, error: statsErr } = await supabaseClient
         .from("student_question_stats")
         .select("*")
         .eq("student_roll", currentCandidate.roll_number);
     
-    if (error) {
-        console.error("Supabase Error Fetching Weak Qs:", error);
-        return;
+    if (statsErr) throw statsErr;
+    let weakQs = statsData || [];
+
+    // 2. BACKGROUND PRE-FETCH: मास्टर टेबल से 100% सही और ओरिजिनल सवाल मंगाएं
+    const questionIds = weakQs.map(q => q.question_id).filter(Boolean);
+    
+    if (questionIds.length > 0) {
+       const { data: freshQs } = await supabaseClient
+          .from('questions')
+          .select('id, content, options, correct_answer, explanation')
+          .in('id', questionIds);
+
+       if (freshQs) {
+          // पुराने सड़े-गले question_data को नए फ्रेश डेटा से रिप्लेस कर दें
+          userWeakQuestions = weakQs.map(wq => {
+             const freshQ = freshQs.find(fq => String(fq.id) === String(wq.question_id));
+             return {
+                ...wq,
+                question_data: freshQ || wq.question_data 
+             };
+          });
+          return;
+       }
     }
-    userWeakQuestions = data || [];
+    userWeakQuestions = weakQs;
   } catch (err) {
-    console.error("Mistake Bank Load Error:", err);
+    console.error("Mistake Bank Pre-load Error:", err);
   }
 }
 
@@ -831,8 +871,9 @@ function renderTopicSets() {
   });
 
   // TARGETED REVISION MISTAKE BANK CARD (Optimized for Mobile & Dark Mode)
-  const weakQs = userWeakQuestions.filter(q => q.subject === activeSubject && q.times_wrong > q.times_correct);
-  if (weakQs.length > 0) {
+   const weakQs = userWeakQuestions.filter(q => q.subject === activeSubject && q.times_wrong > 0 && (q.mastery_streak || 0) < 4);
+  
+   if (weakQs.length > 0) {
       const mbCard = document.createElement("div");
       mbCard.className = "topic-accordion-card";
       mbCard.style.cssText = "border: 1px solid rgba(239, 68, 68, 0.2); border-left: 4px solid #ef4444; margin-bottom: 16px; background: rgba(239, 68, 68, 0.03);";
@@ -1015,6 +1056,9 @@ function renderTopicSets() {
 // ==========================================================================
 // 6.5 MISTAKE BANK TELEMETRY & ENGINE (BULLETPROOF FETCH-UPDATE LOGIC)
 // ==========================================================================
+// 5-TIER SPACED REPETITION ENGINE (0 -> 1 -> 4 -> 10 -> 25 DAYS)
+const REVIEW_INTERVALS_DAYS = [1, 3, 6, 15];
+
 async function syncMistakeBank(payloads) {
   if (!payloads || payloads.length === 0) return;
   try {
@@ -1024,7 +1068,7 @@ async function syncMistakeBank(payloads) {
         
         const { data: existing, error: fetchErr } = await supabaseClient
             .from("student_question_stats")
-            .select("id, times_wrong, times_correct")
+            .select("id, times_wrong, times_correct, mastery_streak, next_review_at")
             .eq("student_roll", p.student_roll)
             .eq("question_id", safeQuestionId)
             .maybeSingle();
@@ -1035,9 +1079,27 @@ async function syncMistakeBank(payloads) {
         }
 
         if (existing) {
+            let newStreak = existing.mastery_streak || 0;
+            let nextReview = new Date();
+
+            if (p.isCorrect) {
+              newStreak = Math.min(4, newStreak + 1);
+              if (newStreak < 4) {
+                const addDays = REVIEW_INTERVALS_DAYS[newStreak - 1];
+                nextReview.setDate(nextReview.getDate() + addDays);
+              } else {
+                nextReview.setFullYear(nextReview.getFullYear() + 100);
+              }
+            } else {
+              newStreak = 0;
+              nextReview = new Date();
+            }
+
             const updPayload = {
                 times_wrong: p.isCorrect ? existing.times_wrong : existing.times_wrong + 1,
                 times_correct: p.isCorrect ? existing.times_correct + 1 : existing.times_correct,
+                mastery_streak: newStreak,
+                next_review_at: nextReview.toISOString(),
                 last_attempt_date: new Date().toISOString(),
                 question_data: p.question_data 
             };
@@ -1048,13 +1110,21 @@ async function syncMistakeBank(payloads) {
             if (updErr) console.error("Mistake Bank Update Error:", updErr);
             else console.log("Mistake Bank Updated Successfully for Q:", safeQuestionId);
         } else {
+            let newStreak = p.isCorrect ? 1 : 0;
+            let nextReview = new Date();
+            if (p.isCorrect) {
+              nextReview.setDate(nextReview.getDate() + REVIEW_INTERVALS_DAYS[0]);
+            }
+
             const insPayload = {
                 student_roll: p.student_roll,
                 subject: p.subject,
                 question_id: safeQuestionId, 
                 question_data: p.question_data,
                 times_wrong: p.isCorrect ? 0 : 1,
-                times_correct: p.isCorrect ? 1 : 0
+                times_correct: p.isCorrect ? 1 : 0,
+                mastery_streak: newStreak,
+                next_review_at: nextReview.toISOString()
             };
             const { error: insErr } = await supabaseClient
                 .from("student_question_stats")
@@ -1069,29 +1139,57 @@ async function syncMistakeBank(payloads) {
   }
 }
 
-window.launchMistakeBank = function(mode) {
-  const weakQs = userWeakQuestions.filter(q => q.subject === activeSubject && q.times_wrong > q.times_correct);
-  if(weakQs.length === 0) return;
+window.launchMistakeBank = function(mode, forceAll = false) {
+  const now = new Date();
+  
+  const dueQs = userWeakQuestions.filter(q => {
+    return q.subject === activeSubject && 
+           q.times_wrong > 0 && 
+           (q.mastery_streak || 0) < 4 && 
+           (!q.next_review_at || new Date(q.next_review_at) <= now);
+  });
 
-  practiceQuestions = weakQs.map((item, i) => {
+  const allWeakQs = userWeakQuestions.filter(q => {
+    return q.subject === activeSubject && 
+           q.times_wrong > 0 && 
+           (q.mastery_streak || 0) < 4;
+  });
+
+  if (allWeakQs.length === 0) {
+    alert("🎉 बधाई! इस विषय के सभी कमजोर सवाल पूरी तरह मास्टर हो चुके हैं!");
+    return;
+  }
+
+  let targetList = (forceAll || dueQs.length === 0) ? allWeakQs : dueQs;
+
+  practiceQuestions = targetList.map((item, i) => {
+      const qData = item.question_data || {};
+      
       let parsedOptions = [];
-      if (typeof item.question_data.options === 'string') {
-          try { parsedOptions = JSON.parse(item.question_data.options); } catch(e) { parsedOptions = []; }
-      } else if (Array.isArray(item.question_data.options)) {
-          parsedOptions = item.question_data.options;
+      if (typeof qData.options === 'string') {
+          try { parsedOptions = JSON.parse(qData.options); } catch(e) { parsedOptions = []; }
+      } else if (Array.isArray(qData.options)) {
+          parsedOptions = qData.options;
       }
+
       return {
           qNum: i + 1,
-          id: item.question_id,
-          content: item.question_data.content,
+          id: item.question_id || qData.id,
+          content: qData.content,
           options: parsedOptions,
-          correctAnswer: getNormalizedCorrectAnswerId(item.question_data.correct_answer, parsedOptions),
-          explanation: item.question_data.explanation
+          correctAnswer: getNormalizedCorrectAnswerId(qData.correct_answer || qData.correctAnswer, parsedOptions),
+          explanation: qData.explanation,
+          masteryStreak: item.mastery_streak || 0
       };
   }).sort(() => 0.5 - Math.random()).slice(0, 50);
 
   const tEl = document.getElementById("practiceSetTitle");
-  if (tEl) tEl.innerText = "Mistake Bank";
+  if (tEl) {
+    tEl.innerText = (targetList === dueQs) 
+      ? `Mistake Bank (Due: ${dueQs.length})` 
+      : `Mistake Bank (All: ${allWeakQs.length})`;
+  }
+
   switchView("viewPractice");
 
   if (mode === "quiz") renderInteractiveQuizMode(); 
@@ -2165,19 +2263,174 @@ function renderReadMode() {
   });
 }
 
+// Local In-Memory State for Instant Quiz (Zero Backend Calls)
+let localQuizState = {
+  answers: {},     // { qIndex: { selected: "1", isCorrect: true/false } }
+  starred: new Set(), // Set of question indices
+  isFinished: false,
+  filter: "all"
+};
+
 function renderInteractiveQuizMode() {
   const tEl = document.getElementById("practiceModeTitle");
   if (tEl) tEl.innerText = "⚡ Instant Quiz";
   const container = document.getElementById("practiceContainer");
   if (!container) return;
+
+  // Reset local quiz state for fresh session
+  localQuizState = {
+    answers: {},
+    starred: new Set(),
+    isFinished: false,
+    filter: "all"
+  };
+
+  renderQuizUI();
+}
+
+function renderQuizUI() {
+  const container = document.getElementById("practiceContainer");
+  if (!container) return;
   container.innerHTML = "";
+
+  const practiceTitle = document.getElementById("practiceSetTitle")?.innerText || "";
+  const isMistakeBank = practiceTitle.includes("Mistake Bank");
+
+  // 1. यदि यूज़र 'Finish' कर चुका है, तो टॉप पर 6-कार्ड Scorecard Banner दिखाएं
+  if (localQuizState.isFinished) {
+    const totalQ = practiceQuestions.length;
+    const attemptedCount = Object.keys(localQuizState.answers).length;
+    const unattemptedCount = totalQ - attemptedCount;
+    let correctCount = 0;
+    let wrongCount = 0;
+
+    Object.values(localQuizState.answers).forEach(ans => {
+      if (ans.isCorrect) correctCount++;
+      else wrongCount++;
+    });
+
+    const netScore = (correctCount * 2.00) - (wrongCount * 0.50);
+    const accuracy = attemptedCount > 0 ? Math.round((correctCount / attemptedCount) * 100) : 0;
+    const starredCount = localQuizState.starred.size;
+
+    let scorecardHTML = "";
+    if (isMistakeBank) {
+        scorecardHTML = `
+          <div class="quiz-score-grid">
+            <div class="quiz-score-item">
+              <span class="label">Attempted</span>
+              <span class="value" style="color:var(--tcs-blue-accent);">${attemptedCount}</span>
+            </div>
+            <div class="quiz-score-item">
+              <span class="label">Unattempted</span>
+              <span class="value" style="color:#64748b;">${unattemptedCount}</span>
+            </div>
+            <div class="quiz-score-item">
+              <span class="label">Promoted (Correct)</span>
+              <span class="value" style="color:#16a34a;">${correctCount} ✅</span>
+            </div>
+            <div class="quiz-score-item">
+              <span class="label">Demoted (Wrong)</span>
+              <span class="value" style="color:#dc2626;">${wrongCount} ⚠️</span>
+            </div>
+            <div class="quiz-score-item">
+              <span class="label">Starred ⭐</span>
+              <span class="value" style="color:#d97706;">${starredCount}</span>
+            </div>
+            <div class="quiz-score-item">
+              <span class="label">Accuracy</span>
+              <span class="value">${accuracy}%</span>
+            </div>
+          </div>
+        `;
+    } else {
+        scorecardHTML = `
+          <div class="quiz-score-grid">
+            <div class="quiz-score-item">
+              <span class="label">Score</span>
+              <span class="value" style="color:var(--tcs-blue-accent);">${netScore.toFixed(2)}</span>
+            </div>
+            <div class="quiz-score-item">
+              <span class="label">Unattempted</span>
+              <span class="value" style="color:#64748b;">${unattemptedCount}</span>
+            </div>
+            <div class="quiz-score-item">
+              <span class="label">Correct</span>
+              <span class="value" style="color:#16a34a;">+${correctCount}</span>
+            </div>
+            <div class="quiz-score-item">
+              <span class="label">Incorrect</span>
+              <span class="value" style="color:#dc2626;">-${wrongCount}</span>
+            </div>
+            <div class="quiz-score-item">
+              <span class="label">Starred ⭐</span>
+              <span class="value" style="color:#d97706;">${starredCount}</span>
+            </div>
+            <div class="quiz-score-item">
+              <span class="label">Accuracy</span>
+              <span class="value">${accuracy}%</span>
+            </div>
+          </div>
+        `;
+    }
+
+    const banner = document.createElement("div");
+    banner.className = "quiz-score-banner";
+    banner.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h4 style="margin:0; font-size:15px; font-weight:800; color:var(--tcs-blue-header);">📊 Session Review</h4>
+        <span style="font-size:11px; font-weight:800; background:rgba(37,99,235,0.1); color:var(--tcs-blue-accent); padding:3px 10px; border-radius:12px;">UNOFFICIAL / IN-MEMORY</span>
+      </div>
+
+      ${scorecardHTML}
+
+      <div class="quiz-filter-strip">
+        <button type="button" class="quiz-chip-btn ${localQuizState.filter === 'all' ? 'active' : ''}" onclick="filterQuizReview('all')">All Questions (${totalQ})</button>
+        <button type="button" class="quiz-chip-btn ${localQuizState.filter === 'wrong' ? 'active' : ''}" onclick="filterQuizReview('wrong')">❌ Mistakes Only (${wrongCount})</button>
+        <button type="button" class="quiz-chip-btn ${localQuizState.filter === 'starred' ? 'active' : ''}" onclick="filterQuizReview('starred')">⭐ Starred Only (${starredCount})</button>
+        <button type="button" class="quiz-chip-btn ${localQuizState.filter === 'review' ? 'active' : ''}" onclick="filterQuizReview('review')">⚠️ Priority Review</button>
+      </div>
+    `;
+    container.appendChild(banner);
+  }
+
+  // 2. सवाल रेंडर करना (फ़िल्टर के अनुसार)
   practiceQuestions.forEach((q, idx) => {
+    const isAnswered = localQuizState.answers[idx] !== undefined;
+    const isWrong = isAnswered && !localQuizState.answers[idx].isCorrect;
+    const isUnattempted = !isAnswered;
+    const isStarred = localQuizState.starred.has(idx);
+
+    // Filter Logic with Updated Priority Review (Mistakes + Starred + Unattempted)
+    if (localQuizState.isFinished) {
+      if (localQuizState.filter === 'wrong' && !isWrong) return;
+      if (localQuizState.filter === 'starred' && !isStarred) return;
+      if (localQuizState.filter === 'review' && !isWrong && !isStarred && !isUnattempted) return;
+    }
+
     const card = document.createElement("div");
     card.className = "solution-card";
+    card.id = `quizCard_${idx}`;
     card.style.marginBottom = "20px";
-    let optionsHtml = (Array.isArray(q.options) ? q.options : []).map(opt => `<div class="option-row quiz-opt-${idx}" data-opt-id="${opt.id}" style="cursor: pointer; margin-bottom: 8px;"><span style="font-weight: 600;">${opt.id}.</span><span>${getLocalizedText({ en: opt.en || opt.text, hi: opt.hi })}</span></div>`).join("");
-    
-    let expText = "Correct.";
+
+    const savedAnswer = localQuizState.answers[idx];
+
+    let optionsHtml = (Array.isArray(q.options) ? q.options : []).map(opt => {
+      const optId = String(opt.id);
+      let optClass = "option-row";
+      if (savedAnswer) {
+        if (optId === String(q.correctAnswer)) optClass += " sol-opt-correct";
+        else if (optId === savedAnswer.selected && !savedAnswer.isCorrect) optClass += " sol-opt-wrong";
+      }
+      return `
+        <div class="${optClass} quiz-opt-${idx}" data-opt-id="${opt.id}" style="${savedAnswer ? 'pointer-events:none;' : 'cursor:pointer;'} margin-bottom: 8px;">
+          <span style="font-weight: 600;">${opt.id}.</span>
+          <span>${getLocalizedText({ en: opt.en || opt.text, hi: opt.hi })}</span>
+        </div>
+      `;
+    }).join("");
+
+    let expText = "Verified.";
     if (q.explanation) {
       let parsedExp = getLocalizedText(q.explanation);
       if (parsedExp && parsedExp !== '{"en":""}' && parsedExp !== '{"en":"","hi":""}' && parsedExp.trim() !== "") {
@@ -2185,36 +2438,107 @@ function renderInteractiveQuizMode() {
       }
     }
 
-    card.innerHTML = `<div class="sol-q-header"><span>Q${q.qNum}</span><span id="quizBadge_${idx}" class="sol-status-badge sol-status-unattempted">Practice</span></div><div class="sol-content">${getLocalizedText(q.content)}</div><div id="quizOpts_${idx}">${optionsHtml}</div><div id="quizExp_${idx}" class="sol-explanation" style="display: none;"><strong>Explanation:</strong><br/>${expText}</div>`;
-    container.appendChild(card);
-    card.querySelectorAll(`.quiz-opt-${idx}`).forEach(row => {
-      row.addEventListener("click", () => {
-        const selectedId = row.getAttribute("data-opt-id");
-        const isCorrect = selectedId === String(q.correctAnswer);
-        const badge = document.getElementById(`quizBadge_${idx}`);
-        if (badge) {
-          badge.className = `sol-status-badge ${isCorrect ? 'sol-status-correct' : 'sol-status-incorrect'}`;
-          badge.innerText = isCorrect ? "Correct" : "Incorrect";
-        }
-        card.querySelectorAll(`.quiz-opt-${idx}`).forEach(optEl => {
-          optEl.style.pointerEvents = "none";
-          if (optEl.getAttribute("data-opt-id") === String(q.correctAnswer)) optEl.classList.add("sol-opt-correct");
-          else if (optEl.getAttribute("data-opt-id") === selectedId && !isCorrect) optEl.classList.add("sol-opt-wrong");
-        });
-        const expEl = document.getElementById(`quizExp_${idx}`);
-        if (expEl) expEl.style.display = "block";
+    let badgeClass = "sol-status-unattempted";
+    let badgeText = "Practice";
+    if (savedAnswer) {
+      badgeClass = savedAnswer.isCorrect ? "sol-status-correct" : "sol-status-incorrect";
+      badgeText = savedAnswer.isCorrect ? "Correct" : "Incorrect";
+    }
 
-        syncMistakeBank([{
-            student_roll: currentCandidate.roll_number,
-            subject: activeSubject || "General",
-            question_id: q.id,
-            question_data: q,
-            isCorrect: isCorrect
-        }]);
+    card.innerHTML = `
+      <div class="sol-q-header">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span>Q${q.qNum}</span>
+          <span id="quizBadge_${idx}" class="sol-status-badge ${badgeClass}">${badgeText}</span>
+        </div>
+        <div class="quiz-header-actions">
+          <button type="button" class="btn-star-q ${isStarred ? 'starred' : ''}" onclick="toggleQuizStar(${idx})" title="Star Question">
+            ${isStarred ? '★' : '☆'}
+          </button>
+        </div>
+      </div>
+      <div class="sol-content">${getLocalizedText(q.content)}</div>
+      <div id="quizOpts_${idx}">${optionsHtml}</div>
+      <div id="quizExp_${idx}" class="sol-explanation" style="display: ${savedAnswer ? 'block' : 'none'};">
+        <strong>Explanation:</strong><br/>${expText}
+      </div>
+    `;
+
+    container.appendChild(card);
+
+    // Option click listener (Only if not already answered)
+    if (!savedAnswer) {
+      card.querySelectorAll(`.quiz-opt-${idx}`).forEach(row => {
+        row.addEventListener("click", () => {
+          const selectedId = row.getAttribute("data-opt-id");
+          const isCorrect = selectedId === String(q.correctAnswer);
+
+          // Save in local state
+          localQuizState.answers[idx] = { selected: selectedId, isCorrect: isCorrect };
+
+          const badge = document.getElementById(`quizBadge_${idx}`);
+          if (badge) {
+            badge.className = `sol-status-badge ${isCorrect ? 'sol-status-correct' : 'sol-status-incorrect'}`;
+            badge.innerText = isCorrect ? "Correct" : "Incorrect";
+          }
+
+          card.querySelectorAll(`.quiz-opt-${idx}`).forEach(optEl => {
+            optEl.style.pointerEvents = "none";
+            if (optEl.getAttribute("data-opt-id") === String(q.correctAnswer)) optEl.classList.add("sol-opt-correct");
+            else if (optEl.getAttribute("data-opt-id") === selectedId && !isCorrect) optEl.classList.add("sol-opt-wrong");
+          });
+
+          const expEl = document.getElementById(`quizExp_${idx}`);
+          if (expEl) expEl.style.display = "block";
+
+          // अगर यह सेशन 'Mistake Bank' का है, तो बैकएंड में Spaced Repetition स्ट्रीक अपडेट करें
+          if (isMistakeBank) {
+              syncMistakeBank([{
+                  student_roll: currentCandidate.roll_number,
+                  subject: activeSubject || "General",
+                  question_id: q.id,
+                  question_data: q,
+                  isCorrect: isCorrect
+              }]);
+          }
+        });
       });
-    });
+    }
   });
+
+  // 3. यदि क्विज़ अभी फिनिश नहीं हुआ है, तो नीचे 'Finish & Check Score' बटन दिखाएं
+  if (!localQuizState.isFinished) {
+    const footerAction = document.createElement("div");
+    footerAction.className = "quiz-footer-actions";
+    footerAction.innerHTML = `
+      <button type="button" class="btn-finish-quiz" onclick="finishQuizSession()">
+        <span>🏁</span> Finish & Review Score
+      </button>
+    `;
+    container.appendChild(footerAction);
+  }
 }
+
+window.toggleQuizStar = function(idx) {
+  if (localQuizState.starred.has(idx)) {
+    localQuizState.starred.delete(idx);
+  } else {
+    localQuizState.starred.add(idx);
+  }
+  renderQuizUI();
+};
+
+window.finishQuizSession = function() {
+  localQuizState.isFinished = true;
+  localQuizState.filter = "all";
+  renderQuizUI();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+
+window.filterQuizReview = function(filterType) {
+  localQuizState.filter = filterType;
+  renderQuizUI();
+};
 
 function renderFlashcardMode() {
   const tEl = document.getElementById("practiceModeTitle");
