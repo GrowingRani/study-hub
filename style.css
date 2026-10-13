@@ -967,8 +967,6 @@ body.portal-body {
   font-weight: 800;
 }
 
-
-
 .set-status-badge.status-progress { 
   background: #fef3c7; 
   color: #d97706; 
@@ -1237,13 +1235,18 @@ body.portal-body {
   overflow-y: auto; 
   flex: 1; 
   font-size: 15px; 
-  line-height: 1.6; 
 }
 
+/* ==========================================================================
+   FORMATTING FIX: WHITE-SPACE (PRE-LINE) FOR STATEMENTS & BULLETS
+   ========================================================================== */
 .question-text-box { 
   margin-bottom: 24px; 
   color: #1e293b; 
   font-weight: 500; 
+  white-space: pre-line !important; 
+  line-height: 1.65;
+  word-break: break-word;
 }
 
 .options-container { 
@@ -1278,9 +1281,11 @@ body.portal-body {
   accent-color: var(--tcs-blue-accent);
 }
 
-.option-row span {
+.option-row span,
+.sol-option span:last-child {
   display: inline-block;
-  line-height: 1.4;
+  white-space: pre-line;
+  line-height: 1.5;
 }
 
 .tcs-footer-bar { 
@@ -1650,8 +1655,10 @@ body.portal-body {
   margin-bottom: 18px !important;
   font-size: 15px;
   font-weight: 500;
-  line-height: 1.6;
   color: #1e293b;
+  white-space: pre-line !important; 
+  line-height: 1.65;
+  word-break: break-word;
 }
 
 .sol-option { 
@@ -1686,13 +1693,24 @@ body.portal-body {
   margin-top: 20px; 
   font-size: 14px; 
   color: #334155; 
-  line-height: 1.6; 
+  white-space: pre-line !important; 
+  line-height: 1.65;
+  word-break: break-word;
 }
 
 .sol-explanation strong { 
   color: var(--tcs-blue-header); 
   display: block; 
   margin-bottom: 6px; 
+}
+
+/* Flashcard Specific Line-Break Adjustments */
+#cardFront h3 {
+  white-space: pre-line !important;
+  line-height: 1.6;
+}
+#cardBack .sol-explanation {
+  white-space: pre-line !important;
 }
 
 /* ==========================================================================
@@ -1783,111 +1801,119 @@ body.portal-body {
   padding-bottom: 10px; 
 }
 
-/* Subject Mastery Matrix */
-.skill-bars-container {
+/* ==========================================================================
+   HIGH-TECH RADAR & MICRO-MASTERY MATRIX
+   ========================================================================== */
+.mastery-card-container {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  min-height: 380px;
 }
 
-.mastery-card-row {
-  background: #f8fafc;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  padding: 12px 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  transition: all 0.2s ease;
-}
-
-.mastery-card-row:hover {
-  border-color: #94a3b8;
-  background: #ffffff;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
-}
-
-.mastery-meta-top {
+.mastery-card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 10px;
 }
 
-.mastery-subj-name {
-  font-size: 13.5px;
+.mastery-view-toggle {
+  display: flex;
+  gap: 4px;
+  background: var(--bg-surface-elevated);
+  padding: 3px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+}
+
+.view-pill {
+  border: none;
+  background: transparent;
+  padding: 4px 10px;
+  font-size: 11px;
   font-weight: 700;
-  color: #0f172a;
+  color: #64748b;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.view-pill.active {
+  background: var(--bg-panel);
+  color: var(--tcs-blue-accent);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.radar-viewport-wrap {
+  position: relative;
+  width: 100%;
+  height: 290px;
   display: flex;
   align-items: center;
+  justify-content: center;
+}
+
+/* Micro-Cards Compact 2-Column Grid */
+.micro-mastery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(135px, 1fr));
+  gap: 8px;
+  max-height: 290px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.micro-domain-chip {
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
   gap: 6px;
 }
 
-.mastery-right-info {
+.micro-chip-top {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  justify-content: space-between;
+  align-items: flex-start;
 }
 
-.mastery-tier-badge {
-  font-size: 10px;
-  font-weight: 800;
-  text-transform: uppercase;
-  padding: 2px 7px;
-  border-radius: 4px;
-  letter-spacing: 0.4px;
-}
-
-.mastery-tier-master {
-  background: rgba(34, 197, 94, 0.12);
-  color: #16a34a;
-  border: 1px solid rgba(34, 197, 94, 0.3);
-}
-
-.mastery-tier-pro {
-  background: rgba(37, 99, 235, 0.1);
-  color: #2563eb;
-  border: 1px solid rgba(37, 99, 235, 0.25);
-}
-
-.mastery-tier-dev {
-  background: rgba(245, 158, 11, 0.12);
-  color: #d97706;
-  border: 1px solid rgba(245, 158, 11, 0.3);
-}
-
-.mastery-tier-untested {
-  background: rgba(148, 163, 184, 0.12);
-  color: #64748b;
-  border: 1px solid rgba(148, 163, 184, 0.3);
-}
-
-.mastery-score-pct {
-  font-family: var(--font-mono);
-  font-size: 13px;
-  font-weight: 800;
+.micro-chip-title {
+  font-size: 11.5px;
+  font-weight: 700;
   color: #0f172a;
-  min-width: 36px;
-  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 90px;
 }
 
-.mastery-bar-track {
+.micro-chip-val {
+  font-size: 12px;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  color: var(--tcs-blue-accent);
+}
+
+.micro-chip-bar {
+  height: 4px;
   width: 100%;
-  height: 8px;
   background: #e2e8f0;
-  border-radius: 999px;
+  border-radius: 2px;
   overflow: hidden;
 }
 
-.mastery-bar-fill {
+.micro-chip-fill {
   height: 100%;
-  border-radius: 999px;
-  transition: width 0.9s cubic-bezier(0.4, 0, 0.2, 1);
+  background: var(--tcs-blue-accent);
+  transition: width 0.6s ease;
 }
 
-.fill-master { background: linear-gradient(90deg, #22c55e, #16a34a); }
-.fill-pro { background: linear-gradient(90deg, #38bdf8, #2563eb); }
-.fill-dev { background: linear-gradient(90deg, #f59e0b, #d97706); }
-.fill-untested { background: #cbd5e1; }
+/* -------------------------------------------------------------------------- */
 
 /* Actionable Insights & Linear Meter */
 .insight-box {
@@ -1948,7 +1974,9 @@ body.portal-body {
   transition: width 0.8s ease-in-out;
 }
 
-/* Attendance Heatmap */
+/* ==========================================================================
+   UPDATED: HIGH-TECH HEATMAP (YELLOW-GREEN TO DARKEST GREEN)
+   ========================================================================== */
 .heatmap-scroll-wrapper {
   width: 100%;
   overflow-x: auto;
@@ -1977,23 +2005,27 @@ body.portal-body {
 
 .heatmap-cell { 
   aspect-ratio: 1; 
-  border-radius: 2px; 
+  border-radius: 3px; 
   background: #e2e8f0; 
-  transition: all 0.2s ease; 
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); 
+  position: relative;
+  cursor: pointer;
 }
 
+/* Light Theme Scale (Yellowish-Green -> Dark Green) */
 .heatmap-cell.absent { background-color: #e2e8f0 !important; }
-.hm-lvl-1 { background-color: #bbf7d0 !important; }
-.hm-lvl-2 { background-color: #86efac !important; }
-.hm-lvl-3 { background-color: #22c55e !important; }
+.hm-lvl-1 { background-color: #d9f99d !important; } /* Yellowish Green */
+.hm-lvl-2 { background-color: #84cc16 !important; } /* Medium Lime Green */
+.hm-lvl-3 { background-color: #16a34a !important; } /* Dark Green */
 .hm-lvl-4 { 
-  background-color: #15803d !important;
-  box-shadow: 0 0 4px rgba(21, 128, 61, 0.4);
+  background-color: #14532d !important; /* Darkest Green */
+  box-shadow: 0 0 6px rgba(22, 163, 74, 0.3);
 }
 
 .heatmap-cell:hover {
-  transform: scale(1.15);
-  outline: 1px solid #94a3b8;
+  transform: scale(1.25);
+  border: 1px solid #1e293b;
+  z-index: 10;
 }
 
 .cal-legend {
@@ -2010,6 +2042,33 @@ body.portal-body {
 .cal-legend .heatmap-cell {
   width: 12px;
   height: 12px;
+}
+
+/* Custom Rich Tooltip */
+.custom-heatmap-tooltip {
+  position: absolute;
+  background: rgba(15, 23, 42, 0.95);
+  backdrop-filter: blur(8px);
+  color: #f8fafc;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-family: var(--font-family);
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0;
+  transform: translateY(10px) translateX(-50%);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+  text-align: center;
+  min-width: 120px;
+  white-space: nowrap;
+}
+
+.custom-heatmap-tooltip.show {
+  opacity: 1;
+  transform: translateY(-8px) translateX(-50%);
 }
 
 /* ==========================================================================
@@ -2336,7 +2395,6 @@ body.dark-theme .set-tile-title {
   color: #f1f5f9; 
 }
 
-/* Dark Theme Elegant "NEW" Badge (No Dots) */
 body.dark-theme .set-status-badge.status-new {
   background: rgba(56, 189, 248, 0.08);
   color: #38bdf8;
@@ -2426,6 +2484,11 @@ body.dark-theme .danger-ghost:hover { background: rgba(239, 68, 68, 0.1); color:
 body.dark-theme .sol-opt-correct { background: rgba(22, 163, 74, 0.15) !important; border-color: #22c55e !important; color: #4ade80 !important; }
 body.dark-theme .sol-opt-wrong { background: rgba(220, 38, 38, 0.15) !important; border-color: #ef4444 !important; color: #fca5a5 !important; }
 body.dark-theme #flashcardBox { background: #0f172a !important; border-color: #1e293b !important; }
+
+/* Radar & Micro-Grid Dark Theme Additions */
+body.dark-theme .micro-chip-title { color: #f1f5f9; }
+body.dark-theme .micro-chip-bar { background: #1e293b; }
+body.dark-theme .view-pill.active { background: #111a2e; color: #38bdf8; box-shadow: none; }
 
 /* Practice & Solutions Top Bar Unified Styling */
 .practice-top-bar {
@@ -2593,41 +2656,27 @@ body.dark-theme .insight-box-weak {
   border-color: #dc2626 !important; 
 }
 
-body.dark-theme .mastery-card-row {
-  background: #0b1120;
-  border-color: #1e293b;
-}
-
-body.dark-theme .mastery-card-row:hover {
-  background: #111a2e;
-  border-color: #334155;
-}
-
-body.dark-theme .mastery-subj-name { color: #f1f5f9; }
-body.dark-theme .mastery-score-pct { color: #38bdf8; }
-body.dark-theme .mastery-bar-track { background: #1e293b; }
-body.dark-theme .mastery-tier-master { color: #4ade80; }
-body.dark-theme .mastery-tier-pro { color: #38bdf8; }
-body.dark-theme .mastery-tier-dev { color: #fbbf24; }
-body.dark-theme .mastery-tier-untested {
-  color: #94a3b8;
-  border-color: #1e293b;
-  background: rgba(148, 163, 184, 0.08);
-}
-body.dark-theme .fill-untested { background: #1e293b; }
-
 body.dark-theme .linear-meter-box { border-color: #1e293b !important; }
 body.dark-theme #syllabusPercentTxt { color: #38bdf8 !important; }
+
+/* Heatmap Dark Mode Colors & Cyber Glow */
+body.dark-theme .heatmap-cell { background: #1e293b !important; }
+body.dark-theme .heatmap-cell.absent { background-color: #111a2e !important; }
+body.dark-theme .hm-lvl-1 { background: #4d7c0f !important; }
+body.dark-theme .hm-lvl-2 { background: #65a30d !important; }
+body.dark-theme .hm-lvl-3 { 
+  background: #84cc16 !important; 
+  box-shadow: 0 0 8px rgba(132, 204, 22, 0.4) !important;
+}
+body.dark-theme .hm-lvl-4 { 
+  background: #a3e635 !important; 
+  box-shadow: 0 0 12px rgba(163, 230, 53, 0.6) !important;
+}
+body.dark-theme .heatmap-cell:hover { border-color: #f8fafc; }
 
 body.dark-theme .heatmap-scroll-wrapper::-webkit-scrollbar-track { background: #080c14; }
 body.dark-theme .heatmap-scroll-wrapper::-webkit-scrollbar-thumb { background: #1e293b; }
 body.dark-theme .heatmap-grid { border: 1px solid rgba(255, 255, 255, 0.02); }
-body.dark-theme .heatmap-cell { background: #1e293b !important; }
-body.dark-theme .heatmap-cell.absent { background-color: #111a2e !important; }
-body.dark-theme .hm-lvl-1 { background: rgba(34, 197, 94, 0.3) !important; }
-body.dark-theme .hm-lvl-2 { background: rgba(34, 197, 94, 0.6) !important; }
-body.dark-theme .hm-lvl-3 { background: rgba(34, 197, 94, 0.8) !important; }
-body.dark-theme .hm-lvl-4 { background: #22c55e !important; box-shadow: 0 0 8px rgba(34, 197, 94, 0.4); }
 
 body.dark-theme .slide-drawer { 
   background: #0f172a; 
@@ -2941,54 +2990,4 @@ body.dark-theme .drawer-avatar { background: #111a2e; color: #94a3b8; }
   align-items: center;
   gap: 6px;
   flex-shrink: 0; /* बटनों का साइज हमेशा फिक्स रहेगा */
-}
-/* 1. TCS Exam Workspace Question Box */
-.question-text-box { 
-  margin-bottom: 24px; 
-  color: #1e293b; 
-  font-weight: 500; 
-  white-space: pre-line !important; /* Preserves Statements, Match-the-following & Enters */
-  line-height: 1.65;
-  word-break: break-word;
-}
-
-/* 2. Solutions, Read Mode & Instant Quiz Question Content */
-.sol-content {
-  margin-top: 4px;
-  margin-bottom: 18px !important;
-  font-size: 15px;
-  font-weight: 500;
-  line-height: 1.65;
-  color: #1e293b;
-  white-space: pre-line !important; /* Preserves Line Breaks in Read/Quiz/Solutions */
-  word-break: break-word;
-}
-
-/* 3. Detailed Explanation Box (Bullet points & Multi-line breakdown) */
-.sol-explanation { 
-  background: #f8fafc; 
-  border-left: 4px solid var(--tcs-blue-accent); 
-  padding: 16px; 
-  margin-top: 20px; 
-  font-size: 14px; 
-  color: #334155; 
-  line-height: 1.65; 
-  white-space: pre-line !important; /* Renders bullet lists and line breaks cleanly */
-  word-break: break-word;
-}
-
-/* 4. Options Text (For Statement/Multi-line options) */
-.option-row span,
-.sol-option span:last-child {
-  white-space: pre-line;
-  line-height: 1.5;
-}
-
-/* 5. Flashcard Question & Answer Surfaces */
-#cardFront h3 {
-  white-space: pre-line !important;
-  line-height: 1.6;
-}
-#cardBack .sol-explanation {
-  white-space: pre-line !important;
 }

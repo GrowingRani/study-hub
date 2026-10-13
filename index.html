@@ -325,10 +325,23 @@
 
       <!-- Advanced Analytics Grid -->
       <div class="advanced-analytics-grid">
-        <!-- 1. Subject Mastery -->
-        <div class="profile-section-card">
-          <h3 class="section-title">Subject Mastery</h3>
-          <div id="subjectMasteryBars" class="skill-bars-container"></div>
+        <!-- 1. Subject Mastery: Radar Matrix & Micro-Domain Grid -->
+        <div class="profile-section-card mastery-card-container">
+          <div class="mastery-card-header">
+            <h3 class="section-title" style="margin-bottom: 0; border: none; padding: 0;">Subject Competency Matrix</h3>
+            <div class="mastery-view-toggle">
+              <button type="button" class="view-pill active" id="btnToggleRadar" onclick="switchMasteryView('radar')">Radar 🕸️</button>
+              <button type="button" class="view-pill" id="btnToggleGrid" onclick="switchMasteryView('grid')">Cards ▦</button>
+            </div>
+          </div>
+
+          <!-- View A: Interactive Chart.js Radar Polygon -->
+          <div id="radarViewport" class="radar-viewport-wrap">
+            <canvas id="subjectRadarChart"></canvas>
+          </div>
+
+          <!-- View B: Compact 2-Column Micro-Tile Grid (Collapsible/Scroll-locked) -->
+          <div id="gridViewport" class="micro-mastery-grid" style="display: none;"></div>
         </div>
 
         <!-- 2. Actionable Insights & Syllabus Meter -->

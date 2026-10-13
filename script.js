@@ -46,6 +46,9 @@ let userResponses = {};
 let timeRemaining = 15 * 60;
 let timerInterval = null;
 
+// Radar Chart Global Instance
+let subjectRadarChartInstance = null;
+
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("./service-worker.js").catch(err => console.error("SW Error:", err));
@@ -118,6 +121,25 @@ window.toggleProfileDrawer = function() {
       drawer.classList.add('open');
       overlay.classList.add('open');
     }, 10);
+  }
+};
+
+window.switchMasteryView = function(viewType) {
+  const radarWrap = document.getElementById("radarViewport");
+  const gridWrap = document.getElementById("gridViewport");
+  const btnRadar = document.getElementById("btnToggleRadar");
+  const btnGrid = document.getElementById("btnToggleGrid");
+
+  if (viewType === 'radar') {
+    if (radarWrap) radarWrap.style.display = "flex";
+    if (gridWrap) gridWrap.style.display = "none";
+    btnRadar?.classList.add("active");
+    btnGrid?.classList.remove("active");
+  } else {
+    if (radarWrap) radarWrap.style.display = "none";
+    if (gridWrap) gridWrap.style.display = "grid";
+    btnGrid?.classList.add("active");
+    btnRadar?.classList.remove("active");
   }
 };
 
@@ -1885,76 +1907,102 @@ window.fetchStudentAnalytics = async function(isSilent = false) {
       }
     }
 
-    const barsContainer = document.getElementById("subjectMasteryBars");
-    if (barsContainer) {
-      barsContainer.innerHTML = "";
+    // =========================================================================
+    // DYNAMIC RADAR CHART & COMPACT MICRO-GRID ENGINE
+    // =========================================================================
+    const allCatalogSubjects = Array.from(new Set(catalogData.map(c => c.subject || "General Studies")));
+    
+    const subjectMetricsList = allCatalogSubjects.map(subj => {
+      const stats = subjectStats[subj] || { earnedScore: 0, maxScore: 0, attemptedSets: 0 };
+      const scorePct = stats.maxScore > 0 ? Math.max(0, Math.round((stats.earnedScore / stats.maxScore) * 100)) : 0;
+      return {
+        subject: subj,
+        scorePct: scorePct,
+        attempted: stats.attemptedSets
+      };
+    });
 
-      const allCatalogSubjects = Array.from(new Set(catalogData.map(c => c.subject || "General Studies")));
-      
-      const subjectMetricsList = allCatalogSubjects.map(subj => {
-        const totalSetsInCatalog = catalogData.filter(c => (c.subject || "General Studies") === subj).length;
-        const stats = subjectStats[subj] || { earnedScore: 0, maxScore: 0, attemptedSets: 0 };
-        const scorePct = stats.maxScore > 0 ? Math.max(0, Math.round((stats.earnedScore / stats.maxScore) * 100)) : 0;
-        return {
-          subject: subj,
-          scorePct: scorePct,
-          attempted: stats.attemptedSets,
-          totalSets: totalSetsInCatalog
-        };
-      });
-
-      subjectMetricsList.sort((a, b) => {
-        if (a.attempted > 0 && b.attempted === 0) return -1;
-        if (a.attempted === 0 && b.attempted > 0) return 1;
-        return b.scorePct - a.scorePct;
-      });
-
+    // 1. RENDER MICRO-GRID VIEW
+    const gridContainer = document.getElementById("gridViewport");
+    if (gridContainer) {
+      gridContainer.innerHTML = "";
       subjectMetricsList.forEach(item => {
-        let tierText = "Developing";
-        let tierClass = "mastery-tier-dev";
-        let fillClass = "fill-dev";
-        let icon = "⚡";
-
-        if (item.attempted === 0) {
-          tierText = "Untested";
-          tierClass = "mastery-tier-untested";
-          fillClass = "fill-untested";
-          icon = "⏳";
-        } else if (item.scorePct >= 100) {
-          tierText = "Master";
-          tierClass = "mastery-tier-master";
-          fillClass = "fill-master";
-          icon = "🏆";
-        } else if (item.scorePct >= 60) {
-          tierText = "Proficient";
-          tierClass = "mastery-tier-pro";
-          fillClass = "fill-pro";
-          icon = "🎯";
-        }
-
-        const card = document.createElement("div");
-        card.className = "mastery-card-row";
-        card.innerHTML = `
-          <div class="mastery-meta-top">
-            <span class="mastery-subj-name">
-              <span>${icon}</span> ${item.subject}
-              <small style="font-size:10px; color:#64748b; font-weight:700;">(${item.attempted}/${item.totalSets} Sets)</small>
-            </span>
-            <div class="mastery-right-info">
-              <span class="mastery-tier-badge ${tierClass}">${tierText}</span>
-              <span class="mastery-score-pct">${item.scorePct}%</span>
-            </div>
+        const chip = document.createElement("div");
+        chip.className = "micro-domain-chip";
+        chip.innerHTML = `
+          <div class="micro-chip-top">
+            <span class="micro-chip-title" title="${item.subject}">${item.subject}</span>
+            <span class="micro-chip-val">${item.scorePct}%</span>
           </div>
-          <div class="mastery-bar-track">
-            <div class="mastery-bar-fill ${fillClass}" style="width: 0%;"></div>
+          <div class="micro-chip-bar">
+            <div class="micro-chip-fill" style="width: ${item.scorePct}%;"></div>
           </div>
         `;
-        barsContainer.appendChild(card);
+        gridContainer.appendChild(chip);
+      });
+    }
 
-        setTimeout(() => {
-          const fillEl = card.querySelector('.mastery-bar-fill');
-          if (fillEl) fillEl.style.width = item.scorePct + "%";
-        }, 80);
+    // 2. RENDER CHART.JS RADAR MATRIX
+    const radarCanvas = document.getElementById("subjectRadarChart");
+    if (radarCanvas && window.Chart) {
+      const isDark = document.body.classList.contains("dark-theme");
+      const gridColor = isDark ? "rgba(148, 163, 184, 0.15)" : "rgba(15, 23, 42, 0.08)";
+      const labelColor = isDark ? "#94a3b8" : "#475569";
+      const accentColor = isDark ? "#38bdf8" : "#2563eb";
+      const accentFill = isDark ? "rgba(56, 189, 248, 0.25)" : "rgba(37, 99, 235, 0.18)";
+
+      const radarLabels = subjectMetricsList.map(s => s.subject.length > 12 ? s.subject.substring(0, 10) + ".." : s.subject);
+      const radarValues = subjectMetricsList.map(s => s.scorePct);
+
+      if (subjectRadarChartInstance) {
+        subjectRadarChartInstance.destroy();
+      }
+
+      subjectRadarChartInstance = new Chart(radarCanvas, {
+        type: 'radar',
+        data: {
+          labels: radarLabels,
+          datasets: [{
+            label: 'Competency %',
+            data: radarValues,
+            backgroundColor: accentFill,
+            borderColor: accentColor,
+            borderWidth: 2,
+            pointBackgroundColor: accentColor,
+            pointBorderColor: "#fff",
+            pointHoverBackgroundColor: "#fff",
+            pointHoverBorderColor: accentColor,
+            pointRadius: 3
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: (ctx) => ` Mastery: ${ctx.raw}%`
+              }
+            }
+          },
+          scales: {
+            r: {
+              angleLines: { color: gridColor },
+              grid: { color: gridColor },
+              pointLabels: {
+                color: labelColor,
+                font: { size: 10, weight: '700' }
+              },
+              suggestedMin: 0,
+              suggestedMax: 100,
+              ticks: {
+                display: false,
+                stepSize: 25
+              }
+            }
+          }
+        }
       });
     }
 
@@ -1972,20 +2020,58 @@ function renderHeatmap(attendanceMap) {
   if (!container) return;
   container.innerHTML = "";
   
+  // Create or select the Custom Tooltip element
+  let tooltip = document.getElementById("heatmapTooltip");
+  if (!tooltip) {
+    tooltip = document.createElement("div");
+    tooltip.id = "heatmapTooltip";
+    tooltip.className = "custom-heatmap-tooltip";
+    document.body.appendChild(tooltip);
+  }
+  
   const today = new Date();
   for (let i = 29; i >= 0; i--) {
     let d = new Date(today);
     d.setDate(d.getDate() - i);
     const dateStr = new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split("T")[0];
+    const displayDate = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     
     const mins = attendanceMap[dateStr] || 0;
     const cell = document.createElement("div");
     cell.className = "heatmap-cell";
-    cell.title = `${dateStr}: ${mins} mins`;
-    if (mins > 90) cell.classList.add("hm-lvl-4");
-    else if (mins > 45) cell.classList.add("hm-lvl-3");
-    else if (mins > 15) cell.classList.add("hm-lvl-2");
-    else if (mins > 0) cell.classList.add("hm-lvl-1");
+    
+    // Color Scaling logic
+    if (mins > 90) cell.classList.add("hm-lvl-4");      // Darkest Green
+    else if (mins > 45) cell.classList.add("hm-lvl-3"); // Dark Green
+    else if (mins > 15) cell.classList.add("hm-lvl-2"); // Medium Green
+    else if (mins > 0) cell.classList.add("hm-lvl-1");  // Yellowish-Green
+    else cell.classList.add("absent");
+
+    // Rich Tooltip Hover Logic
+    cell.addEventListener("mouseenter", (e) => {
+      const rect = cell.getBoundingClientRect();
+      const hrs = Math.floor(mins / 60);
+      const remainingMins = mins % 60;
+      let timeText = mins === 0 ? "No activity" : (hrs > 0 ? `${hrs}h ${remainingMins}m` : `${remainingMins} mins`);
+      let glowColor = mins > 45 ? "#4ade80" : (mins > 0 ? "#a3e635" : "#94a3b8");
+
+      tooltip.innerHTML = `
+        <div style="font-weight:700; color:#cbd5e1; margin-bottom:4px;">${displayDate}</div>
+        <div style="font-size:13px; font-family:var(--font-mono); font-weight:800; color:${glowColor};">
+          ⏱️ ${timeText}
+        </div>
+      `;
+      
+      // Position tooltip exactly above the cell
+      tooltip.style.left = `${rect.left + (rect.width / 2)}px`;
+      tooltip.style.top = `${rect.top - 10}px`;
+      tooltip.classList.add("show");
+    });
+
+    cell.addEventListener("mouseleave", () => {
+      tooltip.classList.remove("show");
+    });
+
     container.appendChild(cell);
   }
 }
