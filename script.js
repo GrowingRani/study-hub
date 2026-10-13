@@ -2044,12 +2044,11 @@ function renderHeatmap(attendanceMap) {
     if (mins > 90) cell.classList.add("hm-lvl-4");      // Darkest Green
     else if (mins > 45) cell.classList.add("hm-lvl-3"); // Dark Green
     else if (mins > 15) cell.classList.add("hm-lvl-2"); // Medium Green
-    else if (mins > 0) cell.classList.add("hm-lvl-1");  // Yellowish-Green
-    else cell.classList.add("absent");
+    else if (mins > 0) cell.classList.add("hm-lvl-1");  // Light Green
+    else cell.classList.add("absent");                  // No Activity
 
-    // Rich Tooltip Hover Logic
+    // Rich Tooltip Hover Logic (With Edge Collision Protection)
     cell.addEventListener("mouseenter", (e) => {
-      const rect = cell.getBoundingClientRect();
       const hrs = Math.floor(mins / 60);
       const remainingMins = mins % 60;
       let timeText = mins === 0 ? "No activity" : (hrs > 0 ? `${hrs}h ${remainingMins}m` : `${remainingMins} mins`);
@@ -2062,10 +2061,29 @@ function renderHeatmap(attendanceMap) {
         </div>
       `;
       
-      // Position tooltip exactly above the cell
-      tooltip.style.left = `${rect.left + (rect.width / 2)}px`;
-      tooltip.style.top = `${rect.top - 10}px`;
       tooltip.classList.add("show");
+      
+      // Get exact dimensions of the cell and the newly populated tooltip
+      const rect = cell.getBoundingClientRect();
+      const tWidth = tooltip.offsetWidth;
+      const tHeight = tooltip.offsetHeight;
+      
+      // Default center alignment
+      let centerX = rect.left + (rect.width / 2);
+      const screenPadding = 12; // 12px safe area from screen edge
+      
+      // 🛡️ MOBILE EDGE COLLISION ALGORITHM
+      if (centerX - (tWidth / 2) < screenPadding) {
+        // If spilling off the Left edge, push it right
+        centerX = (tWidth / 2) + screenPadding;
+      } else if (centerX + (tWidth / 2) > window.innerWidth - screenPadding) {
+        // If spilling off the Right edge, push it left
+        centerX = window.innerWidth - (tWidth / 2) - screenPadding;
+      }
+      
+      // Apply precise coordinates
+      tooltip.style.left = `${centerX}px`;
+      tooltip.style.top = `${rect.top - tHeight}px`; // Position strictly above the cell
     });
 
     cell.addEventListener("mouseleave", () => {
