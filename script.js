@@ -53,11 +53,23 @@ if ("serviceWorker" in navigator) {
 }
 
 function getLocalizedText(obj) {
+  let text = "";
   if (typeof obj === "object" && obj !== null) {
-    if (currentLang === "hi") return obj.hi ? obj.hi : (obj.en + "\n\n*(यह सामग्री अभी हिंदी में उपलब्ध नहीं है)*");
-    return obj.en || JSON.stringify(obj);
+    if (currentLang === "hi") {
+      text = obj.hi ? obj.hi : (obj.en + "\n\n*(यह सामग्री अभी हिंदी में उपलब्ध नहीं है)*");
+    } else {
+      text = obj.en || JSON.stringify(obj);
+    }
+  } else {
+    text = String(obj || "");
   }
-  return String(obj || "");
+
+  // अगर डेटाबेस से literal escaped "\n" आ रहा हो, तो उसे असली Newline में बदलें
+  if (typeof text === "string") {
+    text = text.replace(/\\n/g, "\n");
+  }
+
+  return text;
 }
 
 window.addEventListener("DOMContentLoaded", () => {

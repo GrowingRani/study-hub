@@ -2942,3 +2942,53 @@ body.dark-theme .drawer-avatar { background: #111a2e; color: #94a3b8; }
   gap: 6px;
   flex-shrink: 0; /* बटनों का साइज हमेशा फिक्स रहेगा */
 }
+/* 1. TCS Exam Workspace Question Box */
+.question-text-box { 
+  margin-bottom: 24px; 
+  color: #1e293b; 
+  font-weight: 500; 
+  white-space: pre-line !important; /* Preserves Statements, Match-the-following & Enters */
+  line-height: 1.65;
+  word-break: break-word;
+}
+
+/* 2. Solutions, Read Mode & Instant Quiz Question Content */
+.sol-content {
+  margin-top: 4px;
+  margin-bottom: 18px !important;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.65;
+  color: #1e293b;
+  white-space: pre-line !important; /* Preserves Line Breaks in Read/Quiz/Solutions */
+  word-break: break-word;
+}
+
+/* 3. Detailed Explanation Box (Bullet points & Multi-line breakdown) */
+.sol-explanation { 
+  background: #f8fafc; 
+  border-left: 4px solid var(--tcs-blue-accent); 
+  padding: 16px; 
+  margin-top: 20px; 
+  font-size: 14px; 
+  color: #334155; 
+  line-height: 1.65; 
+  white-space: pre-line !important; /* Renders bullet lists and line breaks cleanly */
+  word-break: break-word;
+}
+
+/* 4. Options Text (For Statement/Multi-line options) */
+.option-row span,
+.sol-option span:last-child {
+  white-space: pre-line;
+  line-height: 1.5;
+}
+
+/* 5. Flashcard Question & Answer Surfaces */
+#cardFront h3 {
+  white-space: pre-line !important;
+  line-height: 1.6;
+}
+#cardBack .sol-explanation {
+  white-space: pre-line !important;
+}
