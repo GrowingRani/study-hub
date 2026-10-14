@@ -42,7 +42,8 @@ body.portal-body {
 
 .view-screen { 
   width: 100vw; 
-  height: 100vh; 
+  height: 100vh; /* Fallback for older browsers */
+  height: 100dvh; /* 🚀 FIX: Mobile Address Bar 100% Centering */
   display: flex; 
   flex-direction: column; 
   max-width: 100vw;
@@ -190,6 +191,7 @@ body.portal-body {
    ========================================================================== */
 #viewLogin { 
   background: radial-gradient(circle at 50% 20%, #1e293b, #080c14); 
+  min-height: 100dvh;
   align-items: center; 
   justify-content: center; 
 }
@@ -2873,7 +2875,7 @@ body.dark-theme .drawer-avatar { background: #111a2e; color: #94a3b8; }
 @media screen and (max-width: 768px) {
   body.portal-body { height: 100dvh; }
   .hide-on-mobile { display: none !important; }
-  .login-industrial-card { width: 92%; padding: 22px; }
+  .login-industrial-card { width: 92%; padding: 22px; margin: auto 0;}
   .dash-top-bar { padding: 10px 14px; }
   
   .gamify-badge {
