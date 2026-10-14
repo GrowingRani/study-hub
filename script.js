@@ -412,8 +412,8 @@ function setupAppEvents() {
     if (registerForm) registerForm.style.display = "block";
     const regFields = document.getElementById("regFieldsStep");
     const regSuccess = document.getElementById("regSuccessCard");
-    if (regFields) regFields.style.display = "block";
-    if (regSuccess) regSuccess.style.display = "none";
+    if (regFields) regFields.style.display = "none";
+    if (regSuccess) regSuccess.style.display = "block";
     if (signInForm) signInForm.style.display = "none";
     if (forgotForm) forgotForm.style.display = "none";
     if (resetPasswordForm) resetPasswordForm.style.display = "none";
@@ -633,7 +633,7 @@ function setupAppEvents() {
     };
   }
 
-  // Mobile Exam Palette Toggle Logic (Explicit Opening and Closing)
+  // Mobile Exam Palette Toggle Logic
   const btnMobilePalette = document.getElementById("btnMobilePalette");
   if (btnMobilePalette) {
     btnMobilePalette.onclick = (e) => {
@@ -901,7 +901,6 @@ window.drillDownToSubject = function(subjectName, pushHistory = true) {
 
 // 🚀 UPDATED: returnToSubjectHub handles both on-screen button & mobile back swipe
 window.returnToSubjectHub = function(fromPopState = false) {
-  // Agar on-screen back button dabaya aur history mein subView tha, toh history.back() call karo taaki duplicate entries na banein
   if (!fromPopState && history.state && history.state.subView === 'setsExplorer') {
     history.back();
     return;
@@ -952,10 +951,16 @@ function renderTopicSets() {
     else if (f === 'mastered') btn.innerText = `🏆 Mastered (${masteredCount})`;
   });
 
-  // TARGETED REVISION MISTAKE BANK CARD
-   const weakQs = userWeakQuestions.filter(q => q.subject === activeSubject && q.times_wrong > 0 && (q.mastery_streak || 0) < 4);
+  // 🚀 TARGETED REVISION MISTAKE BANK CARD (AUTO-HIDE IF ZERO DUE TODAY)
+  const now = new Date();
+  const dueWeakQs = userWeakQuestions.filter(q => {
+    return q.subject === activeSubject && 
+           q.times_wrong > 0 && 
+           (q.mastery_streak || 0) < 4 && 
+           (!q.next_review_at || new Date(q.next_review_at) <= now);
+  });
   
-   if (weakQs.length > 0) {
+  if (dueWeakQs.length > 0) {
       const mbCard = document.createElement("div");
       mbCard.className = "topic-accordion-card";
       mbCard.style.cssText = "border: 1px solid rgba(239, 68, 68, 0.2); border-left: 4px solid #ef4444; margin-bottom: 16px; background: rgba(239, 68, 68, 0.03);";
@@ -967,7 +972,7 @@ function renderTopicSets() {
                           <span>🧠</span> TARGETED REVISION
                       </h4>
                       <p style="font-size:11.5px; color:#64748b; margin:0; font-weight:600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                          ${weakQs.length} questions need attention
+                          ${dueWeakQs.length} questions need attention today
                       </p>
                   </div>
                   <span style="background:rgba(239, 68, 68, 0.12); color:#ef4444; padding:4px 8px; border-radius:4px; font-size:9.5px; font-weight:800; white-space:nowrap; flex-shrink:0; border: 1px solid rgba(239, 68, 68, 0.25); letter-spacing: 0.5px;">MISTAKE BANK</span>
@@ -975,7 +980,7 @@ function renderTopicSets() {
               <div class="secondary-modes-strip" style="display:flex; gap:8px; width: 100%;">
                   <button class="btn-launch-set" style="flex:1; background:rgba(239, 68, 68, 0.15); color:#ef4444; border:1px solid rgba(239, 68, 68, 0.3); box-shadow:none;" onclick="launchMistakeBank('quiz')">
                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg> 
-                      <span style="margin-left:4px;">Practice Qs</span>
+                      <span style="margin-left:4px;">Practice Qs (${dueWeakQs.length})</span>
                   </button>
                   <button class="btn-launch-set" style="flex:1; background:transparent; color:#ef4444; border:1px solid rgba(239, 68, 68, 0.3); box-shadow:none;" onclick="launchMistakeBank('flashcard')">
                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="14" height="14" rx="2" ry="2"></rect><path d="M21 7v12a2 2 0 0 1-2 2H7"></path></svg>
@@ -2573,7 +2578,7 @@ function renderQuizUI() {
 
     if (!savedAnswer) {
       card.querySelectorAll(`.quiz-opt-${idx}`).forEach(row => {
-        row.addEventListener("click", () => {
+        row.addEventListener("click", async () => {
           const selectedId = row.getAttribute("data-opt-id");
           const isCorrect = selectedId === String(q.correctAnswer);
 
@@ -2595,7 +2600,7 @@ function renderQuizUI() {
           if (expEl) expEl.style.display = "block";
 
           if (isMistakeBank) {
-              syncMistakeBank([{
+              await syncMistakeBank([{
                   student_roll: currentCandidate.roll_number,
                   subject: activeSubject || "General",
                   question_id: q.id,
