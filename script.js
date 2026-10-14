@@ -120,24 +120,23 @@ window.switchView = function(viewId, pushHistory = true) {
     bottomNav.style.display = (window.innerWidth <= 768 && (viewId === 'viewDashboard' || viewId === 'viewAnalytics')) ? 'flex' : 'none';
   }
 
-  // 🚀 NAYA CODE: History mein state push karne ke liye (Mobile Back Swipe Fix)
+  // 🚀 History state push for full-view switching
   if (pushHistory) {
     history.pushState({ view: viewId }, "", "#" + viewId);
   }
 };
 
-// 🚀 NAYA CODE: Back Swipe / Back Button Handler via History API
+// 🚀 BACK SWIPE & POPSTATE CONTROLLER (STAGES + MODALS + EXAM MODE INTERCEPTION)
 window.addEventListener("popstate", function(e) {
-  // 1. Agar koi Modal open hai (jaise Submit/Abort Modal), toh back dabane par usko close karo
+  // 1. Agar koi Modal open hai (Submit / Scorecard / Abort Modal), toh back swipe se pehle use close karo
   const submitModal = document.getElementById("submitModalContainer");
   if (submitModal && submitModal.style.display === "flex") {
     closeExamModal();
-    // History wapas set karo taaki pichhe na chala jaye
     history.pushState(history.state, "", window.location.hash);
     return;
   }
 
-  // 2. Agar Profile Drawer open hai, toh usko close karo
+  // 2. Agar Profile Drawer open hai, toh swipe se pehle drawer close karo
   const profileDrawer = document.getElementById("profileDrawer");
   if (profileDrawer && profileDrawer.classList.contains("open")) {
     toggleProfileDrawer();
@@ -148,24 +147,43 @@ window.addEventListener("popstate", function(e) {
   // Current active view dhundo
   const currentActiveView = Array.from(document.querySelectorAll('.view-screen')).find(v => v.style.display === 'flex')?.id;
 
-  // 3. EXAM MODE INTERCEPTION
+  // 3. EXAM MODE INTERCEPTION: Back swipe karne par exam abort ka modal trigger hoga
   if (currentActiveView === 'viewExam') {
-    // URL ko wapas viewExam par force karo
     history.pushState({ view: 'viewExam' }, "", "#viewExam");
-    
-    // Abort Exam wala modal dikhao
     abortExamSession();
     return;
   }
 
-  // 4. Normal Back Navigation (History ke hisaab se view switch karo)
+  // 4. SUBTOPIC / SETS EXPLORER MEIN AGAR SEARCH OPEN HAI: Pehle search band karo
+  const searchBar = document.getElementById("mastheadSearchBar");
+  if (searchBar && searchBar.style.display === "flex") {
+    toggleMastheadSearch(false);
+    history.pushState(history.state, "", window.location.hash);
+    return;
+  }
+
+  // 5. 🎯 SUBTOPIC / SETS EXPLORER (STAGE 2) SE HOME SUBJECT HUB (STAGE 1) PAR WAPASI
+  const explorerStage = document.getElementById("setsExplorerStage");
+  if (currentActiveView === 'viewDashboard' && explorerStage && explorerStage.style.display === "block") {
+    returnToSubjectHub(true);
+    return;
+  }
+
+  // 6. Normal Multi-View Navigation (History State ke anusaar)
   if (e.state && e.state.view) {
-    // false isliye bheja taaki wapas history push na ho
-    switchView(e.state.view, false); 
+    switchView(e.state.view, false);
+    if (e.state.view === 'viewDashboard') {
+      if (e.state.subView === 'setsExplorer' && e.state.subject) {
+        drillDownToSubject(e.state.subject, false);
+      } else {
+        returnToSubjectHub(true);
+      }
+    }
   } else {
-    // Fallback: Agar history stack khatam ho jaye, toh Dashboard par le jao
+    // Fallback: Agar history stack empty ho jaye, safe Dashboard Home par le aao
     if (currentCandidate) {
       switchView('viewDashboard', false);
+      returnToSubjectHub(true);
     } else {
       switchView('viewLogin', false);
     }
@@ -233,7 +251,7 @@ function initAuthSessionWatcher() {
     if (session && session.user && session.user.email_confirmed_at) initCandidateSession(session.user);
     else {
       currentCandidate = null;
-      switchView("viewLogin", false); // Do not push initial login to history
+      switchView("viewLogin", false);
     }
   });
 
@@ -732,7 +750,7 @@ function renderSubjectHubGrid() {
     subjectsMap[s].sets.push(row);
   });
 
-  // 🚀 UPDATE: Subjects ko Dictionary (A-Z) kram mein sort kiya gaya
+  // Subjects ko Dictionary (A-Z) kram mein sort kiya gaya
   Object.entries(subjectsMap)
     .sort((a, b) => a[0].localeCompare(b[0]))
     .forEach(([subName, data]) => {
@@ -837,7 +855,8 @@ window.toggleMastheadSearch = function(isOpen) {
   }
 };
 
-window.drillDownToSubject = function(subjectName) {
+// 🚀 UPDATED: drillDownToSubject pushes Sub-view to history for back swipe
+window.drillDownToSubject = function(subjectName, pushHistory = true) {
   activeSubject = subjectName;
   
   const hubStage = document.getElementById("subjectHubStage");
@@ -873,9 +892,21 @@ window.drillDownToSubject = function(subjectName) {
 
   renderTopicSets();
   window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  // 🚀 Record Sub-stage in Browser History for Back Swipe
+  if (pushHistory) {
+    history.pushState({ view: 'viewDashboard', subView: 'setsExplorer', subject: subjectName }, "", "#subject");
+  }
 };
 
-window.returnToSubjectHub = function() {
+// 🚀 UPDATED: returnToSubjectHub handles both on-screen button & mobile back swipe
+window.returnToSubjectHub = function(fromPopState = false) {
+  // Agar on-screen back button dabaya aur history mein subView tha, toh history.back() call karo taaki duplicate entries na banein
+  if (!fromPopState && history.state && history.state.subView === 'setsExplorer') {
+    history.back();
+    return;
+  }
+
   const hubStage = document.getElementById("subjectHubStage");
   const explorerStage = document.getElementById("setsExplorerStage");
 
@@ -963,7 +994,7 @@ function renderTopicSets() {
     grouped[key].push(item);
   });
 
-  // 🚀 UPDATE: Topics ko Dictionary (A-Z) kram mein sort kiya gaya
+  // Topics ko Dictionary (A-Z) kram mein sort kiya gaya
   Object.entries(grouped)
     .sort((a, b) => a[0].localeCompare(b[0]))
     .forEach(([topicName, sets]) => {
@@ -990,7 +1021,7 @@ function renderTopicSets() {
 
       if (processedSets.length === 0 && currentFilter !== 'all') return;
 
-      // 🚀 UPDATE: Sets ko unke naam (test_title) ke anusaar A-Z sort kiya gaya
+      // Sets ko unke naam (test_title) ke anusaar A-Z sort kiya gaya
       processedSets.sort((a, b) => String(a.setItem.test_title || "").localeCompare(String(b.setItem.test_title || "")));
 
       let progressPct = sets.length > 0 ? (topicMastered / sets.length) * 100 : 0;
@@ -1386,7 +1417,7 @@ window.launchAssessment = async function(testId) {
   }
 };
 
-// 🚀 NEW: Abort Exam Logic (Custom Beautiful Modal)
+// Abort Exam Modal Logic
 window.abortExamSession = function() {
   let modal = document.getElementById("submitModalContainer"); 
   if (!modal) {
@@ -1398,7 +1429,6 @@ window.abortExamSession = function() {
   modal.className = "tcs-modal-overlay";
   modal.style.setProperty("display", "flex", "important");
   
-  // Custom Alert Modal HTML
   modal.innerHTML = `
     <div class="tcs-modal-box" style="max-width: 420px; border-color: #ef4444;">
       <div class="tcs-modal-header" style="background: #ef4444; color: #ffffff;">
@@ -1467,16 +1497,13 @@ function renderQuestion(index) {
   }
 }
 
-// 🚀 NEW: Auto-open palette on Last Question
 function advanceNextQuestion() {
   if (currentIndex + 1 < testQuestions.length) {
     renderQuestion(currentIndex + 1);
   } else {
-    // We are on the last question
     renderPaletteGrid();
     updateStatusMatrix();
     
-    // Automatically open the palette so user can easily click 'Submit'
     const panel = document.querySelector(".tcs-side-panel");
     const overlay = document.getElementById("paletteOverlay");
     if (panel) panel.classList.add("open");
@@ -1592,8 +1619,6 @@ window.confirmAndFinishExam = function() {
 
 function renderScorecard() {
   let correct = 0, incorrect = 0, unattempted = 0;
-  
-  // 🚀 UPDATE: "Ans & Review" (तुक्का) aur "Unattempted" (स्किप) dono Mistake Bank mein jayenge
   let statsPayload = [];
 
   testQuestions.forEach((q, idx) => {
@@ -1602,7 +1627,6 @@ function renderScorecard() {
 
     if (!userAns) {
         unattempted++;
-        // 🚀 NEW: Unattempted sawal ab seedhe Mistake Bank mein jayenge
         statsPayload.push({ 
             student_roll: currentCandidate.roll_number, 
             subject: activeSubject || "General", 
@@ -1613,8 +1637,6 @@ function renderScorecard() {
     }
     else if (String(userAns) === String(q.correctAnswer)) {
         correct++;
-        
-        // 🚀 MAGIC: Agar jawab sahi hai, lekin 'Mark for Review' (Status 4) tha, toh use galat maankar Mistake Bank mein dalo
         if (qStatus === 4) {
             statsPayload.push({ student_roll: currentCandidate.roll_number, subject: activeSubject || "General", question_id: q.id, question_data: q, isCorrect: false });
         } else {
