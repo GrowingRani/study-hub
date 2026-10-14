@@ -1542,14 +1542,33 @@ window.confirmAndFinishExam = function() {
 function renderScorecard() {
   let correct = 0, incorrect = 0, unattempted = 0;
   
+  // 🚀 UPDATE: "Ans & Review" (तुक्का) और "Unattempted" (स्किप) दोनों Mistake Bank में जाएंगे
   let statsPayload = [];
 
   testQuestions.forEach((q, idx) => {
     const userAns = userResponses[idx].selected;
-    if (!userAns) unattempted++;
+    const qStatus = userResponses[idx].status;
+
+    if (!userAns) {
+        unattempted++;
+        // 🚀 NEW: Unattempted सवाल अब सीधे Mistake Bank में जाएंगे
+        statsPayload.push({ 
+            student_roll: currentCandidate.roll_number, 
+            subject: activeSubject || "General", 
+            question_id: q.id, 
+            question_data: q, 
+            isCorrect: false 
+        });
+    }
     else if (String(userAns) === String(q.correctAnswer)) {
         correct++;
-        statsPayload.push({ student_roll: currentCandidate.roll_number, subject: activeSubject || "General", question_id: q.id, question_data: q, isCorrect: true });
+        
+        // 🚀 MAGIC: अगर जवाब सही है, लेकिन 'Mark for Review' (Status 4) था, तो उसे गलत मानकर Mistake Bank में डालो
+        if (qStatus === 4) {
+            statsPayload.push({ student_roll: currentCandidate.roll_number, subject: activeSubject || "General", question_id: q.id, question_data: q, isCorrect: false });
+        } else {
+            statsPayload.push({ student_roll: currentCandidate.roll_number, subject: activeSubject || "General", question_id: q.id, question_data: q, isCorrect: true });
+        }
     }
     else {
         incorrect++;
