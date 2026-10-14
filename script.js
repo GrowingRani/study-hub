@@ -107,7 +107,7 @@ window.addEventListener("DOMContentLoaded", () => {
   });
 });
 
-window.switchView = function(viewId) {
+window.switchView = function(viewId, pushHistory = true) {
   ["viewLogin", "viewDashboard", "viewExam", "viewSolutions", "viewAnalytics", "viewPractice"].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = "none";
@@ -119,7 +119,58 @@ window.switchView = function(viewId) {
   if (bottomNav) {
     bottomNav.style.display = (window.innerWidth <= 768 && (viewId === 'viewDashboard' || viewId === 'viewAnalytics')) ? 'flex' : 'none';
   }
+
+  // 🚀 NAYA CODE: History mein state push karne ke liye (Mobile Back Swipe Fix)
+  if (pushHistory) {
+    history.pushState({ view: viewId }, "", "#" + viewId);
+  }
 };
+
+// 🚀 NAYA CODE: Back Swipe / Back Button Handler via History API
+window.addEventListener("popstate", function(e) {
+  // 1. Agar koi Modal open hai (jaise Submit/Abort Modal), toh back dabane par usko close karo
+  const submitModal = document.getElementById("submitModalContainer");
+  if (submitModal && submitModal.style.display === "flex") {
+    closeExamModal();
+    // History wapas set karo taaki pichhe na chala jaye
+    history.pushState(history.state, "", window.location.hash);
+    return;
+  }
+
+  // 2. Agar Profile Drawer open hai, toh usko close karo
+  const profileDrawer = document.getElementById("profileDrawer");
+  if (profileDrawer && profileDrawer.classList.contains("open")) {
+    toggleProfileDrawer();
+    history.pushState(history.state, "", window.location.hash);
+    return;
+  }
+
+  // Current active view dhundo
+  const currentActiveView = Array.from(document.querySelectorAll('.view-screen')).find(v => v.style.display === 'flex')?.id;
+
+  // 3. EXAM MODE INTERCEPTION
+  if (currentActiveView === 'viewExam') {
+    // URL ko wapas viewExam par force karo
+    history.pushState({ view: 'viewExam' }, "", "#viewExam");
+    
+    // Abort Exam wala modal dikhao
+    abortExamSession();
+    return;
+  }
+
+  // 4. Normal Back Navigation (History ke hisaab se view switch karo)
+  if (e.state && e.state.view) {
+    // false isliye bheja taaki wapas history push na ho
+    switchView(e.state.view, false); 
+  } else {
+    // Fallback: Agar history stack khatam ho jaye, toh Dashboard par le jao
+    if (currentCandidate) {
+      switchView('viewDashboard', false);
+    } else {
+      switchView('viewLogin', false);
+    }
+  }
+});
 
 window.updateBottomNav = function(clickedBtn) {
   document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
@@ -182,7 +233,7 @@ function initAuthSessionWatcher() {
     if (session && session.user && session.user.email_confirmed_at) initCandidateSession(session.user);
     else {
       currentCandidate = null;
-      switchView("viewLogin");
+      switchView("viewLogin", false); // Do not push initial login to history
     }
   });
 
@@ -681,7 +732,7 @@ function renderSubjectHubGrid() {
     subjectsMap[s].sets.push(row);
   });
 
-  // 🚀 UPDATE: Subjects को Dictionary (A-Z) क्रम में सॉर्ट किया गया
+  // 🚀 UPDATE: Subjects ko Dictionary (A-Z) kram mein sort kiya gaya
   Object.entries(subjectsMap)
     .sort((a, b) => a[0].localeCompare(b[0]))
     .forEach(([subName, data]) => {
@@ -912,7 +963,7 @@ function renderTopicSets() {
     grouped[key].push(item);
   });
 
-  // 🚀 UPDATE: Topics को Dictionary (A-Z) क्रम में सॉर्ट किया गया
+  // 🚀 UPDATE: Topics ko Dictionary (A-Z) kram mein sort kiya gaya
   Object.entries(grouped)
     .sort((a, b) => a[0].localeCompare(b[0]))
     .forEach(([topicName, sets]) => {
@@ -939,7 +990,7 @@ function renderTopicSets() {
 
       if (processedSets.length === 0 && currentFilter !== 'all') return;
 
-      // 🚀 UPDATE: Sets को उनके नाम (test_title) के अनुसार A-Z सॉर्ट किया गया
+      // 🚀 UPDATE: Sets ko unke naam (test_title) ke anusaar A-Z sort kiya gaya
       processedSets.sort((a, b) => String(a.setItem.test_title || "").localeCompare(String(b.setItem.test_title || "")));
 
       let progressPct = sets.length > 0 ? (topicMastered / sets.length) * 100 : 0;
@@ -1542,7 +1593,7 @@ window.confirmAndFinishExam = function() {
 function renderScorecard() {
   let correct = 0, incorrect = 0, unattempted = 0;
   
-  // 🚀 UPDATE: "Ans & Review" (तुक्का) और "Unattempted" (स्किप) दोनों Mistake Bank में जाएंगे
+  // 🚀 UPDATE: "Ans & Review" (तुक्का) aur "Unattempted" (स्किप) dono Mistake Bank mein jayenge
   let statsPayload = [];
 
   testQuestions.forEach((q, idx) => {
@@ -1551,7 +1602,7 @@ function renderScorecard() {
 
     if (!userAns) {
         unattempted++;
-        // 🚀 NEW: Unattempted सवाल अब सीधे Mistake Bank में जाएंगे
+        // 🚀 NEW: Unattempted sawal ab seedhe Mistake Bank mein jayenge
         statsPayload.push({ 
             student_roll: currentCandidate.roll_number, 
             subject: activeSubject || "General", 
@@ -1563,7 +1614,7 @@ function renderScorecard() {
     else if (String(userAns) === String(q.correctAnswer)) {
         correct++;
         
-        // 🚀 MAGIC: अगर जवाब सही है, लेकिन 'Mark for Review' (Status 4) था, तो उसे गलत मानकर Mistake Bank में डालो
+        // 🚀 MAGIC: Agar jawab sahi hai, lekin 'Mark for Review' (Status 4) tha, toh use galat maankar Mistake Bank mein dalo
         if (qStatus === 4) {
             statsPayload.push({ student_roll: currentCandidate.roll_number, subject: activeSubject || "General", question_id: q.id, question_data: q, isCorrect: false });
         } else {
@@ -2301,7 +2352,7 @@ function renderReadMode() {
 }
 
 let localQuizState = {
-  answers: {},     
+  answers: {},    
   starred: new Set(), 
   isFinished: false,
   filter: "all"
