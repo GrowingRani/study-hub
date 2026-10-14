@@ -65,6 +65,7 @@ let flashcardIndex = 0;
 let userResponses = {};
 let timeRemaining = 15 * 60;
 let timerInterval = null;
+let isExamFinished = false; // 🚀 NAYA: Exam loop trap rokne ke liye
 
 // Radar Chart Global Instance
 let subjectRadarChartInstance = null;
@@ -113,10 +114,24 @@ window.addEventListener("DOMContentLoaded", () => {
 });
 
 window.switchView = function(viewId, pushHistory = true) {
+  const currentActiveView = Array.from(document.querySelectorAll('.view-screen')).find(v => v.style.display === 'flex')?.id;
+  
+  if (currentActiveView === viewId) return;
+
+  // 🚀 SMART ROUTING INTERCEPT: 
+  // Agar user "Exit" button dabata hai jo hardcoded switchView('viewDashboard') par jata hai, 
+  // toh use NAYA panna push karne ke bajaye 'history.back()' karo taaki Stack kharab na ho.
+  if (pushHistory && viewId === 'viewDashboard' && ['viewPractice', 'viewSolutions', 'viewExam'].includes(currentActiveView)) {
+      isExamFinished = true; // Traps unlock
+      history.back();
+      return; 
+  }
+
   ["viewLogin", "viewDashboard", "viewExam", "viewSolutions", "viewAnalytics", "viewPractice"].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = "none";
   });
+  
   const target = document.getElementById(viewId);
   if (target) target.style.display = "flex";
 
@@ -130,31 +145,30 @@ window.switchView = function(viewId, pushHistory = true) {
   }
 };
 
-// 🚀 BACK SWIPE & POPSTATE CONTROLLER (STAGES + MODALS + EXAM MODE INTERCEPTION)
+// 🚀 NAYA: STRICT HIERARCHICAL POPSTATE CONTROLLER
 window.addEventListener("popstate", function(e) {
-  // 1. Agar Modal open hai (Submit / Scorecard / Abort)
+  // 1. Agar koi Modal open hai (Submit / Scorecard / Abort Modal), toh close karo
   const submitModal = document.getElementById("submitModalContainer");
   if (submitModal && submitModal.style.display === "flex") {
     closeExamModal();
-    // Modal band kiya, par URL wahi rakhne ke liye push
-    history.pushState(history.state, "", window.location.hash);
+    history.pushState(e.state, "", window.location.hash); // Restore URL
     return;
   }
 
-  // 2. Agar Profile Drawer open hai
+  // 2. Agar Profile Drawer open hai, toh close karo
   const profileDrawer = document.getElementById("profileDrawer");
   if (profileDrawer && profileDrawer.classList.contains("open")) {
     toggleProfileDrawer();
-    history.pushState(history.state, "", window.location.hash);
+    history.pushState(e.state, "", window.location.hash); // Restore URL
     return;
   }
 
   const currentActiveView = Array.from(document.querySelectorAll('.view-screen')).find(v => v.style.display === 'flex')?.id;
 
-  // 3. EXAM MODE INTERCEPTION: Back swipe par loop nahi banega
-  if (currentActiveView === 'viewExam') {
+  // 3. EXAM MODE INTERCEPTION: (Ab loop nahi banega)
+  if (currentActiveView === 'viewExam' && !isExamFinished) {
     history.pushState({ view: 'viewExam' }, "", "#viewExam");
-    abortExamSession(); // Modal dikhao
+    abortExamSession();
     return;
   }
 
@@ -162,28 +176,27 @@ window.addEventListener("popstate", function(e) {
   const searchBar = document.getElementById("mastheadSearchBar");
   if (searchBar && searchBar.style.display === "flex") {
     toggleMastheadSearch(false);
-    history.pushState(history.state, "", window.location.hash);
+    history.pushState(e.state, "", window.location.hash);
     return;
   }
 
-  // 5. 🎯 STAGE 2 (Sets Explorer) SE STAGE 1 (Home Hub) PAR WAPASI
-  const explorerStage = document.getElementById("setsExplorerStage");
-  if (currentActiveView === 'viewDashboard' && explorerStage && explorerStage.style.display === "block") {
-    returnToSubjectHub(true);
-    return;
-  }
-
-  // 6. Normal Navigation
-  if (e.state && e.state.view) {
-    switchView(e.state.view, false);
+  // 5. Normal Multi-View Navigation (Based strictly on e.state)
+  if (e.state) {
     if (e.state.view === 'viewDashboard') {
+      switchView('viewDashboard', false);
+      
+      // Checking sub-stage inside Dashboard
       if (e.state.subView === 'setsExplorer' && e.state.subject) {
-        drillDownToSubject(e.state.subject, false);
+        drillDownToSubject(e.state.subject, false); // Restore to specific Subject (Sets view)
       } else {
-        returnToSubjectHub(true);
+        returnToSubjectHub(true); // Restore to Home Portfolio (Hub)
       }
+    } 
+    else if (e.state.view) {
+      switchView(e.state.view, false);
     }
   } else {
+    // Empty stack fallback -> Safe land to Hub
     if (currentCandidate) {
       switchView('viewDashboard', false);
       returnToSubjectHub(true);
@@ -223,14 +236,12 @@ function setupMobileExamGestures() {
     const diffY = e.changedTouches[0].clientY - touchStartY;
     const diffX = Math.abs(e.changedTouches[0].clientX - touchStartX);
 
-    // Agar niche drag hua hai (at least 50px) aur left-right scroll nahi hai
+    // Agar niche drag hua hai (at least 50px) aur horizontal swipe nahi hai
     if (diffY > 50 && diffX < 80) {
       panel.classList.remove("open");
       overlay?.classList.remove("open");
     }
   }, { passive: true });
-
-  // Pura Upswipe Logic Hata diya gaya hai as requested!
 }
 
 window.updateBottomNav = function(clickedBtn) {
@@ -366,7 +377,9 @@ async function initCandidateSession(user) {
     if (rollEl) rollEl.value = currentCandidate.roll_number || "";
     const targetEl = document.getElementById("editProfileTarget");
     if (targetEl) targetEl.value = currentCandidate.target_exam || "";
-    mountDashboard();
+    
+    // 🚀 INITIAL APP LAUNCH (Sets up the Root History Node)
+    mountDashboard(true);
   } catch (err) {
     showAuthNotice("Candidate profile load failed: " + err.message);
     switchView("viewLogin");
@@ -707,19 +720,23 @@ function setupAppEvents() {
 // ==========================================================================
 // 6. DASHBOARD, CATALOG & MISTAKE BANK FETCHING
 // ==========================================================================
-async function mountDashboard() {
+async function mountDashboard(isInitialLoad = false) {
   const cName = document.getElementById("dashCandidateName");
   if (cName) cName.innerText = currentCandidate?.full_name || "Candidate";
   const rollEl = document.getElementById("dashCandidateRoll");
   if (rollEl) rollEl.innerText = "ROLL: " + (currentCandidate?.roll_number || "---");
   
-  const hubStage = document.getElementById("subjectHubStage");
-  const explorerStage = document.getElementById("setsExplorerStage");
-  if (hubStage) hubStage.style.display = "block";
-  if (explorerStage) explorerStage.style.display = "none";
-
   fetchStudentAnalytics(true); 
-  switchView("viewDashboard");
+  
+  // Do not push state here, just switch the display naturally.
+  switchView("viewDashboard", false);
+
+  if (isInitialLoad || !history.state) {
+      history.replaceState({ view: 'viewDashboard', subView: 'hub' }, "", "#viewDashboard");
+  }
+  
+  // Ensure we are in Stage 1
+  returnToSubjectHub(true); 
   updateBottomNav(document.querySelector('.nav-item.active'));
   
   await fetchWeakQuestions();
@@ -938,12 +955,13 @@ window.drillDownToSubject = function(subjectName, pushHistory = true) {
 
   // 🚀 Record Sub-stage in Browser History for Back Swipe
   if (pushHistory) {
-    history.pushState({ view: 'viewDashboard', subView: 'setsExplorer', subject: subjectName }, "", "#subject");
+    history.pushState({ view: 'viewDashboard', subView: 'setsExplorer', subject: subjectName }, "", "#subject_" + encodeURIComponent(subjectName));
   }
 };
 
-// 🚀 UPDATED: returnToSubjectHub handles both on-screen button & mobile back swipe
+// 🚀 UPDATED: returnToSubjectHub handles both on-screen button & mobile back swipe smoothly
 window.returnToSubjectHub = function(fromPopState = false) {
+  // Agar on-screen back button dabaya aur history mein subView tha, toh native history.back() use karo
   if (!fromPopState && history.state && history.state.subView === 'setsExplorer') {
     history.back();
     return;
@@ -959,6 +977,11 @@ window.returnToSubjectHub = function(fromPopState = false) {
 
   renderSubjectHubGrid();
   window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  // Reset to Hub history state if manually triggered
+  if (!fromPopState) {
+    history.replaceState({ view: 'viewDashboard', subView: 'hub' }, "", "#viewDashboard");
+  }
 };
 
 function renderTopicSets() {
@@ -1399,7 +1422,9 @@ window.launchDailyMix = async function() {
 // 8. TCS iON EXAM ENGINE LAYER (WITH EXIT & AUTO-PALETTE FIXES)
 // ==========================================================================
 window.launchAssessment = async function(testId) {
-  switchView("viewExam");
+  isExamFinished = false; // Reset trap flag
+  switchView("viewExam", true);
+  
   const progressLine = document.getElementById("examProgressLine");
   if (progressLine) progressLine.style.width = "0%";
   const contentBox = document.getElementById("questionContent");
@@ -1465,7 +1490,7 @@ window.launchAssessment = async function(testId) {
   }
 };
 
-// Abort Exam Modal Logic
+// 🚀 NAYA: Abort Exam Logic without loop traps
 window.abortExamSession = function() {
   let modal = document.getElementById("submitModalContainer"); 
   if (!modal) {
@@ -1499,10 +1524,11 @@ window.executeAbortExam = function() {
   closeExamModal();
   if (timerInterval) clearInterval(timerInterval);
   
-  // Abort hone par directly dashboard display karo, history corrupt mat karo
-  switchView('viewDashboard', false); 
-  history.replaceState({ view: 'viewDashboard' }, "", "#viewDashboard");
-  mountDashboard();
+  isExamFinished = true; // Unlock the trap
+  
+  // Natural exit using browser history back
+  // Ye wapas Sets Explorer stage par safely le jayega
+  history.back(); 
 };
 
 function renderQuestion(index) {
@@ -1785,16 +1811,22 @@ function renderScorecard() {
   })();
 }
 
+// 🚀 NAYA: Clean Exit via History
 window.closeExamAndReload = function() {
   closeExamModal();
-  mountDashboard();
+  isExamFinished = true;
+  history.back(); // Will naturally go back to Explorer
 };
 
+// 🚀 NAYA: Solutions replace the Exam history state
 window.openSolutionsView = function() {
   closeExamModal();
   const tEl = document.getElementById("solExamTitle");
   if (tEl) tEl.innerText = activeTest?.title || "Assessment";
-  switchView("viewSolutions");
+  
+  // Switch to solutions WITHOUT pushing state, instead REPLACE the exam state
+  switchView("viewSolutions", false);
+  history.replaceState({ view: 'viewSolutions' }, "", "#viewSolutions");
 
   const container = document.getElementById("solutionsContainer");
   if (!container) return;
