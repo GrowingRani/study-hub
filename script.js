@@ -95,8 +95,13 @@ function getLocalizedText(obj) {
 }
 
 window.addEventListener("DOMContentLoaded", () => {
+  // Pull-to-refresh global disable via JS fallback (CSS is primary)
+  document.documentElement.style.overscrollBehaviorY = 'none';
+  document.body.style.overscrollBehaviorY = 'none';
+
   setupAppEvents();
   initAuthSessionWatcher();
+  setupMobileExamGestures();
 
   window.addEventListener('resize', () => {
     const bottomNav = document.getElementById('mobileBottomNav');
@@ -189,6 +194,68 @@ window.addEventListener("popstate", function(e) {
     }
   }
 });
+
+// 🚀 MOBILE EXAM GESTURE CONTROLLER (SWIPE UP TO OPEN / SWIPE DOWN TO CLOSE)
+function setupMobileExamGestures() {
+  const panel = document.querySelector(".tcs-side-panel");
+  const overlay = document.getElementById("paletteOverlay");
+  const mobileControls = document.querySelector(".mobile-exam-controls");
+  const subBar = document.getElementById("examSubBar");
+
+  if (!panel) return;
+
+  // 1. Inject Visual Grab Bar Handle on Mobile Palette if not already present
+  if (!document.getElementById("paletteGrabHandle")) {
+    const handle = document.createElement("div");
+    handle.id = "paletteGrabHandle";
+    handle.style.cssText = "width: 44px; height: 5px; background: #cbd5e1; border-radius: 4px; margin: 8px auto 4px auto; flex-shrink: 0; cursor: grab;";
+    panel.insertBefore(handle, panel.firstChild);
+  }
+
+  let touchStartY = 0;
+  let touchStartX = 0;
+
+  // 2. SWIPE DOWN TO CLOSE: Panel ke top bar / grab handle par drag gesture
+  panel.addEventListener("touchstart", (e) => {
+    if (window.innerWidth > 768) return;
+    touchStartY = e.touches[0].clientY;
+    touchStartX = e.touches[0].clientX;
+  }, { passive: true });
+
+  panel.addEventListener("touchend", (e) => {
+    if (window.innerWidth > 768 || !panel.classList.contains("open")) return;
+    const diffY = e.changedTouches[0].clientY - touchStartY;
+    const diffX = Math.abs(e.changedTouches[0].clientX - touchStartX);
+
+    // Agar niche drag hua hai (at least 50px) aur horizontal swipe nahi hai
+    if (diffY > 50 && diffX < 80) {
+      panel.classList.remove("open");
+      overlay?.classList.remove("open");
+    }
+  }, { passive: true });
+
+  // 3. SWIPE UP TO OPEN: Question Strip / Mobile Controls area par upar swipe gesture
+  const openSwipeTargets = [mobileControls, subBar].filter(Boolean);
+  openSwipeTargets.forEach(target => {
+    target.addEventListener("touchstart", (e) => {
+      if (window.innerWidth > 768) return;
+      touchStartY = e.touches[0].clientY;
+      touchStartX = e.touches[0].clientX;
+    }, { passive: true });
+
+    target.addEventListener("touchend", (e) => {
+      if (window.innerWidth > 768 || panel.classList.contains("open")) return;
+      const diffY = touchStartY - e.changedTouches[0].clientY;
+      const diffX = Math.abs(e.changedTouches[0].clientX - touchStartX);
+
+      // Agar upar swipe hua hai (at least 45px)
+      if (diffY > 45 && diffX < 80) {
+        panel.classList.add("open");
+        overlay?.classList.add("open");
+      }
+    }, { passive: true });
+  });
+}
 
 window.updateBottomNav = function(clickedBtn) {
   document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
@@ -633,7 +700,7 @@ function setupAppEvents() {
     };
   }
 
-  // Mobile Exam Palette Toggle Logic
+  // Mobile Exam Palette Toggle Logic (Click Fallback)
   const btnMobilePalette = document.getElementById("btnMobilePalette");
   if (btnMobilePalette) {
     btnMobilePalette.onclick = (e) => {
