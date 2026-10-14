@@ -125,7 +125,6 @@ window.switchView = function(viewId, pushHistory = true) {
     bottomNav.style.display = (window.innerWidth <= 768 && (viewId === 'viewDashboard' || viewId === 'viewAnalytics')) ? 'flex' : 'none';
   }
 
-  // 🚀 History state push for full-view switching
   if (pushHistory) {
     history.pushState({ view: viewId }, "", "#" + viewId);
   }
@@ -133,15 +132,16 @@ window.switchView = function(viewId, pushHistory = true) {
 
 // 🚀 BACK SWIPE & POPSTATE CONTROLLER (STAGES + MODALS + EXAM MODE INTERCEPTION)
 window.addEventListener("popstate", function(e) {
-  // 1. Agar koi Modal open hai (Submit / Scorecard / Abort Modal), toh back swipe se pehle use close karo
+  // 1. Agar Modal open hai (Submit / Scorecard / Abort)
   const submitModal = document.getElementById("submitModalContainer");
   if (submitModal && submitModal.style.display === "flex") {
     closeExamModal();
+    // Modal band kiya, par URL wahi rakhne ke liye push
     history.pushState(history.state, "", window.location.hash);
     return;
   }
 
-  // 2. Agar Profile Drawer open hai, toh swipe se pehle drawer close karo
+  // 2. Agar Profile Drawer open hai
   const profileDrawer = document.getElementById("profileDrawer");
   if (profileDrawer && profileDrawer.classList.contains("open")) {
     toggleProfileDrawer();
@@ -149,17 +149,16 @@ window.addEventListener("popstate", function(e) {
     return;
   }
 
-  // Current active view dhundo
   const currentActiveView = Array.from(document.querySelectorAll('.view-screen')).find(v => v.style.display === 'flex')?.id;
 
-  // 3. EXAM MODE INTERCEPTION: Back swipe karne par exam abort ka modal trigger hoga
+  // 3. EXAM MODE INTERCEPTION: Back swipe par loop nahi banega
   if (currentActiveView === 'viewExam') {
     history.pushState({ view: 'viewExam' }, "", "#viewExam");
-    abortExamSession();
+    abortExamSession(); // Modal dikhao
     return;
   }
 
-  // 4. SUBTOPIC / SETS EXPLORER MEIN AGAR SEARCH OPEN HAI: Pehle search band karo
+  // 4. SUBTOPIC / SETS EXPLORER MEIN AGAR SEARCH OPEN HAI
   const searchBar = document.getElementById("mastheadSearchBar");
   if (searchBar && searchBar.style.display === "flex") {
     toggleMastheadSearch(false);
@@ -167,14 +166,14 @@ window.addEventListener("popstate", function(e) {
     return;
   }
 
-  // 5. 🎯 SUBTOPIC / SETS EXPLORER (STAGE 2) SE HOME SUBJECT HUB (STAGE 1) PAR WAPASI
+  // 5. 🎯 STAGE 2 (Sets Explorer) SE STAGE 1 (Home Hub) PAR WAPASI
   const explorerStage = document.getElementById("setsExplorerStage");
   if (currentActiveView === 'viewDashboard' && explorerStage && explorerStage.style.display === "block") {
     returnToSubjectHub(true);
     return;
   }
 
-  // 6. Normal Multi-View Navigation (History State ke anusaar)
+  // 6. Normal Navigation
   if (e.state && e.state.view) {
     switchView(e.state.view, false);
     if (e.state.view === 'viewDashboard') {
@@ -185,7 +184,6 @@ window.addEventListener("popstate", function(e) {
       }
     }
   } else {
-    // Fallback: Agar history stack empty ho jaye, safe Dashboard Home par le aao
     if (currentCandidate) {
       switchView('viewDashboard', false);
       returnToSubjectHub(true);
@@ -195,16 +193,14 @@ window.addEventListener("popstate", function(e) {
   }
 });
 
-// 🚀 MOBILE EXAM GESTURE CONTROLLER (SWIPE UP TO OPEN / SWIPE DOWN TO CLOSE)
+// 🚀 MOBILE EXAM GESTURE CONTROLLER (ONLY SWIPE DOWN TO CLOSE)
 function setupMobileExamGestures() {
   const panel = document.querySelector(".tcs-side-panel");
   const overlay = document.getElementById("paletteOverlay");
-  const mobileControls = document.querySelector(".mobile-exam-controls");
-  const subBar = document.getElementById("examSubBar");
 
   if (!panel) return;
 
-  // 1. Inject Visual Grab Bar Handle on Mobile Palette if not already present
+  // Visual Grab Bar
   if (!document.getElementById("paletteGrabHandle")) {
     const handle = document.createElement("div");
     handle.id = "paletteGrabHandle";
@@ -215,7 +211,7 @@ function setupMobileExamGestures() {
   let touchStartY = 0;
   let touchStartX = 0;
 
-  // 2. SWIPE DOWN TO CLOSE: Panel ke top bar / grab handle par drag gesture
+  // SWIPE DOWN TO CLOSE: Panel par drag gesture
   panel.addEventListener("touchstart", (e) => {
     if (window.innerWidth > 768) return;
     touchStartY = e.touches[0].clientY;
@@ -227,34 +223,14 @@ function setupMobileExamGestures() {
     const diffY = e.changedTouches[0].clientY - touchStartY;
     const diffX = Math.abs(e.changedTouches[0].clientX - touchStartX);
 
-    // Agar niche drag hua hai (at least 50px) aur horizontal swipe nahi hai
+    // Agar niche drag hua hai (at least 50px) aur left-right scroll nahi hai
     if (diffY > 50 && diffX < 80) {
       panel.classList.remove("open");
       overlay?.classList.remove("open");
     }
   }, { passive: true });
 
-  // 3. SWIPE UP TO OPEN: Question Strip / Mobile Controls area par upar swipe gesture
-  const openSwipeTargets = [mobileControls, subBar].filter(Boolean);
-  openSwipeTargets.forEach(target => {
-    target.addEventListener("touchstart", (e) => {
-      if (window.innerWidth > 768) return;
-      touchStartY = e.touches[0].clientY;
-      touchStartX = e.touches[0].clientX;
-    }, { passive: true });
-
-    target.addEventListener("touchend", (e) => {
-      if (window.innerWidth > 768 || panel.classList.contains("open")) return;
-      const diffY = touchStartY - e.changedTouches[0].clientY;
-      const diffX = Math.abs(e.changedTouches[0].clientX - touchStartX);
-
-      // Agar upar swipe hua hai (at least 45px)
-      if (diffY > 45 && diffX < 80) {
-        panel.classList.add("open");
-        overlay?.classList.add("open");
-      }
-    }, { passive: true });
-  });
+  // Pura Upswipe Logic Hata diya gaya hai as requested!
 }
 
 window.updateBottomNav = function(clickedBtn) {
@@ -1522,6 +1498,10 @@ window.abortExamSession = function() {
 window.executeAbortExam = function() {
   closeExamModal();
   if (timerInterval) clearInterval(timerInterval);
+  
+  // Abort hone par directly dashboard display karo, history corrupt mat karo
+  switchView('viewDashboard', false); 
+  history.replaceState({ view: 'viewDashboard' }, "", "#viewDashboard");
   mountDashboard();
 };
 
