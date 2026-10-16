@@ -2,9 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Study Hub - Industrial Assessment Portal</title>
-  <link rel="stylesheet" href="style.css?v=2.6">
+  <link rel="stylesheet" href="style.css?v=2.8">
   <link rel="manifest" href="./manifest.json" crossorigin="use-credentials">
   <meta name="theme-color" content="#080c14">
   <meta name="mobile-web-app-capable" content="yes">
@@ -22,7 +22,7 @@
 <body class="portal-body">
 
   <!-- ================= SCREEN 1: SECURE AUTHENTICATION ================= -->
-  <section id="viewLogin" class="view-screen active-view" style="position: relative; overflow: hidden;">
+  <section id="viewLogin" class="view-screen active-view">
     <div class="auth-ambient-glow-1"></div>
     <div class="auth-ambient-glow-2"></div>
 
@@ -30,7 +30,7 @@
       <div class="login-header">
         <div class="login-badge">EXAM NODE: C-104</div>
         <h2>Candidate Authentication Gateway</h2>
-        <p style="margin-bottom: 16px;">National Testing & Assessment Infrastructure</p>
+        <p class="auth-subtext">National Testing & Assessment Infrastructure</p>
 
         <div class="login-features-list">
           <div class="feature-item">
@@ -147,8 +147,8 @@
     </div>
   </section>
 
-  <!-- ================= SCREEN 2A: NEW HOME / MISSION DECK ================= -->
-  <section id="viewDashboard" class="view-screen main-app-view" style="display: none; position: relative;">
+  <!-- ================= SCREEN 2A: MISSION DECK (HOME) ================= -->
+  <section id="viewDashboard" class="view-screen main-app-view" style="display: none;">
     <header class="dash-top-bar glass-header">
       <div class="dash-brand">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="brand-icon">
@@ -158,12 +158,28 @@
         </svg>
         <div class="brand-titles">
           <span class="portal-tag">MISSION CONTROL</span>
-          <span class="portal-sub">Tactical Execution Deck</span>
+          <span class="portal-sub">Execution Deck</span>
         </div>
       </div>
 
+      <!-- Desktop Center Navigation Bar -->
+      <nav class="desktop-nav-tabs hide-on-mobile">
+        <button type="button" class="desk-nav-btn active" id="deskNavHome_dash" onclick="switchView('viewDashboard');">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="2"></circle></svg>
+          <span>Mission</span>
+        </button>
+        <button type="button" class="desk-nav-btn" id="deskNavLib_dash" onclick="switchView('viewLibrary');">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
+          <span>Library</span>
+        </button>
+        <button type="button" class="desk-nav-btn" id="deskNavStats_dash" onclick="fetchStudentAnalytics(); switchView('viewAnalytics');">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+          <span>Analytics</span>
+        </button>
+      </nav>
+
       <div class="dash-gamification">
-        <div title="Current Study Streak" class="gamify-badge streak-badge">
+        <div title="Current Century Streak" class="gamify-badge streak-badge">
           <span>🔥</span> <span id="headerStreakCount">-- Days</span>
         </div>
         <div title="Overall Accuracy" class="gamify-badge accuracy-badge">
@@ -172,9 +188,9 @@
       </div>
 
       <div class="dash-header-actions">
-        <button class="theme-toggle-btn btn-ghost icon-btn" title="Toggle Theme">🌙</button>
+        <button type="button" class="theme-toggle-btn btn-ghost icon-btn" title="Toggle Theme">🌙</button>
         <div class="dash-user-controls hide-on-mobile">
-          <button class="btn-ghost" onclick="toggleProfileDrawer()">
+          <button type="button" class="btn-ghost" onclick="toggleProfileDrawer()">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
               <circle cx="12" cy="7" r="4"></circle>
@@ -184,77 +200,111 @@
       </div>
     </header>
 
-    <main class="catalog-viewport" style="padding-top: 15px;">
-      
-      <!-- 100-Q Target Century Meter -->
-      <div class="century-meter-container" style="margin-bottom: 20px; background: #ffffff; border: 1px solid var(--border-color); border-radius: 6px; padding: 12px 16px; border-left: 4px solid var(--tcs-blue-accent); box-shadow: 0 2px 5px rgba(0,0,0,0.02);">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-          <span style="font-size: 13px; font-weight: 800; color: var(--tcs-blue-header); display: flex; align-items: center; gap: 6px;">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-            Daily Target
-          </span>
-          <span id="centuryLoadText" style="font-size: 13px; font-weight: 800; font-family: var(--font-mono); color: #0f172a;">25 / 100 Qs</span>
-        </div>
-        <div style="width: 100%; height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden;">
-          <div id="centuryLoadFill" style="height: 100%; width: 25%; background: var(--tcs-blue-accent); transition: width 0.4s ease;"></div>
-        </div>
-      </div>
-
-      <!-- TODAY'S PLAYLIST (Always Expanded) -->
-      <div class="mission-playlist-card expanded" style="margin-bottom: 12px; background: #ffffff; border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.04);">
-        <div class="playlist-header" style="background: #f8fafc; padding: 14px 16px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
-          <h3 style="margin: 0; font-size: 15px; color: #1e293b; display: flex; align-items: center; gap: 8px;">🔥 Today's Payload</h3>
-        </div>
-        <div class="playlist-body" style="padding: 12px;">
-          
-          <div class="mission-set-card auto-pinned" style="display: flex; justify-content: space-between; align-items: center; background: rgba(37, 99, 235, 0.05); border: 1px solid rgba(37, 99, 235, 0.2); border-radius: 6px; padding: 12px 14px; margin-bottom: 10px;">
-            <div style="display: flex; align-items: center; gap: 12px;">
-              <span style="font-size: 20px;">⚡</span>
-              <div>
-                <h4 style="margin: 0 0 2px 0; font-size: 13.5px; font-weight: 700; color: #1e3a8a;">Daily 25-Q Revision Mix</h4>
-                <p style="margin: 0; font-size: 11px; color: #64748b;">15 Mistake Bank + 10 Retention Qs</p>
+    <main class="catalog-viewport mission-viewport">
+      <div class="mission-deck-container">
+        
+        <!-- Primary Focus Column (Desktop: Left | Mobile: Top) -->
+        <div class="mission-column-primary">
+          <!-- 100-Q Target Century Meter Card -->
+          <div class="century-meter-card">
+            <div class="century-meter-header">
+              <div class="century-meter-label">
+                <span class="century-icon">🎯</span>
+                <div class="century-title-stack">
+                  <span class="century-title">Daily Milestone</span>
+                  <span class="century-subtitle">100-Question Baseline Tracker</span>
+                </div>
               </div>
+              <span id="centuryLoadText" class="century-count-badge">25 / 100 Qs</span>
             </div>
-            <button class="tcs-btn btn-primary" style="margin: 0; padding: 6px 14px; font-size: 11px;" onclick="launchDailyMix()">▶ START</button>
+            <div class="century-track">
+              <div id="centuryLoadFill" class="century-fill"></div>
+            </div>
           </div>
 
-          <div id="todayPlaylistContainer"></div>
+          <!-- TODAY'S PAYLOAD (Dominant Card) -->
+          <div class="mission-playlist-card expanded today-payload-card">
+            <div class="playlist-header">
+              <div class="playlist-header-left">
+                <span class="playlist-accent-indicator"></span>
+                <h3 class="playlist-title">🔥 Today's Payload</h3>
+              </div>
+              <span class="playlist-status-tag">ACTIVE FOCUS</span>
+            </div>
+
+            <div class="playlist-body">
+              <!-- Auto-Pinned Daily Mix -->
+              <div class="mission-set-card auto-pinned">
+                <div class="set-card-content">
+                  <div class="set-card-icon">⚡</div>
+                  <div class="set-card-text">
+                    <h4 class="set-card-title">Daily 25-Q Revision Mix</h4>
+                    <p class="set-card-subtitle">15 Mistake Bank + 10 Retention Questions</p>
+                  </div>
+                </div>
+                <button type="button" class="btn-action-start" onclick="launchDailyMix()">
+                  <span>▶</span> START
+                </button>
+              </div>
+
+              <!-- Container where loaded sets for Today appear -->
+              <div id="todayPlaylistContainer" class="playlist-sets-stream"></div>
+            </div>
+          </div>
         </div>
+
+        <!-- Secondary Staging Column (Desktop: Right | Mobile: Bottom) -->
+        <div class="mission-column-secondary">
+          <div class="staging-queues-header">
+            <h4>Staging & Playlists</h4>
+            <span class="staging-sub">Upcoming & Custom Sets</span>
+          </div>
+
+          <!-- Tomorrow's Queue -->
+          <div class="mission-playlist-card collapsed playlist-accordion-card">
+            <div class="playlist-header" onclick="this.parentElement.classList.toggle('expanded'); this.parentElement.classList.toggle('collapsed');">
+              <div class="playlist-header-left">
+                <h3 class="playlist-title">⏳ Tomorrow's Queue</h3>
+              </div>
+              <span class="playlist-count-pill">0 Sets ▼</span>
+            </div>
+            <div class="playlist-body">
+              <div id="tomorrowPlaylistContainer" class="playlist-sets-stream"></div>
+            </div>
+          </div>
+
+          <!-- This Week Backlog -->
+          <div class="mission-playlist-card collapsed playlist-accordion-card">
+            <div class="playlist-header" onclick="this.parentElement.classList.toggle('expanded'); this.parentElement.classList.toggle('collapsed');">
+              <div class="playlist-header-left">
+                <h3 class="playlist-title">📅 This Week Backlog</h3>
+              </div>
+              <span class="playlist-count-pill">0 Sets ▼</span>
+            </div>
+            <div class="playlist-body">
+              <div id="weekPlaylistContainer" class="playlist-sets-stream"></div>
+            </div>
+          </div>
+
+          <!-- Custom Playlists Stream Container -->
+          <div id="customPlaylistsContainer" class="custom-playlists-stream"></div>
+
+          <!-- Create Custom Playlist Trigger -->
+          <button type="button" class="btn-create-playlist-trigger" onclick="promptNewPlaylist()">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            <span>Create New Playlist</span>
+          </button>
+        </div>
+
       </div>
-
-      <!-- COLLAPSED PLAYLISTS -->
-      <div class="mission-playlist-card collapsed" style="margin-bottom: 10px; background: #ffffff; border: 1px solid var(--border-color); border-radius: 6px; cursor: pointer;">
-        <div class="playlist-header" style="padding: 12px 16px; display: flex; justify-content: space-between; align-items: center;" onclick="this.parentElement.classList.toggle('expanded'); this.nextElementSibling.style.display = this.parentElement.classList.contains('expanded') ? 'block' : 'none';">
-          <h3 style="margin: 0; font-size: 14px; color: #475569; display: flex; align-items: center; gap: 8px;">⏳ Tomorrow's Queue</h3>
-          <span style="font-size: 11px; color: #94a3b8; font-weight: 700;">0 Sets ▼</span>
-        </div>
-        <div class="playlist-body" style="display: none; padding: 0 12px 12px 12px; border-top: 1px solid var(--border-color);">
-          <div id="tomorrowPlaylistContainer" style="padding-top: 12px; font-size: 12px; color: #94a3b8; text-align: center;"></div>
-        </div>
-      </div>
-
-      <div class="mission-playlist-card collapsed" style="margin-bottom: 10px; background: #ffffff; border: 1px solid var(--border-color); border-radius: 6px; cursor: pointer;">
-        <div class="playlist-header" style="padding: 12px 16px; display: flex; justify-content: space-between; align-items: center;" onclick="this.parentElement.classList.toggle('expanded'); this.nextElementSibling.style.display = this.parentElement.classList.contains('expanded') ? 'block' : 'none';">
-          <h3 style="margin: 0; font-size: 14px; color: #475569; display: flex; align-items: center; gap: 8px;">📅 This Week Backlog</h3>
-          <span style="font-size: 11px; color: #94a3b8; font-weight: 700;">0 Sets ▼</span>
-        </div>
-        <div class="playlist-body" style="display: none; padding: 0 12px 12px 12px; border-top: 1px solid var(--border-color);">
-          <div id="weekPlaylistContainer" style="padding-top: 12px; font-size: 12px; color: #94a3b8; text-align: center;"></div>
-        </div>
-      </div>
-
-      <div id="customPlaylistsContainer"></div>
-
-      <!-- Create Custom Playlist Button -->
-      <button style="width: 100%; margin-top: 8px; padding: 12px; background: transparent; border: 1px dashed var(--border-color); border-radius: 6px; color: #64748b; font-size: 13px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.2s;" onclick="promptNewPlaylist()">
-        ➕ Create New Playlist
-      </button>
-
     </main>
   </section>
 
-  <!-- ================= SCREEN 2B: LIBRARY & REPOSITORY ================= -->
-  <section id="viewLibrary" class="view-screen main-app-view" style="display: none; position: relative;">
+  <!-- ================= SCREEN 2B: REPOSITORY (LIBRARY) ================= -->
+  <section id="viewLibrary" class="view-screen main-app-view" style="display: none;">
     <header class="dash-top-bar glass-header">
       <div class="dash-brand">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="brand-icon">
@@ -267,23 +317,59 @@
           <span class="portal-sub">Master Subject Catalog</span>
         </div>
       </div>
+
+      <!-- Desktop Center Navigation Bar -->
+      <nav class="desktop-nav-tabs hide-on-mobile">
+        <button type="button" class="desk-nav-btn" id="deskNavHome_lib" onclick="switchView('viewDashboard');">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="2"></circle></svg>
+          <span>Mission</span>
+        </button>
+        <button type="button" class="desk-nav-btn active" id="deskNavLib_lib" onclick="switchView('viewLibrary');">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
+          <span>Library</span>
+        </button>
+        <button type="button" class="desk-nav-btn" id="deskNavStats_lib" onclick="fetchStudentAnalytics(); switchView('viewAnalytics');">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+          <span>Analytics</span>
+        </button>
+      </nav>
+
+      <div class="dash-gamification">
+        <div title="Current Century Streak" class="gamify-badge streak-badge">
+          <span>🔥</span> <span id="headerStreakCount_lib">-- Days</span>
+        </div>
+        <div title="Overall Accuracy" class="gamify-badge accuracy-badge">
+          <span>🎯</span> <span id="headerAccuracyCount_lib">--%</span>
+        </div>
+      </div>
+
       <div class="dash-header-actions">
-        <button class="theme-toggle-btn btn-ghost icon-btn" title="Toggle Theme">🌙</button>
+        <button type="button" class="theme-toggle-btn btn-ghost icon-btn" title="Toggle Theme">🌙</button>
+        <div class="dash-user-controls hide-on-mobile">
+          <button type="button" class="btn-ghost" onclick="toggleProfileDrawer()">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+              <circle cx="12" cy="7" r="4"></circle>
+            </svg> Profile
+          </button>
+        </div>
       </div>
     </header>
 
+    <!-- Stage 1: All Subjects Grid -->
     <main id="subjectHubStage" class="catalog-viewport" style="display: block;">
       <div class="hub-header">
         <h2 class="hub-title">Subject Mastery Portfolio</h2>
-        <p class="hub-subtitle">Select a subject domain to explore topics and add sets to your playlists.</p>
+        <p class="hub-subtitle">Select a subject domain to explore syllabus topics and curated assessment sets.</p>
       </div>
       <div class="subject-hub-grid" id="subjectHubContainer"></div>
     </main>
 
+    <!-- Stage 2: Topic Sets Explorer -->
     <main id="setsExplorerStage" class="catalog-viewport" style="display: none;">
       <div class="explorer-masthead" id="explorerMasthead">
         <div class="masthead-default-bar" id="mastheadDefaultBar">
-          <button class="btn-masthead-back" onclick="returnToSubjectHub()" title="Back to All Subjects">
+          <button type="button" class="btn-masthead-back" onclick="returnToSubjectHub()" title="Back to All Subjects">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <line x1="19" y1="12" x2="5" y2="12"></line>
               <polyline points="12 19 5 12 12 5"></polyline>
@@ -308,7 +394,7 @@
               <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
             </svg>
           </span>
-          <input type="text" id="topicSearchInput" class="masthead-search-input" placeholder="Search sets or topics..." autocomplete="off">
+          <input type="text" id="topicSearchInput" class="masthead-search-input" placeholder="Search sets or topics (e.g. Set 14, Kiran)..." autocomplete="off">
           <button type="button" class="btn-masthead-close-search" id="btnCloseSearch" onclick="toggleMastheadSearch(false)" title="Close Search">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -329,6 +415,12 @@
 
       <div class="topics-grid" id="topicsContainer"></div>
     </main>
+
+    <!-- Floating Action Button for Daily Mix -->
+    <button type="button" id="btnDailyMix" class="fab-daily-mix" onclick="launchDailyMix()" title="Start Daily 10-Min Mix">
+      <span class="fab-icon">🚀</span>
+      <span class="fab-label hide-on-mobile">Daily Mix</span>
+    </button>
   </section>
 
   <!-- ================= SCREEN 3: ANALYTICS DASHBOARD ================= -->
@@ -341,10 +433,41 @@
         </svg>
         <span class="portal-tag">PERFORMANCE</span>
       </div>
+
+      <!-- Desktop Center Navigation Bar -->
+      <nav class="desktop-nav-tabs hide-on-mobile">
+        <button type="button" class="desk-nav-btn" id="deskNavHome_stats" onclick="switchView('viewDashboard');">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="2"></circle></svg>
+          <span>Mission</span>
+        </button>
+        <button type="button" class="desk-nav-btn" id="deskNavLib_stats" onclick="switchView('viewLibrary');">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
+          <span>Library</span>
+        </button>
+        <button type="button" class="desk-nav-btn active" id="deskNavStats_stats" onclick="fetchStudentAnalytics(); switchView('viewAnalytics');">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+          <span>Analytics</span>
+        </button>
+      </nav>
+
+      <div class="dash-gamification">
+        <div title="Current Century Streak" class="gamify-badge streak-badge">
+          <span>🔥</span> <span id="headerStreakCount_stats">-- Days</span>
+        </div>
+        <div title="Overall Accuracy" class="gamify-badge accuracy-badge">
+          <span>🎯</span> <span id="headerAccuracyCount_stats">--%</span>
+        </div>
+      </div>
+
       <div class="dash-header-actions">
-        <button class="theme-toggle-btn btn-ghost icon-btn" title="Toggle Theme">🌙</button>
+        <button type="button" class="theme-toggle-btn btn-ghost icon-btn" title="Toggle Theme">🌙</button>
         <div class="dash-user-controls hide-on-mobile">
-          <button class="btn-ghost" onclick="switchView('viewDashboard')">Back to Home</button>
+          <button type="button" class="btn-ghost" onclick="toggleProfileDrawer()">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+              <circle cx="12" cy="7" r="4"></circle>
+            </svg> Profile
+          </button>
         </div>
       </div>
     </header>
@@ -385,7 +508,7 @@
       <div class="advanced-analytics-grid">
         <div class="profile-section-card mastery-card-container">
           <div class="mastery-card-header">
-            <h3 class="section-title" style="margin-bottom: 0; border: none; padding: 0;">Subject Competency Matrix</h3>
+            <h3 class="section-title">Subject Competency Matrix</h3>
             <div class="mastery-view-toggle">
               <button type="button" class="view-pill active" id="btnToggleRadar" onclick="switchMasteryView('radar')">Radar 🕸️</button>
               <button type="button" class="view-pill" id="btnToggleGrid" onclick="switchMasteryView('grid')">Cards ▦</button>
@@ -427,12 +550,12 @@
     </main>
   </section>
 
-  <!-- ================= SCREEN 3.5: PROFILE & SETTINGS DRAWER ================= -->
+  <!-- ================= SCREEN 3.5: PROFILE DRAWER ================= -->
   <div id="profileDrawerOverlay" class="drawer-overlay" onclick="toggleProfileDrawer()"></div>
   <aside id="profileDrawer" class="slide-drawer">
     <div class="drawer-header">
       <h3>Profile & Settings</h3>
-      <button class="icon-btn btn-ghost" onclick="toggleProfileDrawer()">
+      <button type="button" class="icon-btn btn-ghost" onclick="toggleProfileDrawer()">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <line x1="18" y1="6" x2="6" y2="18"></line>
           <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -458,10 +581,10 @@
         <label for="editProfileTarget">Target Exam (e.g. SSC CGL, High Court)</label>
         <input type="text" id="editProfileTarget" class="drawer-input" placeholder="Target Exam">
       </div>
-      <button class="tcs-btn btn-primary" style="width: 100%; margin-bottom: 30px;" id="btnSaveProfile">Save Changes</button>
+      <button type="button" class="tcs-btn btn-primary" style="width: 100%; margin-bottom: 30px;" id="btnSaveProfile">Save Changes</button>
 
       <div class="drawer-section drawer-logout-section">
-        <button id="btnLogoutDrawer" class="btn-ghost danger-ghost" style="width: 100%; justify-content: center;">
+        <button type="button" id="btnLogoutDrawer" class="btn-ghost danger-ghost" style="width: 100%; justify-content: center;">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 8px;">
             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
             <polyline points="16 17 21 12 16 7"></polyline>
@@ -473,17 +596,17 @@
     </div>
   </aside>
 
-  <!-- ================= MOBILE BOTTOM NAVIGATION ================= -->
+  <!-- ================= BOTTOM NAVIGATION (MOBILE) ================= -->
   <nav id="mobileBottomNav" class="mobile-bottom-nav">
-    <button id="navHomeBtn" class="nav-item active" onclick="switchView('viewDashboard'); updateBottomNav(this);">
+    <button type="button" id="navHomeBtn" class="nav-item active" onclick="switchView('viewDashboard'); updateBottomNav(this);">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <circle cx="12" cy="12" r="10"></circle>
         <circle cx="12" cy="12" r="6"></circle>
-        <circle cx="12" cy="12" r="2"></circle>
+        <circle cx="12" cy="2"></circle>
       </svg>
-      <span>Home</span>
+      <span>Mission</span>
     </button>
-    <button id="navLibraryBtn" class="nav-item" onclick="switchView('viewLibrary'); updateBottomNav(this);">
+    <button type="button" id="navLibraryBtn" class="nav-item" onclick="switchView('viewLibrary'); updateBottomNav(this);">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
         <line x1="3" y1="9" x2="21" y2="9"></line>
@@ -491,7 +614,7 @@
       </svg>
       <span>Library</span>
     </button>
-    <button id="navAnalyticsBtn" class="nav-item" onclick="fetchStudentAnalytics(); switchView('viewAnalytics'); updateBottomNav(this);">
+    <button type="button" id="navAnalyticsBtn" class="nav-item" onclick="fetchStudentAnalytics(); switchView('viewAnalytics'); updateBottomNav(this);">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <line x1="18" y1="20" x2="18" y2="10"></line>
         <line x1="12" y1="20" x2="12" y2="4"></line>
@@ -499,7 +622,7 @@
       </svg>
       <span>Analytics</span>
     </button>
-    <button id="navProfileBtn" class="nav-item" onclick="toggleProfileDrawer();">
+    <button type="button" id="navProfileBtn" class="nav-item" onclick="toggleProfileDrawer();">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
         <circle cx="12" cy="7" r="4"></circle>
@@ -518,7 +641,7 @@
           <span id="examTitle">Assessment Console</span>
         </div>
         <div class="utility-tools" style="display: flex; align-items: center; gap: 10px;">
-          <button class="theme-toggle-btn btn-ghost icon-btn" title="Toggle Theme" style="height: 24px; padding: 0;">🌙</button>
+          <button type="button" class="theme-toggle-btn btn-ghost icon-btn" title="Toggle Theme" style="height: 24px; padding: 0;">🌙</button>
           <select id="langSwitch" class="lang-selector">
             <option value="en">English</option>
             <option value="hi">Hindi</option>
@@ -536,7 +659,7 @@
         <div class="exam-candidate-roll-badge">
           Roll: <span id="examCandidateRoll">---</span>
         </div>
-        <button class="btn-abort-exam" onclick="abortExamSession()" title="Exit without saving">
+        <button type="button" class="btn-abort-exam" onclick="abortExamSession()" title="Exit without saving">
           <span class="hide-on-mobile">✕ </span><strong>ABORT</strong>
         </button>
       </div>
@@ -551,7 +674,7 @@
           </div>
           <div class="mobile-exam-controls" style="display: none;">
             <span class="m-timer" id="mobileTimerDisplay">15:00</span>
-            <button id="btnMobilePalette" class="btn-mobile-palette">▦ Palette</button>
+            <button type="button" id="btnMobilePalette" class="btn-mobile-palette">▦ Palette</button>
           </div>
         </div>
 
@@ -581,12 +704,12 @@
 
     <footer class="tcs-footer-bar">
       <div class="footer-left">
-        <button class="tcs-btn btn-secondary" id="btnMarkReview">Mark for Review & Next</button>
-        <button class="tcs-btn btn-secondary" id="btnClear">Clear Response</button>
+        <button type="button" class="tcs-btn btn-secondary" id="btnMarkReview">Mark for Review & Next</button>
+        <button type="button" class="tcs-btn btn-secondary" id="btnClear">Clear Response</button>
       </div>
       <div class="footer-right">
-        <button class="tcs-btn btn-primary" id="btnSaveNext">Save & Next</button>
-        <button class="tcs-btn btn-submit" id="btnSubmit" onclick="showExamSummaryModal()">Submit Exam</button>
+        <button type="button" class="tcs-btn btn-primary" id="btnSaveNext">Save & Next</button>
+        <button type="button" class="tcs-btn btn-submit" id="btnSubmit" onclick="showExamSummaryModal()">Submit Exam</button>
       </div>
     </footer>
   </section>
@@ -595,7 +718,7 @@
   <section id="viewSolutions" class="view-screen" style="display: none; background: var(--bg-primary); overflow-y: auto;">
     <header class="practice-top-bar glass-header">
       <div class="practice-header-left">
-        <button class="btn-masthead-back" onclick="closeExamAndReload()" title="Return to Dashboard">
+        <button type="button" class="btn-masthead-back" onclick="closeExamAndReload()" title="Return to Dashboard">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <line x1="19" y1="12" x2="5" y2="12"></line>
             <polyline points="12 19 5 12 12 5"></polyline>
@@ -607,7 +730,7 @@
         </div>
       </div>
       <div class="practice-header-right">
-        <button class="theme-toggle-btn btn-ghost icon-btn" title="Toggle Theme">🌙</button>
+        <button type="button" class="theme-toggle-btn btn-ghost icon-btn" title="Toggle Theme">🌙</button>
       </div>
     </header>
     <main style="padding: 20px 16px; max-width: 850px; margin: 0 auto; width: 100%; margin-bottom: 75px;">
@@ -619,7 +742,7 @@
   <section id="viewPractice" class="view-screen" style="display: none; background: var(--bg-primary); overflow-y: auto;">
     <header class="practice-top-bar glass-header">
       <div class="practice-header-left">
-        <button class="btn-masthead-back" onclick="switchView('viewDashboard')" title="Exit Practice">
+        <button type="button" class="btn-masthead-back" onclick="switchView('viewDashboard')" title="Exit Practice">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <line x1="19" y1="12" x2="5" y2="12"></line>
             <polyline points="12 19 5 12 12 5"></polyline>
@@ -631,7 +754,7 @@
         </div>
       </div>
       <div class="practice-header-right">
-        <button class="theme-toggle-btn btn-ghost icon-btn" title="Toggle Theme">🌙</button>
+        <button type="button" class="theme-toggle-btn btn-ghost icon-btn" title="Toggle Theme">🌙</button>
       </div>
     </header>
     <main style="padding: 18px 14px; max-width: 850px; margin: 0 auto; width: 100%; margin-bottom: 75px;" id="practiceContainer"></main>
@@ -642,20 +765,25 @@
 
   <!-- ================= 3-DOTS POPUP TOOLTIP MENU ================= -->
   <div id="threeDotsMenuOverlay" style="display:none; position:fixed; inset:0; z-index:2900;" onclick="closeThreeDotsMenu()"></div>
-  <div id="threeDotsMenu" style="display:none; position:fixed; background:#ffffff; border:1px solid var(--border-color); border-radius:8px; box-shadow:0 10px 25px rgba(0,0,0,0.18); z-index:2901; padding:6px; min-width:160px;">
-    <button type="button" style="width:100%; text-align:left; background:transparent; border:none; padding:10px 12px; font-size:13px; font-weight:600; color:var(--tcs-blue-header); cursor:pointer; border-radius:4px; display:flex; align-items:center; gap:8px;" onclick="triggerBottomSheetFromMenu()">
-      <span>➕</span> Add to Playlist
+  <div id="threeDotsMenu" class="three-dots-floating-popup" style="display:none;">
+    <button type="button" class="btn-popup-action" onclick="triggerBottomSheetFromMenu()">
+      <span class="popup-action-icon">➕</span>
+      <span>Add to Playlist</span>
     </button>
   </div>
 
-  <!-- ================= BOTTOM SHEET PALETTE ================= -->
+  <!-- ================= BOTTOM SHEET PALETTE (YOUTUBE-STYLE BOOKMARK) ================= -->
   <div id="playlistBottomSheetOverlay" class="drawer-overlay" style="z-index: 3000;" onclick="closePlaylistBottomSheet()"></div>
-  <div id="playlistBottomSheet" style="position: fixed; bottom: -400px; left: 0; width: 100%; background: #ffffff; border-radius: 16px 16px 0 0; z-index: 3001; transition: bottom 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 -10px 40px rgba(0,0,0,0.15); padding-bottom: env(safe-area-inset-bottom);">
-    <div style="padding: 16px 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
-      <h3 style="margin: 0; font-size: 15px; color: #0f172a;">➕ Add to Playlist</h3>
-      <button type="button" style="background: none; border: none; color: #64748b; font-size: 18px; cursor: pointer;" onclick="closePlaylistBottomSheet()">✕</button>
+  <div id="playlistBottomSheet" class="playlist-bottom-sheet">
+    <div class="bottom-sheet-drag-handle"></div>
+    <div class="bottom-sheet-header">
+      <div class="bottom-sheet-title-group">
+        <span class="bottom-sheet-badge">PLAYLISTS</span>
+        <h3 class="bottom-sheet-title">Save to Playlist</h3>
+      </div>
+      <button type="button" class="btn-close-sheet" onclick="closePlaylistBottomSheet()">✕</button>
     </div>
-    <div id="bottomSheetOptionsContainer" style="padding: 12px 16px; max-height: 50vh; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;"></div>
+    <div id="bottomSheetOptionsContainer" class="bottom-sheet-options-stream"></div>
   </div>
 
   <script src="script.js"></script>

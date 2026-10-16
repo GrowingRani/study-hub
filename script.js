@@ -45,7 +45,7 @@ function getNormalizedCorrectAnswerId(rawAnswer, optionsArray) {
 }
 
 // ==========================================================================
-// 3. GLOBAL STATE & ROUTING
+// 3. GLOBAL STATE & APPLICATION ROUTING
 // ==========================================================================
 let currentCandidate = null;
 let catalogData = [];
@@ -121,6 +121,16 @@ window.addEventListener("DOMContentLoaded", () => {
   });
 });
 
+function updateDesktopNav(viewId) {
+  document.querySelectorAll('.desk-nav-btn').forEach(btn => {
+    btn.classList.remove('active');
+    const id = btn.id || "";
+    if (viewId === 'viewDashboard' && id.includes('Home')) btn.classList.add('active');
+    if (viewId === 'viewLibrary' && id.includes('Lib')) btn.classList.add('active');
+    if (viewId === 'viewAnalytics' && id.includes('Stats')) btn.classList.add('active');
+  });
+}
+
 window.switchView = function(viewId, pushHistory = true) {
   const currentActiveView = Array.from(document.querySelectorAll('.view-screen')).find(v => v.style.display === 'flex')?.id;
   if (currentActiveView === viewId) return;
@@ -143,6 +153,17 @@ window.switchView = function(viewId, pushHistory = true) {
   if (bottomNav) {
     bottomNav.style.display = (window.innerWidth <= 768 && (viewId === 'viewDashboard' || viewId === 'viewLibrary' || viewId === 'viewAnalytics')) ? 'flex' : 'none';
   }
+
+  const navMap = {
+    viewDashboard: 'navHomeBtn',
+    viewLibrary: 'navLibraryBtn',
+    viewAnalytics: 'navAnalyticsBtn'
+  };
+  if (navMap[viewId]) {
+    updateBottomNav(document.getElementById(navMap[viewId]));
+  }
+
+  updateDesktopNav(viewId);
 
   if (pushHistory) {
     history.pushState({ view: viewId }, "", "#" + viewId);
@@ -280,7 +301,7 @@ window.switchMasteryView = function(viewType) {
 };
 
 // ==========================================================================
-// 4. AUTHENTICATION & SESSION
+// 4. AUTHENTICATION & CANDIDATE SESSION
 // ==========================================================================
 let initHash = window.location.hash || window.location.href;
 if (initHash.includes("type=recovery")) sessionStorage.setItem("recovery_mode", "true");
@@ -751,13 +772,11 @@ async function mountDashboard(isInitialLoad = false) {
   start5PMEngine();
 }
 
-// 🚀 ROBUST PLAYLIST SEEDING & FETCHING (NO TEMP IDS)
 async function fetchPlaylistsAndCheckRollover() {
     if (!currentCandidate) return;
     const roll = currentCandidate.roll_number;
 
     try {
-        // 1. Supabase से इस स्टूडेंट की प्लेलिस्ट फेच करें
         let { data: pData, error: pErr } = await supabaseClient
             .from("playlists")
             .select("*")
@@ -766,7 +785,6 @@ async function fetchPlaylistsAndCheckRollover() {
 
         if (pErr) console.error("Playlists fetch error:", pErr);
 
-        // 2. चेक करें कि सिस्टम प्लेलिस्ट्स मौजूद हैं या नहीं
         const requiredLists = [
             { name: 'Today', order: 1 },
             { name: 'Tomorrow', order: 2 },
@@ -794,7 +812,6 @@ async function fetchPlaylistsAndCheckRollover() {
             });
         }
 
-        // 3. यदि कोई मिसिंग है, तो Supabase में असली UUID के साथ इंसर्ट करें
         if (missing.length > 0) {
             const { error: insErr } = await supabaseClient.from("playlists").insert(missing);
             if (insErr) console.warn("Playlists insert warning:", insErr);
@@ -810,7 +827,6 @@ async function fetchPlaylistsAndCheckRollover() {
 
         userPlaylists = pData || [];
 
-        // 4. प्लेलिस्ट आइटम्स फेच करें
         const { data: piData, error: piErr } = await supabaseClient
             .from("playlist_items")
             .select("*")
@@ -819,7 +835,6 @@ async function fetchPlaylistsAndCheckRollover() {
         if (piErr) console.error("Playlist items error:", piErr);
         userPlaylistItems = piData || [];
 
-        // 5. 100-Q डेली परफॉर्मेंस
         const todayStr = new Date().toISOString().split("T")[0];
         const { data: dpData } = await supabaseClient
             .from("daily_performance")
@@ -846,7 +861,6 @@ async function fetchPlaylistsAndCheckRollover() {
             if (insData) dailyPerf = insData;
         }
 
-        // 6. मिडनाइट रोलओवर
         const lastRollover = localStorage.getItem("last_rollover_" + roll);
         if (lastRollover !== todayStr) {
             const todayList = userPlaylists.find(p => p.playlist_name === 'Today');
@@ -866,7 +880,6 @@ async function fetchPlaylistsAndCheckRollover() {
     }
 }
 
-// 🚀 RENDER HOME PLAYLISTS (ALWAYS RENDERS ADD BUTTONS)
 function renderHomePlaylists() {
     const todayContainer = document.getElementById("todayPlaylistContainer");
     const tomorrowContainer = document.getElementById("tomorrowPlaylistContainer");
@@ -886,7 +899,7 @@ function renderHomePlaylists() {
             <div style="background: linear-gradient(135deg, #4f46e5, #7c3aed); padding: 24px; border-radius: 8px; text-align: center; color: white;">
                 <h2 style="margin:0 0 10px 0; font-size:20px;">👑 Sunday Mega Mistake Bank</h2>
                 <p style="margin:0 0 16px 0; font-size:13px; opacity:0.9;">100 Questions from your weekly errors. Clear this to secure your Century Streak.</p>
-                <button class="tcs-btn" style="background:#ffffff; color:#7c3aed; font-weight:800; padding:10px 24px;" onclick="launchMistakeBank('quiz', true)">▶ START MEGA REVISION</button>
+                <button type="button" class="tcs-btn" style="background:#ffffff; color:#7c3aed; font-weight:800; padding:10px 24px;" onclick="launchMistakeBank('quiz', true)">▶ START MEGA REVISION</button>
             </div>
         `;
         if (tomorrowContainer.closest('.mission-playlist-card')) tomorrowContainer.closest('.mission-playlist-card').style.display = "none";
@@ -907,6 +920,7 @@ function renderHomePlaylists() {
     let todayLoad = 25; 
     let tomorrowLoad = 0;
 
+    // 🚀 RICH SET TILE MATCHING LIBRARY EXACTLY
     const getSetHtml = (item, pName) => {
         const setCat = catalogData.find(c => String(c.test_id) === String(item.test_id));
         if (!setCat) return "";
@@ -915,43 +929,77 @@ function renderHomePlaylists() {
         if (pName === 'Today') todayLoad += qCount;
         if (pName === 'Tomorrow') tomorrowLoad += qCount;
 
-        const isRoll = item.is_rollover ? `<span style="background:#fee2e2; color:#dc2626; padding:2px 6px; font-size:9px; border-radius:4px; font-weight:bold; margin-right:6px;">⚠️ ROLLOVER</span>` : '';
+        const isRoll = item.is_rollover ? `<span style="background:#fee2e2; color:#dc2626; padding:2px 6px; font-size:9.5px; border-radius:4px; font-weight:800; margin-right:6px; letter-spacing:0.3px;">⚠️ ROLLOVER</span>` : '';
 
-        let actionsHtml = "";
-        if (pName === 'Today') {
-            actionsHtml = `
-                <button class="tcs-btn btn-secondary" style="padding: 4px 10px; font-size:11px;" onclick="shiftPlaylistItem('${item.id}', 'Tomorrow')">➡️ Push</button>
-                <button class="tcs-btn btn-primary" style="padding: 4px 10px; font-size:11px;" onclick="launchAssessment(${item.test_id})">▶ START</button>
-            `;
-        } else {
-            actionsHtml = `
-                <button class="tcs-btn btn-secondary" style="padding: 4px 10px; font-size:11px; color:#ef4444; border-color:#fca5a5;" onclick="removePlaylistItem('${item.id}')">❌</button>
-                <button class="tcs-btn btn-secondary" style="padding: 4px 10px; font-size:11px;" onclick="shiftPlaylistItem('${item.id}', 'Today')">⬆️ To Today</button>
-            `;
+        const attempts = userAttemptHistory.filter(a => String(a.test_id) === String(setCat.test_id));
+        let isAttempted = attempts.length > 0;
+        let bestScore = isAttempted ? Math.max(...attempts.map(a => parseFloat(a.score))) : 0;
+        let maxMarks = (setCat.total_questions || 10) * 2;
+        let pct = maxMarks > 0 && isAttempted ? (bestScore / maxMarks) * 100 : 0;
+
+        let badgeClass = 'status-new';
+        let badgeText = 'NEW';
+        let historyHtml = '<span style="color:#64748b;">Not attempted yet</span>';
+
+        if (isAttempted) {
+          if (pct >= 100) {
+            badgeClass = 'status-mastered';
+            badgeText = `MASTERED ${bestScore}/${maxMarks}`;
+            historyHtml = `<span style="color:#16a34a;">★ Best Score: ${bestScore} (${Math.round(pct)}%) | Att: ${attempts.length}</span>`;
+          } else {
+            badgeClass = 'status-progress';
+            badgeText = `IN PROGRESS`;
+            historyHtml = `<span style="color:#d97706;">Needs Review: ${bestScore}/${maxMarks} | Att: ${attempts.length}</span>`;
+          }
         }
 
         return `
-            <div class="mission-set-card" style="display:flex; justify-content:space-between; align-items:center; border:1px solid var(--border-color); border-radius:6px; padding:12px; margin-bottom:8px; background:var(--bg-panel);">
-                <div style="flex:1;">
-                    <h4 style="margin:0 0 4px 0; font-size:13.5px; color:var(--tcs-blue-header);">${isRoll}${setCat.test_title}</h4>
-                    <p style="margin:0; font-size:11px; color:#64748b;">${setCat.subject} • ${qCount} Qs • ${setCat.total_duration_minutes}m</p>
-                </div>
-                <div style="display:flex; gap:6px;">
-                    ${actionsHtml}
-                </div>
+          <div class="set-tile" style="margin-bottom:8px;">
+            <div class="set-tile-header">
+              <div class="set-tile-title">${isRoll}${setCat.test_title}</div>
+              <div style="display:flex; gap: 8px; align-items: center;">
+                 <div class="set-status-badge ${badgeClass}">${badgeText}</div>
+                 <button type="button" class="btn-three-dots" onclick="openThreeDotsMenu(event, ${setCat.test_id})" title="Options">⋮</button>
+              </div>
             </div>
+            <div class="set-tile-meta">
+              <span>⏱️ ${setCat.total_duration_minutes}m</span>
+              <span>📄 ${qCount} Qs</span>
+            </div>
+            <div class="set-score-info">
+              ${historyHtml}
+            </div>
+            <div class="set-action-footer">
+              <button type="button" class="btn-launch-set" onclick="launchAssessment(${setCat.test_id})">
+                <span>▶</span> <span>${isAttempted ? 'Retake' : 'Exam'}</span>
+              </button>
+              <div class="secondary-modes-strip">
+                <button type="button" class="btn-mode-icon" title="Read Mode" onclick="launchPracticeMode(${setCat.test_id}, 'read')">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
+                </button>
+                <button type="button" class="btn-mode-icon" title="Flashcards" onclick="launchPracticeMode(${setCat.test_id}, 'flashcard')">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="14" height="14" rx="2" ry="2"></rect><path d="M21 7v12a2 2 0 0 1-2 2H7"></path></svg>
+                </button>
+                <button type="button" class="btn-mode-icon" title="Instant Quiz" onclick="launchPracticeMode(${setCat.test_id}, 'quiz')">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+                </button>
+              </div>
+            </div>
+          </div>
         `;
     };
 
-    // Helper to generate "Add Sets" button
     const getAddBtn = (playlistId, pName) => `
-        <button type="button" style="width: 100%; margin-top: 10px; padding: 10px; background: transparent; border: 1px dashed var(--border-color); border-radius: 6px; color: var(--tcs-blue-accent); font-size: 12px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.2s;" 
+        <button type="button" class="btn-create-playlist-trigger" style="margin-top: 10px;" 
           onclick="enableLibrarySelectionMode('${playlistId}', '${pName.replace(/'/g, "\\'")}')">
-          ➕ Add Sets to ${pName}
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          <span>Add Sets to ${pName}</span>
         </button>
     `;
 
-    // System Playlists
     const todayList = userPlaylists.find(p => p.playlist_name === 'Today');
     const tomorrowList = userPlaylists.find(p => p.playlist_name === 'Tomorrow');
     const weekList = userPlaylists.find(p => p.playlist_name === 'This Week');
@@ -959,25 +1007,25 @@ function renderHomePlaylists() {
     // 1. Render Today
     if (todayList) {
         const todayItems = userPlaylistItems.filter(pi => pi.playlist_id === todayList.id);
-        const itemsHtml = todayItems.length > 0 ? todayItems.map(i => getSetHtml(i, 'Today')).join("") : `<div style="text-align: center; padding: 15px; color: #94a3b8; font-size: 12px;">No sets queued for today yet.</div>`;
+        const itemsHtml = todayItems.length > 0 ? todayItems.map(i => getSetHtml(i, 'Today')).join("") : `<div style="text-align: center; padding: 18px; color: #94a3b8; font-size: 12.5px; font-weight: 600;">No sets queued for today yet.</div>`;
         todayContainer.innerHTML = itemsHtml + getAddBtn(todayList.id, 'Today');
     }
 
     // 2. Render Tomorrow
     if (tomorrowList) {
         const tomItems = userPlaylistItems.filter(pi => pi.playlist_id === tomorrowList.id);
-        const itemsHtml = tomItems.length > 0 ? tomItems.map(i => getSetHtml(i, 'Tomorrow')).join("") : `<div style="text-align: center; padding: 15px; color: #94a3b8; font-size: 12px;">Queue is empty.</div>`;
+        const itemsHtml = tomItems.length > 0 ? tomItems.map(i => getSetHtml(i, 'Tomorrow')).join("") : `<div style="text-align: center; padding: 18px; color: #94a3b8; font-size: 12.5px; font-weight: 600;">Queue is empty.</div>`;
         tomorrowContainer.innerHTML = itemsHtml + getAddBtn(tomorrowList.id, 'Tomorrow');
-        const badge = tomorrowContainer.closest('.mission-playlist-card')?.querySelector('.playlist-header span');
+        const badge = tomorrowContainer.closest('.mission-playlist-card')?.querySelector('.playlist-count-pill, .playlist-header span');
         if (badge) badge.innerText = `${tomItems.length} Sets ▼`;
     }
 
     // 3. Render This Week
     if (weekList) {
         const weekItems = userPlaylistItems.filter(pi => pi.playlist_id === weekList.id);
-        const itemsHtml = weekItems.length > 0 ? weekItems.map(i => getSetHtml(i, 'This Week')).join("") : `<div style="text-align: center; padding: 15px; color: #94a3b8; font-size: 12px;">Backlog is empty.</div>`;
+        const itemsHtml = weekItems.length > 0 ? weekItems.map(i => getSetHtml(i, 'This Week')).join("") : `<div style="text-align: center; padding: 18px; color: #94a3b8; font-size: 12.5px; font-weight: 600;">Backlog is empty.</div>`;
         weekContainer.innerHTML = itemsHtml + getAddBtn(weekList.id, 'This Week');
-        const badge = weekContainer.closest('.mission-playlist-card')?.querySelector('.playlist-header span');
+        const badge = weekContainer.closest('.mission-playlist-card')?.querySelector('.playlist-count-pill, .playlist-header span');
         if (badge) badge.innerText = `${weekItems.length} Sets ▼`;
     }
 
@@ -986,16 +1034,18 @@ function renderHomePlaylists() {
     if (customContainer && customLists.length > 0) {
         customLists.forEach(playlist => {
             const items = userPlaylistItems.filter(pi => pi.playlist_id === playlist.id);
-            const itemsHtml = items.length > 0 ? items.map(i => getSetHtml(i, playlist.playlist_name)).join("") : `<div style="text-align: center; padding: 15px; color: #94a3b8; font-size: 12px;">No sets in ${playlist.playlist_name}.</div>`;
+            const itemsHtml = items.length > 0 ? items.map(i => getSetHtml(i, playlist.playlist_name)).join("") : `<div style="text-align: center; padding: 18px; color: #94a3b8; font-size: 12.5px; font-weight: 600;">No sets in ${playlist.playlist_name}.</div>`;
             
             customContainer.innerHTML += `
-                <div class="mission-playlist-card collapsed" style="margin-bottom: 10px; background: #ffffff; border: 1px solid var(--border-color); border-radius: 6px; cursor: pointer;">
-                    <div class="playlist-header" style="padding: 12px 16px; display: flex; justify-content: space-between; align-items: center;" onclick="this.parentElement.classList.toggle('expanded'); this.nextElementSibling.style.display = this.parentElement.classList.contains('expanded') ? 'block' : 'none';">
-                        <h3 style="margin: 0; font-size: 14px; color: #475569; display: flex; align-items: center; gap: 8px;">⭐ ${playlist.playlist_name}</h3>
-                        <span style="font-size: 11px; color: #94a3b8; font-weight: 700;">${items.length} Sets ▼</span>
+                <div class="mission-playlist-card collapsed playlist-accordion-card">
+                    <div class="playlist-header" onclick="this.parentElement.classList.toggle('expanded'); this.parentElement.classList.toggle('collapsed');">
+                        <div class="playlist-header-left">
+                            <h3 class="playlist-title">⭐ ${playlist.playlist_name}</h3>
+                        </div>
+                        <span class="playlist-count-pill">${items.length} Sets ▼</span>
                     </div>
-                    <div class="playlist-body" style="display: none; padding: 12px; border-top: 1px solid var(--border-color); background:var(--bg-surface-elevated);">
-                        ${itemsHtml}
+                    <div class="playlist-body">
+                        <div class="playlist-sets-stream">${itemsHtml}</div>
                         ${getAddBtn(playlist.id, playlist.playlist_name)}
                     </div>
                 </div>
@@ -1003,7 +1053,7 @@ function renderHomePlaylists() {
         });
     }
 
-    // Century Meter Progress
+    // Century Tracker Update
     const targetQ = 100;
     const meterFill = document.getElementById("centuryLoadFill");
     const meterText = document.getElementById("centuryLoadText");
@@ -1081,34 +1131,14 @@ window.toggleBatchSelection = function(testId, isAlreadyInPlaylist) {
     
     const btn = document.getElementById(`batchSelectBtn_${testId}`);
     if(btn) {
-        if(selectedSetsForBatch.has(testId)) {
-            btn.innerHTML = `☑️`;
-            btn.style.color = "var(--tcs-blue-accent)";
-        } else {
-            btn.innerHTML = `⬜`;
-            btn.style.color = "#cbd5e1";
-        }
+        btn.innerHTML = selectedSetsForBatch.has(testId) ? `☑️` : `⬜`;
     }
     
     const barCount = document.getElementById("librarySelectionCount");
     if(barCount) barCount.innerText = `${selectedSetsForBatch.size} Selected`;
 };
 
-window.shiftPlaylistItem = async function(itemId, targetPlaylistName) {
-    const targetList = userPlaylists.find(p => p.playlist_name === targetPlaylistName);
-    if (!targetList) return;
-    await supabaseClient.from("playlist_items").update({ playlist_id: targetList.id, is_rollover: false }).eq("id", itemId);
-    await fetchPlaylistsAndCheckRollover();
-    renderHomePlaylists();
-};
-
-window.removePlaylistItem = async function(itemId) {
-    await supabaseClient.from("playlist_items").delete().eq("id", itemId);
-    await fetchPlaylistsAndCheckRollover();
-    renderHomePlaylists();
-};
-
-// 🚀 2-STEP 3-DOTS MENU & BOTTOM SHEET FLOW
+// 🚀 2-STEP 3-DOTS MENU & YOUTUBE-STYLE BOTTOM SHEET
 window.openThreeDotsMenu = function(event, testId) {
     event.stopPropagation();
     currentThreeDotsTestId = testId;
@@ -1120,11 +1150,10 @@ window.openThreeDotsMenu = function(event, testId) {
     menu.style.display = "block";
     overlay.style.display = "block";
 
-    // Fixed positioning near button
-    const menuWidth = 160;
+    const menuWidth = 165;
     let leftPos = btnRect.right - menuWidth;
     if (leftPos < 10) leftPos = 10;
-    let topPos = btnRect.bottom + 4;
+    let topPos = btnRect.bottom + 6;
     if (topPos + 60 > window.innerHeight) {
         topPos = btnRect.top - 50;
     }
@@ -1157,17 +1186,34 @@ window.openPlaylistBottomSheet = function(testId) {
     userPlaylists.forEach(p => {
         const inList = userPlaylistItems.some(pi => pi.playlist_id === p.id && String(pi.test_id) === String(testId));
         const icon = p.playlist_name === 'Today' ? '🔥' : (p.playlist_name === 'Tomorrow' ? '⏳' : (p.playlist_name === 'This Week' ? '📅' : '⭐'));
+        
+        // 🚀 YouTube-style bookmark SVG indicator
+        const bookmarkSvg = inList
+          ? `<svg width="20" height="20" viewBox="0 0 24 24" fill="var(--tcs-blue-accent)" stroke="var(--tcs-blue-accent)" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path><polyline points="9 10 12 13 16 8" stroke="#ffffff" stroke-width="2" fill="none"></polyline></svg>`
+          : `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>`;
+
         html += `
-            <div style="padding: 14px 16px; border: 1px solid var(--border-color); border-radius: 8px; display: flex; justify-content: space-between; align-items: center; cursor:pointer; transition:background 0.2s;" onclick="togglePlaylistMembership('${p.id}', ${testId}, ${inList})">
-                <span style="font-weight: 600; color: var(--tcs-blue-header); font-size:14px;">${icon} ${p.playlist_name}</span>
-                ${inList ? '<span style="color:#16a34a; font-weight:800; font-size:12px;">✓ Added</span>' : '<span style="color:#64748b; font-size:12px; font-weight:700;">+ Add</span>'}
+            <div class="playlist-select-row" onclick="togglePlaylistMembership('${p.id}', ${testId}, ${inList})">
+                <div class="playlist-select-left">
+                    <span class="playlist-select-icon">${icon}</span>
+                    <span class="playlist-select-title">${p.playlist_name}</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:8px;">
+                    ${inList ? '<span style="color:#16a34a; font-weight:800; font-size:11.5px; letter-spacing:0.3px;">SAVED</span>' : ''}
+                    <span class="playlist-select-checkbox">${bookmarkSvg}</span>
+                </div>
             </div>
         `;
     });
+
     html += `
-        <div style="padding: 14px 16px; border: 1px dashed var(--tcs-blue-accent); border-radius: 8px; display: flex; justify-content: center; align-items: center; cursor:pointer; color:var(--tcs-blue-accent); font-weight:700; margin-top:8px;" onclick="promptNewPlaylistFromSheet()">
-            ➕ Create Custom Playlist
-        </div>
+        <button type="button" class="btn-create-playlist-trigger" style="margin-top:8px;" onclick="promptNewPlaylistFromSheet()">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            <span>Create New Playlist</span>
+        </button>
     `;
     opts.innerHTML = html;
     overlay.classList.add("open");
@@ -1177,15 +1223,22 @@ window.openPlaylistBottomSheet = function(testId) {
 window.closePlaylistBottomSheet = function() {
     const bs = document.getElementById("playlistBottomSheet");
     const overlay = document.getElementById("playlistBottomSheetOverlay");
-    if(bs) bs.style.bottom = "-400px";
+    if(bs) bs.style.bottom = "-500px";
     if(overlay) overlay.classList.remove("open");
 };
 
 window.togglePlaylistMembership = async function(playlistId, testId, inList) {
     if (inList) {
-        await supabaseClient.from("playlist_items").delete().match({ playlist_id: playlistId, test_id: testId, student_roll: currentCandidate.roll_number });
+        await supabaseClient.from("playlist_items").delete()
+          .eq("playlist_id", playlistId)
+          .eq("test_id", testId)
+          .eq("student_roll", currentCandidate.roll_number);
     } else {
-        await supabaseClient.from("playlist_items").insert({ playlist_id: playlistId, test_id: testId, student_roll: currentCandidate.roll_number });
+        await supabaseClient.from("playlist_items").insert({
+          playlist_id: playlistId,
+          test_id: testId,
+          student_roll: currentCandidate.roll_number
+        });
     }
     await fetchPlaylistsAndCheckRollover();
     openPlaylistBottomSheet(testId); 
@@ -1474,12 +1527,12 @@ function renderTopicSets() {
       if (!banner) {
           banner = document.createElement("div");
           banner.id = "librarySelectionBanner";
-          banner.style.cssText = "background: var(--tcs-blue-header); color: white; padding: 12px 16px; margin-bottom: 16px; border-radius: 6px; font-weight: 700; font-size: 14px; position: sticky; top: 60px; z-index: 10; display:flex; justify-content:space-between; align-items:center; box-shadow: 0 4px 10px rgba(0,0,0,0.1);";
+          banner.style.cssText = "padding: 12px 18px; margin-bottom: 14px; border-radius: 8px; font-weight: 700; font-size: 13.5px; position: sticky; top: 60px; z-index: 10; display:flex; justify-content:space-between; align-items:center; box-shadow: 0 4px 12px rgba(0,0,0,0.1);";
           document.getElementById("setsExplorerStage").insertBefore(banner, document.getElementById("explorerMasthead").nextSibling);
       }
       banner.style.display = "flex";
       banner.innerHTML = `
-          <span>📌 Adding to: <span style="color:#93c5fd;">${targetPlaylistForSelection.name}</span></span>
+          <span>📌 Adding to: <strong style="color:#93c5fd; text-decoration:underline;">${targetPlaylistForSelection.name}</strong></span>
           <button type="button" style="background:transparent; border:none; color:white; font-size:18px; cursor:pointer;" onclick="cancelLibrarySelectionMode()">✕</button>
       `;
 
@@ -1487,13 +1540,13 @@ function renderTopicSets() {
       if (!fBar) {
           fBar = document.createElement("div");
           fBar.id = "librarySelectionFloatingBar";
-          fBar.style.cssText = "position: fixed; bottom: 70px; left: 50%; transform: translateX(-50%); background: #ffffff; border: 1px solid var(--border-color); border-radius: 50px; padding: 10px 16px; display: flex; align-items: center; gap: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); z-index: 2000; transition: all 0.2s ease;";
+          fBar.style.cssText = `position: fixed; bottom: ${window.innerWidth <= 768 ? '72px' : '24px'}; left: 50%; transform: translateX(-50%); border-radius: 50px; padding: 10px 20px; display: flex; align-items: center; gap: 16px; z-index: 2000; box-shadow: 0 10px 30px rgba(0,0,0,0.18); transition: all 0.2s ease;`;
           document.body.appendChild(fBar);
       }
       fBar.style.display = "flex";
       fBar.innerHTML = `
-          <span id="librarySelectionCount" style="font-weight:800; color:var(--tcs-blue-header); font-size:14px;">${selectedSetsForBatch.size} Selected</span>
-          <button type="button" style="background:var(--success); color:white; border:none; padding:8px 16px; border-radius:20px; font-weight:700; cursor:pointer; font-size:13px;" onclick="commitBatchSelectionToPlaylist()">Add Selected</button>
+          <span id="librarySelectionCount" style="font-weight:800; color:var(--tcs-blue-header); font-size:13.5px;">${selectedSetsForBatch.size} Selected</span>
+          <button type="button" style="background:var(--success); color:white; border:none; padding:8px 18px; border-radius:20px; font-weight:700; cursor:pointer; font-size:13px;" onclick="commitBatchSelectionToPlaylist()">Add Selected</button>
       `;
   }
 
@@ -1552,11 +1605,11 @@ function renderTopicSets() {
                       <span style="background:rgba(239, 68, 68, 0.12); color:#ef4444; padding:4px 8px; border-radius:4px; font-size:9.5px; font-weight:800; white-space:nowrap; flex-shrink:0; border: 1px solid rgba(239, 68, 68, 0.25); letter-spacing: 0.5px;">MISTAKE BANK</span>
                   </div>
                   <div class="secondary-modes-strip" style="display:flex; gap:8px; width: 100%;">
-                      <button class="btn-launch-set" style="flex:1; background:rgba(239, 68, 68, 0.15); color:#ef4444; border:1px solid rgba(239, 68, 68, 0.3); box-shadow:none;" onclick="launchMistakeBank('quiz')">
+                      <button type="button" class="btn-launch-set" style="flex:1; background:rgba(239, 68, 68, 0.15); color:#ef4444; border:1px solid rgba(239, 68, 68, 0.3); box-shadow:none;" onclick="launchMistakeBank('quiz')">
                           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg> 
                           <span style="margin-left:4px;">Practice Qs (${dueWeakQs.length})</span>
                       </button>
-                      <button class="btn-launch-set" style="flex:1; background:transparent; color:#ef4444; border:1px solid rgba(239, 68, 68, 0.3); box-shadow:none;" onclick="launchMistakeBank('flashcard')">
+                      <button type="button" class="btn-launch-set" style="flex:1; background:transparent; color:#ef4444; border:1px solid rgba(239, 68, 68, 0.3); box-shadow:none;" onclick="launchMistakeBank('flashcard')">
                           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="14" height="14" rx="2" ry="2"></rect><path d="M21 7v12a2 2 0 0 1-2 2H7"></path></svg>
                           <span style="margin-left:4px;">Flashcards</span>
                       </button>
@@ -1651,7 +1704,7 @@ function renderTopicSets() {
 
             let tickHtml = "";
             if (isAlreadyInTargetList) {
-                tickHtml = `<span style="color:#16a34a; font-size:14px; font-weight:800;" title="Already in playlist">✔️ Added</span>`;
+                tickHtml = `<span style="color:#16a34a; font-size:13px; font-weight:800; display:flex; align-items:center; gap:3px;" title="Already in playlist">✔️ Added</span>`;
             } else {
                 tickHtml = `<button type="button" id="batchSelectBtn_${setItem.test_id}" style="pointer-events:none;">${isSelectedNow ? '☑️' : '⬜'}</button>`;
             }
@@ -1718,17 +1771,17 @@ function renderTopicSets() {
                 ${historyHtml}
               </div>
               <div class="set-action-footer">
-                <button class="btn-launch-set" onclick="launchAssessment(${setItem.test_id})">
+                <button type="button" class="btn-launch-set" onclick="launchAssessment(${setItem.test_id})">
                   ${examIcon} <span>${examText}</span>
                 </button>
                 <div class="secondary-modes-strip">
-                  <button class="btn-mode-icon" title="Read Mode" onclick="launchPracticeMode(${setItem.test_id}, 'read')">
+                  <button type="button" class="btn-mode-icon" title="Read Mode" onclick="launchPracticeMode(${setItem.test_id}, 'read')">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
                   </button>
-                  <button class="btn-mode-icon" title="Flashcards" onclick="launchPracticeMode(${setItem.test_id}, 'flashcard')">
+                  <button type="button" class="btn-mode-icon" title="Flashcards" onclick="launchPracticeMode(${setItem.test_id}, 'flashcard')">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="14" height="14" rx="2" ry="2"></rect><path d="M21 7v12a2 2 0 0 1-2 2H7"></path></svg>
                   </button>
-                  <button class="btn-mode-icon" title="Instant Quiz" onclick="launchPracticeMode(${setItem.test_id}, 'quiz')">
+                  <button type="button" class="btn-mode-icon" title="Instant Quiz" onclick="launchPracticeMode(${setItem.test_id}, 'quiz')">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
                   </button>
                 </div>
@@ -1973,7 +2026,7 @@ window.launchAssessment = async function(testId) {
 
     const section = sections[0];
     const tabsEl = document.getElementById("sectionTabs");
-    if (tabsEl) tabsEl.innerHTML = `<button class="section-tab">Section 1: ${section.section_name || "General"}</button>`;
+    if (tabsEl) tabsEl.innerHTML = `<button type="button" class="section-tab">Section 1: ${section.section_name || "General"}</button>`;
 
     const { data: qData, error: qErr } = await supabaseClient.from("test_section_questions").select(`question_number, questions (id, content, options, correct_answer, explanation)`).eq("section_id", section.id).order("question_number", { ascending: true });
     if (qErr || !qData || qData.length === 0) throw new Error("Questions failed to load.");
@@ -2037,8 +2090,8 @@ window.abortExamSession = function() {
           Are you sure you want to exit? Your current exam progress will <strong>not</strong> be saved.
         </p>
         <div style="display: flex; gap: 12px; justify-content: center;">
-          <button class="tcs-btn btn-secondary" onclick="closeExamModal()" style="margin: 0; flex: 1;">Cancel</button>
-          <button class="tcs-btn" onclick="executeAbortExam()" style="margin: 0; flex: 1; background: #ef4444; color: #ffffff; border: none;">Yes, Abort</button>
+          <button type="button" class="tcs-btn btn-secondary" onclick="closeExamModal()" style="margin: 0; flex: 1;">Cancel</button>
+          <button type="button" class="tcs-btn" onclick="executeAbortExam()" style="margin: 0; flex: 1; background: #ef4444; color: #ffffff; border: none;">Yes, Abort</button>
         </div>
       </div>
     </div>`;
@@ -2199,8 +2252,8 @@ window.showExamSummaryModal = function() {
         </table>
       </div>
       <div class="tcs-modal-footer">
-        <button class="tcs-btn btn-secondary" onclick="closeExamModal()">Back to Exam</button>
-        <button class="tcs-btn btn-submit" id="btnConfirmSubmit" onclick="confirmAndFinishExam()">Confirm & Submit Exam</button>
+        <button type="button" class="tcs-btn btn-secondary" onclick="closeExamModal()">Back to Exam</button>
+        <button type="button" class="tcs-btn btn-submit" id="btnConfirmSubmit" onclick="confirmAndFinishExam()">Confirm & Submit Exam</button>
       </div>
     </div>`;
 };
@@ -2280,8 +2333,8 @@ function renderScorecard() {
         <div id="syncStatusMsg" style="font-size:12px; color:#2563eb; text-align:center; font-weight:600; margin-top: 8px;">Syncing results to database...</div>
       </div>
       <div class="tcs-modal-footer">
-        <button class="tcs-btn btn-secondary" onclick="openSolutionsView()">View Detailed Solutions</button>
-        <button class="tcs-btn btn-primary" onclick="closeExamAndReload()">Return to Mission</button>
+        <button type="button" class="tcs-btn btn-secondary" onclick="openSolutionsView()">View Detailed Solutions</button>
+        <button type="button" class="tcs-btn btn-primary" onclick="closeExamAndReload()">Return to Mission</button>
       </div>
     </div>`;
 
@@ -2435,6 +2488,7 @@ function renderPaletteGrid() {
   
   testQuestions.forEach((q, idx) => {
     const btn = document.createElement("button"); 
+    btn.type = "button";
     btn.className = "palette-btn"; 
     btn.innerText = q.qNum;
     
@@ -2574,10 +2628,15 @@ window.fetchStudentAnalytics = async function(isSilent = false) {
 
     let streakCount = dailyPerf.streak_count || 0; 
 
-    const hcStreak = document.getElementById("headerStreakCount");
-    if (hcStreak) hcStreak.innerText = streakCount + (window.innerWidth <= 768 ? "" : " Days");
-    const hcAcc = document.getElementById("headerAccuracyCount");
-    if (hcAcc) hcAcc.innerText = accuracyVal + "%";
+    // 🚀 Sync badges across all headers (Home, Library, Analytics)
+    ['headerStreakCount', 'headerStreakCount_lib', 'headerStreakCount_stats'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.innerText = streakCount + (window.innerWidth <= 768 ? "" : " Days");
+    });
+    ['headerAccuracyCount', 'headerAccuracyCount_lib', 'headerAccuracyCount_stats'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.innerText = accuracyVal + "%";
+    });
 
     if (isSilent) {
       _isFetchingStats = false;
@@ -3302,8 +3361,8 @@ function renderFlashcardMode() {
       </div>
     </div>
     <div style="display: flex; justify-content: space-between; margin-top: 20px;">
-      <button class="tcs-btn btn-secondary" ${flashcardIndex === 0 ? 'disabled' : ''} id="btnPrevCard">← Previous</button>
-      <button class="tcs-btn btn-primary" ${flashcardIndex === practiceQuestions.length - 1 ? 'disabled' : ''} id="btnNextCard">Next →</button>
+      <button type="button" class="tcs-btn btn-secondary" ${flashcardIndex === 0 ? 'disabled' : ''} id="btnPrevCard">← Previous</button>
+      <button type="button" class="tcs-btn btn-primary" ${flashcardIndex === practiceQuestions.length - 1 ? 'disabled' : ''} id="btnNextCard">Next →</button>
     </div>
   `;
 
