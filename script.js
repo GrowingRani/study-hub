@@ -7,18 +7,16 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // ==========================================================================
-// 2. UNIVERSAL ANSWER NORMALIZATION (BULLETPROOF UPGRADE)
+// 2. UNIVERSAL ANSWER NORMALIZATION
 // ==========================================================================
 function getNormalizedCorrectAnswerId(rawAnswer, optionsArray) {
   if (!optionsArray || !Array.isArray(optionsArray)) return String(rawAnswer || "");
   
   let ca = "";
-  
   if (typeof rawAnswer === "object" && rawAnswer !== null) {
       ca = String(rawAnswer.en || rawAnswer.text || rawAnswer.id || "").trim().toUpperCase();
   } else {
       ca = String(rawAnswer || "").trim();
-      
       if (ca.startsWith("{") && ca.endsWith("}")) {
           try {
               let parsed = JSON.parse(ca);
@@ -47,15 +45,27 @@ function getNormalizedCorrectAnswerId(rawAnswer, optionsArray) {
 }
 
 // ==========================================================================
-// 3. GLOBAL STATE & APPLICATION ROUTING
+// 3. GLOBAL STATE & ROUTING
 // ==========================================================================
 let currentCandidate = null;
 let catalogData = [];
 let activeSubject = null;
 let userAttemptHistory = [];
-let userWeakQuestions = []; // Mistake Bank Storage
+let userWeakQuestions = []; 
 let currentLang = "en";
 let currentFilter = "all";
+
+// Playlist States
+let userPlaylists = [];
+let userPlaylistItems = [];
+let dailyPerf = { total_questions_attempted: 0, is_century_hit: false, streak_count: 0, id: null };
+let selectedTestForPlaylist = null;
+let currentThreeDotsTestId = null;
+
+// Library Selection Mode States
+let librarySelectionMode = false;
+let targetPlaylistForSelection = null; 
+let selectedSetsForBatch = new Set(); 
 
 let activeTest = null;
 let testQuestions = [];
@@ -65,10 +75,10 @@ let flashcardIndex = 0;
 let userResponses = {};
 let timeRemaining = 15 * 60;
 let timerInterval = null;
-let isExamFinished = false; // 🚀 NAYA: Exam loop trap rokne ke liye
+let isExamFinished = false; 
 
-// Radar Chart Global Instance
 let subjectRadarChartInstance = null;
+let alertEngineStarted = false;
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
@@ -91,12 +101,10 @@ function getLocalizedText(obj) {
   if (typeof text === "string") {
     text = text.replace(/\\n/g, "\n");
   }
-
   return text;
 }
 
 window.addEventListener("DOMContentLoaded", () => {
-  // Pull-to-refresh global disable via JS fallback (CSS is primary)
   document.documentElement.style.overscrollBehaviorY = 'none';
   document.body.style.overscrollBehaviorY = 'none';
 
@@ -108,26 +116,22 @@ window.addEventListener("DOMContentLoaded", () => {
     const bottomNav = document.getElementById('mobileBottomNav');
     if (bottomNav) {
       const activeView = Array.from(document.querySelectorAll('.view-screen')).find(v => v.style.display === 'flex')?.id;
-      bottomNav.style.display = (window.innerWidth <= 768 && (activeView === 'viewDashboard' || activeView === 'viewAnalytics')) ? 'flex' : 'none';
+      bottomNav.style.display = (window.innerWidth <= 768 && (activeView === 'viewDashboard' || activeView === 'viewLibrary' || activeView === 'viewAnalytics')) ? 'flex' : 'none';
     }
   });
 });
 
 window.switchView = function(viewId, pushHistory = true) {
   const currentActiveView = Array.from(document.querySelectorAll('.view-screen')).find(v => v.style.display === 'flex')?.id;
-  
   if (currentActiveView === viewId) return;
 
-  // 🚀 SMART ROUTING INTERCEPT: 
-  // Agar user "Exit" button dabata hai jo hardcoded switchView('viewDashboard') par jata hai, 
-  // toh use NAYA panna push karne ke bajaye 'history.back()' karo taaki Stack kharab na ho.
-  if (pushHistory && viewId === 'viewDashboard' && ['viewPractice', 'viewSolutions', 'viewExam'].includes(currentActiveView)) {
-      isExamFinished = true; // Traps unlock
+  if (pushHistory && (viewId === 'viewDashboard' || viewId === 'viewLibrary') && ['viewPractice', 'viewSolutions', 'viewExam'].includes(currentActiveView)) {
+      isExamFinished = true; 
       history.back();
       return; 
   }
 
-  ["viewLogin", "viewDashboard", "viewExam", "viewSolutions", "viewAnalytics", "viewPractice"].forEach(id => {
+  ["viewLogin", "viewDashboard", "viewLibrary", "viewExam", "viewSolutions", "viewAnalytics", "viewPractice"].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = "none";
   });
@@ -137,7 +141,7 @@ window.switchView = function(viewId, pushHistory = true) {
 
   const bottomNav = document.getElementById('mobileBottomNav');
   if (bottomNav) {
-    bottomNav.style.display = (window.innerWidth <= 768 && (viewId === 'viewDashboard' || viewId === 'viewAnalytics')) ? 'flex' : 'none';
+    bottomNav.style.display = (window.innerWidth <= 768 && (viewId === 'viewDashboard' || viewId === 'viewLibrary' || viewId === 'viewAnalytics')) ? 'flex' : 'none';
   }
 
   if (pushHistory) {
@@ -145,34 +149,35 @@ window.switchView = function(viewId, pushHistory = true) {
   }
 };
 
-// 🚀 NAYA: STRICT HIERARCHICAL POPSTATE CONTROLLER
 window.addEventListener("popstate", function(e) {
-  // 1. Agar koi Modal open hai (Submit / Scorecard / Abort Modal), toh close karo
   const submitModal = document.getElementById("submitModalContainer");
   if (submitModal && submitModal.style.display === "flex") {
     closeExamModal();
-    history.pushState(e.state, "", window.location.hash); // Restore URL
+    history.pushState(e.state, "", window.location.hash);
     return;
   }
 
-  // 2. Agar Profile Drawer open hai, toh close karo
   const profileDrawer = document.getElementById("profileDrawer");
   if (profileDrawer && profileDrawer.classList.contains("open")) {
     toggleProfileDrawer();
-    history.pushState(e.state, "", window.location.hash); // Restore URL
+    history.pushState(e.state, "", window.location.hash);
     return;
+  }
+  
+  if (document.getElementById("playlistBottomSheetOverlay")?.classList.contains("open")) {
+      closePlaylistBottomSheet();
+      history.pushState(e.state, "", window.location.hash);
+      return;
   }
 
   const currentActiveView = Array.from(document.querySelectorAll('.view-screen')).find(v => v.style.display === 'flex')?.id;
 
-  // 3. EXAM MODE INTERCEPTION: (Ab loop nahi banega)
   if (currentActiveView === 'viewExam' && !isExamFinished) {
     history.pushState({ view: 'viewExam' }, "", "#viewExam");
     abortExamSession();
     return;
   }
 
-  // 4. SUBTOPIC / SETS EXPLORER MEIN AGAR SEARCH OPEN HAI
   const searchBar = document.getElementById("mastheadSearchBar");
   if (searchBar && searchBar.style.display === "flex") {
     toggleMastheadSearch(false);
@@ -180,40 +185,31 @@ window.addEventListener("popstate", function(e) {
     return;
   }
 
-  // 5. Normal Multi-View Navigation (Based strictly on e.state)
   if (e.state) {
-    if (e.state.view === 'viewDashboard') {
-      switchView('viewDashboard', false);
-      
-      // Checking sub-stage inside Dashboard
+    if (e.state.view === 'viewLibrary') {
+      switchView('viewLibrary', false);
       if (e.state.subView === 'setsExplorer' && e.state.subject) {
-        drillDownToSubject(e.state.subject, false); // Restore to specific Subject (Sets view)
+        drillDownToSubject(e.state.subject, false); 
       } else {
-        returnToSubjectHub(true); // Restore to Home Portfolio (Hub)
+        returnToSubjectHub(true); 
       }
-    } 
-    else if (e.state.view) {
+    } else if (e.state.view) {
       switchView(e.state.view, false);
     }
   } else {
-    // Empty stack fallback -> Safe land to Hub
     if (currentCandidate) {
       switchView('viewDashboard', false);
-      returnToSubjectHub(true);
     } else {
       switchView('viewLogin', false);
     }
   }
 });
 
-// 🚀 MOBILE EXAM GESTURE CONTROLLER (ONLY SWIPE DOWN TO CLOSE)
 function setupMobileExamGestures() {
   const panel = document.querySelector(".tcs-side-panel");
   const overlay = document.getElementById("paletteOverlay");
-
   if (!panel) return;
 
-  // Visual Grab Bar
   if (!document.getElementById("paletteGrabHandle")) {
     const handle = document.createElement("div");
     handle.id = "paletteGrabHandle";
@@ -224,7 +220,6 @@ function setupMobileExamGestures() {
   let touchStartY = 0;
   let touchStartX = 0;
 
-  // SWIPE DOWN TO CLOSE: Panel par drag gesture
   panel.addEventListener("touchstart", (e) => {
     if (window.innerWidth > 768) return;
     touchStartY = e.touches[0].clientY;
@@ -236,7 +231,6 @@ function setupMobileExamGestures() {
     const diffY = e.changedTouches[0].clientY - touchStartY;
     const diffX = Math.abs(e.changedTouches[0].clientX - touchStartX);
 
-    // Agar niche drag hua hai (at least 50px) aur horizontal swipe nahi hai
     if (diffY > 50 && diffX < 80) {
       panel.classList.remove("open");
       overlay?.classList.remove("open");
@@ -286,7 +280,7 @@ window.switchMasteryView = function(viewType) {
 };
 
 // ==========================================================================
-// 4. SUPABASE AUTHENTICATION LAYER
+// 4. AUTHENTICATION & SESSION
 // ==========================================================================
 let initHash = window.location.hash || window.location.href;
 if (initHash.includes("type=recovery")) sessionStorage.setItem("recovery_mode", "true");
@@ -378,7 +372,6 @@ async function initCandidateSession(user) {
     const targetEl = document.getElementById("editProfileTarget");
     if (targetEl) targetEl.value = currentCandidate.target_exam || "";
     
-    // 🚀 INITIAL APP LAUNCH (Sets up the Root History Node)
     mountDashboard(true);
   } catch (err) {
     showAuthNotice("Candidate profile load failed: " + err.message);
@@ -397,7 +390,7 @@ function showAuthNotice(msg, isError = true) {
 }
 
 // ==========================================================================
-// 5. APPLICATION EVENT BINDINGS
+// 5. APPLICATION EVENTS
 // ==========================================================================
 function filterAccordionCards(query) {
   document.querySelectorAll(".topic-accordion-card").forEach(card => {
@@ -625,7 +618,6 @@ function setupAppEvents() {
     };
   });
 
-  // Micro-Segmented Filter Tabs Bindings
   document.querySelectorAll('.filter-chip-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
       document.querySelectorAll('.filter-chip-btn').forEach(b => b.classList.remove('active'));
@@ -638,12 +630,10 @@ function setupAppEvents() {
     });
   });
 
-  // Morphing Search Input Listener
   document.getElementById("topicSearchInput")?.addEventListener("input", (e) => {
     filterAccordionCards(e.target.value.trim().toLowerCase());
   });
 
-  // Dedicated Exam Controls
   const btnSaveNext = document.getElementById("btnSaveNext");
   if (btnSaveNext) {
     btnSaveNext.onclick = () => {
@@ -689,7 +679,6 @@ function setupAppEvents() {
     };
   }
 
-  // Mobile Exam Palette Toggle Logic (Click Fallback)
   const btnMobilePalette = document.getElementById("btnMobilePalette");
   if (btnMobilePalette) {
     btnMobilePalette.onclick = (e) => {
@@ -697,7 +686,6 @@ function setupAppEvents() {
       const panel = document.querySelector(".tcs-side-panel");
       const overlay = document.getElementById("paletteOverlay");
       const isOpen = panel?.classList.contains("open");
-
       if (isOpen) {
         panel?.classList.remove("open");
         overlay?.classList.remove("open");
@@ -717,8 +705,29 @@ function setupAppEvents() {
   }
 }
 
+function start5PMEngine() {
+    if(alertEngineStarted) return;
+    alertEngineStarted = true;
+    setInterval(() => {
+        if(!currentCandidate) return;
+        const d = new Date();
+        const dateStr = d.toDateString();
+        if (d.getHours() === 17 && !localStorage.getItem("5pm_alert_" + dateStr)) {
+            const tomLoad = parseInt(localStorage.getItem("tomorrow_load_" + currentCandidate.roll_number) || "0");
+            if (tomLoad === 0) {
+                alert("⚠️ Tomorrow's Playlist is empty! Curate your target before you sleep.");
+            } else if (tomLoad < 100) {
+                alert(`⚠️ Tomorrow has only ${tomLoad} questions staged (Target is 100). Add more sets!`);
+            } else {
+                alert(`🎯 Tomorrow's payload locked & ready (${tomLoad} Qs).`);
+            }
+            localStorage.setItem("5pm_alert_" + dateStr, "true");
+        }
+    }, 60000); 
+}
+
 // ==========================================================================
-// 6. DASHBOARD, CATALOG & MISTAKE BANK FETCHING
+// 6. MISSION DECK & PLAYLIST ENGINE
 // ==========================================================================
 async function mountDashboard(isInitialLoad = false) {
   const cName = document.getElementById("dashCandidateName");
@@ -728,20 +737,497 @@ async function mountDashboard(isInitialLoad = false) {
   
   fetchStudentAnalytics(true); 
   
-  // Do not push state here, just switch the display naturally.
   switchView("viewDashboard", false);
+  updateBottomNav(document.getElementById('navHomeBtn'));
 
   if (isInitialLoad || !history.state) {
-      history.replaceState({ view: 'viewDashboard', subView: 'hub' }, "", "#viewDashboard");
+      history.replaceState({ view: 'viewDashboard' }, "", "#viewDashboard");
   }
   
-  // Ensure we are in Stage 1
-  returnToSubjectHub(true); 
-  updateBottomNav(document.querySelector('.nav-item.active'));
-  
+  await fetchPlaylistsAndCheckRollover();
   await fetchWeakQuestions();
-  await fetchTestCatalog();
+  await fetchTestCatalog(); 
+  renderHomePlaylists();
+  start5PMEngine();
 }
+
+// 🚀 ROBUST PLAYLIST SEEDING & FETCHING (NO TEMP IDS)
+async function fetchPlaylistsAndCheckRollover() {
+    if (!currentCandidate) return;
+    const roll = currentCandidate.roll_number;
+
+    try {
+        // 1. Supabase से इस स्टूडेंट की प्लेलिस्ट फेच करें
+        let { data: pData, error: pErr } = await supabaseClient
+            .from("playlists")
+            .select("*")
+            .eq("student_roll", roll)
+            .order("display_order", { ascending: true });
+
+        if (pErr) console.error("Playlists fetch error:", pErr);
+
+        // 2. चेक करें कि सिस्टम प्लेलिस्ट्स मौजूद हैं या नहीं
+        const requiredLists = [
+            { name: 'Today', order: 1 },
+            { name: 'Tomorrow', order: 2 },
+            { name: 'This Week', order: 3 }
+        ];
+
+        let missing = [];
+        if (!pData || pData.length === 0) {
+            missing = requiredLists.map(r => ({
+                student_roll: roll,
+                playlist_name: r.name,
+                is_system_playlist: true,
+                display_order: r.order
+            }));
+        } else {
+            requiredLists.forEach(r => {
+                if (!pData.some(p => p.playlist_name === r.name)) {
+                    missing.push({
+                        student_roll: roll,
+                        playlist_name: r.name,
+                        is_system_playlist: true,
+                        display_order: r.order
+                    });
+                }
+            });
+        }
+
+        // 3. यदि कोई मिसिंग है, तो Supabase में असली UUID के साथ इंसर्ट करें
+        if (missing.length > 0) {
+            const { error: insErr } = await supabaseClient.from("playlists").insert(missing);
+            if (insErr) console.warn("Playlists insert warning:", insErr);
+
+            const { data: refData } = await supabaseClient
+                .from("playlists")
+                .select("*")
+                .eq("student_roll", roll)
+                .order("display_order", { ascending: true });
+            
+            pData = refData || pData || [];
+        }
+
+        userPlaylists = pData || [];
+
+        // 4. प्लेलिस्ट आइटम्स फेच करें
+        const { data: piData, error: piErr } = await supabaseClient
+            .from("playlist_items")
+            .select("*")
+            .eq("student_roll", roll);
+        
+        if (piErr) console.error("Playlist items error:", piErr);
+        userPlaylistItems = piData || [];
+
+        // 5. 100-Q डेली परफॉर्मेंस
+        const todayStr = new Date().toISOString().split("T")[0];
+        const { data: dpData } = await supabaseClient
+            .from("daily_performance")
+            .select("*")
+            .eq("student_roll", roll)
+            .eq("target_date", todayStr)
+            .maybeSingle();
+        
+        if (dpData) {
+            dailyPerf = dpData;
+        } else {
+            const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0];
+            const { data: yData } = await supabaseClient
+                .from("daily_performance")
+                .select("streak_count, is_century_hit")
+                .eq("student_roll", roll)
+                .eq("target_date", yesterday)
+                .maybeSingle();
+            let newStreak = (yData && yData.is_century_hit) ? yData.streak_count : 0;
+            
+            const { data: insData } = await supabaseClient.from("daily_performance").insert({
+                student_roll: roll, target_date: todayStr, total_questions_attempted: 0, streak_count: newStreak
+            }).select().single();
+            if (insData) dailyPerf = insData;
+        }
+
+        // 6. मिडनाइट रोलओवर
+        const lastRollover = localStorage.getItem("last_rollover_" + roll);
+        if (lastRollover !== todayStr) {
+            const todayList = userPlaylists.find(p => p.playlist_name === 'Today');
+            const tomorrowList = userPlaylists.find(p => p.playlist_name === 'Tomorrow');
+            
+            if (todayList && tomorrowList) {
+                await supabaseClient.from("playlist_items").update({ is_rollover: true }).eq("playlist_id", todayList.id);
+                await supabaseClient.from("playlist_items").update({ playlist_id: todayList.id }).eq("playlist_id", tomorrowList.id);
+            }
+            localStorage.setItem("last_rollover_" + roll, todayStr);
+            
+            const { data: piData2 } = await supabaseClient.from("playlist_items").select("*").eq("student_roll", roll);
+            userPlaylistItems = piData2 || [];
+        }
+    } catch (error) {
+        console.error("Playlist Init Error:", error);
+    }
+}
+
+// 🚀 RENDER HOME PLAYLISTS (ALWAYS RENDERS ADD BUTTONS)
+function renderHomePlaylists() {
+    const todayContainer = document.getElementById("todayPlaylistContainer");
+    const tomorrowContainer = document.getElementById("tomorrowPlaylistContainer");
+    const weekContainer = document.getElementById("weekPlaylistContainer");
+    const customContainer = document.getElementById("customPlaylistsContainer");
+
+    if (!todayContainer || !tomorrowContainer || !weekContainer) return;
+
+    todayContainer.innerHTML = "";
+    tomorrowContainer.innerHTML = "";
+    weekContainer.innerHTML = "";
+    if (customContainer) customContainer.innerHTML = "";
+
+    const todayDay = new Date().getDay();
+    if (todayDay === 0) { 
+        todayContainer.innerHTML = `
+            <div style="background: linear-gradient(135deg, #4f46e5, #7c3aed); padding: 24px; border-radius: 8px; text-align: center; color: white;">
+                <h2 style="margin:0 0 10px 0; font-size:20px;">👑 Sunday Mega Mistake Bank</h2>
+                <p style="margin:0 0 16px 0; font-size:13px; opacity:0.9;">100 Questions from your weekly errors. Clear this to secure your Century Streak.</p>
+                <button class="tcs-btn" style="background:#ffffff; color:#7c3aed; font-weight:800; padding:10px 24px;" onclick="launchMistakeBank('quiz', true)">▶ START MEGA REVISION</button>
+            </div>
+        `;
+        if (tomorrowContainer.closest('.mission-playlist-card')) tomorrowContainer.closest('.mission-playlist-card').style.display = "none";
+        if (weekContainer.closest('.mission-playlist-card')) weekContainer.closest('.mission-playlist-card').style.display = "none";
+        if (customContainer) customContainer.style.display = "none";
+        
+        const meterFill = document.getElementById("centuryLoadFill");
+        const meterText = document.getElementById("centuryLoadText");
+        if(meterFill) { meterFill.style.width = "100%"; meterFill.style.background = "#16a34a"; }
+        if(meterText) meterText.innerText = `100 / 100 Qs ✅ (Sunday Secured)`;
+        return; 
+    } else {
+        if (tomorrowContainer.closest('.mission-playlist-card')) tomorrowContainer.closest('.mission-playlist-card').style.display = "block";
+        if (weekContainer.closest('.mission-playlist-card')) weekContainer.closest('.mission-playlist-card').style.display = "block";
+        if (customContainer) customContainer.style.display = "block";
+    }
+
+    let todayLoad = 25; 
+    let tomorrowLoad = 0;
+
+    const getSetHtml = (item, pName) => {
+        const setCat = catalogData.find(c => String(c.test_id) === String(item.test_id));
+        if (!setCat) return "";
+        
+        const qCount = setCat.total_questions || 10;
+        if (pName === 'Today') todayLoad += qCount;
+        if (pName === 'Tomorrow') tomorrowLoad += qCount;
+
+        const isRoll = item.is_rollover ? `<span style="background:#fee2e2; color:#dc2626; padding:2px 6px; font-size:9px; border-radius:4px; font-weight:bold; margin-right:6px;">⚠️ ROLLOVER</span>` : '';
+
+        let actionsHtml = "";
+        if (pName === 'Today') {
+            actionsHtml = `
+                <button class="tcs-btn btn-secondary" style="padding: 4px 10px; font-size:11px;" onclick="shiftPlaylistItem('${item.id}', 'Tomorrow')">➡️ Push</button>
+                <button class="tcs-btn btn-primary" style="padding: 4px 10px; font-size:11px;" onclick="launchAssessment(${item.test_id})">▶ START</button>
+            `;
+        } else {
+            actionsHtml = `
+                <button class="tcs-btn btn-secondary" style="padding: 4px 10px; font-size:11px; color:#ef4444; border-color:#fca5a5;" onclick="removePlaylistItem('${item.id}')">❌</button>
+                <button class="tcs-btn btn-secondary" style="padding: 4px 10px; font-size:11px;" onclick="shiftPlaylistItem('${item.id}', 'Today')">⬆️ To Today</button>
+            `;
+        }
+
+        return `
+            <div class="mission-set-card" style="display:flex; justify-content:space-between; align-items:center; border:1px solid var(--border-color); border-radius:6px; padding:12px; margin-bottom:8px; background:var(--bg-panel);">
+                <div style="flex:1;">
+                    <h4 style="margin:0 0 4px 0; font-size:13.5px; color:var(--tcs-blue-header);">${isRoll}${setCat.test_title}</h4>
+                    <p style="margin:0; font-size:11px; color:#64748b;">${setCat.subject} • ${qCount} Qs • ${setCat.total_duration_minutes}m</p>
+                </div>
+                <div style="display:flex; gap:6px;">
+                    ${actionsHtml}
+                </div>
+            </div>
+        `;
+    };
+
+    // Helper to generate "Add Sets" button
+    const getAddBtn = (playlistId, pName) => `
+        <button type="button" style="width: 100%; margin-top: 10px; padding: 10px; background: transparent; border: 1px dashed var(--border-color); border-radius: 6px; color: var(--tcs-blue-accent); font-size: 12px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.2s;" 
+          onclick="enableLibrarySelectionMode('${playlistId}', '${pName.replace(/'/g, "\\'")}')">
+          ➕ Add Sets to ${pName}
+        </button>
+    `;
+
+    // System Playlists
+    const todayList = userPlaylists.find(p => p.playlist_name === 'Today');
+    const tomorrowList = userPlaylists.find(p => p.playlist_name === 'Tomorrow');
+    const weekList = userPlaylists.find(p => p.playlist_name === 'This Week');
+
+    // 1. Render Today
+    if (todayList) {
+        const todayItems = userPlaylistItems.filter(pi => pi.playlist_id === todayList.id);
+        const itemsHtml = todayItems.length > 0 ? todayItems.map(i => getSetHtml(i, 'Today')).join("") : `<div style="text-align: center; padding: 15px; color: #94a3b8; font-size: 12px;">No sets queued for today yet.</div>`;
+        todayContainer.innerHTML = itemsHtml + getAddBtn(todayList.id, 'Today');
+    }
+
+    // 2. Render Tomorrow
+    if (tomorrowList) {
+        const tomItems = userPlaylistItems.filter(pi => pi.playlist_id === tomorrowList.id);
+        const itemsHtml = tomItems.length > 0 ? tomItems.map(i => getSetHtml(i, 'Tomorrow')).join("") : `<div style="text-align: center; padding: 15px; color: #94a3b8; font-size: 12px;">Queue is empty.</div>`;
+        tomorrowContainer.innerHTML = itemsHtml + getAddBtn(tomorrowList.id, 'Tomorrow');
+        const badge = tomorrowContainer.closest('.mission-playlist-card')?.querySelector('.playlist-header span');
+        if (badge) badge.innerText = `${tomItems.length} Sets ▼`;
+    }
+
+    // 3. Render This Week
+    if (weekList) {
+        const weekItems = userPlaylistItems.filter(pi => pi.playlist_id === weekList.id);
+        const itemsHtml = weekItems.length > 0 ? weekItems.map(i => getSetHtml(i, 'This Week')).join("") : `<div style="text-align: center; padding: 15px; color: #94a3b8; font-size: 12px;">Backlog is empty.</div>`;
+        weekContainer.innerHTML = itemsHtml + getAddBtn(weekList.id, 'This Week');
+        const badge = weekContainer.closest('.mission-playlist-card')?.querySelector('.playlist-header span');
+        if (badge) badge.innerText = `${weekItems.length} Sets ▼`;
+    }
+
+    // 4. Render Custom Playlists
+    const customLists = userPlaylists.filter(p => !['Today', 'Tomorrow', 'This Week'].includes(p.playlist_name));
+    if (customContainer && customLists.length > 0) {
+        customLists.forEach(playlist => {
+            const items = userPlaylistItems.filter(pi => pi.playlist_id === playlist.id);
+            const itemsHtml = items.length > 0 ? items.map(i => getSetHtml(i, playlist.playlist_name)).join("") : `<div style="text-align: center; padding: 15px; color: #94a3b8; font-size: 12px;">No sets in ${playlist.playlist_name}.</div>`;
+            
+            customContainer.innerHTML += `
+                <div class="mission-playlist-card collapsed" style="margin-bottom: 10px; background: #ffffff; border: 1px solid var(--border-color); border-radius: 6px; cursor: pointer;">
+                    <div class="playlist-header" style="padding: 12px 16px; display: flex; justify-content: space-between; align-items: center;" onclick="this.parentElement.classList.toggle('expanded'); this.nextElementSibling.style.display = this.parentElement.classList.contains('expanded') ? 'block' : 'none';">
+                        <h3 style="margin: 0; font-size: 14px; color: #475569; display: flex; align-items: center; gap: 8px;">⭐ ${playlist.playlist_name}</h3>
+                        <span style="font-size: 11px; color: #94a3b8; font-weight: 700;">${items.length} Sets ▼</span>
+                    </div>
+                    <div class="playlist-body" style="display: none; padding: 12px; border-top: 1px solid var(--border-color); background:var(--bg-surface-elevated);">
+                        ${itemsHtml}
+                        ${getAddBtn(playlist.id, playlist.playlist_name)}
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    // Century Meter Progress
+    const targetQ = 100;
+    const meterFill = document.getElementById("centuryLoadFill");
+    const meterText = document.getElementById("centuryLoadText");
+    
+    let pct = Math.min(100, Math.round((todayLoad / targetQ) * 100));
+    let loadMsg = todayLoad < 100 ? `⚠️ (${100 - todayLoad} Qs Short)` : (todayLoad === 100 ? `✅ (Target Locked)` : `🔥 (Overachieving)`);
+
+    if (meterFill) {
+      meterFill.style.width = pct + "%";
+      meterFill.style.background = pct >= 100 ? "#16a34a" : "var(--tcs-blue-accent)";
+    }
+    if (meterText) meterText.innerText = `${todayLoad} / 100 Qs ${loadMsg}`;
+    
+    localStorage.setItem("tomorrow_load_" + currentCandidate.roll_number, tomorrowLoad);
+}
+
+// 🚀 BATCH SELECTION MODE FOR LIBRARY
+window.enableLibrarySelectionMode = function(playlistId, playlistName) {
+    librarySelectionMode = true;
+    targetPlaylistForSelection = { id: playlistId, name: playlistName };
+    selectedSetsForBatch.clear();
+
+    switchView('viewLibrary');
+    updateBottomNav(document.getElementById('navLibraryBtn'));
+    returnToSubjectHub(true);
+};
+
+window.cancelLibrarySelectionMode = function() {
+    librarySelectionMode = false;
+    targetPlaylistForSelection = null;
+    selectedSetsForBatch.clear();
+    
+    const bar = document.getElementById("librarySelectionFloatingBar");
+    if(bar) bar.style.display = "none";
+    
+    const banner = document.getElementById("librarySelectionBanner");
+    if(banner) banner.style.display = "none";
+
+    renderTopicSets(); 
+};
+
+window.commitBatchSelectionToPlaylist = async function() {
+    if(!librarySelectionMode || !targetPlaylistForSelection || selectedSetsForBatch.size === 0) return;
+    
+    const payloads = Array.from(selectedSetsForBatch).map(testId => ({
+        playlist_id: targetPlaylistForSelection.id,
+        test_id: testId,
+        student_roll: currentCandidate.roll_number
+    }));
+
+    try {
+        const { error } = await supabaseClient.from("playlist_items").insert(payloads);
+        if(error) throw error;
+        alert(`Successfully added ${payloads.length} sets to ${targetPlaylistForSelection.name}!`);
+    } catch(err) {
+        alert("Batch insert failed: " + err.message);
+    }
+    
+    cancelLibrarySelectionMode();
+    await fetchPlaylistsAndCheckRollover();
+    renderHomePlaylists();
+    
+    switchView('viewDashboard');
+    updateBottomNav(document.getElementById('navHomeBtn'));
+};
+
+window.toggleBatchSelection = function(testId, isAlreadyInPlaylist) {
+    if(isAlreadyInPlaylist) return;
+    
+    if(selectedSetsForBatch.has(testId)) {
+        selectedSetsForBatch.delete(testId);
+    } else {
+        selectedSetsForBatch.add(testId);
+    }
+    
+    const btn = document.getElementById(`batchSelectBtn_${testId}`);
+    if(btn) {
+        if(selectedSetsForBatch.has(testId)) {
+            btn.innerHTML = `☑️`;
+            btn.style.color = "var(--tcs-blue-accent)";
+        } else {
+            btn.innerHTML = `⬜`;
+            btn.style.color = "#cbd5e1";
+        }
+    }
+    
+    const barCount = document.getElementById("librarySelectionCount");
+    if(barCount) barCount.innerText = `${selectedSetsForBatch.size} Selected`;
+};
+
+window.shiftPlaylistItem = async function(itemId, targetPlaylistName) {
+    const targetList = userPlaylists.find(p => p.playlist_name === targetPlaylistName);
+    if (!targetList) return;
+    await supabaseClient.from("playlist_items").update({ playlist_id: targetList.id, is_rollover: false }).eq("id", itemId);
+    await fetchPlaylistsAndCheckRollover();
+    renderHomePlaylists();
+};
+
+window.removePlaylistItem = async function(itemId) {
+    await supabaseClient.from("playlist_items").delete().eq("id", itemId);
+    await fetchPlaylistsAndCheckRollover();
+    renderHomePlaylists();
+};
+
+// 🚀 2-STEP 3-DOTS MENU & BOTTOM SHEET FLOW
+window.openThreeDotsMenu = function(event, testId) {
+    event.stopPropagation();
+    currentThreeDotsTestId = testId;
+    const menu = document.getElementById("threeDotsMenu");
+    const overlay = document.getElementById("threeDotsMenuOverlay");
+    if(!menu || !overlay) return;
+
+    const btnRect = event.currentTarget.getBoundingClientRect();
+    menu.style.display = "block";
+    overlay.style.display = "block";
+
+    // Fixed positioning near button
+    const menuWidth = 160;
+    let leftPos = btnRect.right - menuWidth;
+    if (leftPos < 10) leftPos = 10;
+    let topPos = btnRect.bottom + 4;
+    if (topPos + 60 > window.innerHeight) {
+        topPos = btnRect.top - 50;
+    }
+    menu.style.top = `${topPos}px`;
+    menu.style.left = `${leftPos}px`;
+};
+
+window.closeThreeDotsMenu = function() {
+    const menu = document.getElementById("threeDotsMenu");
+    const overlay = document.getElementById("threeDotsMenuOverlay");
+    if(menu) menu.style.display = "none";
+    if(overlay) overlay.style.display = "none";
+};
+
+window.triggerBottomSheetFromMenu = function() {
+    closeThreeDotsMenu();
+    if(currentThreeDotsTestId) {
+        openPlaylistBottomSheet(currentThreeDotsTestId);
+    }
+};
+
+window.openPlaylistBottomSheet = function(testId) {
+    selectedTestForPlaylist = testId;
+    const bs = document.getElementById("playlistBottomSheet");
+    const overlay = document.getElementById("playlistBottomSheetOverlay");
+    const opts = document.getElementById("bottomSheetOptionsContainer");
+    if(!bs || !opts) return;
+
+    let html = "";
+    userPlaylists.forEach(p => {
+        const inList = userPlaylistItems.some(pi => pi.playlist_id === p.id && String(pi.test_id) === String(testId));
+        const icon = p.playlist_name === 'Today' ? '🔥' : (p.playlist_name === 'Tomorrow' ? '⏳' : (p.playlist_name === 'This Week' ? '📅' : '⭐'));
+        html += `
+            <div style="padding: 14px 16px; border: 1px solid var(--border-color); border-radius: 8px; display: flex; justify-content: space-between; align-items: center; cursor:pointer; transition:background 0.2s;" onclick="togglePlaylistMembership('${p.id}', ${testId}, ${inList})">
+                <span style="font-weight: 600; color: var(--tcs-blue-header); font-size:14px;">${icon} ${p.playlist_name}</span>
+                ${inList ? '<span style="color:#16a34a; font-weight:800; font-size:12px;">✓ Added</span>' : '<span style="color:#64748b; font-size:12px; font-weight:700;">+ Add</span>'}
+            </div>
+        `;
+    });
+    html += `
+        <div style="padding: 14px 16px; border: 1px dashed var(--tcs-blue-accent); border-radius: 8px; display: flex; justify-content: center; align-items: center; cursor:pointer; color:var(--tcs-blue-accent); font-weight:700; margin-top:8px;" onclick="promptNewPlaylistFromSheet()">
+            ➕ Create Custom Playlist
+        </div>
+    `;
+    opts.innerHTML = html;
+    overlay.classList.add("open");
+    bs.style.bottom = "0";
+};
+
+window.closePlaylistBottomSheet = function() {
+    const bs = document.getElementById("playlistBottomSheet");
+    const overlay = document.getElementById("playlistBottomSheetOverlay");
+    if(bs) bs.style.bottom = "-400px";
+    if(overlay) overlay.classList.remove("open");
+};
+
+window.togglePlaylistMembership = async function(playlistId, testId, inList) {
+    if (inList) {
+        await supabaseClient.from("playlist_items").delete().match({ playlist_id: playlistId, test_id: testId, student_roll: currentCandidate.roll_number });
+    } else {
+        await supabaseClient.from("playlist_items").insert({ playlist_id: playlistId, test_id: testId, student_roll: currentCandidate.roll_number });
+    }
+    await fetchPlaylistsAndCheckRollover();
+    openPlaylistBottomSheet(testId); 
+    renderHomePlaylists(); 
+};
+
+window.promptNewPlaylist = async function() {
+    const name = prompt("Enter new playlist name (e.g. Important, High Court Special):");
+    if (!name || name.trim() === "") return;
+    
+    const { error } = await supabaseClient.from("playlists").insert({
+        student_roll: currentCandidate.roll_number,
+        playlist_name: name.trim(),
+        is_system_playlist: false,
+        display_order: 10
+    });
+    
+    if(error) alert("Error creating playlist: " + error.message);
+    else {
+        await fetchPlaylistsAndCheckRollover();
+        renderHomePlaylists();
+    }
+};
+
+window.promptNewPlaylistFromSheet = async function() {
+    const name = prompt("Enter new playlist name:");
+    if (!name || name.trim() === "") return;
+    
+    const { error } = await supabaseClient.from("playlists").insert({
+        student_roll: currentCandidate.roll_number,
+        playlist_name: name.trim(),
+        is_system_playlist: false,
+        display_order: 10
+    });
+    
+    if(error) alert("Error creating playlist: " + error.message);
+    else {
+        await fetchPlaylistsAndCheckRollover();
+        openPlaylistBottomSheet(selectedTestForPlaylist);
+        renderHomePlaylists();
+    }
+};
 
 async function fetchWeakQuestions() {
   if (!currentCandidate) return;
@@ -810,7 +1296,6 @@ function renderSubjectHubGrid() {
     subjectsMap[s].sets.push(row);
   });
 
-  // Subjects ko Dictionary (A-Z) kram mein sort kiya gaya
   Object.entries(subjectsMap)
     .sort((a, b) => a[0].localeCompare(b[0]))
     .forEach(([subName, data]) => {
@@ -915,7 +1400,6 @@ window.toggleMastheadSearch = function(isOpen) {
   }
 };
 
-// 🚀 UPDATED: drillDownToSubject pushes Sub-view to history for back swipe
 window.drillDownToSubject = function(subjectName, pushHistory = true) {
   activeSubject = subjectName;
   
@@ -953,15 +1437,12 @@ window.drillDownToSubject = function(subjectName, pushHistory = true) {
   renderTopicSets();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 
-  // 🚀 Record Sub-stage in Browser History for Back Swipe
   if (pushHistory) {
-    history.pushState({ view: 'viewDashboard', subView: 'setsExplorer', subject: subjectName }, "", "#subject_" + encodeURIComponent(subjectName));
+    history.pushState({ view: 'viewLibrary', subView: 'setsExplorer', subject: subjectName }, "", "#subject_" + encodeURIComponent(subjectName));
   }
 };
 
-// 🚀 UPDATED: returnToSubjectHub handles both on-screen button & mobile back swipe smoothly
 window.returnToSubjectHub = function(fromPopState = false) {
-  // Agar on-screen back button dabaya aur history mein subView tha, toh native history.back() use karo
   if (!fromPopState && history.state && history.state.subView === 'setsExplorer') {
     history.back();
     return;
@@ -978,9 +1459,8 @@ window.returnToSubjectHub = function(fromPopState = false) {
   renderSubjectHubGrid();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 
-  // Reset to Hub history state if manually triggered
   if (!fromPopState) {
-    history.replaceState({ view: 'viewDashboard', subView: 'hub' }, "", "#viewDashboard");
+    history.replaceState({ view: 'viewLibrary', subView: 'hub' }, "", "#viewLibrary");
   }
 };
 
@@ -988,6 +1468,34 @@ function renderTopicSets() {
   const container = document.getElementById("topicsContainer");
   if (!container) return;
   container.innerHTML = "";
+
+  if (librarySelectionMode && targetPlaylistForSelection) {
+      let banner = document.getElementById("librarySelectionBanner");
+      if (!banner) {
+          banner = document.createElement("div");
+          banner.id = "librarySelectionBanner";
+          banner.style.cssText = "background: var(--tcs-blue-header); color: white; padding: 12px 16px; margin-bottom: 16px; border-radius: 6px; font-weight: 700; font-size: 14px; position: sticky; top: 60px; z-index: 10; display:flex; justify-content:space-between; align-items:center; box-shadow: 0 4px 10px rgba(0,0,0,0.1);";
+          document.getElementById("setsExplorerStage").insertBefore(banner, document.getElementById("explorerMasthead").nextSibling);
+      }
+      banner.style.display = "flex";
+      banner.innerHTML = `
+          <span>📌 Adding to: <span style="color:#93c5fd;">${targetPlaylistForSelection.name}</span></span>
+          <button type="button" style="background:transparent; border:none; color:white; font-size:18px; cursor:pointer;" onclick="cancelLibrarySelectionMode()">✕</button>
+      `;
+
+      let fBar = document.getElementById("librarySelectionFloatingBar");
+      if (!fBar) {
+          fBar = document.createElement("div");
+          fBar.id = "librarySelectionFloatingBar";
+          fBar.style.cssText = "position: fixed; bottom: 70px; left: 50%; transform: translateX(-50%); background: #ffffff; border: 1px solid var(--border-color); border-radius: 50px; padding: 10px 16px; display: flex; align-items: center; gap: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); z-index: 2000; transition: all 0.2s ease;";
+          document.body.appendChild(fBar);
+      }
+      fBar.style.display = "flex";
+      fBar.innerHTML = `
+          <span id="librarySelectionCount" style="font-weight:800; color:var(--tcs-blue-header); font-size:14px;">${selectedSetsForBatch.size} Selected</span>
+          <button type="button" style="background:var(--success); color:white; border:none; padding:8px 16px; border-radius:20px; font-weight:700; cursor:pointer; font-size:13px;" onclick="commitBatchSelectionToPlaylist()">Add Selected</button>
+      `;
+  }
 
   const filtered = catalogData.filter(r => (r.subject || "General Studies") === activeSubject);
 
@@ -1017,45 +1525,46 @@ function renderTopicSets() {
     else if (f === 'mastered') btn.innerText = `🏆 Mastered (${masteredCount})`;
   });
 
-  // 🚀 TARGETED REVISION MISTAKE BANK CARD (AUTO-HIDE IF ZERO DUE TODAY)
-  const now = new Date();
-  const dueWeakQs = userWeakQuestions.filter(q => {
-    return q.subject === activeSubject && 
-           q.times_wrong > 0 && 
-           (q.mastery_streak || 0) < 4 && 
-           (!q.next_review_at || new Date(q.next_review_at) <= now);
-  });
-  
-  if (dueWeakQs.length > 0) {
-      const mbCard = document.createElement("div");
-      mbCard.className = "topic-accordion-card";
-      mbCard.style.cssText = "border: 1px solid rgba(239, 68, 68, 0.2); border-left: 4px solid #ef4444; margin-bottom: 16px; background: rgba(239, 68, 68, 0.03);";
-      mbCard.innerHTML = `
-          <div style="padding: 16px;">
-              <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 14px; gap: 12px;">
-                  <div style="flex: 1; min-width: 0;">
-                      <h4 style="font-size:14.5px; font-weight:800; color:#ef4444; margin:0 0 4px 0; display:flex; align-items:center; gap:6px;">
-                          <span>🧠</span> TARGETED REVISION
-                      </h4>
-                      <p style="font-size:11.5px; color:#64748b; margin:0; font-weight:600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                          ${dueWeakQs.length} questions need attention today
-                      </p>
+  if (!librarySelectionMode) {
+      const now = new Date();
+      const dueWeakQs = userWeakQuestions.filter(q => {
+        return q.subject === activeSubject && 
+               q.times_wrong > 0 && 
+               (q.mastery_streak || 0) < 4 && 
+               (!q.next_review_at || new Date(q.next_review_at) <= now);
+      });
+      
+      if (dueWeakQs.length > 0) {
+          const mbCard = document.createElement("div");
+          mbCard.className = "topic-accordion-card";
+          mbCard.style.cssText = "border: 1px solid rgba(239, 68, 68, 0.2); border-left: 4px solid #ef4444; margin-bottom: 16px; background: rgba(239, 68, 68, 0.03);";
+          mbCard.innerHTML = `
+              <div style="padding: 16px;">
+                  <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 14px; gap: 12px;">
+                      <div style="flex: 1; min-width: 0;">
+                          <h4 style="font-size:14.5px; font-weight:800; color:#ef4444; margin:0 0 4px 0; display:flex; align-items:center; gap:6px;">
+                              <span>🧠</span> TARGETED REVISION
+                          </h4>
+                          <p style="font-size:11.5px; color:#64748b; margin:0; font-weight:600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                              ${dueWeakQs.length} questions need attention today
+                          </p>
+                      </div>
+                      <span style="background:rgba(239, 68, 68, 0.12); color:#ef4444; padding:4px 8px; border-radius:4px; font-size:9.5px; font-weight:800; white-space:nowrap; flex-shrink:0; border: 1px solid rgba(239, 68, 68, 0.25); letter-spacing: 0.5px;">MISTAKE BANK</span>
                   </div>
-                  <span style="background:rgba(239, 68, 68, 0.12); color:#ef4444; padding:4px 8px; border-radius:4px; font-size:9.5px; font-weight:800; white-space:nowrap; flex-shrink:0; border: 1px solid rgba(239, 68, 68, 0.25); letter-spacing: 0.5px;">MISTAKE BANK</span>
+                  <div class="secondary-modes-strip" style="display:flex; gap:8px; width: 100%;">
+                      <button class="btn-launch-set" style="flex:1; background:rgba(239, 68, 68, 0.15); color:#ef4444; border:1px solid rgba(239, 68, 68, 0.3); box-shadow:none;" onclick="launchMistakeBank('quiz')">
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg> 
+                          <span style="margin-left:4px;">Practice Qs (${dueWeakQs.length})</span>
+                      </button>
+                      <button class="btn-launch-set" style="flex:1; background:transparent; color:#ef4444; border:1px solid rgba(239, 68, 68, 0.3); box-shadow:none;" onclick="launchMistakeBank('flashcard')">
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="14" height="14" rx="2" ry="2"></rect><path d="M21 7v12a2 2 0 0 1-2 2H7"></path></svg>
+                          <span style="margin-left:4px;">Flashcards</span>
+                      </button>
+                  </div>
               </div>
-              <div class="secondary-modes-strip" style="display:flex; gap:8px; width: 100%;">
-                  <button class="btn-launch-set" style="flex:1; background:rgba(239, 68, 68, 0.15); color:#ef4444; border:1px solid rgba(239, 68, 68, 0.3); box-shadow:none;" onclick="launchMistakeBank('quiz')">
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg> 
-                      <span style="margin-left:4px;">Practice Qs (${dueWeakQs.length})</span>
-                  </button>
-                  <button class="btn-launch-set" style="flex:1; background:transparent; color:#ef4444; border:1px solid rgba(239, 68, 68, 0.3); box-shadow:none;" onclick="launchMistakeBank('flashcard')">
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="14" height="14" rx="2" ry="2"></rect><path d="M21 7v12a2 2 0 0 1-2 2H7"></path></svg>
-                      <span style="margin-left:4px;">Flashcards</span>
-                  </button>
-              </div>
-          </div>
-      `;
-      container.appendChild(mbCard);
+          `;
+          container.appendChild(mbCard);
+      }
   }
 
   const grouped = {};
@@ -1065,7 +1574,6 @@ function renderTopicSets() {
     grouped[key].push(item);
   });
 
-  // Topics ko Dictionary (A-Z) kram mein sort kiya gaya
   Object.entries(grouped)
     .sort((a, b) => a[0].localeCompare(b[0]))
     .forEach(([topicName, sets]) => {
@@ -1092,13 +1600,13 @@ function renderTopicSets() {
 
       if (processedSets.length === 0 && currentFilter !== 'all') return;
 
-      // Sets ko unke naam (test_title) ke anusaar A-Z sort kiya gaya
       processedSets.sort((a, b) => String(a.setItem.test_title || "").localeCompare(String(b.setItem.test_title || "")));
 
       let progressPct = sets.length > 0 ? (topicMastered / sets.length) * 100 : 0;
 
       const groupCard = document.createElement("div");
       groupCard.className = "topic-accordion-card";
+      if (librarySelectionMode) groupCard.classList.add("open");
 
       const header = document.createElement("div");
       header.className = "topic-accordion-header";
@@ -1120,6 +1628,7 @@ function renderTopicSets() {
 
       const body = document.createElement("div");
       body.className = "topic-accordion-body";
+      if (librarySelectionMode) body.style.display = "block";
 
       const setsGrid = document.createElement("div");
       setsGrid.className = "sets-card-grid";
@@ -1133,55 +1642,99 @@ function renderTopicSets() {
         const tile = document.createElement("div");
         tile.className = "set-tile";
         
-        let badgeClass = 'status-new';
-        let badgeText = 'NEW';
-        let examIcon = iconTarget;
-        let examText = 'Exam';
-        let historyHtml = `<span style="color:#64748b;">Not attempted yet</span>`;
+        if (librarySelectionMode) {
+            const isAlreadyInTargetList = targetPlaylistForSelection && userPlaylistItems.some(pi => pi.playlist_id === targetPlaylistForSelection.id && String(pi.test_id) === String(setItem.test_id));
+            const isSelectedNow = selectedSetsForBatch.has(setItem.test_id);
+            
+            tile.style.cursor = isAlreadyInTargetList ? "not-allowed" : "pointer";
+            if(isAlreadyInTargetList) tile.style.opacity = "0.6";
 
-        if (status === 'mastered') {
-          badgeClass = 'status-mastered';
-          badgeText = `MASTERED ${bestScore}/${maxMarks}`;
-          examIcon = iconRetake;
-          examText = 'Retake';
-          historyHtml = `<span style="color:#16a34a;">★ Best Score: ${bestScore} (${Math.round(pct)}%) | Att: ${attemptsCount}</span>`;
-        } else if (status === 'revise') {
-          badgeClass = 'status-progress';
-          badgeText = `IN PROGRESS`;
-          examIcon = iconRetake;
-          examText = 'Retake';
-          historyHtml = `<span style="color:#d97706;">Needs Review: ${bestScore}/${maxMarks} | Att: ${attemptsCount}</span>`;
+            let tickHtml = "";
+            if (isAlreadyInTargetList) {
+                tickHtml = `<span style="color:#16a34a; font-size:14px; font-weight:800;" title="Already in playlist">✔️ Added</span>`;
+            } else {
+                tickHtml = `<button type="button" id="batchSelectBtn_${setItem.test_id}" style="pointer-events:none;">${isSelectedNow ? '☑️' : '⬜'}</button>`;
+            }
+
+            tile.innerHTML = `
+              <div class="set-tile-header">
+                <div style="display:flex; align-items:flex-start; gap:10px;">
+                    ${tickHtml}
+                    <div class="set-tile-title" style="margin-top:2px;">${setItem.test_title}</div>
+                </div>
+              </div>
+              <div class="set-tile-meta" style="padding-left: 28px;">
+                <span>${clockSvg} ${setItem.total_duration_minutes}m</span>
+                <span>${docSvg} ${setItem.total_questions} Qs</span>
+              </div>
+            `;
+            
+            if(!isAlreadyInTargetList) {
+                tile.addEventListener("click", () => {
+                    toggleBatchSelection(setItem.test_id, isAlreadyInTargetList);
+                    if(selectedSetsForBatch.has(setItem.test_id)) {
+                        tile.style.borderColor = "var(--tcs-blue-accent)";
+                        tile.style.backgroundColor = "rgba(37,99,235,0.02)";
+                    } else {
+                        tile.style.borderColor = "";
+                        tile.style.backgroundColor = "";
+                    }
+                });
+            }
+        } else {
+            let badgeClass = 'status-new';
+            let badgeText = 'NEW';
+            let examIcon = iconTarget;
+            let examText = 'Exam';
+            let historyHtml = `<span style="color:#64748b;">Not attempted yet</span>`;
+
+            if (status === 'mastered') {
+              badgeClass = 'status-mastered';
+              badgeText = `MASTERED ${bestScore}/${maxMarks}`;
+              examIcon = iconRetake;
+              examText = 'Retake';
+              historyHtml = `<span style="color:#16a34a;">★ Best Score: ${bestScore} (${Math.round(pct)}%) | Att: ${attemptsCount}</span>`;
+            } else if (status === 'revise') {
+              badgeClass = 'status-progress';
+              badgeText = `IN PROGRESS`;
+              examIcon = iconRetake;
+              examText = 'Retake';
+              historyHtml = `<span style="color:#d97706;">Needs Review: ${bestScore}/${maxMarks} | Att: ${attemptsCount}</span>`;
+            }
+
+            tile.innerHTML = `
+              <div class="set-tile-header">
+                <div class="set-tile-title">${setItem.test_title}</div>
+                <div style="display:flex; gap: 8px; align-items: center;">
+                   <div class="set-status-badge ${badgeClass}">${badgeText}</div>
+                   <button type="button" class="btn-three-dots" onclick="openThreeDotsMenu(event, ${setItem.test_id})" title="Options">⋮</button>
+                </div>
+              </div>
+              <div class="set-tile-meta">
+                <span>${clockSvg} ${setItem.total_duration_minutes}m</span>
+                <span>${docSvg} ${setItem.total_questions} Qs</span>
+              </div>
+              <div class="set-score-info">
+                ${historyHtml}
+              </div>
+              <div class="set-action-footer">
+                <button class="btn-launch-set" onclick="launchAssessment(${setItem.test_id})">
+                  ${examIcon} <span>${examText}</span>
+                </button>
+                <div class="secondary-modes-strip">
+                  <button class="btn-mode-icon" title="Read Mode" onclick="launchPracticeMode(${setItem.test_id}, 'read')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
+                  </button>
+                  <button class="btn-mode-icon" title="Flashcards" onclick="launchPracticeMode(${setItem.test_id}, 'flashcard')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="14" height="14" rx="2" ry="2"></rect><path d="M21 7v12a2 2 0 0 1-2 2H7"></path></svg>
+                  </button>
+                  <button class="btn-mode-icon" title="Instant Quiz" onclick="launchPracticeMode(${setItem.test_id}, 'quiz')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+                  </button>
+                </div>
+              </div>
+            `;
         }
-
-        tile.innerHTML = `
-          <div class="set-tile-header">
-            <div class="set-tile-title">${setItem.test_title}</div>
-            <div class="set-status-badge ${badgeClass}">${badgeText}</div>
-          </div>
-          <div class="set-tile-meta">
-            <span>${clockSvg} ${setItem.total_duration_minutes}m</span>
-            <span>${docSvg} ${setItem.total_questions} Qs</span>
-          </div>
-          <div class="set-score-info">
-            ${historyHtml}
-          </div>
-          <div class="set-action-footer">
-            <button class="btn-launch-set" onclick="launchAssessment(${setItem.test_id})">
-              ${examIcon} <span>${examText}</span>
-            </button>
-            <div class="secondary-modes-strip">
-              <button class="btn-mode-icon" title="Read Mode" onclick="launchPracticeMode(${setItem.test_id}, 'read')">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
-              </button>
-              <button class="btn-mode-icon" title="Flashcards" onclick="launchPracticeMode(${setItem.test_id}, 'flashcard')">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="14" height="14" rx="2" ry="2"></rect><path d="M21 7v12a2 2 0 0 1-2 2H7"></path></svg>
-              </button>
-              <button class="btn-mode-icon" title="Instant Quiz" onclick="launchPracticeMode(${setItem.test_id}, 'quiz')">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
-              </button>
-            </div>
-          </div>
-        `;
         setsGrid.appendChild(tile);
       });
 
@@ -1190,30 +1743,30 @@ function renderTopicSets() {
       groupCard.appendChild(body);
       container.appendChild(groupCard);
 
-      header.addEventListener("click", () => {
-        const isOpen = groupCard.classList.contains("open");
-
-        container.querySelectorAll(".topic-accordion-card").forEach(c => {
-          if (c !== groupCard) {
-            c.classList.remove("open");
-            const b = c.querySelector(".topic-accordion-body");
-            if (b) b.style.display = "none";
-          }
-        });
-
-        if (!isOpen) {
-          groupCard.classList.add("open");
-          body.style.display = "block";
-        } else {
-          groupCard.classList.remove("open");
-          body.style.display = "none";
-        }
-      });
+      if (!librarySelectionMode) {
+          header.addEventListener("click", () => {
+            const isOpen = groupCard.classList.contains("open");
+            container.querySelectorAll(".topic-accordion-card").forEach(c => {
+              if (c !== groupCard) {
+                c.classList.remove("open");
+                const b = c.querySelector(".topic-accordion-body");
+                if (b) b.style.display = "none";
+              }
+            });
+            if (!isOpen) {
+              groupCard.classList.add("open");
+              body.style.display = "block";
+            } else {
+              groupCard.classList.remove("open");
+              body.style.display = "none";
+            }
+          });
+      }
   });
 }
 
 // ==========================================================================
-// 6.5 MISTAKE BANK TELEMETRY & ENGINE (BULLETPROOF FETCH-UPDATE LOGIC)
+// 7. MISTAKE BANK TELEMETRY
 // ==========================================================================
 const REVIEW_INTERVALS_DAYS = [1, 3, 6, 15];
 
@@ -1230,10 +1783,7 @@ async function syncMistakeBank(payloads) {
             .eq("question_id", safeQuestionId)
             .maybeSingle();
 
-        if (fetchErr) {
-            console.error("DB Fetch Error for Mistake Bank:", fetchErr);
-            continue; 
-        }
+        if (fetchErr) continue;
 
         if (existing) {
             let newStreak = existing.mastery_streak || 0;
@@ -1328,13 +1878,11 @@ window.launchMistakeBank = function(mode, forceAll = false) {
           explanation: qData.explanation,
           masteryStreak: item.mastery_streak || 0
       };
-  }).sort(() => 0.5 - Math.random()).slice(0, 50);
+  }).sort(() => 0.5 - Math.random()).slice(0, 100);
 
   const tEl = document.getElementById("practiceSetTitle");
   if (tEl) {
-    tEl.innerText = (targetList === dueQs) 
-      ? `Mistake Bank (Due: ${dueQs.length})` 
-      : `Mistake Bank (All: ${allWeakQs.length})`;
+    tEl.innerText = forceAll ? `Mega Mistake Bank (${practiceQuestions.length} Qs)` : ((targetList === dueQs) ? `Mistake Bank (Due: ${dueQs.length})` : `Mistake Bank (All: ${allWeakQs.length})`);
   }
 
   switchView("viewPractice");
@@ -1347,7 +1895,7 @@ window.launchMistakeBank = function(mode, forceAll = false) {
 };
 
 // ==========================================================================
-// 7. DAILY 10-MIN QUICK MIX ENGINE
+// 8. DAILY MIX & EXAM ENGINE
 // ==========================================================================
 window.launchDailyMix = async function() {
   const btn = document.getElementById("btnDailyMix");
@@ -1355,59 +1903,39 @@ window.launchDailyMix = async function() {
   
   try {
     const { data: attempts } = await supabaseClient.from("test_attempts").select("test_id, score").eq("student_roll", currentCandidate.roll_number);
-    if (!attempts || attempts.length === 0) throw new Error("Complete at least one set to unlock Daily Mix.");
     
-    const masteredTestIds = [...new Set(attempts.map(a => a.test_id))];
+    let finalQs = [];
+    const weakList = userWeakQuestions.filter(q => q.times_wrong > 0 && (q.mastery_streak || 0) < 4).sort(() => 0.5 - Math.random()).slice(0, 15);
+    
+    finalQs = weakList.map(item => {
+      const qData = item.question_data || {};
+      let parsedOptions = typeof qData.options === 'string' ? JSON.parse(qData.options || "[]") : (qData.options || []);
+      return { id: item.question_id || qData.id, content: qData.content, options: parsedOptions, correctAnswer: getNormalizedCorrectAnswerId(qData.correct_answer || qData.correctAnswer, parsedOptions), explanation: qData.explanation };
+    });
 
-    const { data: sectionRows } = await supabaseClient
-      .from("test_sections")
-      .select("id")
-      .in("test_id", masteredTestIds);
-
-    const validSectionIds = sectionRows ? sectionRows.map(s => s.id) : [];
-
-    let candidateQuestions = [];
-    if (validSectionIds.length > 0) {
-      const { data: mixedData } = await supabaseClient
-        .from("test_section_questions")
-        .select(`questions (id, content, options, correct_answer, explanation)`)
-        .in("section_id", validSectionIds)
-        .limit(50);
-      if (mixedData && mixedData.length > 0) {
-        candidateQuestions = mixedData.map(item => Array.isArray(item.questions) ? item.questions[0] : item.questions).filter(Boolean);
+    let retentionCount = 25 - finalQs.length;
+    if (retentionCount > 0 && attempts && attempts.length > 0) {
+      const masteredTestIds = [...new Set(attempts.map(a => a.test_id))];
+      const { data: sectionRows } = await supabaseClient.from("test_sections").select("id").in("test_id", masteredTestIds);
+      if (sectionRows && sectionRows.length > 0) {
+        const validSectionIds = sectionRows.map(s => s.id);
+        const { data: mixedData } = await supabaseClient.from("test_section_questions").select(`questions (id, content, options, correct_answer, explanation)`).in("section_id", validSectionIds).limit(50);
+        if (mixedData) {
+            let retentionQs = mixedData.map(item => Array.isArray(item.questions) ? item.questions[0] : item.questions).filter(Boolean).sort(() => 0.5 - Math.random()).slice(0, retentionCount);
+            retentionQs.forEach(q => {
+               let parsedOptions = typeof q.options === 'string' ? JSON.parse(q.options || "[]") : (q.options || []);
+               finalQs.push({ id: q.id, content: q.content, options: parsedOptions, correctAnswer: getNormalizedCorrectAnswerId(q.correct_answer, parsedOptions), explanation: q.explanation });
+            });
+        }
       }
     }
 
-    if (candidateQuestions.length === 0) {
-      const { data: randomQ } = await supabaseClient.from("questions").select("*").limit(30);
-      if (!randomQ || randomQ.length === 0) throw new Error("Could not fetch question bank.");
-      candidateQuestions = randomQ;
-    }
+    if (finalQs.length === 0) throw new Error("Not enough data to generate mix. Try a regular set first.");
 
-    practiceQuestions = candidateQuestions
-      .sort(() => 0.5 - Math.random())
-      .slice(0, 10)
-      .map((q, i) => {
-        let parsedOptions = [];
-        if (typeof q.options === 'string') {
-          try { parsedOptions = JSON.parse(q.options); } catch(e) { parsedOptions = []; }
-        } else if (Array.isArray(q.options)) {
-          parsedOptions = q.options;
-        }
-        return {
-          qNum: i + 1,
-          id: q.id,
-          content: q.content,
-          options: parsedOptions,
-          correctAnswer: getNormalizedCorrectAnswerId(q.correct_answer, parsedOptions),
-          explanation: q.explanation
-        };
-      });
-
-    if (practiceQuestions.length === 0) throw new Error("No questions available for mix.");
+    practiceQuestions = finalQs.map((q, i) => ({ ...q, qNum: i + 1 }));
 
     const tEl = document.getElementById("practiceSetTitle");
-    if (tEl) tEl.innerText = "Daily Mix";
+    if (tEl) tEl.innerText = "Daily Mix (15 Weak + 10 Retention)";
     switchView("viewPractice");
     renderInteractiveQuizMode();
 
@@ -1418,11 +1946,8 @@ window.launchDailyMix = async function() {
   }
 };
 
-// ==========================================================================
-// 8. TCS iON EXAM ENGINE LAYER (WITH EXIT & AUTO-PALETTE FIXES)
-// ==========================================================================
 window.launchAssessment = async function(testId) {
-  isExamFinished = false; // Reset trap flag
+  isExamFinished = false; 
   switchView("viewExam", true);
   
   const progressLine = document.getElementById("examProgressLine");
@@ -1451,7 +1976,7 @@ window.launchAssessment = async function(testId) {
     if (tabsEl) tabsEl.innerHTML = `<button class="section-tab">Section 1: ${section.section_name || "General"}</button>`;
 
     const { data: qData, error: qErr } = await supabaseClient.from("test_section_questions").select(`question_number, questions (id, content, options, correct_answer, explanation)`).eq("section_id", section.id).order("question_number", { ascending: true });
-    if (qErr || !qData || qData.length === 0) throw new Error("Questions failed to load. The test might be empty.");
+    if (qErr || !qData || qData.length === 0) throw new Error("Questions failed to load.");
 
     testQuestions = qData.map(item => {
       const q = Array.isArray(item.questions) ? item.questions[0] : item.questions;
@@ -1486,11 +2011,10 @@ window.launchAssessment = async function(testId) {
   } catch (err) {
     alert(err.message);
     console.error("Exam Launch Failed:", err);
-    mountDashboard();
+    switchView("viewDashboard");
   }
 };
 
-// 🚀 NAYA: Abort Exam Logic without loop traps
 window.abortExamSession = function() {
   let modal = document.getElementById("submitModalContainer"); 
   if (!modal) {
@@ -1523,11 +2047,7 @@ window.abortExamSession = function() {
 window.executeAbortExam = function() {
   closeExamModal();
   if (timerInterval) clearInterval(timerInterval);
-  
-  isExamFinished = true; // Unlock the trap
-  
-  // Natural exit using browser history back
-  // Ye wapas Sets Explorer stage par safely le jayega
+  isExamFinished = true; 
   history.back(); 
 };
 
@@ -1761,7 +2281,7 @@ function renderScorecard() {
       </div>
       <div class="tcs-modal-footer">
         <button class="tcs-btn btn-secondary" onclick="openSolutionsView()">View Detailed Solutions</button>
-        <button class="tcs-btn btn-primary" onclick="closeExamAndReload()">Return to Repository</button>
+        <button class="tcs-btn btn-primary" onclick="closeExamAndReload()">Return to Mission</button>
       </div>
     </div>`;
 
@@ -1771,7 +2291,7 @@ function renderScorecard() {
     }
 
     try {
-      const { error: attErr } = await supabaseClient.from("test_attempts").insert({
+      await supabaseClient.from("test_attempts").insert({
         student_roll: currentCandidate.roll_number,
         test_id: activeTest.id,
         score: score,
@@ -1779,9 +2299,32 @@ function renderScorecard() {
         total_incorrect: incorrect,
         time_spent_seconds: timeSpentSecs
       });
-      if (attErr) console.error("Test Attempt Sync Error:", attErr);
+      
+      dailyPerf.total_questions_attempted += testQuestions.length;
+      let centuryHit = dailyPerf.total_questions_attempted >= 100;
+      let newStreak = dailyPerf.streak_count;
+      
+      if (centuryHit && !dailyPerf.is_century_hit) {
+          newStreak += 1;
+          alert("🎉 BOOM! Daily Baseline Hit! Century Streak +1 🔥");
+      }
+
+      await supabaseClient.from("daily_performance").update({
+          total_questions_attempted: dailyPerf.total_questions_attempted,
+          is_century_hit: centuryHit,
+          streak_count: newStreak
+      }).eq("id", dailyPerf.id);
+
+      dailyPerf.is_century_hit = centuryHit;
+      dailyPerf.streak_count = newStreak;
+
+      const todayList = userPlaylists.find(p => p.playlist_name === 'Today');
+      if (todayList) {
+          await supabaseClient.from("playlist_items").delete().match({ playlist_id: todayList.id, test_id: activeTest.id, student_roll: currentCandidate.roll_number });
+      }
+
     } catch (err) {
-      console.error("Test Attempt Execution Error:", err);
+      console.error("Execution Error:", err);
     }
 
     try {
@@ -1798,7 +2341,7 @@ function renderScorecard() {
       const syncMsg = document.getElementById("syncStatusMsg");
       if (syncMsg) {
         syncMsg.style.color = "#16a34a";
-        syncMsg.innerText = "✔ Progress & Attendance Synced Successfully";
+        syncMsg.innerText = "✔ Progress & Metrics Synced Successfully";
       }
     } catch (err) {
       console.error("Attendance Sync Error:", err);
@@ -1811,20 +2354,19 @@ function renderScorecard() {
   })();
 }
 
-// 🚀 NAYA: Clean Exit via History
-window.closeExamAndReload = function() {
+window.closeExamAndReload = async function() {
   closeExamModal();
   isExamFinished = true;
-  history.back(); // Will naturally go back to Explorer
+  await fetchPlaylistsAndCheckRollover();
+  renderHomePlaylists();
+  switchView('viewDashboard');
 };
 
-// 🚀 NAYA: Solutions replace the Exam history state
 window.openSolutionsView = function() {
   closeExamModal();
   const tEl = document.getElementById("solExamTitle");
   if (tEl) tEl.innerText = activeTest?.title || "Assessment";
   
-  // Switch to solutions WITHOUT pushing state, instead REPLACE the exam state
   switchView("viewSolutions", false);
   history.replaceState({ view: 'viewSolutions' }, "", "#viewSolutions");
 
@@ -1911,7 +2453,7 @@ function renderPaletteGrid() {
 }
 
 // ==========================================================================
-// 9. ADVANCED ANALYTICS & ATTENDANCE TELEMETRY
+// 9. ANALYTICS
 // ==========================================================================
 function drawSparkline(elementId, dataArray, color) {
   const el = document.getElementById(elementId);
@@ -2030,19 +2572,7 @@ window.fetchStudentAnalytics = async function(isSilent = false) {
       });
     }
 
-    let streakCount = 0;
-    let checkDate = new Date();
-    for (let i = 0; i < 30; i++) {
-      const s = new Date(checkDate.getTime() - (checkDate.getTimezoneOffset() * 60000)).toISOString().split("T")[0];
-      if (attendanceMap[s] && attendanceMap[s] > 0) {
-        streakCount++;
-        checkDate.setDate(checkDate.getDate() - 1);
-      } else if (s === todayStr) {
-        checkDate.setDate(checkDate.getDate() - 1);
-      } else {
-        break;
-      }
-    }
+    let streakCount = dailyPerf.streak_count || 0; 
 
     const hcStreak = document.getElementById("headerStreakCount");
     if (hcStreak) hcStreak.innerText = streakCount + (window.innerWidth <= 768 ? "" : " Days");
@@ -2387,7 +2917,7 @@ function renderHeatmap(attendanceMap) {
 }
 
 // ==========================================================================
-// 10. MULTI-MODE PRACTICE ENGINE (READ, QUIZ, FLASHCARDS)
+// 10. MULTI-MODE PRACTICE (READ/FLASHCARD/QUIZ)
 // ==========================================================================
 window.launchPracticeMode = async function(testId, mode) {
   const { data: testInfo } = await supabaseClient.from("tests").select("id, title").eq("id", testId).single();
@@ -2457,12 +2987,7 @@ function renderReadMode() {
   });
 }
 
-let localQuizState = {
-  answers: {},    
-  starred: new Set(), 
-  isFinished: false,
-  filter: "all"
-};
+let localQuizState = { answers: {}, starred: new Set(), isFinished: false, filter: "all" };
 
 function renderInteractiveQuizMode() {
   const tEl = document.getElementById("practiceModeTitle");
@@ -2470,13 +2995,7 @@ function renderInteractiveQuizMode() {
   const container = document.getElementById("practiceContainer");
   if (!container) return;
 
-  localQuizState = {
-    answers: {},
-    starred: new Set(),
-    isFinished: false,
-    filter: "all"
-  };
-
+  localQuizState = { answers: {}, starred: new Set(), isFinished: false, filter: "all" };
   renderQuizUI();
 }
 
@@ -2713,9 +3232,31 @@ window.toggleQuizStar = function(idx) {
   renderQuizUI();
 };
 
-window.finishQuizSession = function() {
+window.finishQuizSession = async function() {
   localQuizState.isFinished = true;
   localQuizState.filter = "all";
+  
+  const attemptedCount = Object.keys(localQuizState.answers).length;
+  if (attemptedCount > 0 && currentCandidate) {
+      dailyPerf.total_questions_attempted += attemptedCount;
+      let centuryHit = dailyPerf.total_questions_attempted >= 100;
+      let newStreak = dailyPerf.streak_count;
+      
+      if (centuryHit && !dailyPerf.is_century_hit) {
+          newStreak += 1;
+          alert("🎉 BOOM! Daily Baseline Hit! Century Streak +1 🔥");
+      }
+
+      await supabaseClient.from("daily_performance").update({
+          total_questions_attempted: dailyPerf.total_questions_attempted,
+          is_century_hit: centuryHit,
+          streak_count: newStreak
+      }).eq("id", dailyPerf.id);
+
+      dailyPerf.is_century_hit = centuryHit;
+      dailyPerf.streak_count = newStreak;
+  }
+  
   renderQuizUI();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 };

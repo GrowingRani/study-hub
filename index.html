@@ -32,7 +32,6 @@
         <h2>Candidate Authentication Gateway</h2>
         <p style="margin-bottom: 16px;">National Testing & Assessment Infrastructure</p>
 
-        <!-- Feature Highlights -->
         <div class="login-features-list">
           <div class="feature-item">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
@@ -56,7 +55,6 @@
 
       <div id="authErrorMsg" class="auth-error-msg" style="display: none;"></div>
 
-      <!-- Sign In Form -->
       <form id="signInForm" class="login-form">
         <button type="button" id="btnGoogleAuth" class="btn-industrial-login btn-google-auth">
           <svg width="18" height="18" viewBox="0 0 24 24">
@@ -88,7 +86,6 @@
         <button type="submit" class="btn-industrial-login" id="btnSignInSubmit">Authenticate & Enter</button>
       </form>
 
-      <!-- Registration Form -->
       <form id="registerForm" class="login-form" style="display: none;">
         <div id="regFieldsStep">
           <div class="form-group">
@@ -117,7 +114,6 @@
         </div>
       </form>
 
-      <!-- Forgot Password Form -->
       <form id="forgotForm" class="login-form" style="display: none;">
         <div id="forgotEmailStep">
           <p class="form-instruction">Enter your registered candidate email to receive a secure password recovery link:</p>
@@ -137,7 +133,6 @@
         </div>
       </form>
 
-      <!-- Password Reset Form -->
       <form id="resetPasswordForm" class="login-form" style="display: none;">
         <div class="reset-header">
           <h4 class="reset-title">Set New Password</h4>
@@ -152,21 +147,21 @@
     </div>
   </section>
 
-  <!-- ================= SCREEN 2: DASHBOARD (HOME HUB & SETS EXPLORER) ================= -->
+  <!-- ================= SCREEN 2A: NEW HOME / MISSION DECK ================= -->
   <section id="viewDashboard" class="view-screen main-app-view" style="display: none; position: relative;">
     <header class="dash-top-bar glass-header">
       <div class="dash-brand">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="brand-icon">
-          <path d="M22 10v6M2 10l10-5 10 5-10 5z"></path>
-          <path d="M6 12v5c3 3 9 3 12 0v-5"></path>
+          <circle cx="12" cy="12" r="10"></circle>
+          <circle cx="12" cy="12" r="6"></circle>
+          <circle cx="12" cy="12" r="2"></circle>
         </svg>
         <div class="brand-titles">
-          <span class="portal-tag">STUDY HUB</span>
-          <span class="portal-sub">Industrial Assessment Console</span>
+          <span class="portal-tag">MISSION CONTROL</span>
+          <span class="portal-sub">Tactical Execution Deck</span>
         </div>
       </div>
 
-      <!-- Responsive Header Gamification Micro-Badges -->
       <div class="dash-gamification">
         <div title="Current Study Streak" class="gamify-badge streak-badge">
           <span>🔥</span> <span id="headerStreakCount">-- Days</span>
@@ -179,13 +174,6 @@
       <div class="dash-header-actions">
         <button class="theme-toggle-btn btn-ghost icon-btn" title="Toggle Theme">🌙</button>
         <div class="dash-user-controls hide-on-mobile">
-          <button class="btn-ghost" onclick="fetchStudentAnalytics(); switchView('viewAnalytics');">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="18" y1="20" x2="18" y2="10"></line>
-              <line x1="12" y1="20" x2="12" y2="4"></line>
-              <line x1="6" y1="20" x2="6" y2="14"></line>
-            </svg> Analytics
-          </button>
           <button class="btn-ghost" onclick="toggleProfileDrawer()">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
@@ -196,22 +184,104 @@
       </div>
     </header>
 
-    <!-- STAGE 1: ALL SUBJECTS GRID VIEW (PRIMARY PORTFOLIO) -->
+    <main class="catalog-viewport" style="padding-top: 15px;">
+      
+      <!-- 100-Q Target Century Meter -->
+      <div class="century-meter-container" style="margin-bottom: 20px; background: #ffffff; border: 1px solid var(--border-color); border-radius: 6px; padding: 12px 16px; border-left: 4px solid var(--tcs-blue-accent); box-shadow: 0 2px 5px rgba(0,0,0,0.02);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <span style="font-size: 13px; font-weight: 800; color: var(--tcs-blue-header); display: flex; align-items: center; gap: 6px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+            Daily Target
+          </span>
+          <span id="centuryLoadText" style="font-size: 13px; font-weight: 800; font-family: var(--font-mono); color: #0f172a;">25 / 100 Qs</span>
+        </div>
+        <div style="width: 100%; height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden;">
+          <div id="centuryLoadFill" style="height: 100%; width: 25%; background: var(--tcs-blue-accent); transition: width 0.4s ease;"></div>
+        </div>
+      </div>
+
+      <!-- TODAY'S PLAYLIST (Always Expanded) -->
+      <div class="mission-playlist-card expanded" style="margin-bottom: 12px; background: #ffffff; border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.04);">
+        <div class="playlist-header" style="background: #f8fafc; padding: 14px 16px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+          <h3 style="margin: 0; font-size: 15px; color: #1e293b; display: flex; align-items: center; gap: 8px;">🔥 Today's Payload</h3>
+        </div>
+        <div class="playlist-body" style="padding: 12px;">
+          
+          <div class="mission-set-card auto-pinned" style="display: flex; justify-content: space-between; align-items: center; background: rgba(37, 99, 235, 0.05); border: 1px solid rgba(37, 99, 235, 0.2); border-radius: 6px; padding: 12px 14px; margin-bottom: 10px;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <span style="font-size: 20px;">⚡</span>
+              <div>
+                <h4 style="margin: 0 0 2px 0; font-size: 13.5px; font-weight: 700; color: #1e3a8a;">Daily 25-Q Revision Mix</h4>
+                <p style="margin: 0; font-size: 11px; color: #64748b;">15 Mistake Bank + 10 Retention Qs</p>
+              </div>
+            </div>
+            <button class="tcs-btn btn-primary" style="margin: 0; padding: 6px 14px; font-size: 11px;" onclick="launchDailyMix()">▶ START</button>
+          </div>
+
+          <div id="todayPlaylistContainer"></div>
+        </div>
+      </div>
+
+      <!-- COLLAPSED PLAYLISTS -->
+      <div class="mission-playlist-card collapsed" style="margin-bottom: 10px; background: #ffffff; border: 1px solid var(--border-color); border-radius: 6px; cursor: pointer;">
+        <div class="playlist-header" style="padding: 12px 16px; display: flex; justify-content: space-between; align-items: center;" onclick="this.parentElement.classList.toggle('expanded'); this.nextElementSibling.style.display = this.parentElement.classList.contains('expanded') ? 'block' : 'none';">
+          <h3 style="margin: 0; font-size: 14px; color: #475569; display: flex; align-items: center; gap: 8px;">⏳ Tomorrow's Queue</h3>
+          <span style="font-size: 11px; color: #94a3b8; font-weight: 700;">0 Sets ▼</span>
+        </div>
+        <div class="playlist-body" style="display: none; padding: 0 12px 12px 12px; border-top: 1px solid var(--border-color);">
+          <div id="tomorrowPlaylistContainer" style="padding-top: 12px; font-size: 12px; color: #94a3b8; text-align: center;"></div>
+        </div>
+      </div>
+
+      <div class="mission-playlist-card collapsed" style="margin-bottom: 10px; background: #ffffff; border: 1px solid var(--border-color); border-radius: 6px; cursor: pointer;">
+        <div class="playlist-header" style="padding: 12px 16px; display: flex; justify-content: space-between; align-items: center;" onclick="this.parentElement.classList.toggle('expanded'); this.nextElementSibling.style.display = this.parentElement.classList.contains('expanded') ? 'block' : 'none';">
+          <h3 style="margin: 0; font-size: 14px; color: #475569; display: flex; align-items: center; gap: 8px;">📅 This Week Backlog</h3>
+          <span style="font-size: 11px; color: #94a3b8; font-weight: 700;">0 Sets ▼</span>
+        </div>
+        <div class="playlist-body" style="display: none; padding: 0 12px 12px 12px; border-top: 1px solid var(--border-color);">
+          <div id="weekPlaylistContainer" style="padding-top: 12px; font-size: 12px; color: #94a3b8; text-align: center;"></div>
+        </div>
+      </div>
+
+      <div id="customPlaylistsContainer"></div>
+
+      <!-- Create Custom Playlist Button -->
+      <button style="width: 100%; margin-top: 8px; padding: 12px; background: transparent; border: 1px dashed var(--border-color); border-radius: 6px; color: #64748b; font-size: 13px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.2s;" onclick="promptNewPlaylist()">
+        ➕ Create New Playlist
+      </button>
+
+    </main>
+  </section>
+
+  <!-- ================= SCREEN 2B: LIBRARY & REPOSITORY ================= -->
+  <section id="viewLibrary" class="view-screen main-app-view" style="display: none; position: relative;">
+    <header class="dash-top-bar glass-header">
+      <div class="dash-brand">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="brand-icon">
+          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+          <line x1="3" y1="9" x2="21" y2="9"></line>
+          <line x1="9" y1="21" x2="9" y2="9"></line>
+        </svg>
+        <div class="brand-titles">
+          <span class="portal-tag">REPOSITORY</span>
+          <span class="portal-sub">Master Subject Catalog</span>
+        </div>
+      </div>
+      <div class="dash-header-actions">
+        <button class="theme-toggle-btn btn-ghost icon-btn" title="Toggle Theme">🌙</button>
+      </div>
+    </header>
+
     <main id="subjectHubStage" class="catalog-viewport" style="display: block;">
       <div class="hub-header">
         <h2 class="hub-title">Subject Mastery Portfolio</h2>
-        <p class="hub-subtitle">Select a subject domain to explore topics, syllabus completion, and assessments.</p>
+        <p class="hub-subtitle">Select a subject domain to explore topics and add sets to your playlists.</p>
       </div>
-      <div class="subject-hub-grid" id="subjectHubContainer">
-        <!-- Rendered dynamically via renderSubjectHubGrid() in script.js -->
-      </div>
+      <div class="subject-hub-grid" id="subjectHubContainer"></div>
     </main>
 
-    <!-- STAGE 2: TOPIC SETS EXPLORER VIEW (ON SUBJECT CLICK) -->
     <main id="setsExplorerStage" class="catalog-viewport" style="display: none;">
-      <!-- Expandable / Morphing Subject Masthead (WhatsApp / Spotify Pattern) -->
       <div class="explorer-masthead" id="explorerMasthead">
-        <!-- Default State: Ghost Back + 2-Line Title/Stats + Ghost Search Icon -->
         <div class="masthead-default-bar" id="mastheadDefaultBar">
           <button class="btn-masthead-back" onclick="returnToSubjectHub()" title="Back to All Subjects">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -231,7 +301,6 @@
           </button>
         </div>
 
-        <!-- Active Search State: Full-Width Morphing Search Bar with Crisp Cross '✕' Icon -->
         <div class="masthead-search-bar" id="mastheadSearchBar" style="display: none;">
           <span class="search-bar-icon">
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -239,7 +308,7 @@
               <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
             </svg>
           </span>
-          <input type="text" id="topicSearchInput" class="masthead-search-input" placeholder="Search sets or topics (e.g. Set 14, Kiran)..." autocomplete="off">
+          <input type="text" id="topicSearchInput" class="masthead-search-input" placeholder="Search sets or topics..." autocomplete="off">
           <button type="button" class="btn-masthead-close-search" id="btnCloseSearch" onclick="toggleMastheadSearch(false)" title="Close Search">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -251,7 +320,6 @@
 
       <span id="activeSubjectTitle" style="display: none;"></span>
 
-      <!-- Slim Micro-Segmented Filter Tabs Bar -->
       <div class="catalog-filter-bar micro-segmented-bar" id="catalogFilterChips">
         <button type="button" class="filter-chip-btn segment-tab-btn active" data-filter="all">All Sets</button>
         <button type="button" class="filter-chip-btn segment-tab-btn" data-filter="unattempted">⚡ Unattempted</button>
@@ -259,15 +327,8 @@
         <button type="button" class="filter-chip-btn segment-tab-btn" data-filter="mastered">🏆 Mastered</button>
       </div>
 
-      <!-- Topics / Subtopics Accordion Stream -->
       <div class="topics-grid" id="topicsContainer"></div>
     </main>
-
-    <!-- 🚀 Daily 10-Min Mix (Floating Action Button with Solar Flame Radiant Palette) -->
-    <button id="btnDailyMix" class="fab-daily-mix" onclick="launchDailyMix()" title="Start Daily 10-Min Mix">
-      <span class="fab-icon">🚀</span>
-      <span class="fab-label hide-on-mobile">Daily Mix</span>
-    </button>
   </section>
 
   <!-- ================= SCREEN 3: ANALYTICS DASHBOARD ================= -->
@@ -289,7 +350,6 @@
     </header>
 
     <main class="catalog-viewport analytics-viewport">
-      <!-- Key Metrics Banner with Sparklines -->
       <div class="analytics-banner">
         <div class="stat-card">
           <div class="stat-card-row">
@@ -304,7 +364,7 @@
           <div class="stat-card-row">
             <div>
               <div class="stat-value" id="statStreak">0 🔥</div>
-              <div class="stat-label">Day Streak</div>
+              <div class="stat-label">Century Streak</div>
             </div>
             <div id="sparkStreak" class="sparkline-box"></div>
           </div>
@@ -320,12 +380,9 @@
         </div>
       </div>
 
-      <!-- Extra Analytics Cards Grid -->
       <div id="extraAnalyticsSummary" class="extra-summary-grid"></div>
 
-      <!-- Advanced Analytics Grid -->
       <div class="advanced-analytics-grid">
-        <!-- 1. Subject Mastery: Radar Matrix & Micro-Domain Grid -->
         <div class="profile-section-card mastery-card-container">
           <div class="mastery-card-header">
             <h3 class="section-title" style="margin-bottom: 0; border: none; padding: 0;">Subject Competency Matrix</h3>
@@ -334,25 +391,18 @@
               <button type="button" class="view-pill" id="btnToggleGrid" onclick="switchMasteryView('grid')">Cards ▦</button>
             </div>
           </div>
-
-          <!-- View A: Interactive Chart.js Radar Polygon -->
           <div id="radarViewport" class="radar-viewport-wrap">
             <canvas id="subjectRadarChart"></canvas>
           </div>
-
-          <!-- View B: Compact 2-Column Micro-Tile Grid (Collapsible/Scroll-locked) -->
           <div id="gridViewport" class="micro-mastery-grid" style="display: none;"></div>
         </div>
 
-        <!-- 2. Actionable Insights & Syllabus Meter -->
         <div class="profile-section-card" style="display: flex; flex-direction: column; gap: 16px;">
           <h3 class="section-title" style="margin-bottom: 0;">Actionable Insights</h3>
-          
           <div style="display: flex; flex-direction: column; gap: 10px;">
             <div id="insightStrong" class="insight-box insight-box-strong"></div>
             <div id="insightWeak" class="insight-box insight-box-weak"></div>
           </div>
-
           <div class="linear-meter-box">
             <div class="linear-meter-labels">
               <span class="meter-title">Syllabus Completion</span>
@@ -364,14 +414,11 @@
           </div>
         </div>
 
-        <!-- 3. Attendance Heatmap -->
         <div class="profile-section-card" style="grid-column: 1 / -1;">
           <h3 class="section-title" style="margin-bottom: 15px;">Activity Heatmap (Last 30 Days)</h3>
-          
           <div class="heatmap-scroll-wrapper">
             <div class="heatmap-grid" id="heatmapContainer"></div>
           </div>
-          
           <div class="cal-legend">
             Less <span class="heatmap-cell absent"></span><span class="heatmap-cell hm-lvl-1"></span><span class="heatmap-cell hm-lvl-2"></span><span class="heatmap-cell hm-lvl-4"></span> More
           </div>
@@ -428,14 +475,23 @@
 
   <!-- ================= MOBILE BOTTOM NAVIGATION ================= -->
   <nav id="mobileBottomNav" class="mobile-bottom-nav">
-    <button class="nav-item active" onclick="switchView('viewDashboard'); updateBottomNav(this);">
+    <button id="navHomeBtn" class="nav-item active" onclick="switchView('viewDashboard'); updateBottomNav(this);">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-        <polyline points="9 22 9 12 15 12 15 22"></polyline>
+        <circle cx="12" cy="12" r="10"></circle>
+        <circle cx="12" cy="12" r="6"></circle>
+        <circle cx="12" cy="12" r="2"></circle>
       </svg>
       <span>Home</span>
     </button>
-    <button class="nav-item" onclick="fetchStudentAnalytics(); switchView('viewAnalytics'); updateBottomNav(this);">
+    <button id="navLibraryBtn" class="nav-item" onclick="switchView('viewLibrary'); updateBottomNav(this);">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+        <line x1="3" y1="9" x2="21" y2="9"></line>
+        <line x1="9" y1="21" x2="9" y2="9"></line>
+      </svg>
+      <span>Library</span>
+    </button>
+    <button id="navAnalyticsBtn" class="nav-item" onclick="fetchStudentAnalytics(); switchView('viewAnalytics'); updateBottomNav(this);">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <line x1="18" y1="20" x2="18" y2="10"></line>
         <line x1="12" y1="20" x2="12" y2="4"></line>
@@ -443,7 +499,7 @@
       </svg>
       <span>Analytics</span>
     </button>
-    <button class="nav-item" onclick="toggleProfileDrawer();">
+    <button id="navProfileBtn" class="nav-item" onclick="toggleProfileDrawer();">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
         <circle cx="12" cy="7" r="4"></circle>
@@ -474,7 +530,6 @@
       </div>
     </header>
 
-    <!-- Sub-bar for Section Tabs, Roll Number & Abort Exam Button -->
     <div class="tcs-sub-bar" id="examSubBar">
       <div id="sectionTabs" class="section-tabs-wrap"></div>
       <div style="display: flex; align-items: center; gap: 16px;">
@@ -536,7 +591,7 @@
     </footer>
   </section>
 
-  <!-- ================= SCREEN 5: SOLUTIONS VIEW (SPACIOUS 2-LINE HEADER) ================= -->
+  <!-- ================= SCREEN 5: SOLUTIONS VIEW ================= -->
   <section id="viewSolutions" class="view-screen" style="display: none; background: var(--bg-primary); overflow-y: auto;">
     <header class="practice-top-bar glass-header">
       <div class="practice-header-left">
@@ -560,7 +615,7 @@
     </main>
   </section>
 
-  <!-- ================= SCREEN 6: PRACTICE VIEW (READ / FLASHCARD / QUIZ) ================= -->
+  <!-- ================= SCREEN 6: PRACTICE VIEW ================= -->
   <section id="viewPractice" class="view-screen" style="display: none; background: var(--bg-primary); overflow-y: auto;">
     <header class="practice-top-bar glass-header">
       <div class="practice-header-left">
@@ -584,6 +639,24 @@
 
   <!-- Global Assessment Modal Container -->
   <div id="submitModalContainer" style="display: none;"></div>
+
+  <!-- ================= 3-DOTS POPUP TOOLTIP MENU ================= -->
+  <div id="threeDotsMenuOverlay" style="display:none; position:fixed; inset:0; z-index:2900;" onclick="closeThreeDotsMenu()"></div>
+  <div id="threeDotsMenu" style="display:none; position:fixed; background:#ffffff; border:1px solid var(--border-color); border-radius:8px; box-shadow:0 10px 25px rgba(0,0,0,0.18); z-index:2901; padding:6px; min-width:160px;">
+    <button type="button" style="width:100%; text-align:left; background:transparent; border:none; padding:10px 12px; font-size:13px; font-weight:600; color:var(--tcs-blue-header); cursor:pointer; border-radius:4px; display:flex; align-items:center; gap:8px;" onclick="triggerBottomSheetFromMenu()">
+      <span>➕</span> Add to Playlist
+    </button>
+  </div>
+
+  <!-- ================= BOTTOM SHEET PALETTE ================= -->
+  <div id="playlistBottomSheetOverlay" class="drawer-overlay" style="z-index: 3000;" onclick="closePlaylistBottomSheet()"></div>
+  <div id="playlistBottomSheet" style="position: fixed; bottom: -400px; left: 0; width: 100%; background: #ffffff; border-radius: 16px 16px 0 0; z-index: 3001; transition: bottom 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 -10px 40px rgba(0,0,0,0.15); padding-bottom: env(safe-area-inset-bottom);">
+    <div style="padding: 16px 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+      <h3 style="margin: 0; font-size: 15px; color: #0f172a;">➕ Add to Playlist</h3>
+      <button type="button" style="background: none; border: none; color: #64748b; font-size: 18px; cursor: pointer;" onclick="closePlaylistBottomSheet()">✕</button>
+    </div>
+    <div id="bottomSheetOptionsContainer" style="padding: 12px 16px; max-height: 50vh; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;"></div>
+  </div>
 
   <script src="script.js"></script>
 </body>
