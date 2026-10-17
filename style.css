@@ -185,7 +185,7 @@ body.portal-body {
 .mission-set-card { display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--border-color); border-radius: 8px; padding: 12px 14px; background: var(--bg-panel); transition: transform 0.15s ease, box-shadow 0.15s ease; min-width: 0; }
 .mission-set-card:hover { transform: translateY(-1px); box-shadow: 0 3px 10px rgba(0, 0, 0, 0.04); border-color: #94a3b8; }
 .mission-set-card.auto-pinned { background: linear-gradient(135deg, rgba(37, 99, 235, 0.06), rgba(56, 189, 248, 0.03)); border: 1px solid rgba(37, 99, 235, 0.25); margin-bottom: 12px; grid-column: 1 / -1; width: 100%; }
-.set-card-content { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
+.set-card-content { display: flex; align-items: center; gap: 12px; flex-shrink: 0; flex: 1; min-width: 0; }
 .set-card-icon { font-size: 20px; flex-shrink: 0; }
 .set-card-text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
 .set-card-title { margin: 0 0 2px 0; font-size: 13.5px; font-weight: 700; color: var(--tcs-blue-header); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -270,10 +270,34 @@ body.portal-body {
 /* 🚀 REMOVE UNNECESSARY "NEW" STATUS TAG GLOBALLY */
 .set-status-badge.status-new { display: none !important; }
 
-/* Rich Set Tile Card */
+/* ==========================================================================
+   🚀 RICH SET TILE CARD & EYEBROW ROLLOVER BADGE SYSTEM
+   ========================================================================== */
 .set-tile { position: relative; z-index: 1; background: #ffffff; border: 1px solid var(--border-color); padding: 14px 15px; display: flex; flex-direction: column; justify-content: space-between; border-left: 4px solid var(--tcs-blue-accent); border-radius: 8px; user-select: none; transition: all 0.2s ease; min-width: 0; }
 .set-tile:hover { border-color: #94a3b8; box-shadow: 0 3px 10px rgba(0, 0, 0, 0.05); }
-.set-tile-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; gap: 8px; }
+
+.set-tile-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; gap: 8px; min-width: 0; }
+.set-tile-title-group { display: flex; flex-direction: column; align-items: flex-start; flex: 1; min-width: 0; }
+
+/* 🚀 ELEGANT ROLLOVER EYEBROW BADGE (SEPARATED ON ITS OWN LINE ABOVE TITLE) */
+.set-rollover-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(239, 68, 68, 0.09);
+  color: #dc2626;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  padding: 2.5px 7px;
+  border-radius: 4px;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+  width: fit-content;
+  white-space: nowrap;
+}
+
 .set-tile-title { font-size: 13px; font-weight: 700; color: #0f172a; line-height: 1.4; flex: 1; min-width: 0; word-break: break-word; }
 .btn-three-dots { background: transparent; border: none; font-size: 16px; color: #94a3b8; cursor: pointer; padding: 4px; border-radius: 4px; display: flex; align-items: center; justify-content: center; transition: all 0.2s; flex-shrink: 0; }
 .btn-three-dots:hover { background: #f1f5f9; color: #0f172a; }
@@ -295,8 +319,47 @@ body.portal-body {
 .btn-mode-icon:hover { background: #e2e8f0; color: #0f172a; }
 
 /* ==========================================================================
-   🚀 HIGH-TECH RESPONSIVE SELECTION HUD (WEB & MOBILE ADAPTABLE)
+   🚀 YOUTUBE-STYLE SAVE TO PLAYLIST STAGING BUTTON & HUD BANNER
    ========================================================================== */
+.btn-bookmark-stage {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 20px;
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-color);
+  color: #334155;
+  font-family: var(--font-family);
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  margin-top: 8px;
+}
+.btn-bookmark-stage svg {
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+.btn-bookmark-stage:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+  border-color: #94a3b8;
+}
+.btn-bookmark-stage.saved {
+  background: rgba(37, 99, 235, 0.1) !important;
+  border-color: var(--tcs-blue-accent) !important;
+  color: var(--tcs-blue-accent) !important;
+  box-shadow: 0 0 12px rgba(37, 99, 235, 0.15);
+}
+.btn-bookmark-stage.saved svg {
+  fill: currentColor;
+  transform: scale(1.08);
+}
+
 .library-selection-hud-banner {
   background: linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 58, 138, 0.9)) !important;
   backdrop-filter: blur(14px);
@@ -397,105 +460,63 @@ body.portal-body {
   transition: all 0.2s ease;
 }
 .btn-hud-cancel:hover {
-  background: rgba(239, 68, 68, 0.2);
-  border-color: #ef4444;
-  color: #fca5a5;
+  background: rgba(34, 197, 94, 0.2);
+  border-color: #22c55e;
+  color: #86efac;
 }
 
-.library-selection-floating-dock {
+/* 🚀 YOUTUBE-STYLE FLOATING BOTTOM TOAST NOTIFICATION */
+.selection-toast {
   position: fixed;
   bottom: 24px;
   left: 50%;
-  transform: translateX(-50%);
-  background: rgba(15, 23, 42, 0.94);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-  border: 1.5px solid rgba(56, 189, 248, 0.45);
-  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.45), 0 0 25px rgba(56, 189, 248, 0.25);
-  border-radius: 50px;
-  padding: 8px 10px 8px 18px;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  z-index: 2500;
+  transform: translateX(-50%) translateY(20px);
+  background: rgba(15, 23, 42, 0.95);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.45), 0 0 20px rgba(56, 189, 248, 0.2);
+  border-radius: 30px;
+  padding: 10px 20px;
+  z-index: 3500;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1), transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   max-width: 90vw;
   box-sizing: border-box;
-  animation: modalFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
-.dock-meta {
+.selection-toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+.selection-toast-content {
   display: flex;
   align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-}
-.dock-badge {
-  font-size: 9px;
-  font-weight: 800;
-  font-family: var(--font-mono);
-  background: rgba(56, 189, 248, 0.15);
-  color: #38bdf8;
-  border: 1px solid rgba(56, 189, 248, 0.35);
-  padding: 2px 7px;
-  border-radius: 10px;
-  letter-spacing: 0.5px;
-}
-.dock-count {
-  font-size: 14px;
-  font-weight: 800;
+  gap: 10px;
   color: #f8fafc;
-  font-family: var(--font-mono);
+  font-family: var(--font-family);
+  font-size: 13px;
+  font-weight: 700;
   white-space: nowrap;
 }
-.dock-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.btn-dock-cancel {
-  background: transparent;
-  border: 1px solid #334155;
-  color: #94a3b8;
-  padding: 8px 14px;
-  font-size: 12px;
-  font-weight: 700;
-  border-radius: 30px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-.btn-dock-cancel:hover {
-  background: rgba(239, 68, 68, 0.15);
-  border-color: #ef4444;
-  color: #fca5a5;
-}
-.btn-dock-commit {
-  background: linear-gradient(135deg, #16a34a, #22c55e);
-  color: #ffffff;
-  border: none;
-  padding: 8px 20px;
-  font-size: 12.5px;
-  font-weight: 800;
-  border-radius: 30px;
-  cursor: pointer;
+.toast-bookmark-icon {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  box-shadow: 0 0 16px rgba(34, 197, 94, 0.4);
-  transition: all 0.2s ease;
+  justify-content: center;
+  color: #38bdf8;
+  flex-shrink: 0;
 }
-.btn-dock-commit:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 0 22px rgba(34, 197, 94, 0.6);
-}
-.set-tile.batch-selected {
-  border-color: var(--tcs-blue-accent) !important;
-  box-shadow: 0 0 16px rgba(37, 99, 235, 0.25) !important;
-  background: rgba(37, 99, 235, 0.04) !important;
+.toast-message {
+  color: #f8fafc;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 260px;
 }
 
 /* ==========================================================================
    6. 3-DOTS ACTION POPUP & YOUTUBE-STYLE SVG ITEMS (ZERO SCREEN BLUR)
    ========================================================================== */
-.three-dots-floating-popup { position: fixed; background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 8px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2); z-index: 3200 !important; padding: 6px; min-width: 175px; animation: modalFadeIn 0.15s ease-out; }
+.three-dots-floating-popup { position: fixed; background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 8px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2); z-index: 3200 !important; padding: 6px; min-width: 180px; animation: modalFadeIn 0.15s ease-out; }
 .btn-popup-action { width: 100%; text-align: left; background: transparent; border: none; padding: 10px 14px; font-size: 13px; font-weight: 600; color: var(--tcs-blue-header); cursor: pointer; border-radius: 6px; display: flex; align-items: center; gap: 10px; transition: background 0.15s ease; }
 .btn-popup-action:hover { background: var(--bg-surface-elevated); }
 .popup-action-icon { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; flex-shrink: 0; }
@@ -672,7 +693,7 @@ body.portal-body {
 
 /* ==========================================================================
    7. SCREEN 4: TCS iON EXAM CONSOLE WORKSPACE
-   ========================================================================= */
+   ========================================================================== */
 .tcs-top-bar { background-color: #ffffff; border-bottom: 2px solid var(--border-color); padding: 6px 16px; display: flex; justify-content: space-between; align-items: center; height: auto; }
 .exam-meta { font-size: 13px; font-weight: 600; color: var(--tcs-blue-header); display: flex; align-items: center; }
 .exam-breadcrumb-sep { margin: 0 4px; color: #64748b; }
@@ -1118,6 +1139,31 @@ body.dark-theme .btn-close-sheet:hover { color: #f87171 !important; }
 body.dark-theme .playlist-select-row { background: #111a2e !important; border-color: #1e293b !important; }
 body.dark-theme .playlist-select-row:hover { border-color: #38bdf8 !important; background: #162038 !important; }
 body.dark-theme .playlist-select-title { color: #f8fafc !important; }
+
+/* 🚀 EYEBROW ROLLOVER TAG (DARK THEME) */
+body.dark-theme .set-rollover-tag {
+  background: rgba(239, 68, 68, 0.16) !important;
+  color: #fca5a5 !important;
+  border-color: rgba(239, 68, 68, 0.35) !important;
+}
+
+/* 🚀 YOUTUBE BOOKMARK BUTTON (DARK THEME) */
+body.dark-theme .btn-bookmark-stage {
+  background: #111a2e !important;
+  border-color: #1e293b !important;
+  color: #cbd5e1 !important;
+}
+body.dark-theme .btn-bookmark-stage:hover {
+  background: #162038 !important;
+  color: #f8fafc !important;
+  border-color: #38bdf8 !important;
+}
+body.dark-theme .btn-bookmark-stage.saved {
+  background: rgba(56, 189, 248, 0.15) !important;
+  border-color: #38bdf8 !important;
+  color: #38bdf8 !important;
+  box-shadow: 0 0 16px rgba(56, 189, 248, 0.25) !important;
+}
 
 /* 🚀 OPTION ROWS & HIGH-VISIBILITY QUIZ FEEDBACK (DARK THEME) */
 body.dark-theme .option-row { background: #111a2e !important; border-color: #1e293b !important; color: #f8fafc !important; }
@@ -1603,7 +1649,7 @@ body.dark-theme .sol-q-header, body.dark-theme .sol-content { color: #f1f5f9; }
     border-radius: 7px !important;
   }
 
-  /* 🚀 MOBILE SELECTION HUD ADAPTATIONS */
+  /* 🚀 MOBILE SELECTION HUD & TOAST ADAPTATIONS */
   .library-selection-hud-banner {
     top: 52px !important;
     padding: 8px 12px !important;
@@ -1611,28 +1657,20 @@ body.dark-theme .sol-q-header, body.dark-theme .sol-content { color: #f1f5f9; }
   }
   .hud-target-name {
     font-size: 13px !important;
-    max-width: 130px !important;
+    max-width: 140px !important;
   }
   .btn-hud-cancel {
-    padding: 4px 10px !important;
-    font-size: 11px !important;
-  }
-  .library-selection-floating-dock {
-    bottom: 16px !important;
-    width: calc(100% - 24px) !important;
-    padding: 6px 8px 6px 14px !important;
-    justify-content: space-between !important;
-  }
-  .dock-count {
-    font-size: 12.5px !important;
-  }
-  .btn-dock-commit {
-    padding: 6px 14px !important;
+    padding: 5px 12px !important;
     font-size: 11.5px !important;
   }
-  .btn-dock-cancel {
-    padding: 6px 10px !important;
-    font-size: 11px !important;
+  .selection-toast {
+    bottom: 20px !important;
+    padding: 8px 16px !important;
+    border-radius: 25px !important;
+  }
+  .toast-message {
+    font-size: 12px !important;
+    max-width: 220px !important;
   }
 
   /* 🚀 MOBILE BOTTOM NAV: AUTO-HIDE IN EXAM, PRACTICE, SOLUTIONS & LOGIN */

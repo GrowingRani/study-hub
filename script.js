@@ -46,6 +46,8 @@ function getNormalizedCorrectAnswerId(rawAnswer, optionsArray) {
 
 const clockSvg = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>`;
 const docSvg = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>`;
+const bookmarkOutlineSvg = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>`;
+const bookmarkFilledSvg = `<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>`;
 
 // ==========================================================================
 // 3. GLOBAL STATE & APPLICATION ROUTING (HOME & PROFILE SYNC)
@@ -53,7 +55,7 @@ const docSvg = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stro
 let currentCandidate = null, catalogData = [], activeSubject = null, userAttemptHistory = [], userWeakQuestions = [], currentLang = "en", currentFilter = "all";
 let userPlaylists = [], userPlaylistItems = [], dailyPerf = { total_questions_attempted: 0, is_century_hit: false, streak_count: 0, id: null };
 let selectedTestForPlaylist = null, currentThreeDotsTestId = null, activePlaylistMenuTarget = null, pendingDeleteTarget = null;
-let librarySelectionMode = false, targetPlaylistForSelection = null, selectedSetsForBatch = new Set();
+let librarySelectionMode = false, targetPlaylistForSelection = null;
 let activeTest = null, testQuestions = [], practiceQuestions = [], currentIndex = 0, flashcardIndex = 0, userResponses = {}, timeRemaining = 15 * 60, timerInterval = null, isExamFinished = false;
 let subjectRadarChartInstance = null, alertEngineStarted = false;
 
@@ -219,7 +221,7 @@ window.addEventListener("popstate", function(e) {
       switchView('viewLibrary', false); 
       if (e.state.subView === 'setsExplorer' && e.state.subject) drillDownToSubject(e.state.subject, false); 
       else returnToSubjectHub(true); 
-    } else {
+    } else { 
       switchView(e.state.view, false);
     }
   } else {
@@ -694,14 +696,23 @@ window.openPlaylistActionMenu = function(event, playlistId, playlistName, isSyst
   }
   activePlaylistMenuTarget = { id: realId, name: playlistName, isSystem };
 
-  const menu = document.getElementById("playlistActionMenu"), overlay = document.getElementById("playlistActionMenuOverlay"), btnEdit = document.getElementById("btnPlaylistActionEdit"), labelDel = document.getElementById("labelPlaylistActionDelete");
+  const menu = document.getElementById("playlistActionMenu"), 
+        overlay = document.getElementById("playlistActionMenuOverlay"), 
+        btnEdit = document.getElementById("btnPlaylistActionEdit"), 
+        btnClear = document.getElementById("btnPlaylistActionClear"),
+        btnDel = document.getElementById("btnPlaylistActionDelete");
+
   if (!menu) return;
+
   if (isSystem) { 
     if (btnEdit) btnEdit.style.display = "none"; 
-    if (labelDel) labelDel.innerText = "Clear All Sets"; 
+    if (btnClear) btnClear.style.display = "flex";
+    if (btnDel) btnDel.style.display = "none";
   } else { 
+    // Custom playlist: all 3 actions available
     if (btnEdit) btnEdit.style.display = "flex"; 
-    if (labelDel) labelDel.innerText = "Delete Playlist"; 
+    if (btnClear) btnClear.style.display = "flex";
+    if (btnDel) btnDel.style.display = "flex"; 
   }
 
   const btnRect = event.currentTarget.getBoundingClientRect();
@@ -713,11 +724,11 @@ window.openPlaylistActionMenu = function(event, playlistId, playlistName, isSyst
     overlay.style.pointerEvents = "auto"; 
     overlay.classList.add("open"); 
   }
-  const menuWidth = 175; 
+  const menuWidth = 180; 
   let leftPos = btnRect.right - menuWidth; 
   if (leftPos < 10) leftPos = 10;
   let topPos = btnRect.bottom + 6; 
-  if (topPos + 80 > window.innerHeight) topPos = Math.max(10, btnRect.top - 80);
+  if (topPos + 120 > window.innerHeight) topPos = Math.max(10, btnRect.top - 120);
   menu.style.top = `${topPos}px`; 
   menu.style.left = `${leftPos}px`;
 };
@@ -740,11 +751,18 @@ window.triggerEditPlaylistFromMenu = function() {
   openEditPlaylistModal(t.id, t.name); 
 };
 
+window.triggerClearPlaylistFromMenu = function() {
+  const t = activePlaylistMenuTarget;
+  closePlaylistActionMenu();
+  if (!t) return;
+  openDeletePlaylistModal(t.id, t.name, true);
+};
+
 window.triggerDeletePlaylistFromMenu = function() { 
   const t = activePlaylistMenuTarget; 
   closePlaylistActionMenu(); 
-  if (!t) return; 
-  openDeletePlaylistModal(t.id, t.name, t.isSystem); 
+  if (!t || t.isSystem) return; 
+  openDeletePlaylistModal(t.id, t.name, false); 
 };
 
 window.openEditPlaylistModal = function(pId, pName) {
@@ -766,12 +784,12 @@ window.handleEditPlaylistSubmit = async function(e) {
   if (!pId || !newName) return; 
   const btn = document.getElementById("btnSubmitEditPlaylist"); 
   if (btn) { btn.innerText = "Saving..."; btn.disabled = true; }
-  try {
+  try { 
     const { error } = await supabaseClient.from("playlists").update({ playlist_name: newName }).eq("id", pId); 
-    if (error) throw error;
+    if (error) throw error; 
     closeEditPlaylistModal(); 
     await fetchPlaylistsAndCheckRollover(); 
-    renderHomePlaylists();
+    renderHomePlaylists(); 
   } catch (err) { 
     showAppNoticeModal("Update Error", "Failed to Rename Playlist", err.message, "⚠️", "Dismiss"); 
   } finally { 
@@ -779,10 +797,14 @@ window.handleEditPlaylistSubmit = async function(e) {
   }
 };
 
-window.openDeletePlaylistModal = function(pId, pName, isSystem) {
-  pendingDeleteTarget = { id: pId, name: pName, isSystem };
-  const m = document.getElementById("deletePlaylistConfirmModal"), tEl = document.getElementById("deleteModalTitle"), hEl = document.getElementById("deleteModalHeading"), msgEl = document.getElementById("deleteModalMessage"), btn = document.getElementById("btnConfirmDeletePlaylist");
-  if (isSystem) {
+window.openDeletePlaylistModal = function(pId, pName, isClearOnly) {
+  pendingDeleteTarget = { id: pId, name: pName, isClearOnly };
+  const m = document.getElementById("deletePlaylistConfirmModal"), 
+        tEl = document.getElementById("deleteModalTitle"), 
+        hEl = document.getElementById("deleteModalHeading"), 
+        msgEl = document.getElementById("deleteModalMessage"), 
+        btn = document.getElementById("btnConfirmDeletePlaylist");
+  if (isClearOnly) {
     if (tEl) tEl.innerText = `Clear ${pName}`; 
     if (hEl) hEl.innerText = `Clear all sets from ${pName}?`;
     if (msgEl) msgEl.innerText = `This will remove all queued question sets from "${pName}". The playlist container itself will remain intact.`;
@@ -804,10 +826,10 @@ window.closeDeletePlaylistModal = function() {
 
 window.confirmDeletePlaylist = async function() {
   if (!pendingDeleteTarget) return; 
-  const { id, isSystem } = pendingDeleteTarget, btn = document.getElementById("btnConfirmDeletePlaylist");
+  const { id, isClearOnly } = pendingDeleteTarget, btn = document.getElementById("btnConfirmDeletePlaylist");
   if (btn) { btn.innerText = "Processing..."; btn.disabled = true; }
   try {
-    if (isSystem) { 
+    if (isClearOnly) { 
       const { error } = await supabaseClient.from("playlist_items").delete().eq("playlist_id", id).eq("student_roll", currentCandidate.roll_number); 
       if (error) throw error; 
     } else { 
@@ -930,7 +952,10 @@ function renderHomePlaylists() {
     const qCount = setCat.total_questions || 10;
     if (pName === 'Today') todayLoad += qCount; 
     if (pName === 'Tomorrow') tomorrowLoad += qCount;
-    const isRoll = item.is_rollover ? `<span style="background:#fee2e2; color:#dc2626; padding:2px 6px; font-size:9.5px; border-radius:4px; font-weight:800; margin-right:6px; letter-spacing:0.3px;">⚠️ ROLLOVER</span>` : '';
+    
+    // 🚀 EYEBROW ROLLOVER TAG: Clean separation to avoid multi-line title wrapping
+    const isRoll = item.is_rollover ? `<span class="set-rollover-tag">⚠️ ROLLOVER</span>` : '';
+    
     const attempts = userAttemptHistory.filter(a => String(a.test_id) === String(setCat.test_id)), isAtt = attempts.length > 0;
     const bestScore = isAtt ? Math.max(...attempts.map(a => parseFloat(a.score))) : 0, maxMarks = qCount * 2, pct = (maxMarks > 0 && isAtt) ? (bestScore / maxMarks) * 100 : 0;
     let badgeClass = '', badgeText = '', historyHtml = '<span style="color:#64748b;">Not attempted yet</span>';
@@ -948,7 +973,10 @@ function renderHomePlaylists() {
     return `
       <div class="set-tile">
         <div class="set-tile-header">
-          <div class="set-tile-title">${isRoll}${setCat.test_title}</div>
+          <div class="set-tile-title-group">
+            ${isRoll}
+            <div class="set-tile-title">${setCat.test_title}</div>
+          </div>
           <div style="display:flex; gap: 6px; align-items: center; flex-shrink: 0;">
              ${badgeText ? `<div class="set-status-badge ${badgeClass}">${badgeText}</div>` : ''}
              <button type="button" class="btn-three-dots" onclick="openThreeDotsMenu(event, ${setCat.test_id})" title="Options">⋮</button>
@@ -991,7 +1019,6 @@ function renderHomePlaylists() {
   if (customContainer && customLists.length > 0) {
     customLists.forEach(playlist => {
       const items = userPlaylistItems.filter(pi => pi.playlist_id === playlist.id);
-      // 🚀 CLEAN CUSTOM PLAYLIST TITLE: Removed default star prefix
       customContainer.innerHTML += `
         <div class="mission-playlist-card collapsed playlist-accordion-card">
           <div class="playlist-header" onclick="this.parentElement.classList.toggle('expanded'); this.parentElement.classList.toggle('collapsed');">
@@ -1042,70 +1069,85 @@ function renderHomePlaylists() {
 }
 
 // ==========================================================================
-// 🚀 HIGH-TECH BATCH SELECTION MODE FOR LIBRARY (FUTURISTIC HUD DOCK)
+// 🚀 YOUTUBE-STYLE SELECTION MODE & TOAST NOTIFICATION ENGINE
 // ==========================================================================
+let toastTimer = null;
+window.showSelectionToast = function(msg) {
+  const toast = document.getElementById("selectionToast");
+  const msgEl = document.getElementById("selectionToastText");
+  if (!toast || !msgEl) return;
+  msgEl.innerText = msg;
+  toast.style.display = "block";
+  void toast.offsetWidth; // Force layout reflow for animation
+  toast.classList.add("show");
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    toast.classList.remove("show");
+    setTimeout(() => {
+      if (!toast.classList.contains("show")) toast.style.display = "none";
+    }, 250);
+  }, 2200);
+};
+
 window.enableLibrarySelectionMode = function(pId, pName) { 
   librarySelectionMode = true; 
   targetPlaylistForSelection = { id: pId, name: pName }; 
-  selectedSetsForBatch.clear(); 
   switchView('viewLibrary'); 
   updateBottomNav(document.getElementById('navLibraryBtn')); 
   returnToSubjectHub(true); 
 };
 
-window.cancelLibrarySelectionMode = function() { 
+window.cancelLibrarySelectionMode = async function() { 
   librarySelectionMode = false; 
   targetPlaylistForSelection = null; 
-  selectedSetsForBatch.clear(); 
-  const bar = document.getElementById("librarySelectionFloatingBar"); 
-  if (bar) bar.style.display = "none"; 
   const ban = document.getElementById("librarySelectionBanner"); 
   if (ban) ban.style.display = "none"; 
-  renderTopicSets(); 
-};
-
-window.commitBatchSelectionToPlaylist = async function() {
-  if (!librarySelectionMode || !targetPlaylistForSelection || selectedSetsForBatch.size === 0) return;
-  const payloads = Array.from(selectedSetsForBatch).map(testId => ({ playlist_id: targetPlaylistForSelection.id, test_id: testId, student_roll: currentCandidate.roll_number }));
-  try {
-    const { error } = await supabaseClient.from("playlist_items").insert(payloads); 
-    if (error) throw error;
-    showAppNoticeModal("Queue Updated", "Sets Staged Successfully", `Added ${payloads.length} assessment sets to "${targetPlaylistForSelection.name}".`, "🚀", "View Execution Deck", () => switchView('viewDashboard'));
-  } catch(err) { 
-    showAppNoticeModal("Database Sync", "Batch Insert Failed", err.message, "⚠️", "Dismiss"); 
+  const toast = document.getElementById("selectionToast");
+  if (toast) {
+    toast.classList.remove("show");
+    toast.style.display = "none";
   }
-  cancelLibrarySelectionMode(); 
   await fetchPlaylistsAndCheckRollover(); 
-  renderHomePlaylists(); 
-  switchView('viewDashboard'); 
+  renderTopicSets(); 
+  renderHomePlaylists();
+  switchView('viewDashboard');
   updateBottomNav(document.getElementById('navHomeBtn'));
 };
 
-window.toggleBatchSelection = function(testId, isAlready) {
-  if (isAlready) return;
-  if (selectedSetsForBatch.has(testId)) {
-    selectedSetsForBatch.delete(testId);
+window.toggleDirectStaging = async function(testId) {
+  if (!librarySelectionMode || !targetPlaylistForSelection || !currentCandidate) return;
+  const pId = targetPlaylistForSelection.id;
+  const pName = targetPlaylistForSelection.name;
+  const roll = currentCandidate.roll_number;
+
+  const inTarget = userPlaylistItems.some(pi => pi.playlist_id === pId && String(pi.test_id) === String(testId));
+  const btn = document.getElementById(`btnStage_${testId}`);
+
+  if (inTarget) {
+    userPlaylistItems = userPlaylistItems.filter(pi => !(pi.playlist_id === pId && String(pi.test_id) === String(testId)));
+    if (btn) {
+      btn.classList.remove("saved");
+      btn.innerHTML = `${bookmarkOutlineSvg} <span class="stage-label">Save to playlist</span>`;
+    }
+    showSelectionToast(`Removed from "${pName}"`);
+    try {
+      await supabaseClient.from("playlist_items").delete().eq("playlist_id", pId).eq("test_id", testId).eq("student_roll", roll);
+    } catch (err) {
+      console.error("Remove from playlist error:", err);
+    }
   } else {
-    selectedSetsForBatch.add(testId);
+    userPlaylistItems.push({ playlist_id: pId, test_id: testId, student_roll: roll });
+    if (btn) {
+      btn.classList.add("saved");
+      btn.innerHTML = `${bookmarkFilledSvg} <span class="stage-label">Saved to playlist</span>`;
+    }
+    showSelectionToast(`Added to "${pName}"`);
+    try {
+      await supabaseClient.from("playlist_items").insert({ playlist_id: pId, test_id: testId, student_roll: roll });
+    } catch (err) {
+      console.error("Add to playlist error:", err);
+    }
   }
-  const isNowSel = selectedSetsForBatch.has(testId);
-  
-  // High-Tech Checkbox indicator update
-  const checkEl = document.getElementById(`batchCheck_${testId}`);
-  if (checkEl) {
-    checkEl.innerHTML = isNowSel ? '✓' : '';
-    checkEl.style.background = isNowSel ? 'var(--tcs-blue-accent)' : 'transparent';
-    checkEl.style.borderColor = isNowSel ? 'var(--tcs-blue-accent)' : 'var(--border-color)';
-  }
-  
-  // High-Tech tile active glow toggle
-  const tile = document.querySelector(`.set-tile[data-test-id="${testId}"]`);
-  if (tile) {
-    tile.classList.toggle('batch-selected', isNowSel);
-  }
-  
-  const cnt = document.getElementById("librarySelectionCount"); 
-  if (cnt) cnt.innerText = `${selectedSetsForBatch.size} Selected`;
 };
 
 // 🚀 2-STEP 3-DOTS MENU & YOUTUBE-STYLE BOTTOM SHEET
@@ -1153,7 +1195,6 @@ window.openPlaylistBottomSheet = function(testId) {
   let html = "";
   userPlaylists.forEach(p => {
     const inList = userPlaylistItems.some(pi => pi.playlist_id === p.id && String(pi.test_id) === String(testId));
-    // Replaced default star with clean folder indicator
     const icon = p.playlist_name === 'Today' ? '🔥' : (p.playlist_name === 'Tomorrow' ? '⏳' : (p.playlist_name === 'This Week' ? '📅' : '📁'));
     const bookmarkSvg = inList
       ? `<svg width="20" height="20" viewBox="0 0 24 24" fill="var(--tcs-blue-accent)" stroke="var(--tcs-blue-accent)" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path><polyline points="9 10 12 13 16 8" stroke="#ffffff" stroke-width="2" fill="none"></polyline></svg>`
@@ -1324,7 +1365,7 @@ window.returnToSubjectHub = function(fromPopState = false) {
   if (!fromPopState) history.replaceState({ view: 'viewLibrary', subView: 'hub' }, "", "#viewLibrary");
 };
 
-// 🚀 TOPICS RENDERER (DEDUPLICATED, HIGH-TECH HUD COMPLIANT)
+// 🚀 TOPICS RENDERER (DEDUPLICATED, YOUTUBE-STYLE SELECTION HUD COMPLIANT)
 function renderTopicSets() {
   const container = document.getElementById("topicsContainer"); 
   if (!container) return; 
@@ -1332,54 +1373,14 @@ function renderTopicSets() {
   
   if (librarySelectionMode && targetPlaylistForSelection) {
     let ban = document.getElementById("librarySelectionBanner");
-    if (!ban) {
-      ban = document.createElement("div"); 
-      ban.id = "librarySelectionBanner";
-      ban.className = "library-selection-hud-banner";
-      document.getElementById("setsExplorerStage")?.insertBefore(ban, document.getElementById("explorerMasthead")?.nextSibling);
+    if (ban) {
+      ban.style.display = "flex";
+      const targetNameEl = document.getElementById("hudTargetPlaylistName");
+      if (targetNameEl) targetNameEl.innerText = targetPlaylistForSelection.name;
     }
-    ban.style.display = "flex"; 
-    ban.innerHTML = `
-      <div class="hud-banner-left">
-        <div class="hud-pulse-radar">
-          <span class="hud-pulse-ring"></span>
-          <span class="hud-pulse-dot"></span>
-        </div>
-        <div class="hud-text-stack">
-          <span class="hud-banner-label">STAGING TO PLAYLIST</span>
-          <strong id="hudTargetPlaylistName" class="hud-target-name">${targetPlaylistForSelection.name}</strong>
-        </div>
-      </div>
-      <div class="hud-banner-right">
-        <span class="hud-web-hint hide-on-mobile">Click any tile to toggle</span>
-        <button type="button" class="btn-hud-cancel" onclick="cancelLibrarySelectionMode()" title="Exit Selection Mode">
-          <span>Cancel</span>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-        </button>
-      </div>
-    `;
-
-    let fBar = document.getElementById("librarySelectionFloatingBar");
-    if (!fBar) {
-      fBar = document.createElement("div"); 
-      fBar.id = "librarySelectionFloatingBar";
-      fBar.className = "library-selection-floating-dock";
-      document.body.appendChild(fBar);
-    }
-    fBar.style.display = "flex"; 
-    fBar.innerHTML = `
-      <div class="dock-meta">
-        <span class="dock-badge">BATCH DOCK</span>
-        <span id="librarySelectionCount" class="dock-count">${selectedSetsForBatch.size} Selected</span>
-      </div>
-      <div class="dock-actions">
-        <button type="button" class="btn-dock-cancel" onclick="cancelLibrarySelectionMode()">Cancel</button>
-        <button type="button" class="btn-dock-commit" onclick="commitBatchSelectionToPlaylist()">
-          <span>Add to Queue</span>
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
-        </button>
-      </div>
-    `;
+  } else {
+    const ban = document.getElementById("librarySelectionBanner");
+    if (ban) ban.style.display = "none";
   }
 
   const filtered = catalogData.filter(r => (r.subject || "General Studies") === activeSubject);
@@ -1461,47 +1462,45 @@ function renderTopicSets() {
       tile.className = "set-tile";
       tile.setAttribute("data-test-id", setItem.test_id);
 
-      if (librarySelectionMode) {
-        const inTarget = targetPlaylistForSelection && userPlaylistItems.some(pi => pi.playlist_id === targetPlaylistForSelection.id && String(pi.test_id) === String(setItem.test_id));
-        const isSel = selectedSetsForBatch.has(setItem.test_id);
-        tile.style.cursor = inTarget ? "not-allowed" : "pointer"; 
-        if (inTarget) tile.style.opacity = "0.6";
-        if (isSel) tile.classList.add("batch-selected");
-        
-        const checkHtml = inTarget 
-          ? `<span style="color:#16a34a; font-size:11px; font-weight:800; font-family:var(--font-mono); background:rgba(34,197,94,0.12); border:1px solid rgba(34,197,94,0.3); padding:2px 8px; border-radius:12px;">IN QUEUE</span>`
-          : `<div id="batchCheck_${setItem.test_id}" class="hud-checkbox" style="width:20px; height:20px; border-radius:6px; border:1.5px solid ${isSel ? 'var(--tcs-blue-accent)' : 'var(--border-color)'}; background:${isSel ? 'var(--tcs-blue-accent)' : 'transparent'}; color:white; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; flex-shrink:0;">${isSel ? '✓' : ''}</div>`;
+      let badgeClass = '', badgeText = '', historyHtml = '<span style="color:#64748b;">Not attempted yet</span>';
+      if (isAtt) {
+        if (pct >= 100) { 
+          badgeClass = 'status-mastered'; 
+          badgeText = `MASTERED ${best}/${maxMarks}`; 
+          historyHtml = `<span style="color:#16a34a;">★ Best: ${best} (${Math.round(pct)}%) | Att: ${count}</span>`; 
+        } else { 
+          badgeClass = 'status-progress'; 
+          badgeText = `IN PROGRESS`; 
+          historyHtml = `<span style="color:#d97706;">Review: ${best}/${maxMarks} | Att: ${count}</span>`; 
+        }
+      }
 
+      if (librarySelectionMode) {
+        // 🚀 YOUTUBE-STYLE INLINE BOOKMARK BUTTON
+        const inTarget = targetPlaylistForSelection && userPlaylistItems.some(pi => pi.playlist_id === targetPlaylistForSelection.id && String(pi.test_id) === String(setItem.test_id));
+        
         tile.innerHTML = `
           <div class="set-tile-header">
-            <div style="display:flex; align-items:center; gap:10px; width:100%;">
-              ${checkHtml}
-              <div class="set-tile-title" style="flex:1;">${setItem.test_title}</div>
+            <div class="set-tile-title-group">
+              <div class="set-tile-title">${setItem.test_title}</div>
+            </div>
+            <div style="display:flex; gap: 6px; align-items: center; flex-shrink: 0;">
+               ${badgeText ? `<div class="set-status-badge ${badgeClass}">${badgeText}</div>` : ''}
             </div>
           </div>
-          <div class="set-tile-meta" style="padding-left: 30px;"><span>${clockSvg} ${setItem.total_duration_minutes}m</span><span>${docSvg} ${setItem.total_questions} Qs</span></div>
+          <div class="set-tile-meta"><span>${clockSvg} ${setItem.total_duration_minutes}m</span><span>${docSvg} ${setItem.total_questions} Qs</span></div>
+          <div class="set-score-info">${historyHtml}</div>
+          <button type="button" class="btn-bookmark-stage ${inTarget ? 'saved' : ''}" id="btnStage_${setItem.test_id}" onclick="toggleDirectStaging(${setItem.test_id})">
+            ${inTarget ? bookmarkFilledSvg : bookmarkOutlineSvg}
+            <span class="stage-label">${inTarget ? 'Saved to playlist' : 'Save to playlist'}</span>
+          </button>
         `;
-        if (!inTarget) {
-          tile.onclick = () => { 
-            toggleBatchSelection(setItem.test_id, inTarget); 
-          };
-        }
       } else {
-        let badgeClass = '', badgeText = '', historyHtml = '<span style="color:#64748b;">Not attempted yet</span>';
-        if (isAtt) {
-          if (pct >= 100) { 
-            badgeClass = 'status-mastered'; 
-            badgeText = `MASTERED ${best}/${maxMarks}`; 
-            historyHtml = `<span style="color:#16a34a;">★ Best: ${best} (${Math.round(pct)}%) | Att: ${count}</span>`; 
-          } else { 
-            badgeClass = 'status-progress'; 
-            badgeText = `IN PROGRESS`; 
-            historyHtml = `<span style="color:#d97706;">Review: ${best}/${maxMarks} | Att: ${count}</span>`; 
-          }
-        }
         tile.innerHTML = `
           <div class="set-tile-header">
-            <div class="set-tile-title">${setItem.test_title}</div>
+            <div class="set-tile-title-group">
+              <div class="set-tile-title">${setItem.test_title}</div>
+            </div>
             <div style="display:flex; gap: 6px; align-items: center; flex-shrink: 0;">
                ${badgeText ? `<div class="set-status-badge ${badgeClass}">${badgeText}</div>` : ''}
                <button type="button" class="btn-three-dots" onclick="openThreeDotsMenu(event, ${setItem.test_id})" title="Options">⋮</button>
@@ -1739,7 +1738,6 @@ window.executeAbortExam = function() {
   closeAbortExamModal(); 
   if (timerInterval) clearInterval(timerInterval); 
   isExamFinished = true; 
-  // Discard all active in-memory session answers so unsubmitted attempts are never logged
   userResponses = {};
   activeTest = null;
   history.back(); 
@@ -1938,7 +1936,6 @@ function renderScorecard() {
     try {
       await supabaseClient.from("test_attempts").insert({ student_roll: currentCandidate.roll_number, test_id: activeTest.id, score, total_correct: correct, total_incorrect: incorrect, time_spent_seconds: tSecs });
       
-      // 🚀 ACCURATE ATTEMPT BAR PROGRESS: Increment only by questions actually answered (Correct + Incorrect)
       dailyPerf.total_questions_attempted = (dailyPerf.total_questions_attempted || 0) + actuallyAttemptedThisExam;
       const hit = dailyPerf.total_questions_attempted >= 100; 
       let nStreak = dailyPerf.streak_count || 0;
@@ -2248,9 +2245,8 @@ function renderHeatmap(attMap) {
     else if (mins > 45) cell.classList.add("hm-lvl-3"); 
     else if (mins > 15) cell.classList.add("hm-lvl-2"); 
     else if (mins > 0) cell.classList.add("hm-lvl-1"); 
-    else cell.classList.add("absent");
+    else cell.classList.add("absent"); 
     
-    // 🚀 SCREEN-BOUNDARY AWARE TOOLTIP (NEVER OVERFLOWS SCREEN EDGES)
     cell.onmouseenter = () => {
       const h = Math.floor(mins / 60), rm = mins % 60;
       tooltip.innerHTML = `
@@ -2264,17 +2260,13 @@ function renderHeatmap(attMap) {
       const tipHeight = tooltip.offsetHeight || 42;
       const halfTip = tipWidth / 2;
       
-      // Calculate ideal centered X
       let idealLeft = r.left + (r.width / 2);
-      
-      // Strict screen edge boundary clamping:
       if (idealLeft - halfTip < 14) {
         idealLeft = halfTip + 14;
       } else if (idealLeft + halfTip > window.innerWidth - 14) {
         idealLeft = window.innerWidth - halfTip - 14;
       }
       
-      // Vertical clamping: flip downwards if close to viewport ceiling
       let idealTop = r.top - tipHeight - 8;
       if (idealTop < 8) {
         idealTop = r.bottom + 8;
@@ -2360,7 +2352,6 @@ function renderQuizUI() {
     Object.values(localQuizState.answers).forEach(a => { if (a.isCorrect) corrCount++; else wrCount++; });
     const score = (corrCount * 2.00) - (wrCount * 0.50), acc = attCount > 0 ? Math.round((corrCount / attCount) * 100) : 0, stCount = localQuizState.starred.size;
     
-    // ⚡ PRIORITY FILTER COUNT (WRONG + STARRED + UNATTEMPTED)
     let priorityCount = 0;
     practiceQuestions.forEach((q, idx) => {
       const isAns = localQuizState.answers[idx] !== undefined;
@@ -2405,7 +2396,6 @@ function renderQuizUI() {
   practiceQuestions.forEach((q, idx) => {
     const isAns = localQuizState.answers[idx] !== undefined, isWr = isAns && !localQuizState.answers[idx].isCorrect, isSt = localQuizState.starred.has(idx), sAns = localQuizState.answers[idx];
     
-    // ⚡ PRIORITY DRILL FILTER EVALUATION
     if (localQuizState.isFinished) { 
       const isUnatt = !isAns;
       if (localQuizState.filter === 'wrong' && !isWr) return; 
@@ -2459,7 +2449,6 @@ function renderQuizUI() {
           const isC = isOptionMatching(selId, q.correctAnswer);
           localQuizState.answers[idx] = { selected: selId, isCorrect: isC };
 
-          // 1. Top Card Badge Status Update
           const badge = document.getElementById(`quizBadge_${idx}`);
           if (badge) {
             badge.style.display = "inline-block";
@@ -2467,7 +2456,6 @@ function renderQuizUI() {
             badge.innerText = isC ? 'Correct' : 'Incorrect';
           }
 
-          // 2. Clean Option Feedback (Symbols only, zero text clutter)
           card.querySelectorAll(`.quiz-opt-${idx}`).forEach(el => { 
             el.style.pointerEvents = "none";
             const optVal = el.getAttribute("data-opt-id");
@@ -2493,7 +2481,6 @@ function renderQuizUI() {
             }
           });
 
-          // 3. Show Explanation cleanly
           const exp = document.getElementById(`quizExp_${idx}`); 
           if (exp) exp.style.display = "block";
 
@@ -2511,7 +2498,7 @@ function renderQuizUI() {
   }
 }
 
-// 🚀 FIXED: IN-PLACE STAR TOGGLE PREVENTING SCROLL RESET OR JUMPING TO FIRST QUESTION
+// 🚀 FIXED: IN-PLACE STAR TOGGLE PREVENTING SCROLL RESET OR JUMPING
 window.toggleQuizStar = function(idx) { 
   const isStarred = localQuizState.starred.has(idx);
   if (isStarred) {
@@ -2521,7 +2508,6 @@ window.toggleQuizStar = function(idx) {
   }
   const nowStarred = localQuizState.starred.has(idx);
 
-  // Directly update question card star button in-place without re-rendering or jumping scroll:
   const card = document.getElementById(`quizCard_${idx}`);
   if (card) {
     const btn = card.querySelector(".btn-star-q");
@@ -2531,7 +2517,6 @@ window.toggleQuizStar = function(idx) {
     }
   }
 
-  // If in review mode, update banner badges & priority count in-place
   if (localQuizState.isFinished) {
     const starStat = document.querySelector(".quiz-score-item.stat-item-starred .value");
     if (starStat) starStat.innerText = `${localQuizState.starred.size}`;
