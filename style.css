@@ -125,6 +125,8 @@ body.portal-body { font-family: var(--font-family); background-color: var(--bg-p
    ========================================================================== */
 #dynamicRevisionTileContainer { width: 100%; margin-bottom: 12px; }
 .set-tile.dynamic-revision-tile { width: 100%; margin-bottom: 0; border-radius: 10px; transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1); }
+.dynamic-revision-tile .set-tile-meta { margin-bottom: 0 !important; width: 100%; }
+.dynamic-revision-tile .set-tile-meta span { white-space: normal !important; line-height: 1.45 !important; word-break: break-word !important; display: block !important; }
 
 /* State 1: Active Booster State (1 to 25 Qs - Radiant Amber Glow) */
 .set-tile.dynamic-revision-tile.state-active { background: linear-gradient(135deg, rgba(245, 158, 11, 0.06), rgba(37, 99, 235, 0.04)) !important; border: 1.5px solid rgba(245, 158, 11, 0.38) !important; border-left: 5px solid #f59e0b !important; box-shadow: 0 4px 18px rgba(245, 158, 11, 0.12), 0 0 10px rgba(245, 158, 11, 0.06) !important; }
@@ -274,7 +276,7 @@ body.dark-theme .dynamic-revision-tile.state-clean .clean-slate-pill { color: #9
 
 /* ==========================================================================
    6. 3-DOTS ACTION POPUP & YOUTUBE-STYLE SVG ITEMS (ZERO SCREEN BLUR)
-   ========================================================================= */
+   ========================================================================== */
 .three-dots-floating-popup { position: fixed; background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 8px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2); z-index: 3200 !important; padding: 6px; min-width: 180px; animation: modalFadeIn 0.15s ease-out; }
 .btn-popup-action { width: 100%; text-align: left; background: transparent; border: none; padding: 10px 14px; font-size: 13px; font-weight: 600; color: var(--tcs-blue-header); cursor: pointer; border-radius: 6px; display: flex; align-items: center; gap: 10px; transition: background 0.15s ease; }
 .btn-popup-action:hover { background: var(--bg-surface-elevated); }
@@ -524,10 +526,11 @@ body.dark-theme .dynamic-revision-tile.state-clean .clean-slate-pill { color: #9
 .meter-percent { font-size: 13px; font-weight: 800; color: var(--tcs-blue-accent); font-family: var(--font-mono); }
 .linear-meter-track { width: 100%; height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden; }
 .linear-meter-fill { height: 100%; width: 0%; background: var(--tcs-blue-accent); transition: width 0.8s ease-in-out; }
-.heatmap-scroll-wrapper { width: 100%; overflow-x: auto; padding-bottom: 8px; -webkit-overflow-scrolling: touch; }
-.heatmap-scroll-wrapper::-webkit-scrollbar { height: 6px; }
+.heatmap-scroll-wrapper { width: 100%; overflow-x: auto; padding-bottom: 8px; -webkit-overflow-scrolling: touch; scrollbar-width: thin; scrollbar-color: #cbd5e1 #f1f5f9; }
+.heatmap-scroll-wrapper::-webkit-scrollbar { height: 5px; }
 .heatmap-scroll-wrapper::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
 .heatmap-scroll-wrapper::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+.heatmap-scroll-wrapper::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 .heatmap-grid { display: grid; grid-template-columns: repeat(15, 1fr); gap: 4px; min-width: 450px; padding-right: 8px; }
 .heatmap-cell { aspect-ratio: 1; border-radius: 3px; background: #e2e8f0; transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); position: relative; cursor: pointer; }
 .heatmap-cell.absent { background-color: #e2e8f0 !important; }
@@ -771,6 +774,10 @@ body.dark-theme .linear-meter-track { background: #1e293b !important; }
 body.dark-theme #syllabusPercentTxt { color: #38bdf8 !important; }
 body.dark-theme .meter-title { color: #94a3b8 !important; }
 
+body.dark-theme .heatmap-scroll-wrapper { scrollbar-color: #334155 #0b1120 !important; }
+body.dark-theme .heatmap-scroll-wrapper::-webkit-scrollbar-track { background: #0b1120 !important; border-radius: 4px !important; }
+body.dark-theme .heatmap-scroll-wrapper::-webkit-scrollbar-thumb { background: #334155 !important; border-radius: 4px !important; }
+body.dark-theme .heatmap-scroll-wrapper::-webkit-scrollbar-thumb:hover { background: #475569 !important; }
 body.dark-theme .heatmap-cell { background: #1e293b !important; }
 body.dark-theme .heatmap-cell.absent { background-color: #111a2e !important; }
 body.dark-theme .hm-lvl-1 { background-color: #064e3b !important; border: 1px solid rgba(52, 211, 153, 0.3) !important; }

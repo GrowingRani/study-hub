@@ -263,10 +263,10 @@ window.addEventListener("popstate", function(e) {
     return; 
   }
 
-  // 7. 🎯 STRICT EXIT GATE: Modal pops ONLY when stack reaches root exit-gate
+  // 7. STRICT EXIT GATE: Modal pops ONLY when stack reaches root exit-gate
   if (!e.state || e.state.page === 'exit-gate') {
     showExitConfirmModal();
-    return;
+    return; 
   }
 
   if (e.state && e.state.view) {
@@ -447,7 +447,7 @@ function filterAccordionCards(query) {
       card.style.display = "block"; 
       card.classList.add("open"); 
       if (body) body.style.display = "block"; 
-    } else {
+    } else { 
       card.style.display = "none"; 
     }
   });
@@ -703,7 +703,6 @@ window.closeCreatePlaylistModal = function() {
   if (m) { m.style.display = "none"; m.style.pointerEvents = "none"; } 
 };
 
-// 🚀 FIXED: PREVENTS BOTTOM SHEET FROM RANDOMLY POPPING AFTER PLAYLIST CREATION
 window.handleCreatePlaylistSubmit = async function(e) {
   e.preventDefault(); 
   const inp = document.getElementById("inputNewPlaylistName"), name = inp ? inp.value.trim() : ""; 
@@ -717,7 +716,6 @@ window.handleCreatePlaylistSubmit = async function(e) {
     await fetchPlaylistsAndCheckRollover(); 
     await renderHomePlaylists();
     
-    // Sirf tab bottom sheet re-open karein jab user ne question set tile ke 3-dots se start kiya ho
     if (selectedTestForPlaylist) {
       openPlaylistBottomSheet(selectedTestForPlaylist);
     }
@@ -731,7 +729,6 @@ window.handleCreatePlaylistSubmit = async function(e) {
 window.promptNewPlaylist = () => openCreatePlaylistModal(false);
 window.promptNewPlaylistFromSheet = () => openCreatePlaylistModal(true);
 
-// 🚀 3-DOTS ACTION MENU (YOUTUBE-STYLE SVGS & TRANSPARENT BACKDROP)
 window.openPlaylistActionMenu = function(event, playlistId, playlistName, isSystem = false) {
   if (event) { event.preventDefault(); event.stopPropagation(); }
   closeThreeDotsMenu();
@@ -1138,7 +1135,7 @@ async function renderHomePlaylists() {
     const qCount = boosterQuestions.length;
 
     if (qCount === 0) {
-      // ⚪ State A: Zero Due Items (Quiet Neutral Monochrome, Zero Green)
+      // ⚪ State A: Zero Due Items (Quiet Neutral Monochrome, Zero Green & Clean Text Wrap)
       revContainer.innerHTML = `
         <div class="set-tile dynamic-revision-tile state-clean">
           <div class="set-tile-header">
@@ -1149,7 +1146,7 @@ async function renderHomePlaylists() {
             <span class="clean-slate-pill">0 DUE FOR REVIEW</span>
           </div>
           <div class="set-tile-meta">
-            <span style="color:#64748b; font-size:11.5px;">No mistakes or past sets pending. Attempt library sets to unlock booster sessions.</span>
+            <span style="color:#64748b; font-size:11.5px; white-space:normal; line-height:1.45; word-break:break-word; display:block;">No mistakes or past sets pending. Attempt library sets to unlock booster sessions.</span>
           </div>
         </div>
       `;
@@ -1503,17 +1500,46 @@ async function fetchWeakQuestions() {
   }
 }
 
+// 🚀 COMPLETE PAGINATED VIEW FETCHING (PREVENTS 1000-ROW TRUNCATION)
 async function fetchTestCatalog() {
   const hub = document.getElementById("subjectHubContainer"); 
   if (!hub) return;
   hub.innerHTML = "<p style='padding:20px; color:#64748b;'>Compiling Subject Mastery Matrix...</p>";
-  const { data: cat, error: catErr } = await supabaseClient.from("view_test_catalog").select("*");
-  if (catErr || !cat || cat.length === 0) return (hub.innerHTML = "<p style='padding:20px; color:#dc2626;'>Catalog failed to load.</p>");
+  
+  let allCat = [];
+  let from = 0;
+  const step = 1000;
+  while (true) {
+    const { data: catChunk, error: catErr } = await supabaseClient
+      .from("view_test_catalog")
+      .select("*")
+      .range(from, from + step - 1);
 
+    if (catErr) {
+      console.error("Catalog fetch error:", catErr);
+      break;
+    }
+    if (!catChunk || catChunk.length === 0) break;
+    allCat = allCat.concat(catChunk);
+    if (catChunk.length < step) break;
+    from += step;
+  }
+
+  if (allCat.length === 0) {
+    hub.innerHTML = "<p style='padding:20px; color:#dc2626;'>Catalog failed to load.</p>";
+    return;
+  }
+
+  // Deduplicate strictly by test_id
   const unique = [], seen = new Set();
-  (cat || []).forEach(r => { 
+  allCat.forEach(r => { 
     const id = String(r.test_id); 
-    if (!seen.has(id)) { seen.add(id); unique.push(r); } 
+    if (!seen.has(id)) { 
+      seen.add(id); 
+      r.subject = (r.subject && String(r.subject).trim()) || "General Studies";
+      r.topic = (r.topic && String(r.topic).trim()) || "Core Practice";
+      unique.push(r); 
+    } 
   });
   catalogData = unique;
 
@@ -1528,12 +1554,13 @@ function renderSubjectHubGrid() {
   container.innerHTML = "";
   const map = {}; 
   catalogData.forEach(r => { 
-    const s = r.subject || "General Studies"; 
+    const s = (r.subject && String(r.subject).trim()) || "General Studies"; 
     if (!map[s]) map[s] = { sets: [] }; 
     map[s].sets.push(r); 
   });
 
-  Object.entries(map).sort((a, b) => a[0].localeCompare(b[0])).forEach(([subName, data]) => {
+  // Natural dictionary sort for Subject Domains
+  Object.entries(map).sort((a, b) => a[0].localeCompare(b[0], undefined, { numeric: true, sensitivity: 'base' })).forEach(([subName, data]) => {
     const totalSets = data.sets.length; 
     let completedSets = 0, totalAtt = 0, sumPct = 0, attemptedSets = 0;
     data.sets.forEach(setItem => {
@@ -1581,15 +1608,15 @@ window.toggleMastheadSearch = function(isOpen) {
 };
 
 window.drillDownToSubject = function(subName, pushHistory = true) {
-  activeSubject = subName; 
+  activeSubject = (subName || "General Studies").trim(); 
   const hub = document.getElementById("subjectHubStage"), exp = document.getElementById("setsExplorerStage"), tEl = document.getElementById("explorerSubjectTitle"), sEl = document.getElementById("explorerSubjectStats");
-  const subSets = catalogData.filter(r => (r.subject || "General Studies") === subName);
+  const subSets = catalogData.filter(r => (r.subject || "General Studies").trim().toLowerCase() === activeSubject.toLowerCase());
   let mastered = 0; 
   subSets.forEach(s => { 
     const atts = userAttemptHistory.filter(a => String(a.test_id) === String(s.test_id)); 
     if (atts.length > 0 && Math.max(...atts.map(a => parseFloat(a.score))) >= ((s.total_questions || 10) * 2)) mastered++; 
   });
-  if (tEl) tEl.innerText = subName; 
+  if (tEl) tEl.innerText = activeSubject; 
   if (sEl) sEl.innerText = `${subSets.length} Sets • ${mastered} Mastered`;
   toggleMastheadSearch(false); 
   if (hub) hub.style.display = "none"; 
@@ -1598,7 +1625,7 @@ window.drillDownToSubject = function(subName, pushHistory = true) {
   document.querySelectorAll('.filter-chip-btn').forEach(b => b.classList.toggle('active', b.getAttribute('data-filter') === 'all'));
   renderTopicSets(); 
   window.scrollTo({ top: 0, behavior: 'smooth' });
-  if (pushHistory) history.pushState({ page: 'sets-explorer', view: 'viewLibrary', subView: 'setsExplorer', subject: subName }, "", "#subject_" + encodeURIComponent(subName));
+  if (pushHistory) history.pushState({ page: 'sets-explorer', view: 'viewLibrary', subView: 'setsExplorer', subject: activeSubject }, "", "#subject_" + encodeURIComponent(activeSubject));
 };
 
 window.returnToSubjectHub = function(fromPopState = false) {
@@ -1629,7 +1656,8 @@ function renderTopicSets() {
     if (ban) ban.style.display = "none";
   }
 
-  const filtered = catalogData.filter(r => (r.subject || "General Studies") === activeSubject);
+  // Exact case-insensitive trimmed matching
+  const filtered = catalogData.filter(r => (r.subject || "General Studies").trim().toLowerCase() === (activeSubject || "").trim().toLowerCase());
   let totalSets = filtered.length, unattempted = 0, revise = 0, mastered = 0;
   filtered.forEach(s => {
     const atts = userAttemptHistory.filter(a => String(a.test_id) === String(s.test_id));
@@ -1650,20 +1678,22 @@ function renderTopicSets() {
 
   const grouped = {}; 
   filtered.forEach(item => { 
-    const k = item.topic || "Core Practice"; 
+    const k = (item.topic && String(item.topic).trim()) || "Core Practice"; 
     if (!grouped[k]) grouped[k] = []; 
     grouped[k].push(item); 
   });
 
-  Object.entries(grouped).sort((a, b) => a[0].localeCompare(b[0])).forEach(([topicName, sets]) => {
+  // Natural dictionary sort for topic groups
+  Object.entries(grouped).sort((a, b) => a[0].localeCompare(b[0], undefined, { numeric: true, sensitivity: 'base' })).forEach(([topicName, sets]) => {
     let topicMastered = 0; 
     const processed = [];
-    const uniqueSets = [], seenIds = new Set(), seenTitles = new Set();
+    const uniqueSets = [], seenIds = new Set();
+    
+    // Deduplicate ONLY by unique test_id (seenTitles removed so identical titles across sets are NOT dropped)
     sets.forEach(item => {
-      const idK = String(item.test_id), titleK = String(item.test_title || "").trim().toLowerCase();
-      if (!seenIds.has(idK) && !seenTitles.has(titleK)) { 
+      const idK = String(item.test_id);
+      if (!seenIds.has(idK)) { 
         seenIds.add(idK); 
-        seenTitles.add(titleK); 
         uniqueSets.push(item); 
       }
     });
@@ -1681,7 +1711,12 @@ function renderTopicSets() {
 
     if (processed.length === 0 && currentFilter !== 'all') return;
     
-    processed.sort((a, b) => String(a.setItem.test_title || "").localeCompare(String(b.setItem.test_title || ""), undefined, { numeric: true, sensitivity: 'base' }));
+    // Natural dictionary sort for Question Sets inside topic (e.g. Set 1, Set 2, Set 10)
+    processed.sort((a, b) => {
+      const titleA = String(a.setItem.test_title || "").trim();
+      const titleB = String(b.setItem.test_title || "").trim();
+      return titleA.localeCompare(titleB, undefined, { numeric: true, sensitivity: 'base' });
+    });
 
     const progPct = uniqueSets.length > 0 ? (topicMastered / uniqueSets.length) * 100 : 0;
     const groupCard = document.createElement("div"); 
@@ -1757,7 +1792,7 @@ function renderTopicSets() {
             <div class="secondary-modes-strip">
               <button type="button" class="btn-mode-icon" title="Read Mode" onclick="launchPracticeMode(${setItem.test_id}, 'read')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg></button>
               <button type="button" class="btn-mode-icon" title="Flashcards" onclick="launchPracticeMode(${setItem.test_id}, 'flashcard')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="14" height="14" rx="2" ry="2"></rect><path d="M21 7v12a2 2 0 0 1-2 2H7"></path></svg></button>
-              <button type="button" class="btn-mode-icon" title="Instant Quiz" onclick="launchPracticeMode(${setItem.test_id}, 'quiz')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg></button>
+              <button type="button" class="btn-mode-icon" title="Instant Quiz" onclick="launchPracticeMode(${setItem.test_id}, 'quiz')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1 2-2h11"></path></svg></button>
             </div>
           </div>
         `;
