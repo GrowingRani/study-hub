@@ -44,14 +44,21 @@ function getNormalizedCorrectAnswerId(rawAnswer, optionsArray) {
   return matched ? String(matched.id) : (ca || String(rawAnswer));
 }
 
+// 🚀 SYNCHRONOUS LOCAL CALENDAR DATE HELPER (AVOIDS MIDNIGHT TIMEZONE DRIFT)
+function getLocalDateString(d = new Date()) {
+  return new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split("T")[0];
+}
+
 const clockSvg = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>`;
 const docSvg = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>`;
 const bookmarkOutlineSvg = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>`;
 const bookmarkFilledSvg = `<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>`;
 
 // ==========================================================================
-// 3. GLOBAL STATE & APPLICATION ROUTING (HOME & PROFILE SYNC)
+// 3. GLOBAL STATE & APPLICATION ROUTING (LOOP-FREE ROUTING & EXIT ENGINE)
 // ==========================================================================
+const MAIN_TABS = ['viewDashboard', 'viewLibrary', 'viewAnalytics', 'viewProfile'];
+
 let currentCandidate = null, catalogData = [], activeSubject = null, userAttemptHistory = [], userWeakQuestions = [], currentLang = "en", currentFilter = "all";
 let userPlaylists = [], userPlaylistItems = [], dailyPerf = { total_questions_attempted: 0, is_century_hit: false, streak_count: 0, id: null };
 let selectedTestForPlaylist = null, currentThreeDotsTestId = null, activePlaylistMenuTarget = null, pendingDeleteTarget = null;
@@ -122,8 +129,7 @@ window.addEventListener("DOMContentLoaded", () => {
     const bottomNav = document.getElementById('mobileBottomNav');
     if (bottomNav) {
       const activeView = Array.from(document.querySelectorAll('.view-screen')).find(v => v.style.display === 'flex')?.id;
-      const mainDeckViews = ['viewDashboard', 'viewLibrary', 'viewAnalytics', 'viewProfile'];
-      if (window.innerWidth <= 768 && mainDeckViews.includes(activeView)) {
+      if (window.innerWidth <= 768 && MAIN_TABS.includes(activeView)) {
         bottomNav.style.setProperty("display", "flex", "important");
         bottomNav.classList.remove("nav-hidden");
       } else {
@@ -162,15 +168,11 @@ function closeAllOverlaysAndPopups() {
   closeExitConfirmModal();
 }
 
+// 🚀 REFINED NAVIGATION: PREVENTS ENDLESS HISTORY STACKING
 window.switchView = function(viewId, pushHistory = true) {
   closeAllOverlaysAndPopups();
   const currentActiveView = Array.from(document.querySelectorAll('.view-screen')).find(v => v.style.display === 'flex')?.id;
   if (currentActiveView === viewId) return;
-  if (pushHistory && (viewId === 'viewDashboard' || viewId === 'viewLibrary') && ['viewPractice', 'viewSolutions', 'viewExam'].includes(currentActiveView)) { 
-    isExamFinished = true; 
-    history.back(); 
-    return; 
-  }
 
   ["viewLogin", "viewDashboard", "viewLibrary", "viewExam", "viewSolutions", "viewAnalytics", "viewPractice", "viewProfile"].forEach(id => {
     const el = document.getElementById(id); 
@@ -180,9 +182,8 @@ window.switchView = function(viewId, pushHistory = true) {
   if (target) target.style.display = "flex";
 
   const bottomNav = document.getElementById('mobileBottomNav');
-  const mainDeckViews = ['viewDashboard', 'viewLibrary', 'viewAnalytics', 'viewProfile'];
   if (bottomNav) { 
-    if (window.innerWidth <= 768 && mainDeckViews.includes(viewId)) {
+    if (window.innerWidth <= 768 && MAIN_TABS.includes(viewId)) {
       bottomNav.style.setProperty("display", "flex", "important");
       bottomNav.classList.remove("nav-hidden");
     } else {
@@ -194,43 +195,68 @@ window.switchView = function(viewId, pushHistory = true) {
   const navMap = { viewDashboard: 'navHomeBtn', viewLibrary: 'navLibraryBtn', viewAnalytics: 'navAnalyticsBtn', viewProfile: 'navProfileBtn' };
   if (navMap[viewId]) updateBottomNav(document.getElementById(navMap[viewId]));
   updateDesktopNav(viewId);
-  if (pushHistory) history.pushState({ view: viewId }, "", "#" + viewId);
+
+  // 🚀 HISTORY STACK CONTROL: Replace state for core deck tabs, push state only for deep nested assessment sessions
+  if (pushHistory) {
+    if (MAIN_TABS.includes(viewId)) {
+      history.replaceState({ view: viewId }, "", "#" + viewId);
+    } else {
+      history.pushState({ view: viewId }, "", "#" + viewId);
+    }
+  }
 };
 
+// 🚀 STEPWISE BACK-SWIPE HANDLER WITH HOME DECK EXIT ANCHOR
 window.addEventListener("popstate", function(e) {
   closeAllOverlaysAndPopups();
   const currentActiveView = Array.from(document.querySelectorAll('.view-screen')).find(v => v.style.display === 'flex')?.id;
   
+  // 1. If in active unsubmitted exam: confirm abort, don't silently pop
   if (currentActiveView === 'viewExam' && !isExamFinished) { 
     history.pushState({ view: 'viewExam' }, "", "#viewExam"); 
     abortExamSession(); 
     return; 
   }
   
+  // 2. If search input active: dismiss search first
   const searchBar = document.getElementById("mastheadSearchBar");
   if (searchBar && searchBar.style.display === "flex") { 
     toggleMastheadSearch(false); 
-    history.pushState(e.state, "", window.location.hash); 
     return; 
   }
-  
-  const isMobileApp = (window.innerWidth <= 768) || window.matchMedia('(display-mode: standalone)').matches;
 
-  if (e.state && e.state.view) {
-    if (e.state.view === 'viewLibrary') { 
-      switchView('viewLibrary', false); 
-      if (e.state.subView === 'setsExplorer' && e.state.subject) drillDownToSubject(e.state.subject, false); 
-      else returnToSubjectHub(true); 
-    } else { 
-      switchView(e.state.view, false);
-    }
-  } else {
-    if (isMobileApp && (currentActiveView === 'viewDashboard' || currentActiveView === 'viewLogin')) {
-      history.pushState({ view: currentActiveView }, "", "#" + currentActiveView);
-      showExitConfirmModal();
+  // 3. If in library staging/selection mode: safely exit selection mode to execution deck
+  if (librarySelectionMode) {
+    cancelLibrarySelectionMode();
+    return;
+  }
+
+  // 4. If deep inside library subject sets explorer: return to subject hub
+  if (currentActiveView === 'viewLibrary') {
+    const setsExp = document.getElementById("setsExplorerStage");
+    if (setsExp && setsExp.style.display === "block") {
+      returnToSubjectHub(true);
       return;
     }
-    switchView(currentCandidate ? 'viewDashboard' : 'viewLogin', false);
+  }
+
+  // 5. If in solutions or practice view: return cleanly to execution deck
+  if (['viewPractice', 'viewSolutions'].includes(currentActiveView)) {
+    isExamFinished = true;
+    switchView('viewDashboard', false);
+    return;
+  }
+
+  // 6. If on any secondary main tabs (Library / Analytics / Profile): back-swipe directs immediately to Home
+  if (['viewLibrary', 'viewAnalytics', 'viewProfile'].includes(currentActiveView)) {
+    switchView('viewDashboard', false);
+    return;
+  }
+
+  // 7. If candidate is at Home deck (viewDashboard) or login: anchor state and prompt elegant exit modal
+  if (currentActiveView === 'viewDashboard' || currentActiveView === 'viewLogin') {
+    history.pushState({ view: currentActiveView, isRoot: true }, "", "#" + currentActiveView);
+    showExitConfirmModal();
   }
 });
 
@@ -379,7 +405,7 @@ function showAuthNotice(msg, isError = true) {
 }
 
 // ==========================================================================
-// 5. APPLICATION EVENTS (DISMISS 3-DOTS ON EMPTY CLICK & EVENT BINDINGS)
+// 5. APPLICATION EVENTS & INTERACTIVE CONTROLLERS
 // ==========================================================================
 function filterAccordionCards(query) {
   document.querySelectorAll(".topic-accordion-card").forEach(card => {
@@ -858,7 +884,7 @@ async function mountDashboard(isInitialLoad = false) {
   fetchStudentAnalytics(true); 
   switchView("viewDashboard", false); 
   updateBottomNav(document.getElementById('navHomeBtn'));
-  if (isInitialLoad || !history.state) history.replaceState({ view: 'viewDashboard' }, "", "#viewDashboard");
+  if (isInitialLoad || !history.state) history.replaceState({ view: 'viewDashboard', isRoot: true }, "", "#viewDashboard");
   await fetchPlaylistsAndCheckRollover(); 
   await fetchWeakQuestions(); 
   await fetchTestCatalog(); 
@@ -890,12 +916,12 @@ async function fetchPlaylistsAndCheckRollover() {
     const { data: piData } = await supabaseClient.from("playlist_items").select("*").eq("student_roll", roll);
     userPlaylistItems = piData || [];
 
-    const todayStr = new Date().toISOString().split("T")[0];
+    const todayStr = getLocalDateString();
     const { data: dpData } = await supabaseClient.from("daily_performance").select("*").eq("student_roll", roll).eq("target_date", todayStr).maybeSingle();
     if (dpData) {
       dailyPerf = dpData;
     } else {
-      const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0];
+      const yesterday = getLocalDateString(new Date(Date.now() - 86400000));
       const { data: yData } = await supabaseClient.from("daily_performance").select("streak_count, is_century_hit").eq("student_roll", roll).eq("target_date", yesterday).maybeSingle();
       const newStreak = (yData && yData.is_century_hit) ? yData.streak_count : 0;
       const { data: insData } = await supabaseClient.from("daily_performance").insert({ student_roll: roll, target_date: todayStr, total_questions_attempted: 0, streak_count: newStreak }).select().single();
@@ -1038,7 +1064,7 @@ function renderHomePlaylists() {
   }
 
   // 🎯 MULTI-TIER BAROMETER LOGIC
-  const targetQ = 100, todayStr = new Date().toISOString().split("T")[0];
+  const targetQ = 100, todayStr = getLocalDateString();
   const todayAttempts = userAttemptHistory.filter(a => (a.attempt_date || "").split("T")[0] === todayStr);
   let todayMasteredQ = 0;
   todayAttempts.forEach(a => { 
@@ -1078,7 +1104,7 @@ window.showSelectionToast = function(msg) {
   if (!toast || !msgEl) return;
   msgEl.innerText = msg;
   toast.style.display = "block";
-  void toast.offsetWidth; // Force layout reflow for animation
+  void toast.offsetWidth; // Force layout reflow for CSS slide-up animation
   toast.classList.add("show");
   if (toastTimer) clearTimeout(toastTimer);
   toastTimer = setTimeout(() => {
@@ -1954,7 +1980,7 @@ function renderScorecard() {
     }
 
     try {
-      const d = new Date(), today = new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split("T")[0];
+      const today = getLocalDateString();
       const { data: att } = await supabaseClient.from("daily_attendance").select("id, total_minutes_spent").eq("student_roll", currentCandidate.roll_number).eq("study_date", today).maybeSingle();
       if (att) await supabaseClient.from("daily_attendance").update({ total_minutes_spent: att.total_minutes_spent + tMins }).eq("id", att.id);
       else await supabaseClient.from("daily_attendance").insert({ student_roll: currentCandidate.roll_number, study_date: today, total_minutes_spent: tMins });
@@ -2043,7 +2069,7 @@ window.fetchStudentAnalytics = async function(isSilent = false) {
   if (_isFetchingStats) return; 
   _isFetchingStats = true;
   try {
-    const d = new Date(), todayStr = new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split("T")[0];
+    const todayStr = getLocalDateString();
     const { data: atts } = await supabaseClient.from("test_attempts").select("test_id, score, total_correct, total_incorrect, attempt_date, time_spent_seconds").eq("student_roll", currentCandidate.roll_number).order("attempt_date", { ascending: true });
     const { data: attnd } = await supabaseClient.from("daily_attendance").select("study_date, total_minutes_spent").eq("student_roll", currentCandidate.roll_number);
 
@@ -2077,7 +2103,7 @@ window.fetchStudentAnalytics = async function(isSilent = false) {
     for (let i = 0; i < 7; i++) { 
       let dt = new Date(); 
       dt.setDate(dt.getDate() - i); 
-      past7.push(new Date(dt.getTime() - (dt.getTimezoneOffset() * 60000)).toISOString().split("T")[0]); 
+      past7.push(getLocalDateString(dt)); 
     }
     (attnd || []).forEach(r => { 
       const m = r.total_minutes_spent || 0; 
@@ -2237,7 +2263,7 @@ function renderHeatmap(attMap) {
   for (let i = 29; i >= 0; i--) {
     let d = new Date(today); 
     d.setDate(d.getDate() - i);
-    const dateStr = new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split("T")[0], 
+    const dateStr = getLocalDateString(d), 
           displayDate = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     const mins = attMap[dateStr] || 0, cell = document.createElement("div"); 
     cell.className = "heatmap-cell";
