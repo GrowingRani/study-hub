@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Study Hub - Industrial Assessment Portal</title>
-  <link rel="stylesheet" href="style.css?v=3.6">
+  <link rel="stylesheet" href="style.css?v=3.7">
   <link rel="manifest" href="./manifest.json" crossorigin="use-credentials">
   <meta name="theme-color" content="#080c14">
   <meta name="mobile-web-app-capable" content="yes">
@@ -198,15 +198,6 @@
 
       <div class="dash-header-actions">
         <button type="button" class="theme-toggle-btn btn-ghost icon-btn" title="Toggle Theme">🌙</button>
-        <div class="dash-user-controls hide-on-mobile">
-          <button type="button" class="btn-ghost top-profile-btn" id="topProfileBtn_dash" onclick="switchView('viewProfile');" title="Candidate Profile">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-              <circle cx="12" cy="7" r="4"></circle>
-            </svg>
-            <span>Profile</span>
-          </button>
-        </div>
       </div>
     </header>
 
@@ -257,19 +248,8 @@
             </div>
 
             <div class="playlist-body">
-              <!-- Auto-Pinned Daily Mix -->
-              <div class="mission-set-card auto-pinned">
-                <div class="set-card-content">
-                  <div class="set-card-icon">⚡</div>
-                  <div class="set-card-text">
-                    <h4 class="set-card-title">Daily 25-Q Revision Mix</h4>
-                    <p class="set-card-subtitle">15 Mistake Bank + 10 Retention Questions</p>
-                  </div>
-                </div>
-                <button type="button" class="btn-action-start" onclick="launchDailyMix()">
-                  <span>▶</span> START
-                </button>
-              </div>
+              <!-- 🚀 Pinned Bonus / Adaptive Revision Set Container (Immune to Clear All Sets) -->
+              <div id="dynamicRevisionTileContainer"></div>
 
               <!-- Loaded Sets for Today (Web Grid & Mobile List) -->
               <div id="todayPlaylistContainer" class="playlist-sets-stream sets-card-grid"></div>
@@ -385,15 +365,6 @@
 
       <div class="dash-header-actions">
         <button type="button" class="theme-toggle-btn btn-ghost icon-btn" title="Toggle Theme">🌙</button>
-        <div class="dash-user-controls hide-on-mobile">
-          <button type="button" class="btn-ghost top-profile-btn" id="topProfileBtn_lib" onclick="switchView('viewProfile');" title="Candidate Profile">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-              <circle cx="12" cy="7" r="4"></circle>
-            </svg>
-            <span>Profile</span>
-          </button>
-        </div>
       </div>
     </header>
 
@@ -539,15 +510,6 @@
 
       <div class="dash-header-actions">
         <button type="button" class="theme-toggle-btn btn-ghost icon-btn" title="Toggle Theme">🌙</button>
-        <div class="dash-user-controls hide-on-mobile">
-          <button type="button" class="btn-ghost top-profile-btn" id="topProfileBtn_stats" onclick="switchView('viewProfile');" title="Candidate Profile">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-              <circle cx="12" cy="7" r="4"></circle>
-            </svg>
-            <span>Profile</span>
-          </button>
-        </div>
       </div>
     </header>
 
@@ -680,15 +642,6 @@
 
       <div class="dash-header-actions">
         <button type="button" class="theme-toggle-btn btn-ghost icon-btn" title="Toggle Theme">🌙</button>
-        <div class="dash-user-controls hide-on-mobile">
-          <button type="button" class="btn-ghost top-profile-btn active" id="topProfileBtn_prof" onclick="switchView('viewProfile');" title="Candidate Profile">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-              <circle cx="12" cy="7" r="4"></circle>
-            </svg>
-            <span>Profile</span>
-          </button>
-        </div>
       </div>
     </header>
 

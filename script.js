@@ -93,7 +93,6 @@ function getLocalizedText(obj) {
   return typeof text === "string" ? text.replace(/\\n/g, "\n") : String(text || "");
 }
 
-// 🚀 ROBUST EXPLANATION FORMATTER: PREVENTS RAW JSON {"en":""}
 function formatExplanation(exp) {
   if (!exp) return "Yet to add explanation";
   let text = "";
@@ -149,10 +148,6 @@ function updateDesktopNav(viewId) {
     if (viewId === 'viewAnalytics' && id.startsWith('deskNavStats')) btn.classList.add('active');
     if (viewId === 'viewProfile' && id.startsWith('deskNavProfile')) btn.classList.add('active');
   });
-
-  document.querySelectorAll('.top-profile-btn').forEach(btn => {
-    btn.classList.toggle('active', viewId === 'viewProfile');
-  });
 }
 
 function closeAllOverlaysAndPopups() {
@@ -165,21 +160,15 @@ function closeAllOverlaysAndPopups() {
   closeDeletePlaylistModal(); 
   closeExamModal();
   closeAbortExamModal();
-  closeExitConfirmModal();
+  const exitModal = document.getElementById('exitConfirmModal');
+  if (exitModal) exitModal.style.display = 'none';
 }
 
-// 🚀 REFINED NAVIGATION: PREVENTS ENDLESS HISTORY STACKING
-window.switchView = function(viewId, pushHistory = true) {
-  closeAllOverlaysAndPopups();
-  const currentActiveView = Array.from(document.querySelectorAll('.view-screen')).find(v => v.style.display === 'flex')?.id;
-  if (currentActiveView === viewId) return;
-
+function renderViewDOM(viewId) {
   ["viewLogin", "viewDashboard", "viewLibrary", "viewExam", "viewSolutions", "viewAnalytics", "viewPractice", "viewProfile"].forEach(id => {
     const el = document.getElementById(id); 
-    if (el) el.style.display = "none";
+    if (el) el.style.display = (id === viewId) ? "flex" : "none";
   });
-  const target = document.getElementById(viewId); 
-  if (target) target.style.display = "flex";
 
   const bottomNav = document.getElementById('mobileBottomNav');
   if (bottomNav) { 
@@ -195,68 +184,93 @@ window.switchView = function(viewId, pushHistory = true) {
   const navMap = { viewDashboard: 'navHomeBtn', viewLibrary: 'navLibraryBtn', viewAnalytics: 'navAnalyticsBtn', viewProfile: 'navProfileBtn' };
   if (navMap[viewId]) updateBottomNav(document.getElementById(navMap[viewId]));
   updateDesktopNav(viewId);
+}
 
-  // 🚀 HISTORY STACK CONTROL: Replace state for core deck tabs, push state only for deep nested assessment sessions
+window.switchView = function(viewId, pushHistory = true) {
+  closeAllOverlaysAndPopups();
+  const currentActiveView = Array.from(document.querySelectorAll('.view-screen')).find(v => v.style.display === 'flex')?.id;
+  if (currentActiveView === viewId) return;
+
+  renderViewDOM(viewId);
+
   if (pushHistory) {
-    if (MAIN_TABS.includes(viewId)) {
-      history.replaceState({ view: viewId }, "", "#" + viewId);
+    if (viewId === 'viewDashboard') {
+      history.replaceState({ page: 'dashboard', view: 'viewDashboard' }, '', '#viewDashboard');
+    } else if (MAIN_TABS.includes(viewId)) {
+      if (history.state?.page === 'main-tab') {
+        history.replaceState({ page: 'main-tab', view: viewId }, '', '#' + viewId);
+      } else {
+        history.pushState({ page: 'main-tab', view: viewId }, '', '#' + viewId);
+      }
     } else {
-      history.pushState({ view: viewId }, "", "#" + viewId);
+      history.pushState({ page: 'sub-view', view: viewId }, '', '#' + viewId);
     }
   }
 };
 
-// 🚀 STEPWISE BACK-SWIPE HANDLER WITH HOME DECK EXIT ANCHOR
 window.addEventListener("popstate", function(e) {
+  const exitModal = document.getElementById('exitConfirmModal');
+  if (exitModal && exitModal.style.display === 'flex') {
+    closeExitConfirmModal();
+    return;
+  }
+
   closeAllOverlaysAndPopups();
   const currentActiveView = Array.from(document.querySelectorAll('.view-screen')).find(v => v.style.display === 'flex')?.id;
-  
-  // 1. If in active unsubmitted exam: confirm abort, don't silently pop
+
+  // 1. Unsubmitted active exam session
   if (currentActiveView === 'viewExam' && !isExamFinished) { 
-    history.pushState({ view: 'viewExam' }, "", "#viewExam"); 
+    history.pushState({ page: 'sub-view', view: 'viewExam' }, '', '#viewExam'); 
     abortExamSession(); 
     return; 
   }
   
-  // 2. If search input active: dismiss search first
+  // 2. Active search bar
   const searchBar = document.getElementById("mastheadSearchBar");
   if (searchBar && searchBar.style.display === "flex") { 
     toggleMastheadSearch(false); 
+    history.pushState(e.state || { page: 'main-tab', view: 'viewLibrary' }, '', window.location.hash);
     return; 
   }
 
-  // 3. If in library staging/selection mode: safely exit selection mode to execution deck
+  // 3. Staging / selection mode
   if (librarySelectionMode) {
     cancelLibrarySelectionMode();
-    return;
+    return; 
   }
 
-  // 4. If deep inside library subject sets explorer: return to subject hub
+  // 4. Library topics sets explorer sub-stage
   if (currentActiveView === 'viewLibrary') {
     const setsExp = document.getElementById("setsExplorerStage");
     if (setsExp && setsExp.style.display === "block") {
       returnToSubjectHub(true);
-      return;
+      return; 
     }
   }
 
-  // 5. If in solutions or practice view: return cleanly to execution deck
+  // 5. Practice / Solutions return
   if (['viewPractice', 'viewSolutions'].includes(currentActiveView)) {
     isExamFinished = true;
-    switchView('viewDashboard', false);
-    return;
+    renderViewDOM('viewDashboard');
+    history.replaceState({ page: 'dashboard', view: 'viewDashboard' }, '', '#viewDashboard');
+    return; 
   }
 
-  // 6. If on any secondary main tabs (Library / Analytics / Profile): back-swipe directs immediately to Home
+  // 6. Secondary tabs (Library, Analytics, Profile) back-swipe directly to Home
   if (['viewLibrary', 'viewAnalytics', 'viewProfile'].includes(currentActiveView)) {
-    switchView('viewDashboard', false);
+    renderViewDOM('viewDashboard');
+    history.replaceState({ page: 'dashboard', view: 'viewDashboard' }, '', '#viewDashboard');
+    return; 
+  }
+
+  // 7. 🎯 STRICT EXIT GATE: Modal pops ONLY when stack reaches root exit-gate
+  if (!e.state || e.state.page === 'exit-gate') {
+    showExitConfirmModal();
     return;
   }
 
-  // 7. If candidate is at Home deck (viewDashboard) or login: anchor state and prompt elegant exit modal
-  if (currentActiveView === 'viewDashboard' || currentActiveView === 'viewLogin') {
-    history.pushState({ view: currentActiveView, isRoot: true }, "", "#" + currentActiveView);
-    showExitConfirmModal();
+  if (e.state && e.state.view) {
+    renderViewDOM(e.state.view);
   }
 });
 
@@ -470,8 +484,8 @@ function setupAppEvents() {
     tabIn?.classList.remove("active"); 
     if (fReg) fReg.style.display = "block"; 
     const st = document.getElementById("regFieldsStep"), sc = document.getElementById("regSuccessCard"); 
-    if (st) st.style.display = "block"; 
-    if (sc) sc.style.display = "none"; 
+    if (st) st.style.display = "none"; 
+    if (sc) sc.style.display = "block"; 
     if (fIn) fIn.style.display = "none"; 
     if (fForgot) fForgot.style.display = "none"; 
     if (fReset) fReset.style.display = "none"; 
@@ -676,7 +690,8 @@ window.handleNoticeAction = function() {
   returnToSubjectHub(true); 
 };
 
-window.openCreatePlaylistModal = function() { 
+window.openCreatePlaylistModal = function(fromSpecificTest = false) { 
+  if (!fromSpecificTest) selectedTestForPlaylist = null;
   const m = document.getElementById("createPlaylistModal"), inp = document.getElementById("inputNewPlaylistName"); 
   if (inp) inp.value = ""; 
   if (m) { m.style.display = "flex"; m.style.pointerEvents = "auto"; } 
@@ -688,6 +703,7 @@ window.closeCreatePlaylistModal = function() {
   if (m) { m.style.display = "none"; m.style.pointerEvents = "none"; } 
 };
 
+// 🚀 FIXED: PREVENTS BOTTOM SHEET FROM RANDOMLY POPPING AFTER PLAYLIST CREATION
 window.handleCreatePlaylistSubmit = async function(e) {
   e.preventDefault(); 
   const inp = document.getElementById("inputNewPlaylistName"), name = inp ? inp.value.trim() : ""; 
@@ -699,17 +715,21 @@ window.handleCreatePlaylistSubmit = async function(e) {
     if (error) throw error;
     closeCreatePlaylistModal(); 
     await fetchPlaylistsAndCheckRollover(); 
-    renderHomePlaylists();
-    if (selectedTestForPlaylist) openPlaylistBottomSheet(selectedTestForPlaylist);
+    await renderHomePlaylists();
+    
+    // Sirf tab bottom sheet re-open karein jab user ne question set tile ke 3-dots se start kiya ho
+    if (selectedTestForPlaylist) {
+      openPlaylistBottomSheet(selectedTestForPlaylist);
+    }
   } catch(err) { 
-    showAppNoticeModal("Playlist Error", "Could Not Create Playlist", err.message, "⚠️", "Retry", () => openCreatePlaylistModal()); 
+    showAppNoticeModal("Playlist Error", "Could Not Create Playlist", err.message, "⚠️", "Retry", () => openCreatePlaylistModal(Boolean(selectedTestForPlaylist))); 
   } finally { 
     if (btn) { btn.innerText = "Create Playlist"; btn.disabled = false; } 
   }
 };
 
-window.promptNewPlaylist = () => openCreatePlaylistModal();
-window.promptNewPlaylistFromSheet = () => openCreatePlaylistModal();
+window.promptNewPlaylist = () => openCreatePlaylistModal(false);
+window.promptNewPlaylistFromSheet = () => openCreatePlaylistModal(true);
 
 // 🚀 3-DOTS ACTION MENU (YOUTUBE-STYLE SVGS & TRANSPARENT BACKDROP)
 window.openPlaylistActionMenu = function(event, playlistId, playlistName, isSystem = false) {
@@ -735,7 +755,6 @@ window.openPlaylistActionMenu = function(event, playlistId, playlistName, isSyst
     if (btnClear) btnClear.style.display = "flex";
     if (btnDel) btnDel.style.display = "none";
   } else { 
-    // Custom playlist: all 3 actions available
     if (btnEdit) btnEdit.style.display = "flex"; 
     if (btnClear) btnClear.style.display = "flex";
     if (btnDel) btnDel.style.display = "flex"; 
@@ -815,7 +834,7 @@ window.handleEditPlaylistSubmit = async function(e) {
     if (error) throw error; 
     closeEditPlaylistModal(); 
     await fetchPlaylistsAndCheckRollover(); 
-    renderHomePlaylists(); 
+    await renderHomePlaylists(); 
   } catch (err) { 
     showAppNoticeModal("Update Error", "Failed to Rename Playlist", err.message, "⚠️", "Dismiss"); 
   } finally { 
@@ -865,7 +884,7 @@ window.confirmDeletePlaylist = async function() {
     }
     closeDeletePlaylistModal(); 
     await fetchPlaylistsAndCheckRollover(); 
-    renderHomePlaylists();
+    await renderHomePlaylists();
   } catch (err) { 
     showAppNoticeModal("Error", "Action Failed", err.message, "⚠️", "Dismiss"); 
   } finally { 
@@ -874,7 +893,7 @@ window.confirmDeletePlaylist = async function() {
 };
 
 // ==========================================================================
-// 7. HOME DECK & PLAYLIST ENGINE (NO DEFAULT STAR ON CUSTOM PLAYLISTS)
+// 7. HOME DECK & PLAYLIST ENGINE (BONUS BOOSTER SET PINNED & ISOLATED)
 // ==========================================================================
 async function mountDashboard(isInitialLoad = false) {
   const cName = document.getElementById("dashCandidateName"); 
@@ -882,13 +901,18 @@ async function mountDashboard(isInitialLoad = false) {
   const rollEl = document.getElementById("dashCandidateRoll"); 
   if (rollEl) rollEl.innerText = "ROLL: " + (currentCandidate?.roll_number || "---");
   fetchStudentAnalytics(true); 
-  switchView("viewDashboard", false); 
-  updateBottomNav(document.getElementById('navHomeBtn'));
-  if (isInitialLoad || !history.state) history.replaceState({ view: 'viewDashboard', isRoot: true }, "", "#viewDashboard");
+  
+  renderViewDOM('viewDashboard');
+
+  if (isInitialLoad || !history.state || history.state.page !== 'dashboard') {
+    history.replaceState({ page: 'exit-gate' }, '', window.location.pathname);
+    history.pushState({ page: 'dashboard', view: 'viewDashboard' }, '', '#viewDashboard');
+  }
+
   await fetchPlaylistsAndCheckRollover(); 
   await fetchWeakQuestions(); 
   await fetchTestCatalog(); 
-  renderHomePlaylists(); 
+  await renderHomePlaylists(); 
   start5PMEngine();
 }
 
@@ -917,14 +941,44 @@ async function fetchPlaylistsAndCheckRollover() {
     userPlaylistItems = piData || [];
 
     const todayStr = getLocalDateString();
-    const { data: dpData } = await supabaseClient.from("daily_performance").select("*").eq("student_roll", roll).eq("target_date", todayStr).maybeSingle();
+    
+    // 🚀 CALCULATE ACTUAL OFFICIAL QUESTIONS ATTEMPTED TODAY FROM test_attempts (EXCLUDING BONUS TEST_ID -1)
+    const { data: todayAttRows } = await supabaseClient
+      .from("test_attempts")
+      .select("test_id, total_correct, total_incorrect, attempt_date")
+      .eq("student_roll", roll);
+
+    const actualExamAttemptedToday = (todayAttRows || [])
+      .filter(a => (a.attempt_date || "").split("T")[0] === todayStr && a.test_id > 0)
+      .reduce((sum, a) => sum + (a.total_correct || 0) + (a.total_incorrect || 0), 0);
+
+    let { data: dpData } = await supabaseClient
+      .from("daily_performance")
+      .select("*")
+      .eq("student_roll", roll)
+      .eq("target_date", todayStr)
+      .maybeSingle();
+
     if (dpData) {
+      if (dpData.total_questions_attempted !== actualExamAttemptedToday) {
+        dpData.total_questions_attempted = actualExamAttemptedToday;
+        dpData.is_century_hit = actualExamAttemptedToday >= 100;
+        await supabaseClient.from("daily_performance").update({
+          total_questions_attempted: actualExamAttemptedToday,
+          is_century_hit: actualExamAttemptedToday >= 100
+        }).eq("id", dpData.id);
+      }
       dailyPerf = dpData;
     } else {
       const yesterday = getLocalDateString(new Date(Date.now() - 86400000));
       const { data: yData } = await supabaseClient.from("daily_performance").select("streak_count, is_century_hit").eq("student_roll", roll).eq("target_date", yesterday).maybeSingle();
       const newStreak = (yData && yData.is_century_hit) ? yData.streak_count : 0;
-      const { data: insData } = await supabaseClient.from("daily_performance").insert({ student_roll: roll, target_date: todayStr, total_questions_attempted: 0, streak_count: newStreak }).select().single();
+      const { data: insData } = await supabaseClient.from("daily_performance").insert({ 
+        student_roll: roll, 
+        target_date: todayStr, 
+        total_questions_attempted: actualExamAttemptedToday, 
+        streak_count: newStreak 
+      }).select().single();
       if (insData) dailyPerf = insData;
     }
 
@@ -944,11 +998,133 @@ async function fetchPlaylistsAndCheckRollover() {
   }
 }
 
-function renderHomePlaylists() {
+// 🚀 REVISION & MISTAKE POOL COMPILER (0 to 25 Max • Dynamic Mix from Mistakes + Past Attempted Sets)
+async function compileMasteryBoosterPool(maxLimit = 25) {
+  let assembled = [];
+  const seenIds = new Set();
+
+  // 1. Pull Mistakes from Mistake Bank
+  const now = new Date();
+  const mistakePool = userWeakQuestions.filter(q => 
+    q.times_wrong > 0 && 
+    (q.mastery_streak || 0) < 4 && 
+    (!q.next_review_at || new Date(q.next_review_at) <= now)
+  );
+
+  mistakePool.sort((a, b) => (b.times_wrong || 0) - (a.times_wrong || 0)).slice(0, maxLimit).forEach(item => {
+    const qd = item.question_data || {};
+    const qid = String(item.question_id || qd.id);
+    if (!seenIds.has(qid)) {
+      seenIds.add(qid);
+      let opts = [];
+      try { opts = typeof qd.options === 'string' ? JSON.parse(qd.options) : (qd.options || []); } catch(e) { opts = []; }
+      assembled.push({
+        id: qid,
+        content: qd.content,
+        options: opts,
+        correctAnswer: getNormalizedCorrectAnswerId(qd.correct_answer || qd.correctAnswer, opts),
+        explanation: qd.explanation,
+        isMistake: true
+      });
+    }
+  });
+
+  // 2. Pull Recall/Retention Questions from Past Attempted Sets
+  const remainingNeeded = maxLimit - assembled.length;
+  if (remainingNeeded > 0 && userAttemptHistory?.length > 0) {
+    const pastTestIds = [...new Set(userAttemptHistory.map(a => a.test_id).filter(id => id > 0))];
+    if (pastTestIds.length > 0) {
+      try {
+        const { data: sRows } = await supabaseClient.from("test_sections").select("id").in("test_id", pastTestIds.slice(0, 15));
+        if (sRows?.length) {
+          const { data: qRows } = await supabaseClient
+            .from("test_section_questions")
+            .select(`questions (id, content, options, correct_answer, explanation)`)
+            .in("section_id", sRows.map(s => s.id))
+            .limit(50);
+
+          if (qRows?.length) {
+            const recallCandidates = qRows.map(r => Array.isArray(r.questions) ? r.questions[0] : r.questions)
+              .filter(q => q && !seenIds.has(String(q.id)))
+              .sort(() => 0.5 - Math.random())
+              .slice(0, remainingNeeded);
+
+            recallCandidates.forEach(q => {
+              const qid = String(q.id);
+              seenIds.add(qid);
+              let opts = [];
+              try { opts = typeof q.options === 'string' ? JSON.parse(q.options) : (q.options || []); } catch(e) { opts = []; }
+              assembled.push({
+                id: qid,
+                content: q.content,
+                options: opts,
+                correctAnswer: getNormalizedCorrectAnswerId(q.correct_answer, opts),
+                explanation: q.explanation,
+                isMistake: false
+              });
+            });
+          }
+        }
+      } catch (err) {
+        console.error("Past retention questions fetch error:", err);
+      }
+    }
+  }
+
+  return assembled.map((q, idx) => ({ ...q, qNum: idx + 1 }));
+}
+
+// 🚀 LAUNCH DYNAMIC BOOSTER SET (Exam, Read, Flashcard, Quiz)
+window.launchBoosterMode = async function(mode = 'exam') {
+  const boosterQuestions = await compileMasteryBoosterPool(25);
+  if (!boosterQuestions.length) {
+    return showAppNoticeModal("Notice", "No Pending Reviews", "You have no pending mistakes or review questions right now.", "⚪", "Dismiss");
+  }
+
+  const qCount = boosterQuestions.length;
+
+  if (mode === 'exam') {
+    isExamFinished = false;
+    switchView("viewExam", true);
+    activeTest = {
+      id: -1,
+      title: "Mistakes & Active Retention Set",
+      total_duration_minutes: Math.max(3, Math.ceil(qCount * 0.6))
+    };
+
+    document.getElementById("examTitle").innerText = activeTest.title;
+    document.getElementById("subjectLabelBreadcrumb").innerText = "Bonus Booster";
+    document.getElementById("sectionTabs").innerHTML = `<button type="button" class="section-tab">Section 1: Active Review (${qCount} Qs)</button>`;
+    timeRemaining = activeTest.total_duration_minutes * 60;
+
+    testQuestions = boosterQuestions;
+    userResponses = {};
+    testQuestions.forEach((q, idx) => {
+      userResponses[idx] = { selected: null, status: idx === 0 ? 1 : 0, timeSpent: 0 };
+    });
+
+    renderQuestion(0);
+    startExamTimer();
+  } else {
+    practiceQuestions = boosterQuestions;
+    const tEl = document.getElementById("practiceSetTitle");
+    if (tEl) tEl.innerText = `Mistakes & Retention Set (${qCount} Qs)`;
+    const mEl = document.getElementById("practiceModeTitle");
+    if (mEl) mEl.innerText = mode === "read" ? "📖 READ MODE" : (mode === "quiz" ? "⚡ INSTANT QUIZ" : "🗂️ FLASHCARDS");
+
+    switchView("viewPractice");
+    if (mode === "read") renderReadMode();
+    else if (mode === "quiz") renderInteractiveQuizMode();
+    else { flashcardIndex = 0; renderFlashcardMode(); }
+  }
+};
+
+async function renderHomePlaylists() {
   const todayContainer = document.getElementById("todayPlaylistContainer"), 
         tomorrowContainer = document.getElementById("tomorrowPlaylistContainer"), 
         weekContainer = document.getElementById("weekPlaylistContainer"), 
-        customContainer = document.getElementById("customPlaylistsContainer");
+        customContainer = document.getElementById("customPlaylistsContainer"),
+        revContainer = document.getElementById("dynamicRevisionTileContainer");
 
   if (!todayContainer || !tomorrowContainer || !weekContainer) return;
   todayContainer.innerHTML = ""; 
@@ -956,22 +1132,68 @@ function renderHomePlaylists() {
   weekContainer.innerHTML = ""; 
   if (customContainer) customContainer.innerHTML = "";
 
-  if (new Date().getDay() === 0) {
-    todayContainer.innerHTML = `<div style="background: linear-gradient(135deg, #4f46e5, #7c3aed); padding: 24px; border-radius: 8px; text-align: center; color: white; grid-column: 1 / -1;"><h2 style="margin:0 0 10px 0; font-size:20px;">👑 Sunday Mega Mistake Bank</h2><p style="margin:0 0 16px 0; font-size:13px; opacity:0.9;">100 Questions from your weekly errors. Clear this to secure your Century Streak.</p><button type="button" class="tcs-btn" style="background:#ffffff; color:#7c3aed; font-weight:800; padding:10px 24px;" onclick="launchMistakeBank('quiz', true)">▶ START MEGA REVISION</button></div>`;
-    ['tomorrowPlaylistContainer', 'weekPlaylistContainer'].forEach(id => { 
-      const el = document.getElementById(id)?.closest('.mission-playlist-card'); 
-      if (el) el.style.display = "none"; 
-    });
-    if (customContainer) customContainer.style.display = "none";
-    const capFill = document.getElementById("centuryCapacityFill"), attFill = document.getElementById("centuryAttemptedFill"), masFill = document.getElementById("centuryMasteredFill"), meterText = document.getElementById("centuryLoadText");
-    if (capFill) capFill.style.width = "100%"; 
-    if (attFill) attFill.style.width = "100%"; 
-    if (masFill) masFill.style.width = "100%"; 
-    if (meterText) meterText.innerText = `100 / 100 Qs ✅ (Sunday Secured)`;
-    return;
+  // 🚀 RENDER PINNED DYNAMIC BOOSTER SET TILE (ZERO-STATE IS STRICTLY NEUTRAL MUTED SLATE)
+  if (revContainer) {
+    const boosterQuestions = await compileMasteryBoosterPool(25);
+    const qCount = boosterQuestions.length;
+
+    if (qCount === 0) {
+      // ⚪ State A: Zero Due Items (Quiet Neutral Monochrome, Zero Green)
+      revContainer.innerHTML = `
+        <div class="set-tile dynamic-revision-tile state-clean">
+          <div class="set-tile-header">
+            <div class="set-tile-title-group">
+              <span class="set-badge-adaptive">⚪ EMPTY POOL</span>
+              <div class="set-tile-title" style="color: #64748b;">Mistakes & Active Retention Booster</div>
+            </div>
+            <span class="clean-slate-pill">0 DUE FOR REVIEW</span>
+          </div>
+          <div class="set-tile-meta">
+            <span style="color:#64748b; font-size:11.5px;">No mistakes or past sets pending. Attempt library sets to unlock booster sessions.</span>
+          </div>
+        </div>
+      `;
+    } else {
+      // ⚡ State B: 1 to 25 Due Items (Standout Radiant Amber Booster)
+      const durationMins = Math.max(3, Math.ceil(qCount * 0.6));
+      revContainer.innerHTML = `
+        <div class="set-tile dynamic-revision-tile state-active">
+          <div class="set-tile-header">
+            <div class="set-tile-title-group">
+              <span class="set-badge-adaptive">⚡ BONUS MASTERY BOOSTER</span>
+              <div class="set-tile-title">Mistakes & Active Retention Set</div>
+            </div>
+            <div class="set-status-badge status-progress" style="background:rgba(245,158,11,0.15); color:#d97706; border:1px solid rgba(245,158,11,0.3);">
+              ${qCount} DUE FOR REVIEW
+            </div>
+          </div>
+          <div class="set-tile-meta">
+            <span>${clockSvg} ${durationMins}m</span>
+            <span>${docSvg} ${qCount} Qs</span>
+            <span style="color:#64748b; font-size:11px;">(Bonus • Excluded from 100-Q Target)</span>
+          </div>
+          <div class="set-action-footer">
+            <button type="button" class="btn-launch-set" onclick="launchBoosterMode('exam')">
+              <span>▶</span> <span>Exam</span>
+            </button>
+            <div class="secondary-modes-strip">
+              <button type="button" class="btn-mode-icon" title="Read Mode" onclick="launchBoosterMode('read')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
+              </button>
+              <button type="button" class="btn-mode-icon" title="Flashcards" onclick="launchBoosterMode('flashcard')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="14" height="14" rx="2" ry="2"></rect><path d="M21 7v12a2 2 0 0 1-2 2H7"></path></svg>
+              </button>
+              <button type="button" class="btn-mode-icon" title="Instant Quiz" onclick="launchBoosterMode('quiz')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1 2-2h11"></path></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
   }
 
-  let todayLoad = 25, tomorrowLoad = 0;
+  let todayLoad = 0, tomorrowLoad = 0;
   const getSetHtml = (item, pName) => {
     const setCat = catalogData.find(c => String(c.test_id) === String(item.test_id)); 
     if (!setCat) return "";
@@ -979,7 +1201,6 @@ function renderHomePlaylists() {
     if (pName === 'Today') todayLoad += qCount; 
     if (pName === 'Tomorrow') tomorrowLoad += qCount;
     
-    // 🚀 EYEBROW ROLLOVER TAG: Clean separation to avoid multi-line title wrapping
     const isRoll = item.is_rollover ? `<span class="set-rollover-tag">⚠️ ROLLOVER</span>` : '';
     
     const attempts = userAttemptHistory.filter(a => String(a.test_id) === String(setCat.test_id)), isAtt = attempts.length > 0;
@@ -1015,7 +1236,7 @@ function renderHomePlaylists() {
           <div class="secondary-modes-strip">
             <button type="button" class="btn-mode-icon" title="Read Mode" onclick="launchPracticeMode(${setCat.test_id}, 'read')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg></button>
             <button type="button" class="btn-mode-icon" title="Flashcards" onclick="launchPracticeMode(${setCat.test_id}, 'flashcard')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="14" height="14" rx="2" ry="2"></rect><path d="M21 7v12a2 2 0 0 1-2 2H7"></path></svg></button>
-            <button type="button" class="btn-mode-icon" title="Instant Quiz" onclick="launchPracticeMode(${setCat.test_id}, 'quiz')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg></button>
+            <button type="button" class="btn-mode-icon" title="Instant Quiz" onclick="launchPracticeMode(${setCat.test_id}, 'quiz')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1 2-2h11"></path></svg></button>
           </div>
         </div>
       </div>
@@ -1063,9 +1284,9 @@ function renderHomePlaylists() {
     });
   }
 
-  // 🎯 MULTI-TIER BAROMETER LOGIC
+  // 🎯 MULTI-TIER BAROMETER LOGIC (STRICTLY FROM SYLLABUS SETS, a.test_id > 0)
   const targetQ = 100, todayStr = getLocalDateString();
-  const todayAttempts = userAttemptHistory.filter(a => (a.attempt_date || "").split("T")[0] === todayStr);
+  const todayAttempts = userAttemptHistory.filter(a => (a.attempt_date || "").split("T")[0] === todayStr && a.test_id > 0);
   let todayMasteredQ = 0;
   todayAttempts.forEach(a => { 
     const c = catalogData.find(x => String(x.test_id) === String(a.test_id)), qc = c ? (c.total_questions || 10) : 10; 
@@ -1104,7 +1325,7 @@ window.showSelectionToast = function(msg) {
   if (!toast || !msgEl) return;
   msgEl.innerText = msg;
   toast.style.display = "block";
-  void toast.offsetWidth; // Force layout reflow for CSS slide-up animation
+  void toast.offsetWidth;
   toast.classList.add("show");
   if (toastTimer) clearTimeout(toastTimer);
   toastTimer = setTimeout(() => {
@@ -1135,7 +1356,7 @@ window.cancelLibrarySelectionMode = async function() {
   }
   await fetchPlaylistsAndCheckRollover(); 
   renderTopicSets(); 
-  renderHomePlaylists();
+  await renderHomePlaylists();
   switchView('viewDashboard');
   updateBottomNav(document.getElementById('navHomeBtn'));
 };
@@ -1257,7 +1478,7 @@ window.togglePlaylistMembership = async function(pId, testId, inList) {
   else await supabaseClient.from("playlist_items").insert({ playlist_id: pId, test_id: testId, student_roll: currentCandidate.roll_number });
   await fetchPlaylistsAndCheckRollover(); 
   openPlaylistBottomSheet(testId); 
-  renderHomePlaylists();
+  await renderHomePlaylists();
 };
 
 // ==========================================================================
@@ -1377,7 +1598,7 @@ window.drillDownToSubject = function(subName, pushHistory = true) {
   document.querySelectorAll('.filter-chip-btn').forEach(b => b.classList.toggle('active', b.getAttribute('data-filter') === 'all'));
   renderTopicSets(); 
   window.scrollTo({ top: 0, behavior: 'smooth' });
-  if (pushHistory) history.pushState({ view: 'viewLibrary', subView: 'setsExplorer', subject: subName }, "", "#subject_" + encodeURIComponent(subName));
+  if (pushHistory) history.pushState({ page: 'sets-explorer', view: 'viewLibrary', subView: 'setsExplorer', subject: subName }, "", "#subject_" + encodeURIComponent(subName));
 };
 
 window.returnToSubjectHub = function(fromPopState = false) {
@@ -1388,10 +1609,9 @@ window.returnToSubjectHub = function(fromPopState = false) {
   if (hub) hub.style.display = "block";
   renderSubjectHubGrid(); 
   window.scrollTo({ top: 0, behavior: 'smooth' });
-  if (!fromPopState) history.replaceState({ view: 'viewLibrary', subView: 'hub' }, "", "#viewLibrary");
+  if (!fromPopState) history.replaceState({ page: 'main-tab', view: 'viewLibrary', subView: 'hub' }, "", "#viewLibrary");
 };
 
-// 🚀 TOPICS RENDERER (DEDUPLICATED, YOUTUBE-STYLE SELECTION HUD COMPLIANT)
 function renderTopicSets() {
   const container = document.getElementById("topicsContainer"); 
   if (!container) return; 
@@ -1461,7 +1681,6 @@ function renderTopicSets() {
 
     if (processed.length === 0 && currentFilter !== 'all') return;
     
-    // Natural alphanumeric sorting
     processed.sort((a, b) => String(a.setItem.test_title || "").localeCompare(String(b.setItem.test_title || ""), undefined, { numeric: true, sensitivity: 'base' }));
 
     const progPct = uniqueSets.length > 0 ? (topicMastered / uniqueSets.length) * 100 : 0;
@@ -1502,7 +1721,6 @@ function renderTopicSets() {
       }
 
       if (librarySelectionMode) {
-        // 🚀 YOUTUBE-STYLE INLINE BOOKMARK BUTTON
         const inTarget = targetPlaylistForSelection && userPlaylistItems.some(pi => pi.playlist_id === targetPlaylistForSelection.id && String(pi.test_id) === String(setItem.test_id));
         
         tile.innerHTML = `
@@ -1645,53 +1863,7 @@ window.launchMistakeBank = function(mode, forceAll = false) {
 };
 
 window.launchDailyMix = async function() {
-  const btn = document.getElementById("btnDailyMix"); 
-  if (btn) btn.innerHTML = `<span>⏳</span> <span class="hide-on-mobile">Generating...</span>`;
-  try {
-    const { data: atts } = await supabaseClient.from("test_attempts").select("test_id, score").eq("student_roll", currentCandidate.roll_number);
-    let finalQs = userWeakQuestions.filter(q => q.times_wrong > 0 && (q.mastery_streak || 0) < 4).sort(() => 0.5 - Math.random()).slice(0, 15).map(item => {
-      const qd = item.question_data || {}; 
-      let o = []; 
-      try { o = typeof qd.options === 'string' ? JSON.parse(qd.options || "[]") : (qd.options || []); } catch(e) { o = []; }
-      return { 
-        id: item.question_id || qd.id, 
-        content: qd.content, 
-        options: o, 
-        correctAnswer: getNormalizedCorrectAnswerId(qd.correct_answer || qd.correctAnswer, o), 
-        explanation: qd.explanation 
-      };
-    });
-    
-    let retCount = 25 - finalQs.length;
-    if (retCount > 0 && atts?.length > 0) {
-      const mIds = [...new Set(atts.map(a => a.test_id))], { data: sRows } = await supabaseClient.from("test_sections").select("id").in("test_id", mIds);
-      if (sRows?.length) {
-        const { data: mData } = await supabaseClient.from("test_section_questions").select(`questions (id, content, options, correct_answer, explanation)`).in("section_id", sRows.map(s => s.id)).limit(50);
-        if (mData) {
-          mData.map(item => Array.isArray(item.questions) ? item.questions[0] : item.questions).filter(Boolean).sort(() => 0.5 - Math.random()).slice(0, retCount).forEach(q => {
-            let o = []; 
-            try { o = typeof q.options === 'string' ? JSON.parse(q.options || "[]") : (q.options || []); } catch(e) { o = []; }
-            finalQs.push({ id: q.id, content: q.content, options: o, correctAnswer: getNormalizedCorrectAnswerId(q.correct_answer, o), explanation: q.explanation });
-          });
-        }
-      }
-    }
-    if (!finalQs.length) {
-      return showAppNoticeModal("Telemetry Needed", "No Question Telemetry Yet", "Attempt a set from the Library to unlock your customized Daily 25-Q Mix!", "🚀", "Explore Library", () => { 
-        switchView("viewLibrary"); 
-        returnToSubjectHub(true); 
-      });
-    }
-    practiceQuestions = finalQs.map((q, i) => ({ ...q, qNum: i + 1 }));
-    const tEl = document.getElementById("practiceSetTitle"); 
-    if (tEl) tEl.innerText = "Daily Mix (15 Weak + 10 Retention)";
-    switchView("viewPractice"); 
-    renderInteractiveQuizMode();
-  } catch (err) { 
-    showAppNoticeModal("Mix Error", "Failed to compile mix", err.message, "⚠️", "Dismiss"); 
-  } finally { 
-    if (btn) btn.innerHTML = `<span class="fab-icon">🚀</span> <span class="fab-label hide-on-mobile">Daily Mix</span>`; 
-  }
+  await launchBoosterMode('exam');
 };
 
 window.launchAssessment = async function(testId) {
@@ -1743,7 +1915,6 @@ window.launchAssessment = async function(testId) {
   }
 };
 
-// 🚨 REFINED HIGH-TECH EXAM ABORT ENGINE (SAFE DISCARD & CLEAR VISIBILITY)
 window.abortExamSession = function() {
   const modal = document.getElementById("abortExamModal");
   if (modal) {
@@ -1962,19 +2133,22 @@ function renderScorecard() {
     try {
       await supabaseClient.from("test_attempts").insert({ student_roll: currentCandidate.roll_number, test_id: activeTest.id, score, total_correct: correct, total_incorrect: incorrect, time_spent_seconds: tSecs });
       
-      dailyPerf.total_questions_attempted = (dailyPerf.total_questions_attempted || 0) + actuallyAttemptedThisExam;
-      const hit = dailyPerf.total_questions_attempted >= 100; 
-      let nStreak = dailyPerf.streak_count || 0;
-      if (hit && !dailyPerf.is_century_hit) { 
-        nStreak += 1; 
-        showAppNoticeModal("Daily Milestone", "Baseline Target Hit! 🔥", "You completed your 100-Question Target for today! Streak +1 secured.", "🎉", "Keep Going"); 
-      }
-      await supabaseClient.from("daily_performance").update({ total_questions_attempted: dailyPerf.total_questions_attempted, is_century_hit: hit, streak_count: nStreak }).eq("id", dailyPerf.id);
-      dailyPerf.is_century_hit = hit; 
-      dailyPerf.streak_count = nStreak;
+      // 🚀 MILESTONE ISOLATION: Sirf regular syllabus tests (test_id > 0) ko 100-Q bar mein add karein
+      if (activeTest.id > 0) {
+        dailyPerf.total_questions_attempted = (dailyPerf.total_questions_attempted || 0) + actuallyAttemptedThisExam;
+        const hit = dailyPerf.total_questions_attempted >= 100; 
+        let nStreak = dailyPerf.streak_count || 0;
+        if (hit && !dailyPerf.is_century_hit) { 
+          nStreak += 1; 
+          showAppNoticeModal("Daily Milestone", "Baseline Target Hit! 🔥", "You completed your 100-Question Target for today! Streak +1 secured.", "🎉", "Keep Going"); 
+        }
+        await supabaseClient.from("daily_performance").update({ total_questions_attempted: dailyPerf.total_questions_attempted, is_century_hit: hit, streak_count: nStreak }).eq("id", dailyPerf.id);
+        dailyPerf.is_century_hit = hit; 
+        dailyPerf.streak_count = nStreak;
 
-      const tList = userPlaylists.find(p => p.playlist_name === 'Today');
-      if (tList) await supabaseClient.from("playlist_items").delete().match({ playlist_id: tList.id, test_id: activeTest.id, student_roll: currentCandidate.roll_number });
+        const tList = userPlaylists.find(p => p.playlist_name === 'Today');
+        if (tList) await supabaseClient.from("playlist_items").delete().match({ playlist_id: tList.id, test_id: activeTest.id, student_roll: currentCandidate.roll_number });
+      }
     } catch (e) { 
       console.error("Score Sync Error:", e); 
     }
@@ -1997,7 +2171,7 @@ window.closeExamAndReload = async function() {
   closeExamModal(); 
   isExamFinished = true; 
   await fetchPlaylistsAndCheckRollover(); 
-  renderHomePlaylists(); 
+  await renderHomePlaylists(); 
   switchView('viewDashboard'); 
 };
 
@@ -2524,7 +2698,6 @@ function renderQuizUI() {
   }
 }
 
-// 🚀 FIXED: IN-PLACE STAR TOGGLE PREVENTING SCROLL RESET OR JUMPING
 window.toggleQuizStar = function(idx) { 
   const isStarred = localQuizState.starred.has(idx);
   if (isStarred) {
@@ -2569,22 +2742,9 @@ window.toggleQuizStar = function(idx) {
   }
 };
 
-window.finishQuizSession = async function() {
+window.finishQuizSession = function() {
   localQuizState.isFinished = true; 
   localQuizState.filter = "all";
-  const attempted = Object.keys(localQuizState.answers).length;
-  if (attempted > 0 && currentCandidate) {
-    dailyPerf.total_questions_attempted = (dailyPerf.total_questions_attempted || 0) + attempted;
-    const hit = dailyPerf.total_questions_attempted >= 100; 
-    let nStr = dailyPerf.streak_count || 0;
-    if (hit && !dailyPerf.is_century_hit) { 
-      nStr += 1; 
-      showAppNoticeModal("Daily Milestone", "Baseline Target Hit! 🔥", "You completed your 100-Question Target for today! Streak +1 secured.", "🎉", "Keep Going"); 
-    }
-    await supabaseClient.from("daily_performance").update({ total_questions_attempted: dailyPerf.total_questions_attempted, is_century_hit: hit, streak_count: nStr }).eq("id", dailyPerf.id);
-    dailyPerf.is_century_hit = hit; 
-    dailyPerf.streak_count = nStr;
-  }
   renderQuizUI(); 
   window.scrollTo({ top: 0, behavior: 'smooth' });
 };
@@ -2623,7 +2783,7 @@ function renderFlashcardMode() {
 }
 
 // ==========================================================================
-// 11. ELEGANT MOBILE APP EXIT DIALOG CONTROLLER
+// 11. ELEGANT MOBILE APP EXIT DIALOG CONTROLLER (RE-ARM REINFORCED)
 // ==========================================================================
 window.showExitConfirmModal = function() {
   const modal = document.getElementById('exitConfirmModal');
@@ -2633,6 +2793,9 @@ window.showExitConfirmModal = function() {
 window.closeExitConfirmModal = function() {
   const modal = document.getElementById('exitConfirmModal');
   if (modal) modal.style.display = 'none';
+  if (!history.state || history.state.page === 'exit-gate') {
+    history.pushState({ page: 'dashboard', view: 'viewDashboard' }, '', '#viewDashboard');
+  }
 };
 
 window.confirmExitApp = function() {
