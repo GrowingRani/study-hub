@@ -353,7 +353,7 @@ window.switchMasteryView = function(viewType) {
     if (rWrap) rWrap.style.display = "none"; 
     if (gWrap) gWrap.style.display = "grid"; 
     bGrid?.classList.add("active"); 
-    bRadar?.classList.remove("active"); 
+    bGrid?.classList.remove("active"); 
   }
 };
 
@@ -844,7 +844,7 @@ window.openEditPlaylistModal = function(pId, pName) {
   if (idIn) idIn.value = pId; 
   if (nameIn) nameIn.value = pName;
   if (m) { m.style.display = "flex"; m.style.pointerEvents = "auto"; }
-  setTimeout(() => nameIn?.focus(), 60);
+  setTimeout(() => nameIn?.focus(), 60); 
 };
 
 window.closeEditPlaylistModal = function() { 
@@ -922,7 +922,7 @@ window.confirmDeletePlaylist = async function() {
 };
 
 // ==========================================================================
-// 7. HOME DECK & PLAYLIST ENGINE (BONUS BOOSTER SET PINNED & ISOLATED)
+// 7. HOME DECK & PLAYLIST ENGINE (UNIFORM BOOSTER CARD WITH ZERO-LAG SYNC)
 // ==========================================================================
 async function mountDashboard(isInitialLoad = false) {
   const cName = document.getElementById("dashCandidateName"); 
@@ -971,7 +971,6 @@ async function fetchPlaylistsAndCheckRollover() {
 
     const todayStr = getLocalDateString();
     
-    // 🚀 CALCULATE ACTUAL OFFICIAL QUESTIONS ATTEMPTED TODAY FROM test_attempts (EXCLUDING BONUS TEST_ID -1)
     const { data: todayAttRows } = await supabaseClient
       .from("test_attempts")
       .select("test_id, total_correct, total_incorrect, attempt_date")
@@ -1032,7 +1031,6 @@ async function compileMasteryBoosterPool(maxLimit = 25) {
   let assembled = [];
   const seenIds = new Set();
 
-  // 1. Pull Mistakes from Mistake Bank
   const now = new Date();
   const mistakePool = userWeakQuestions.filter(q => 
     q.times_wrong > 0 && 
@@ -1058,7 +1056,6 @@ async function compileMasteryBoosterPool(maxLimit = 25) {
     }
   });
 
-  // 2. Pull Recall/Retention Questions from Past Attempted Sets
   const remainingNeeded = maxLimit - assembled.length;
   if (remainingNeeded > 0 && userAttemptHistory?.length > 0) {
     const pastTestIds = [...new Set(userAttemptHistory.map(a => a.test_id).filter(id => id > 0))];
@@ -1103,7 +1100,6 @@ async function compileMasteryBoosterPool(maxLimit = 25) {
   return assembled.map((q, idx) => ({ ...q, qNum: idx + 1 }));
 }
 
-// 🚀 LAUNCH DYNAMIC BOOSTER SET (Exam, Read, Flashcard, Quiz)
 window.launchBoosterMode = async function(mode = 'exam') {
   const boosterQuestions = await compileMasteryBoosterPool(25);
   if (!boosterQuestions.length) {
@@ -1117,7 +1113,7 @@ window.launchBoosterMode = async function(mode = 'exam') {
     switchView("viewExam", true);
     activeTest = {
       id: -1,
-      title: "Mistakes & Active Retention Set",
+      title: "Bonus Mastery Booster",
       total_duration_minutes: Math.max(3, Math.ceil(qCount * 0.6))
     };
 
@@ -1137,7 +1133,7 @@ window.launchBoosterMode = async function(mode = 'exam') {
   } else {
     practiceQuestions = boosterQuestions;
     const tEl = document.getElementById("practiceSetTitle");
-    if (tEl) tEl.innerText = `Mistakes & Retention Set (${qCount} Qs)`;
+    if (tEl) tEl.innerText = `Bonus Mastery Booster (${qCount} Qs)`;
     const mEl = document.getElementById("practiceModeTitle");
     if (mEl) mEl.innerText = mode === "read" ? "📖 READ MODE" : (mode === "quiz" ? "⚡ INSTANT QUIZ" : "🗂️ FLASHCARDS");
 
@@ -1161,7 +1157,7 @@ async function renderHomePlaylists() {
   weekContainer.innerHTML = ""; 
   if (customContainer) customContainer.innerHTML = "";
 
-  // 🚀 RENDER PINNED DYNAMIC BOOSTER SET TILE (ZERO-STATE IS STRICTLY NEUTRAL MUTED SLATE)
+  // 🚀 RENDER COMPACT UNIFORM BOOSTER CARD MATCHING EXACT GRID SLOT & SPACING
   if (revContainer) {
     const boosterQuestions = await compileMasteryBoosterPool(25);
     const qCount = boosterQuestions.length;
@@ -1171,13 +1167,21 @@ async function renderHomePlaylists() {
         <div class="set-tile dynamic-revision-tile state-clean">
           <div class="set-tile-header">
             <div class="set-tile-title-group">
-              <span class="set-badge-adaptive">⚪ EMPTY POOL</span>
-              <div class="set-tile-title" style="color: #64748b;">Mistakes & Active Retention Booster</div>
+              <div class="set-tile-title" style="color: #64748b;">Bonus Mastery Booster</div>
             </div>
-            <span class="clean-slate-pill">0 DUE FOR REVIEW</span>
+            <div style="display:flex; gap: 6px; align-items: center; flex-shrink: 0;">
+              <span class="clean-slate-pill">0 Due</span>
+            </div>
           </div>
           <div class="set-tile-meta">
-            <span style="color:#64748b; font-size:11.5px; white-space:normal; line-height:1.45; word-break:break-word; display:block;">No mistakes or past sets pending. Attempt library sets to unlock booster sessions.</span>
+            <span>${clockSvg} 0m</span>
+            <span>${docSvg} 0 Qs</span>
+          </div>
+          <div class="set-score-info"><span style="color:#64748b;">Mistakes & Recall Cleared</span></div>
+          <div class="set-action-footer">
+            <button type="button" class="btn-launch-set" style="background:var(--bg-surface-elevated); color:#94a3b8; border:1px solid var(--border-color); cursor:default;" disabled>
+              <span>✓</span> <span>Clean</span>
+            </button>
           </div>
         </div>
       `;
@@ -1187,18 +1191,19 @@ async function renderHomePlaylists() {
         <div class="set-tile dynamic-revision-tile state-active">
           <div class="set-tile-header">
             <div class="set-tile-title-group">
-              <span class="set-badge-adaptive">⚡ BONUS MASTERY BOOSTER</span>
-              <div class="set-tile-title">Mistakes & Active Retention Set</div>
+              <div class="set-tile-title">Bonus Mastery Booster</div>
             </div>
-            <div class="set-status-badge status-progress" style="background:rgba(245,158,11,0.15); color:#d97706; border:1px solid rgba(245,158,11,0.3);">
-              ${qCount} DUE FOR REVIEW
+            <div style="display:flex; gap: 6px; align-items: center; flex-shrink: 0;">
+              <div class="set-status-badge status-progress" style="background:rgba(245,158,11,0.15); color:#d97706; border:1px solid rgba(245,158,11,0.3);">
+                ${qCount} Due
+              </div>
             </div>
           </div>
           <div class="set-tile-meta">
             <span>${clockSvg} ${durationMins}m</span>
             <span>${docSvg} ${qCount} Qs</span>
-            <span style="color:#64748b; font-size:11px;">(Bonus • Excluded from 100-Q Target)</span>
           </div>
+          <div class="set-score-info"><span style="color:#d97706;">Mistakes & Active Recall</span></div>
           <div class="set-action-footer">
             <button type="button" class="btn-launch-set" onclick="launchBoosterMode('exam')">
               <span>▶</span> <span>Exam</span>
@@ -1311,7 +1316,6 @@ async function renderHomePlaylists() {
     });
   }
 
-  // 🎯 MULTI-TIER BAROMETER LOGIC (STRICTLY FROM SYLLABUS SETS, a.test_id > 0)
   const targetQ = 100, todayStr = getLocalDateString();
   const todayAttempts = userAttemptHistory.filter(a => (a.attempt_date || "").split("T")[0] === todayStr && a.test_id > 0);
   let todayMasteredQ = 0;
@@ -1444,7 +1448,6 @@ window.enableLibrarySelectionMode = function(pId, pName) {
   librarySelectionMode = true; 
   targetPlaylistForSelection = { id: pId, name: pName }; 
   
-  // 1. Hide regular bottom bar & apply top-dock staging spacing
   document.body.classList.add("staging-active");
 
   switchView('viewLibrary'); 
@@ -1502,23 +1505,19 @@ window.cancelLibrarySelectionMode = async function() {
     toast.style.display = "none";
   }
 
-  // 🚀 1. Pehle turant Dashboard par switch karein (Zero UI Lag & No Ghost Bar)
   document.body.classList.remove("staging-active");
   switchView('viewDashboard');
   updateBottomNav(document.getElementById('navHomeBtn'));
 
-  // 🚀 2. Local memory se sets turant paint karein & modified playlist auto-expand karein
   renderHomePlaylists();
   autoExpandPlaylistCard(targetName);
 
-  // 🚀 3. Clear visual confirmation toast trigger karein
   if (stagedCount > 0) {
     showSelectionToast(`✓ ${targetName} updated (${stagedCount} Sets ready)`);
   } else {
     showSelectionToast(`✓ ${targetName} queue updated`);
   }
 
-  // 🚀 4. Cloud sync background mein chalne dein
   await fetchPlaylistsAndCheckRollover(); 
   renderTopicSets(); 
   await renderHomePlaylists();
@@ -1563,7 +1562,6 @@ window.toggleDirectStaging = async function(testId) {
   updateStagingDockUI();
 };
 
-// 🚀 2-STEP 3-DOTS MENU & YOUTUBE-STYLE BOTTOM SHEET
 window.openThreeDotsMenu = function(event, testId) {
   if (event) { event.preventDefault(); event.stopPropagation(); }
   currentThreeDotsTestId = testId; 
@@ -1581,7 +1579,7 @@ window.openThreeDotsMenu = function(event, testId) {
   let leftPos = btnRect.right - menuWidth; 
   if (leftPos < 10) leftPos = 10;
   let topPos = btnRect.bottom + 6; 
-  if (topPos + 60 > window.innerHeight) topPos = btnRect.top - 50;
+  if (topPos + 60 > window.innerHeight) topPos = Math.max(10, btnRect.top - 50);
   menu.style.top = `${topPos}px`; 
   menu.style.left = `${leftPos}px`;
 };
@@ -1669,7 +1667,6 @@ async function fetchWeakQuestions() {
   }
 }
 
-// 🚀 COMPLETE PAGINATED VIEW FETCHING (PREVENTS 1000-ROW TRUNCATION)
 async function fetchTestCatalog() {
   const hub = document.getElementById("subjectHubContainer"); 
   if (!hub) return;
@@ -1699,20 +1696,19 @@ async function fetchTestCatalog() {
     return;
   }
 
-  // Deduplicate strictly by test_id
   const unique = [], seen = new Set();
   allCat.forEach(r => { 
     const id = String(r.test_id); 
     if (!seen.has(id)) { 
       seen.add(id); 
-      r.subject = (r.subject && String(r.subject).trim()) || "General Studies";
-      r.topic = (r.topic && String(r.topic).trim()) || "Core Practice";
+      r.subject = (r.subject || "General Studies").trim();
+      r.topic = (r.topic || "Core Practice").trim();
       unique.push(r); 
     } 
   });
   catalogData = unique;
 
-  const { data: hist } = await supabaseClient.from("test_attempts").select("test_id, score, total_correct, total_incorrect, attempt_date").eq("student_roll", currentCandidate.roll_number).order("attempt_date", { ascending: false });
+  const { data: hist } = await supabaseClient.from("test_attempts").select("test_id, score, total_correct, total_incorrect, attempt_date, time_spent_seconds").eq("student_roll", currentCandidate.roll_number).order("attempt_date", { ascending: false });
   userAttemptHistory = hist || []; 
   renderSubjectHubGrid();
 }
@@ -1728,7 +1724,6 @@ function renderSubjectHubGrid() {
     map[s].sets.push(r); 
   });
 
-  // Natural dictionary sort for Subject Domains
   Object.entries(map).sort((a, b) => a[0].localeCompare(b[0], undefined, { numeric: true, sensitivity: 'base' })).forEach(([subName, data]) => {
     const totalSets = data.sets.length; 
     let completedSets = 0, totalAtt = 0, sumPct = 0, attemptedSets = 0;
@@ -1815,10 +1810,8 @@ function renderTopicSets() {
   if (!container) return; 
   container.innerHTML = "";
   
-  // 🚀 Update persistent floating staging dock & top domain chips
   updateStagingDockUI();
 
-  // Exact case-insensitive trimmed matching
   const filtered = catalogData.filter(r => (r.subject || "General Studies").trim().toLowerCase() === (activeSubject || "").trim().toLowerCase());
   let totalSets = filtered.length, unattempted = 0, revise = 0, mastered = 0;
   filtered.forEach(s => {
@@ -1840,18 +1833,16 @@ function renderTopicSets() {
 
   const grouped = {}; 
   filtered.forEach(item => { 
-    const k = (item.topic && String(item.topic).trim()) || "Core Practice"; 
+    const k = (item.topic || "Core Practice").trim(); 
     if (!grouped[k]) grouped[k] = []; 
     grouped[k].push(item); 
   });
 
-  // Natural dictionary sort for topic groups
   Object.entries(grouped).sort((a, b) => a[0].localeCompare(b[0], undefined, { numeric: true, sensitivity: 'base' })).forEach(([topicName, sets]) => {
     let topicMastered = 0; 
     const processed = [];
     const uniqueSets = [], seenIds = new Set();
     
-    // Deduplicate ONLY by unique test_id
     sets.forEach(item => {
       const idK = String(item.test_id);
       if (!seenIds.has(idK)) { 
@@ -1873,7 +1864,6 @@ function renderTopicSets() {
 
     if (processed.length === 0 && currentFilter !== 'all') return;
     
-    // Natural dictionary sort for Question Sets inside topic (e.g. Set 1, Set 2, Set 10)
     processed.sort((a, b) => {
       const titleA = String(a.setItem.test_title || "").trim();
       const titleB = String(b.setItem.test_title || "").trim();
@@ -1966,7 +1956,6 @@ function renderTopicSets() {
     groupCard.appendChild(body); 
     container.appendChild(groupCard);
     
-    // 🚀 RESTORED: Both normal & selection mode now freely collapse and expand
     header.onclick = () => {
       const isOpen = groupCard.classList.contains("open");
       container.querySelectorAll(".topic-accordion-card").forEach(c => { 
@@ -1982,29 +1971,43 @@ function renderTopicSets() {
   });
 }
 
+// 🚀 HIGH-SPEED BATCHED MISTAKE BANK SYNC (REPLACES 40 SEQUENTIAL REQUESTS WITH 1 PARALLEL BATCH)
 const REVIEW_INTERVALS_DAYS = [1, 3, 6, 15];
 async function syncMistakeBank(payloads) {
-  if (!payloads?.length) return;
+  if (!payloads?.length || !currentCandidate) return;
   try {
+    const qIds = payloads.map(p => p.question_id ? String(p.question_id) : String(Math.abs((p.question_data.content || "").length * 999)));
+    const { data: existingRows } = await supabaseClient
+      .from("student_question_stats")
+      .select("id, question_id, times_wrong, times_correct, mastery_streak, next_review_at")
+      .eq("student_roll", currentCandidate.roll_number)
+      .in("question_id", qIds);
+
+    const exMap = new Map((existingRows || []).map(r => [String(r.question_id), r]));
+    const updates = [];
+    const inserts = [];
+
     for (const p of payloads) {
       const qId = p.question_id ? String(p.question_id) : String(Math.abs((p.question_data.content || "").length * 999));
-      const { data: ex } = await supabaseClient.from("student_question_stats").select("id, times_wrong, times_correct, mastery_streak, next_review_at").eq("student_roll", p.student_roll).eq("question_id", qId).maybeSingle();
+      const ex = exMap.get(qId);
       if (ex) {
-        let nStreak = p.isCorrect ? Math.min(4, (ex.mastery_streak || 0) + 1) : 0, nRev = new Date();
+        let nStreak = p.isCorrect ? Math.min(4, (ex.mastery_streak || 0) + 1) : 0;
+        let nRev = new Date();
         if (p.isCorrect && nStreak < 4) nRev.setDate(nRev.getDate() + REVIEW_INTERVALS_DAYS[nStreak - 1]); 
         else if (p.isCorrect) nRev.setFullYear(nRev.getFullYear() + 100);
-        await supabaseClient.from("student_question_stats").update({ 
+        
+        updates.push(supabaseClient.from("student_question_stats").update({ 
           times_wrong: p.isCorrect ? ex.times_wrong : ex.times_wrong + 1, 
           times_correct: p.isCorrect ? ex.times_correct + 1 : ex.times_correct, 
           mastery_streak: nStreak, 
           next_review_at: nRev.toISOString(), 
           last_attempt_date: new Date().toISOString(), 
           question_data: p.question_data 
-        }).eq("id", ex.id);
+        }).eq("id", ex.id));
       } else {
         let nRev = new Date(); 
         if (p.isCorrect) nRev.setDate(nRev.getDate() + REVIEW_INTERVALS_DAYS[0]);
-        await supabaseClient.from("student_question_stats").insert({ 
+        inserts.push({ 
           student_roll: p.student_roll, 
           subject: p.subject, 
           question_id: qId, 
@@ -2016,6 +2019,9 @@ async function syncMistakeBank(payloads) {
         });
       }
     }
+
+    if (inserts.length > 0) await supabaseClient.from("student_question_stats").insert(inserts);
+    if (updates.length > 0) await Promise.allSettled(updates);
     await fetchWeakQuestions();
   } catch (e) { 
     console.error("Mistake Bank Sync Error:", e); 
@@ -2273,6 +2279,7 @@ window.confirmAndFinishExam = function() {
   renderScorecard(); 
 };
 
+// 🚀 CRITICAL FIX: INSTANT IN-MEMORY TELEMETRY RECORDING & ZERO-LAG ATTEMPT SYNC
 function renderScorecard() {
   let correct = 0, incorrect = 0, unattempted = 0, statsPayload = [];
   testQuestions.forEach((q, idx) => {
@@ -2290,7 +2297,21 @@ function renderScorecard() {
   });
 
   const actuallyAttemptedThisExam = correct + incorrect;
-  const score = (correct * 2.00) - (incorrect * 0.50), tSecs = Math.max(0, ((activeTest.total_duration_minutes || 15) * 60) - timeRemaining), tMins = Math.ceil(tSecs / 60);
+  const score = (correct * 2.00) - (incorrect * 0.50);
+  const tSecs = Math.max(0, ((activeTest.total_duration_minutes || 15) * 60) - timeRemaining);
+  const tMins = Math.ceil(tSecs / 60);
+
+  // 🚀 1. IMMEDIATE IN-MEMORY PUSH: GUI & Library recognize score instantly
+  const localAttemptRecord = {
+    test_id: activeTest.id,
+    score: score,
+    total_correct: correct,
+    total_incorrect: incorrect,
+    time_spent_seconds: tSecs,
+    attempt_date: new Date().toISOString()
+  };
+  userAttemptHistory.unshift(localAttemptRecord);
+
   let modal = document.getElementById("submitModalContainer");
   if (!modal) { 
     modal = document.createElement("div"); 
@@ -2300,12 +2321,12 @@ function renderScorecard() {
   modal.className = "tcs-modal-overlay"; 
   modal.style.setProperty("display", "flex", "important");
   modal.innerHTML = `
-    <div class="tcs-modal-box" style="width: 620px;">
+    <div class="tcs-modal-box">
       <div class="tcs-modal-header" style="background:#16a34a;">Assessment Scorecard & Analysis</div>
       <div class="tcs-modal-body">
         <div class="score-highlight-card">
           <h2 class="score-highlight-title">Score: ${score.toFixed(2)} / ${(testQuestions.length * 2)}</h2>
-          <p style="font-size:12px; color:#64748b; margin-top:4px;">Time Taken: ${Math.floor(tSecs / 60)}m ${tSecs % 60}s | Marking: +2.00 | -0.50</p>
+          <p>Time Taken: ${Math.floor(tSecs / 60)}m ${tSecs % 60}s | Marking: +2.00 | -0.50</p>
         </div>
         <table class="modal-summary-table">
           <tbody>
@@ -2324,11 +2345,25 @@ function renderScorecard() {
     </div>`;
 
   (async () => {
-    if (statsPayload.length) await syncMistakeBank(statsPayload);
     try {
-      await supabaseClient.from("test_attempts").insert({ student_roll: currentCandidate.roll_number, test_id: activeTest.id, score, total_correct: correct, total_incorrect: incorrect, time_spent_seconds: tSecs });
-      
-      // 🚀 MILESTONE ISOLATION: Sirf regular syllabus tests (test_id > 0) ko 100-Q bar mein add karein
+      // 🚀 2. INSERT TEST ATTEMPT FIRST SO RECORD IS NEVER LOST
+      const { error: insErr } = await supabaseClient.from("test_attempts").insert({ 
+        student_roll: currentCandidate.roll_number, 
+        test_id: activeTest.id, 
+        score, 
+        total_correct: correct, 
+        total_incorrect: incorrect, 
+        time_spent_seconds: tSecs 
+      });
+      if (insErr) throw insErr;
+
+      // 🚀 3. IMMEDIATE METRICS CONFIRMATION
+      const sMsg = document.getElementById("syncStatusMsg"); 
+      if (sMsg) { 
+        sMsg.style.color = "#16a34a"; 
+        sMsg.innerText = "✔ Progress & Metrics Synced Successfully"; 
+      }
+
       if (activeTest.id > 0) {
         dailyPerf.total_questions_attempted = (dailyPerf.total_questions_attempted || 0) + actuallyAttemptedThisExam;
         const hit = dailyPerf.total_questions_attempted >= 100; 
@@ -2337,27 +2372,38 @@ function renderScorecard() {
           nStreak += 1; 
           showAppNoticeModal("Daily Milestone", "Baseline Target Hit! 🔥", "You completed your 100-Question Target for today! Streak +1 secured.", "🎉", "Keep Going"); 
         }
-        await supabaseClient.from("daily_performance").update({ total_questions_attempted: dailyPerf.total_questions_attempted, is_century_hit: hit, streak_count: nStreak }).eq("id", dailyPerf.id);
+        await supabaseClient.from("daily_performance").update({ 
+          total_questions_attempted: dailyPerf.total_questions_attempted, 
+          is_century_hit: hit, 
+          streak_count: nStreak 
+        }).eq("id", dailyPerf.id);
         dailyPerf.is_century_hit = hit; 
         dailyPerf.streak_count = nStreak;
 
         const tList = userPlaylists.find(p => p.playlist_name === 'Today');
-        if (tList) await supabaseClient.from("playlist_items").delete().match({ playlist_id: tList.id, test_id: activeTest.id, student_roll: currentCandidate.roll_number });
+        if (tList) {
+          await supabaseClient.from("playlist_items").delete().match({ 
+            playlist_id: tList.id, 
+            test_id: activeTest.id, 
+            student_roll: currentCandidate.roll_number 
+          });
+        }
       }
-    } catch (e) { 
-      console.error("Score Sync Error:", e); 
-    }
 
-    try {
       const today = getLocalDateString();
       const { data: att } = await supabaseClient.from("daily_attendance").select("id, total_minutes_spent").eq("student_roll", currentCandidate.roll_number).eq("study_date", today).maybeSingle();
       if (att) await supabaseClient.from("daily_attendance").update({ total_minutes_spent: att.total_minutes_spent + tMins }).eq("id", att.id);
       else await supabaseClient.from("daily_attendance").insert({ student_roll: currentCandidate.roll_number, study_date: today, total_minutes_spent: tMins });
-      const sMsg = document.getElementById("syncStatusMsg"); 
-      if (sMsg) { sMsg.style.color = "#16a34a"; sMsg.innerText = "✔ Progress & Metrics Synced Successfully"; }
+
+      // 🚀 4. BATCHED MISTAKE BANK SYNC
+      if (statsPayload.length) await syncMistakeBank(statsPayload);
     } catch (e) { 
+      console.error("Score Sync Error:", e); 
       const sMsg = document.getElementById("syncStatusMsg"); 
-      if (sMsg) { sMsg.style.color = "#dc2626"; sMsg.innerText = "⚠ Saved locally (Cloud sync failed)"; } 
+      if (sMsg) { 
+        sMsg.style.color = "#dc2626"; 
+        sMsg.innerText = "⚠ Saved in local session (Cloud sync failed)"; 
+      }
     }
   })();
 }
@@ -2365,8 +2411,24 @@ function renderScorecard() {
 window.closeExamAndReload = async function() { 
   closeExamModal(); 
   isExamFinished = true; 
+  
+  // 🚀 RE-SYNC FRESH ATTEMPTS FROM SERVER TO PREVENT "NOT ATTEMPTED" GLITCH
+  try {
+    const { data: hist } = await supabaseClient
+      .from("test_attempts")
+      .select("test_id, score, total_correct, total_incorrect, attempt_date, time_spent_seconds")
+      .eq("student_roll", currentCandidate.roll_number)
+      .order("attempt_date", { ascending: false });
+    if (hist && hist.length > 0) userAttemptHistory = hist;
+  } catch (e) {
+    console.error("Error refreshing attempt history:", e);
+  }
+
   await fetchPlaylistsAndCheckRollover(); 
   await renderHomePlaylists(); 
+  renderSubjectHubGrid();
+  if (activeSubject) renderTopicSets();
+  fetchStudentAnalytics(true);
   switchView('viewDashboard'); 
 };
 
@@ -2978,7 +3040,7 @@ function renderFlashcardMode() {
 }
 
 // ==========================================================================
-// 11. ELEGANT MOBILE APP EXIT DIALOG CONTROLLER (FAIL-SAFE PWA & NATIVE EXIT)
+// 11. ELEGANT MOBILE APP EXIT DIALOG CONTROLLER (ZERO ABOUT:BLANK WINDOW)
 // ==========================================================================
 window.showExitConfirmModal = function() {
   const modal = document.getElementById('exitConfirmModal');
@@ -3015,14 +3077,10 @@ window.confirmExitApp = function() {
   
   setTimeout(() => {
     try {
-      window.open('', '_self', '');
       window.close();
-    } catch (e) {
-      console.warn("window.close bypassed by browser sandbox");
-    }
+    } catch (e) {}
     if (window.history.length > 1) {
-      window.history.go(-(window.history.length));
+      window.history.back();
     }
-    window.location.replace("about:blank");
   }, 100);
 };
