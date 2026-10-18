@@ -416,26 +416,8 @@
         </div>
       </div>
 
-      <!-- 🚀 CLEAN HIGH-TECH SELECTION HUD BANNER (SINGLE TOP CANCEL / EXIT) -->
-      <div id="librarySelectionBanner" class="library-selection-hud-banner" style="display: none;">
-        <div class="hud-banner-left">
-          <div class="hud-pulse-radar">
-            <span class="hud-pulse-ring"></span>
-            <span class="hud-pulse-dot"></span>
-          </div>
-          <div class="hud-text-stack">
-            <span class="hud-banner-label">STAGING TO PLAYLIST</span>
-            <strong id="hudTargetPlaylistName" class="hud-target-name">Target Playlist</strong>
-          </div>
-        </div>
-        <div class="hud-banner-right">
-          <span class="hud-web-hint hide-on-mobile">Click bookmark to save sets directly</span>
-          <button type="button" class="btn-hud-cancel" onclick="cancelLibrarySelectionMode()" title="Exit Staging Mode">
-            <span>Done</span>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
-          </button>
-        </div>
-      </div>
+      <!-- 🚀 FAST SUBJECT SWITCHER STRIP (SELECTION & EXPLORER MODE) -->
+      <nav id="stagingDomainScroller" class="staging-domain-scroller" style="display: none;" aria-label="Subject Domains"></nav>
 
       <span id="activeSubjectTitle" style="display: none;"></span>
 
@@ -448,6 +430,32 @@
 
       <div class="topics-grid" id="topicsContainer"></div>
     </main>
+
+    <!-- 🚀 FLOATING STAGING DOCK (ELEGANT BOTTOM CAPSULE) -->
+    <aside id="libraryFloatingDock" class="staging-floating-dock" style="display: none;">
+      <div class="dock-glow-backdrop"></div>
+      <div class="dock-content">
+        <div class="dock-meta-group">
+          <div class="dock-radar-pulse">
+            <span class="dock-ring"></span>
+            <span class="dock-core"></span>
+          </div>
+          <div class="dock-text-stack">
+            <div class="dock-target-row">
+              <span class="dock-badge">STAGING QUEUE</span>
+              <strong id="dockTargetPlaylistName" class="dock-playlist-name">Target Playlist</strong>
+            </div>
+            <span id="dockStagedCounter" class="dock-counter-text">0 Sets Selected (0 Qs)</span>
+          </div>
+        </div>
+        <button type="button" class="btn-dock-finish" onclick="cancelLibrarySelectionMode()" title="Save & Return to Dashboard">
+          <span>Done</span>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+        </button>
+      </div>
+    </aside>
 
     <!-- 🚀 YOUTUBE-STYLE FLOATING SELECTION TOAST NOTIFICATION -->
     <div id="selectionToast" class="selection-toast" style="display: none;">

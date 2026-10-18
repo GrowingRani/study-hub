@@ -151,17 +151,38 @@ function updateDesktopNav(viewId) {
 }
 
 function closeAllOverlaysAndPopups() {
-  closeThreeDotsMenu(); 
-  closePlaylistActionMenu(); 
-  closePlaylistBottomSheet(); 
-  closeAppNoticeModal();
-  closeCreatePlaylistModal(); 
-  closeEditPlaylistModal(); 
-  closeDeletePlaylistModal(); 
-  closeExamModal();
-  closeAbortExamModal();
+  let closedSomething = false;
+
+  const isVisible = (id) => {
+    const el = document.getElementById(id);
+    if (!el) return false;
+    // Check if element is active in DOM
+    return el.style.display === 'flex' || el.style.display === 'block' || el.classList.contains('open');
+  };
+
+  if (isVisible('threeDotsMenuOverlay')) { closeThreeDotsMenu(); closedSomething = true; }
+  if (isVisible('playlistActionMenuOverlay')) { closePlaylistActionMenu(); closedSomething = true; }
+  if (isVisible('playlistBottomSheetOverlay')) { closePlaylistBottomSheet(); closedSomething = true; }
+  if (isVisible('appNoticeModal')) { closeAppNoticeModal(); closedSomething = true; }
+  if (isVisible('createPlaylistModal')) { closeCreatePlaylistModal(); closedSomething = true; }
+  if (isVisible('editPlaylistModal')) { closeEditPlaylistModal(); closedSomething = true; }
+  if (isVisible('deletePlaylistConfirmModal')) { closeDeletePlaylistModal(); closedSomething = true; }
+  if (isVisible('abortExamModal')) { closeAbortExamModal(); closedSomething = true; }
+  
+  // Submit modal check requires explicit innerHTML check
+  const submitModal = document.getElementById('submitModalContainer');
+  if (submitModal && submitModal.style.display === 'flex' && submitModal.innerHTML !== "") { 
+    closeExamModal(); 
+    closedSomething = true; 
+  }
+
   const exitModal = document.getElementById('exitConfirmModal');
-  if (exitModal) exitModal.style.display = 'none';
+  if (exitModal && exitModal.style.display === 'flex') {
+    exitModal.style.display = 'none';
+    // Not marking closedSomething=true here as exit modal is handled directly in popstate
+  }
+
+  return closedSomething;
 }
 
 function renderViewDOM(viewId) {
@@ -170,9 +191,13 @@ function renderViewDOM(viewId) {
     if (el) el.style.display = (id === viewId) ? "flex" : "none";
   });
 
-  const bottomNav = document.getElementById('mobileBottomNav');
+ const bottomNav = document.getElementById('mobileBottomNav');
   if (bottomNav) { 
-    if (window.innerWidth <= 768 && MAIN_TABS.includes(viewId)) {
+    // Agar librarySelectionMode true ho ya body par staging-active laga ho, toh force display none karein
+    if (librarySelectionMode || document.body.classList.contains("staging-active")) {
+      bottomNav.style.setProperty("display", "none", "important");
+      bottomNav.classList.add("nav-hidden");
+    } else if (window.innerWidth <= 768 && MAIN_TABS.includes(viewId)) {
       bottomNav.style.setProperty("display", "flex", "important");
       bottomNav.classList.remove("nav-hidden");
     } else {
@@ -191,12 +216,24 @@ window.switchView = function(viewId, pushHistory = true) {
   const currentActiveView = Array.from(document.querySelectorAll('.view-screen')).find(v => v.style.display === 'flex')?.id;
   if (currentActiveView === viewId) return;
 
+  if (librarySelectionMode && viewId !== 'viewLibrary') {
+    librarySelectionMode = false;
+    targetPlaylistForSelection = null;
+    document.body.classList.remove("staging-active");
+    const dock = document.getElementById("libraryFloatingDock");
+    if (dock) dock.style.display = "none";
+    const scroller = document.getElementById("stagingDomainScroller");
+    if (scroller) scroller.style.display = "none";
+  }
+
   renderViewDOM(viewId);
 
   if (pushHistory) {
     if (viewId === 'viewDashboard') {
-      history.replaceState({ page: 'dashboard', view: 'viewDashboard' }, '', '#viewDashboard');
+      // Direct push for root Home to ensure smooth back tracking
+      history.pushState({ page: 'dashboard', view: 'viewDashboard' }, '', '#viewDashboard');
     } else if (MAIN_TABS.includes(viewId)) {
+      // Replace state when swapping between secondary tabs to prevent huge history trails
       if (history.state?.page === 'main-tab') {
         history.replaceState({ page: 'main-tab', view: viewId }, '', '#' + viewId);
       } else {
@@ -209,23 +246,33 @@ window.switchView = function(viewId, pushHistory = true) {
 };
 
 window.addEventListener("popstate", function(e) {
+  // 1. Exit Modal Trap: Swipe back on Exit Modal cancels the exit
   const exitModal = document.getElementById('exitConfirmModal');
   if (exitModal && exitModal.style.display === 'flex') {
-    closeExitConfirmModal();
+    exitModal.style.display = 'none';
+    history.pushState({ page: 'dashboard', view: 'viewDashboard' }, '', '#viewDashboard');
     return;
   }
 
-  closeAllOverlaysAndPopups();
   const currentActiveView = Array.from(document.querySelectorAll('.view-screen')).find(v => v.style.display === 'flex')?.id;
 
-  // 1. Unsubmitted active exam session
+  // 2. Exam Mode Trap: Cannot leave without aborting
   if (currentActiveView === 'viewExam' && !isExamFinished) { 
     history.pushState({ page: 'sub-view', view: 'viewExam' }, '', '#viewExam'); 
     abortExamSession(); 
     return; 
   }
-  
-  // 2. Active search bar
+
+  // 3. ANY Popup/Overlay Trap: Close overlay & keep user strictly on the current page
+  if (closeAllOverlaysAndPopups()) {
+    history.pushState({ 
+      page: MAIN_TABS.includes(currentActiveView) ? (currentActiveView === 'viewDashboard' ? 'dashboard' : 'main-tab') : 'sub-view', 
+      view: currentActiveView 
+    }, '', '#' + currentActiveView);
+    return;
+  }
+
+  // 4. Search Bar Trap
   const searchBar = document.getElementById("mastheadSearchBar");
   if (searchBar && searchBar.style.display === "flex") { 
     toggleMastheadSearch(false); 
@@ -233,13 +280,13 @@ window.addEventListener("popstate", function(e) {
     return; 
   }
 
-  // 3. Staging / selection mode
+  // 5. Staging Mode Trap
   if (librarySelectionMode) {
     cancelLibrarySelectionMode();
     return; 
   }
 
-  // 4. Library topics sets explorer sub-stage
+  // 6. Sub-topics Explorer Trap
   if (currentActiveView === 'viewLibrary') {
     const setsExp = document.getElementById("setsExplorerStage");
     if (setsExp && setsExp.style.display === "block") {
@@ -248,28 +295,18 @@ window.addEventListener("popstate", function(e) {
     }
   }
 
-  // 5. Practice / Solutions return
-  if (['viewPractice', 'viewSolutions'].includes(currentActiveView)) {
-    isExamFinished = true;
-    renderViewDOM('viewDashboard');
-    history.replaceState({ page: 'dashboard', view: 'viewDashboard' }, '', '#viewDashboard');
-    return; 
-  }
-
-  // 6. Secondary tabs (Library, Analytics, Profile) back-swipe directly to Home
-  if (['viewLibrary', 'viewAnalytics', 'viewProfile'].includes(currentActiveView)) {
-    renderViewDOM('viewDashboard');
-    history.replaceState({ page: 'dashboard', view: 'viewDashboard' }, '', '#viewDashboard');
-    return; 
-  }
-
-  // 7. STRICT EXIT GATE: Modal pops ONLY when stack reaches root exit-gate
+  // 7. ROOT EXIT GATE: Trigger only when on Home page and swiping back out
   if (!e.state || e.state.page === 'exit-gate') {
+    history.pushState({ page: 'dashboard', view: 'viewDashboard' }, '', '#viewDashboard');
     showExitConfirmModal();
-    return; 
+    return;
   }
 
+  // 8. Normal View Routing
   if (e.state && e.state.view) {
+    if (['viewPractice', 'viewSolutions'].includes(currentActiveView)) {
+      isExamFinished = true;
+    }
     renderViewDOM(e.state.view);
   }
 });
@@ -1135,7 +1172,6 @@ async function renderHomePlaylists() {
     const qCount = boosterQuestions.length;
 
     if (qCount === 0) {
-      // ⚪ State A: Zero Due Items (Quiet Neutral Monochrome, Zero Green & Clean Text Wrap)
       revContainer.innerHTML = `
         <div class="set-tile dynamic-revision-tile state-clean">
           <div class="set-tile-header">
@@ -1151,7 +1187,6 @@ async function renderHomePlaylists() {
         </div>
       `;
     } else {
-      // ⚡ State B: 1 to 25 Due Items (Standout Radiant Amber Booster)
       const durationMins = Math.max(3, Math.ceil(qCount * 0.6));
       revContainer.innerHTML = `
         <div class="set-tile dynamic-revision-tile state-active">
@@ -1313,7 +1348,7 @@ async function renderHomePlaylists() {
 }
 
 // ==========================================================================
-// 🚀 YOUTUBE-STYLE SELECTION MODE & TOAST NOTIFICATION ENGINE
+// 🚀 REFINED SELECTION MODE: FAST DOMAIN SCROLLER & FLOATING DOCK ENGINE
 // ==========================================================================
 let toastTimer = null;
 window.showSelectionToast = function(msg) {
@@ -1333,27 +1368,129 @@ window.showSelectionToast = function(msg) {
   }, 2200);
 };
 
+function renderStagingDomainScroller() {
+  const scroller = document.getElementById("stagingDomainScroller");
+  if (!scroller) return;
+
+  const subjectsMap = {};
+  catalogData.forEach(r => {
+    const s = (r.subject || "General Studies").trim();
+    if (!subjectsMap[s]) subjectsMap[s] = 0;
+    subjectsMap[s]++;
+  });
+
+  const sortedSubjects = Object.keys(subjectsMap).sort((a, b) =>
+    a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })
+  );
+
+  let html = "";
+  sortedSubjects.forEach(sub => {
+    const isActive = sub.toLowerCase() === (activeSubject || "").toLowerCase();
+    html += `
+      <button type="button" class="staging-domain-chip ${isActive ? 'active' : ''}" onclick="switchStagingSubject('${sub.replace(/'/g, "\\'")}')">
+        <span>${sub}</span>
+        <span class="chip-count">${subjectsMap[sub]}</span>
+      </button>
+    `;
+  });
+
+  scroller.innerHTML = html;
+  scroller.style.display = librarySelectionMode ? "flex" : "none";
+}
+
+window.switchStagingSubject = function(subName) {
+  activeSubject = (subName || "General Studies").trim();
+  const tEl = document.getElementById("explorerSubjectTitle");
+  if (tEl) tEl.innerText = activeSubject;
+  const sEl = document.getElementById("explorerSubjectStats");
+  const subSets = catalogData.filter(r => (r.subject || "General Studies").trim().toLowerCase() === activeSubject.toLowerCase());
+  let mastered = 0; 
+  subSets.forEach(s => { 
+    const atts = userAttemptHistory.filter(a => String(a.test_id) === String(s.test_id)); 
+    if (atts.length > 0 && Math.max(...atts.map(a => parseFloat(a.score))) >= ((s.total_questions || 10) * 2)) mastered++; 
+  });
+  if (sEl) sEl.innerText = `${subSets.length} Sets • ${mastered} Mastered`;
+
+  renderStagingDomainScroller();
+  renderTopicSets();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+
+function updateStagingDockUI() {
+  const dock = document.getElementById("libraryFloatingDock");
+  const scroller = document.getElementById("stagingDomainScroller");
+  if (!dock) return;
+  if (!librarySelectionMode || !targetPlaylistForSelection) {
+    dock.style.display = "none";
+    if (scroller) scroller.style.display = "none";
+    return;
+  }
+
+  dock.style.display = "block";
+  renderStagingDomainScroller();
+
+  const nameEl = document.getElementById("dockTargetPlaylistName");
+  if (nameEl) nameEl.innerText = targetPlaylistForSelection.name;
+
+  const stagedItems = userPlaylistItems.filter(pi => pi.playlist_id === targetPlaylistForSelection.id);
+  let totalQs = 0;
+  stagedItems.forEach(item => {
+    const c = catalogData.find(x => String(x.test_id) === String(item.test_id));
+    totalQs += c ? (c.total_questions || 10) : 10;
+  });
+
+  const counterEl = document.getElementById("dockStagedCounter");
+  if (counterEl) {
+    counterEl.innerText = `${stagedItems.length} Sets Selected (${totalQs} Qs)`;
+  }
+}
+
 window.enableLibrarySelectionMode = function(pId, pName) { 
   librarySelectionMode = true; 
   targetPlaylistForSelection = { id: pId, name: pName }; 
+  
+  // 1. Hide regular bottom bar & apply top-dock staging spacing
+  document.body.classList.add("staging-active");
+
   switchView('viewLibrary'); 
   updateBottomNav(document.getElementById('navLibraryBtn')); 
-  returnToSubjectHub(true); 
+
+  // Agar activeSubject pehle se select nahi hai, toh first subject pick karein
+  if (!activeSubject && catalogData.length > 0) {
+    activeSubject = (catalogData[0].subject || "General Studies").trim();
+  }
+
+  // Directly sets explorer par jump karein bina hub ke extra click ke
+  drillDownToSubject(activeSubject || "General Studies", false);
+  updateStagingDockUI();
+
+  // Screen ko top par instantly reset karein taaki top dock ke piche content na fase
+  window.scrollTo({ top: 0, behavior: 'instant' });
 };
 
 window.cancelLibrarySelectionMode = async function() { 
   librarySelectionMode = false; 
   targetPlaylistForSelection = null; 
-  const ban = document.getElementById("librarySelectionBanner"); 
-  if (ban) ban.style.display = "none"; 
+  
+  // 2. Remove staging mode class and restore standard layout
+  document.body.classList.remove("staging-active");
+
+  const dock = document.getElementById("libraryFloatingDock"); 
+  if (dock) dock.style.display = "none"; 
+  const scroller = document.getElementById("stagingDomainScroller");
+  if (scroller) scroller.style.display = "none";
+
   const toast = document.getElementById("selectionToast");
   if (toast) {
     toast.classList.remove("show");
     toast.style.display = "none";
   }
+
   await fetchPlaylistsAndCheckRollover(); 
   renderTopicSets(); 
   await renderHomePlaylists();
+
+  // 3. Smooth transition back to Mission Deck with standard bottom nav
   switchView('viewDashboard');
   updateBottomNav(document.getElementById('navHomeBtn'));
 };
@@ -1392,6 +1529,8 @@ window.toggleDirectStaging = async function(testId) {
       console.error("Add to playlist error:", err);
     }
   }
+
+  updateStagingDockUI();
 };
 
 // 🚀 2-STEP 3-DOTS MENU & YOUTUBE-STYLE BOTTOM SHEET
@@ -1634,6 +1773,8 @@ window.returnToSubjectHub = function(fromPopState = false) {
   toggleMastheadSearch(false); 
   if (exp) exp.style.display = "none"; 
   if (hub) hub.style.display = "block";
+  const scroller = document.getElementById("stagingDomainScroller");
+  if (scroller) scroller.style.display = "none";
   renderSubjectHubGrid(); 
   window.scrollTo({ top: 0, behavior: 'smooth' });
   if (!fromPopState) history.replaceState({ page: 'main-tab', view: 'viewLibrary', subView: 'hub' }, "", "#viewLibrary");
@@ -1644,17 +1785,8 @@ function renderTopicSets() {
   if (!container) return; 
   container.innerHTML = "";
   
-  if (librarySelectionMode && targetPlaylistForSelection) {
-    let ban = document.getElementById("librarySelectionBanner");
-    if (ban) {
-      ban.style.display = "flex";
-      const targetNameEl = document.getElementById("hudTargetPlaylistName");
-      if (targetNameEl) targetNameEl.innerText = targetPlaylistForSelection.name;
-    }
-  } else {
-    const ban = document.getElementById("librarySelectionBanner");
-    if (ban) ban.style.display = "none";
-  }
+  // 🚀 Update persistent floating staging dock & top domain chips
+  updateStagingDockUI();
 
   // Exact case-insensitive trimmed matching
   const filtered = catalogData.filter(r => (r.subject || "General Studies").trim().toLowerCase() === (activeSubject || "").trim().toLowerCase());
@@ -2828,9 +2960,6 @@ window.showExitConfirmModal = function() {
 window.closeExitConfirmModal = function() {
   const modal = document.getElementById('exitConfirmModal');
   if (modal) modal.style.display = 'none';
-  if (!history.state || history.state.page === 'exit-gate') {
-    history.pushState({ page: 'dashboard', view: 'viewDashboard' }, '', '#viewDashboard');
-  }
 };
 
 window.confirmExitApp = function() {
