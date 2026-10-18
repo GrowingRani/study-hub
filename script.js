@@ -128,7 +128,10 @@ window.addEventListener("DOMContentLoaded", () => {
     const bottomNav = document.getElementById('mobileBottomNav');
     if (bottomNav) {
       const activeView = Array.from(document.querySelectorAll('.view-screen')).find(v => v.style.display === 'flex')?.id;
-      if (window.innerWidth <= 768 && MAIN_TABS.includes(activeView)) {
+      if (librarySelectionMode || document.body.classList.contains("staging-active")) {
+        bottomNav.style.setProperty("display", "none", "important");
+        bottomNav.classList.add("nav-hidden");
+      } else if (window.innerWidth <= 768 && MAIN_TABS.includes(activeView)) {
         bottomNav.style.setProperty("display", "flex", "important");
         bottomNav.classList.remove("nav-hidden");
       } else {
@@ -156,7 +159,6 @@ function closeAllOverlaysAndPopups() {
   const isVisible = (id) => {
     const el = document.getElementById(id);
     if (!el) return false;
-    // Check if element is active in DOM
     return el.style.display === 'flex' || el.style.display === 'block' || el.classList.contains('open');
   };
 
@@ -169,7 +171,6 @@ function closeAllOverlaysAndPopups() {
   if (isVisible('deletePlaylistConfirmModal')) { closeDeletePlaylistModal(); closedSomething = true; }
   if (isVisible('abortExamModal')) { closeAbortExamModal(); closedSomething = true; }
   
-  // Submit modal check requires explicit innerHTML check
   const submitModal = document.getElementById('submitModalContainer');
   if (submitModal && submitModal.style.display === 'flex' && submitModal.innerHTML !== "") { 
     closeExamModal(); 
@@ -179,7 +180,6 @@ function closeAllOverlaysAndPopups() {
   const exitModal = document.getElementById('exitConfirmModal');
   if (exitModal && exitModal.style.display === 'flex') {
     exitModal.style.display = 'none';
-    // Not marking closedSomething=true here as exit modal is handled directly in popstate
   }
 
   return closedSomething;
@@ -191,9 +191,8 @@ function renderViewDOM(viewId) {
     if (el) el.style.display = (id === viewId) ? "flex" : "none";
   });
 
- const bottomNav = document.getElementById('mobileBottomNav');
+  const bottomNav = document.getElementById('mobileBottomNav');
   if (bottomNav) { 
-    // Agar librarySelectionMode true ho ya body par staging-active laga ho, toh force display none karein
     if (librarySelectionMode || document.body.classList.contains("staging-active")) {
       bottomNav.style.setProperty("display", "none", "important");
       bottomNav.classList.add("nav-hidden");
@@ -230,10 +229,8 @@ window.switchView = function(viewId, pushHistory = true) {
 
   if (pushHistory) {
     if (viewId === 'viewDashboard') {
-      // Direct push for root Home to ensure smooth back tracking
       history.pushState({ page: 'dashboard', view: 'viewDashboard' }, '', '#viewDashboard');
     } else if (MAIN_TABS.includes(viewId)) {
-      // Replace state when swapping between secondary tabs to prevent huge history trails
       if (history.state?.page === 'main-tab') {
         history.replaceState({ page: 'main-tab', view: viewId }, '', '#' + viewId);
       } else {
@@ -246,7 +243,6 @@ window.switchView = function(viewId, pushHistory = true) {
 };
 
 window.addEventListener("popstate", function(e) {
-  // 1. Exit Modal Trap: Swipe back on Exit Modal cancels the exit
   const exitModal = document.getElementById('exitConfirmModal');
   if (exitModal && exitModal.style.display === 'flex') {
     exitModal.style.display = 'none';
@@ -256,14 +252,12 @@ window.addEventListener("popstate", function(e) {
 
   const currentActiveView = Array.from(document.querySelectorAll('.view-screen')).find(v => v.style.display === 'flex')?.id;
 
-  // 2. Exam Mode Trap: Cannot leave without aborting
   if (currentActiveView === 'viewExam' && !isExamFinished) { 
     history.pushState({ page: 'sub-view', view: 'viewExam' }, '', '#viewExam'); 
     abortExamSession(); 
     return; 
   }
 
-  // 3. ANY Popup/Overlay Trap: Close overlay & keep user strictly on the current page
   if (closeAllOverlaysAndPopups()) {
     history.pushState({ 
       page: MAIN_TABS.includes(currentActiveView) ? (currentActiveView === 'viewDashboard' ? 'dashboard' : 'main-tab') : 'sub-view', 
@@ -272,7 +266,6 @@ window.addEventListener("popstate", function(e) {
     return;
   }
 
-  // 4. Search Bar Trap
   const searchBar = document.getElementById("mastheadSearchBar");
   if (searchBar && searchBar.style.display === "flex") { 
     toggleMastheadSearch(false); 
@@ -280,13 +273,11 @@ window.addEventListener("popstate", function(e) {
     return; 
   }
 
-  // 5. Staging Mode Trap
   if (librarySelectionMode) {
     cancelLibrarySelectionMode();
     return; 
   }
 
-  // 6. Sub-topics Explorer Trap
   if (currentActiveView === 'viewLibrary') {
     const setsExp = document.getElementById("setsExplorerStage");
     if (setsExp && setsExp.style.display === "block") {
@@ -295,14 +286,18 @@ window.addEventListener("popstate", function(e) {
     }
   }
 
-  // 7. ROOT EXIT GATE: Trigger only when on Home page and swiping back out
-  if (!e.state || e.state.page === 'exit-gate') {
+  if (['viewLibrary', 'viewAnalytics', 'viewProfile'].includes(currentActiveView)) {
+    renderViewDOM('viewDashboard');
+    history.replaceState({ page: 'dashboard', view: 'viewDashboard' }, '', '#viewDashboard');
+    return; 
+  }
+
+  if (!e.state || e.state.page === 'exit-gate' || currentActiveView === 'viewDashboard') {
     history.pushState({ page: 'dashboard', view: 'viewDashboard' }, '', '#viewDashboard');
     showExitConfirmModal();
     return;
   }
 
-  // 8. Normal View Routing
   if (e.state && e.state.view) {
     if (['viewPractice', 'viewSolutions'].includes(currentActiveView)) {
       isExamFinished = true;
@@ -1455,25 +1450,46 @@ window.enableLibrarySelectionMode = function(pId, pName) {
   switchView('viewLibrary'); 
   updateBottomNav(document.getElementById('navLibraryBtn')); 
 
-  // Agar activeSubject pehle se select nahi hai, toh first subject pick karein
   if (!activeSubject && catalogData.length > 0) {
     activeSubject = (catalogData[0].subject || "General Studies").trim();
   }
 
-  // Directly sets explorer par jump karein bina hub ke extra click ke
   drillDownToSubject(activeSubject || "General Studies", false);
   updateStagingDockUI();
 
-  // Screen ko top par instantly reset karein taaki top dock ke piche content na fase
   window.scrollTo({ top: 0, behavior: 'instant' });
 };
 
+function autoExpandPlaylistCard(pName) {
+  if (!pName) return;
+  const nameClean = pName.trim().toLowerCase();
+  if (nameClean === 'today') {
+    const c = document.getElementById('todayPayloadCard');
+    if (c && c.classList.contains('collapsed')) { c.classList.remove('collapsed'); c.classList.add('expanded'); }
+  } else if (nameClean === 'tomorrow') {
+    const c = document.getElementById('tomorrowPlaylistCard');
+    if (c && c.classList.contains('collapsed')) { c.classList.remove('collapsed'); c.classList.add('expanded'); }
+  } else if (nameClean === 'this week') {
+    const c = document.getElementById('weekPlaylistCard');
+    if (c && c.classList.contains('collapsed')) { c.classList.remove('collapsed'); c.classList.add('expanded'); }
+  } else {
+    document.querySelectorAll('#customPlaylistsContainer .playlist-accordion-card').forEach(card => {
+      const titleEl = card.querySelector('.playlist-title');
+      if (titleEl && titleEl.innerText.trim().toLowerCase() === nameClean) {
+        card.classList.remove('collapsed');
+        card.classList.add('expanded');
+      }
+    });
+  }
+}
+
 window.cancelLibrarySelectionMode = async function() { 
+  const targetName = targetPlaylistForSelection?.name || "Playlist";
+  const targetId = targetPlaylistForSelection?.id;
+  const stagedCount = userPlaylistItems.filter(pi => pi.playlist_id === targetId).length;
+
   librarySelectionMode = false; 
   targetPlaylistForSelection = null; 
-  
-  // 2. Remove staging mode class and restore standard layout
-  document.body.classList.remove("staging-active");
 
   const dock = document.getElementById("libraryFloatingDock"); 
   if (dock) dock.style.display = "none"; 
@@ -1486,13 +1502,27 @@ window.cancelLibrarySelectionMode = async function() {
     toast.style.display = "none";
   }
 
+  // 🚀 1. Pehle turant Dashboard par switch karein (Zero UI Lag & No Ghost Bar)
+  document.body.classList.remove("staging-active");
+  switchView('viewDashboard');
+  updateBottomNav(document.getElementById('navHomeBtn'));
+
+  // 🚀 2. Local memory se sets turant paint karein & modified playlist auto-expand karein
+  renderHomePlaylists();
+  autoExpandPlaylistCard(targetName);
+
+  // 🚀 3. Clear visual confirmation toast trigger karein
+  if (stagedCount > 0) {
+    showSelectionToast(`✓ ${targetName} updated (${stagedCount} Sets ready)`);
+  } else {
+    showSelectionToast(`✓ ${targetName} queue updated`);
+  }
+
+  // 🚀 4. Cloud sync background mein chalne dein
   await fetchPlaylistsAndCheckRollover(); 
   renderTopicSets(); 
   await renderHomePlaylists();
-
-  // 3. Smooth transition back to Mission Deck with standard bottom nav
-  switchView('viewDashboard');
-  updateBottomNav(document.getElementById('navHomeBtn'));
+  autoExpandPlaylistCard(targetName);
 };
 
 window.toggleDirectStaging = async function(testId) {
@@ -1693,7 +1723,7 @@ function renderSubjectHubGrid() {
   container.innerHTML = "";
   const map = {}; 
   catalogData.forEach(r => { 
-    const s = (r.subject && String(r.subject).trim()) || "General Studies"; 
+    const s = (r.subject || "General Studies").trim(); 
     if (!map[s]) map[s] = { sets: [] }; 
     map[s].sets.push(r); 
   });
@@ -1821,7 +1851,7 @@ function renderTopicSets() {
     const processed = [];
     const uniqueSets = [], seenIds = new Set();
     
-    // Deduplicate ONLY by unique test_id (seenTitles removed so identical titles across sets are NOT dropped)
+    // Deduplicate ONLY by unique test_id
     sets.forEach(item => {
       const idK = String(item.test_id);
       if (!seenIds.has(idK)) { 
@@ -1853,7 +1883,6 @@ function renderTopicSets() {
     const progPct = uniqueSets.length > 0 ? (topicMastered / uniqueSets.length) * 100 : 0;
     const groupCard = document.createElement("div"); 
     groupCard.className = "topic-accordion-card"; 
-    if (librarySelectionMode) groupCard.classList.add("open");
     
     const header = document.createElement("div"); 
     header.className = "topic-accordion-header";
@@ -1865,7 +1894,7 @@ function renderTopicSets() {
 
     const body = document.createElement("div"); 
     body.className = "topic-accordion-body"; 
-    if (librarySelectionMode) body.style.display = "block";
+    body.style.display = "none";
     const setsGrid = document.createElement("div"); 
     setsGrid.className = "sets-card-grid";
 
@@ -1937,20 +1966,19 @@ function renderTopicSets() {
     groupCard.appendChild(body); 
     container.appendChild(groupCard);
     
-    if (!librarySelectionMode) {
-      header.onclick = () => {
-        const isOpen = groupCard.classList.contains("open");
-        container.querySelectorAll(".topic-accordion-card").forEach(c => { 
-          if (c !== groupCard) { 
-            c.classList.remove("open"); 
-            const b = c.querySelector(".topic-accordion-body"); 
-            if (b) b.style.display = "none"; 
-          } 
-        });
-        groupCard.classList.toggle("open", !isOpen); 
-        body.style.display = !isOpen ? "block" : "none";
-      };
-    }
+    // 🚀 RESTORED: Both normal & selection mode now freely collapse and expand
+    header.onclick = () => {
+      const isOpen = groupCard.classList.contains("open");
+      container.querySelectorAll(".topic-accordion-card").forEach(c => { 
+        if (c !== groupCard) { 
+          c.classList.remove("open"); 
+          const b = c.querySelector(".topic-accordion-body"); 
+          if (b) b.style.display = "none"; 
+        } 
+      });
+      groupCard.classList.toggle("open", !isOpen); 
+      body.style.display = !isOpen ? "block" : "none";
+    };
   });
 }
 
@@ -2950,26 +2978,51 @@ function renderFlashcardMode() {
 }
 
 // ==========================================================================
-// 11. ELEGANT MOBILE APP EXIT DIALOG CONTROLLER (RE-ARM REINFORCED)
+// 11. ELEGANT MOBILE APP EXIT DIALOG CONTROLLER (FAIL-SAFE PWA & NATIVE EXIT)
 // ==========================================================================
 window.showExitConfirmModal = function() {
   const modal = document.getElementById('exitConfirmModal');
-  if (modal) modal.style.display = 'flex';
+  if (modal) {
+    modal.style.setProperty("display", "flex", "important");
+    modal.style.pointerEvents = "auto";
+  }
 };
 
 window.closeExitConfirmModal = function() {
   const modal = document.getElementById('exitConfirmModal');
-  if (modal) modal.style.display = 'none';
+  if (modal) {
+    modal.style.setProperty("display", "none", "important");
+    modal.style.pointerEvents = "none";
+  }
+  if (!history.state || history.state.page === 'exit-gate') {
+    history.pushState({ page: 'dashboard', view: 'viewDashboard' }, '', '#viewDashboard');
+  }
 };
 
 window.confirmExitApp = function() {
   const modal = document.getElementById('exitConfirmModal');
-  if (modal) modal.style.display = 'none';
-  if (window.navigator && window.navigator.app && window.navigator.app.exitApp) {
-    window.navigator.app.exitApp();
-  } else if (window.close) {
-    window.close();
-  } else {
-    window.location.href = "about:blank";
+  if (modal) {
+    modal.style.setProperty("display", "none", "important");
+    modal.style.pointerEvents = "none";
   }
+  
+  if (window.navigator && window.navigator.app && typeof window.navigator.app.exitApp === "function") {
+    window.navigator.app.exitApp();
+    return;
+  }
+  
+  window.close();
+  
+  setTimeout(() => {
+    try {
+      window.open('', '_self', '');
+      window.close();
+    } catch (e) {
+      console.warn("window.close bypassed by browser sandbox");
+    }
+    if (window.history.length > 1) {
+      window.history.go(-(window.history.length));
+    }
+    window.location.replace("about:blank");
+  }, 100);
 };
