@@ -66,6 +66,10 @@ let librarySelectionMode = false, targetPlaylistForSelection = null;
 let activeTest = null, testQuestions = [], practiceQuestions = [], currentIndex = 0, flashcardIndex = 0, userResponses = {}, timeRemaining = 15 * 60, timerInterval = null, isExamFinished = false;
 let subjectRadarChartInstance = null, alertEngineStarted = false;
 
+// 🚀 IN-MEMORY CACHE FOR BOOSTER POOL (PREVENTS DUPLICATE RPC FETCHES)
+let cachedBoosterPool = null;
+let lastBoosterFetchTime = 0;
+
 if ("serviceWorker" in navigator) { 
   window.addEventListener("load", () => { 
     navigator.serviceWorker.register("./service-worker.js").catch(err => console.error("SW Error:", err)); 
@@ -263,7 +267,7 @@ window.addEventListener("popstate", function(e) {
       page: MAIN_TABS.includes(currentActiveView) ? (currentActiveView === 'viewDashboard' ? 'dashboard' : 'main-tab') : 'sub-view', 
       view: currentActiveView 
     }, '', '#' + currentActiveView);
-    return;
+    return; 
   }
 
   const searchBar = document.getElementById("mastheadSearchBar");
@@ -353,7 +357,7 @@ window.switchMasteryView = function(viewType) {
     if (rWrap) rWrap.style.display = "none"; 
     if (gWrap) gWrap.style.display = "grid"; 
     bGrid?.classList.add("active"); 
-    bGrid?.classList.remove("active"); 
+    bRadar?.classList.remove("active"); 
   }
 };
 
@@ -453,36 +457,60 @@ function showAuthNotice(msg, isError = true) {
 // ==========================================================================
 // 5. APPLICATION EVENTS & INTERACTIVE CONTROLLERS
 // ==========================================================================
-function filterAccordionCards(query) {
+// 🚀 0ms ZERO-DOM-DESTRUCTION FAST FILTER ENGINE FOR BUDGET MOBILE
+function applyTopicFilter(filter = currentFilter) {
+  currentFilter = filter;
+  const searchInput = document.getElementById("topicSearchInput");
+  const searchQuery = (searchInput?.value || "").trim().toLowerCase();
+
   document.querySelectorAll(".topic-accordion-card").forEach(card => {
-    const hTitle = card.querySelector(".topic-title")?.innerText.toLowerCase() || "", body = card.querySelector(".topic-accordion-body"), tiles = card.querySelectorAll(".set-tile");
-    if (!query) { 
-      card.style.display = "block"; 
-      card.classList.remove("open"); 
-      if (body) body.style.display = "none"; 
-      tiles.forEach(t => t.style.display = ""); 
-      return; 
-    }
-    if (hTitle.includes(query)) { 
-      card.style.display = "block"; 
-      card.classList.add("open"); 
-      if (body) body.style.display = "block"; 
-      tiles.forEach(t => t.style.display = ""); 
-      return; 
-    }
-    let matches = 0;
+    let visibleCount = 0;
+    const body = card.querySelector(".topic-accordion-body");
+    const tiles = card.querySelectorAll(".set-tile");
+    const hTitle = card.querySelector(".topic-title")?.innerText.toLowerCase() || "";
+    const headerMatchesSearch = searchQuery ? hTitle.includes(searchQuery) : false;
+
     tiles.forEach(tile => {
-      const sTitle = tile.querySelector(".set-tile-title")?.innerText.toLowerCase() || "";
-      if (sTitle.includes(query)) { tile.style.display = ""; matches++; } else tile.style.display = "none";
+      const tileStatus = tile.getAttribute("data-status") || "unattempted";
+      const matchesFilter = (filter === "all" || tileStatus === filter);
+
+      let matchesSearch = true;
+      if (searchQuery) {
+        if (!headerMatchesSearch) {
+          const sTitle = tile.querySelector(".set-tile-title")?.innerText.toLowerCase() || "";
+          matchesSearch = sTitle.includes(searchQuery);
+        }
+      }
+
+      if (matchesFilter && matchesSearch) {
+        tile.style.display = "";
+        visibleCount++;
+      } else {
+        tile.style.display = "none";
+      }
     });
-    if (matches > 0) { 
-      card.style.display = "block"; 
-      card.classList.add("open"); 
-      if (body) body.style.display = "block"; 
-    } else { 
-      card.style.display = "none"; 
+
+    if (visibleCount > 0) {
+      card.style.display = "block";
+      if (searchQuery) {
+        card.classList.add("open");
+        if (body) body.style.display = "block";
+      }
+    } else {
+      card.style.display = "none";
     }
   });
+}
+
+function filterAccordionCards(query) {
+  applyTopicFilter(currentFilter);
+  if (!query) {
+    document.querySelectorAll(".topic-accordion-card").forEach(card => {
+      card.classList.remove("open");
+      const body = card.querySelector(".topic-accordion-body");
+      if (body) body.style.display = "none";
+    });
+  }
 }
 
 function setupAppEvents() {
@@ -641,6 +669,7 @@ function setupAppEvents() {
     };
   });
 
+  // 🚀 FAST CHIP TOGGLER (ZERO INNERHTML WIPES)
   document.querySelectorAll('.filter-chip-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
       document.querySelectorAll('.filter-chip-btn').forEach(b => b.classList.remove('active'));
@@ -648,7 +677,7 @@ function setupAppEvents() {
       if (t) { 
         t.classList.add('active'); 
         currentFilter = t.getAttribute('data-filter') || "all"; 
-        renderTopicSets(); 
+        applyTopicFilter(currentFilter); 
       }
     });
   });
@@ -1010,15 +1039,37 @@ async function fetchPlaylistsAndCheckRollover() {
       if (insData) dailyPerf = insData;
     }
 
-    const lastRollover = localStorage.getItem("last_rollover_" + roll);
-    if (lastRollover !== todayStr) {
-      const todayList = userPlaylists.find(p => p.playlist_name === 'Today'), tomorrowList = userPlaylists.find(p => p.playlist_name === 'Tomorrow');
+    // 🚀 MULTI-DEVICE SYNCHRONIZED ROLLOVER (SERVER-ANCHORED SOURCE OF TRUTH)
+    const serverLastRollover = currentCandidate?.last_rollover_date;
+
+    if (serverLastRollover !== todayStr) {
+      const todayList = userPlaylists.find(p => p.playlist_name === 'Today');
+      const tomorrowList = userPlaylists.find(p => p.playlist_name === 'Tomorrow');
+
       if (todayList && tomorrowList) {
-        await supabaseClient.from("playlist_items").update({ is_rollover: true }).eq("playlist_id", todayList.id);
-        await supabaseClient.from("playlist_items").update({ playlist_id: todayList.id }).eq("playlist_id", tomorrowList.id);
+        await supabaseClient.from("playlist_items")
+          .update({ is_rollover: true })
+          .eq("playlist_id", todayList.id)
+          .eq("student_roll", roll);
+
+        await supabaseClient.from("playlist_items")
+          .update({ playlist_id: todayList.id })
+          .eq("playlist_id", tomorrowList.id)
+          .eq("student_roll", roll);
       }
-      localStorage.setItem("last_rollover_" + roll, todayStr);
-      const { data: piData2 } = await supabaseClient.from("playlist_items").select("*").eq("student_roll", roll);
+
+      await supabaseClient.from("students")
+        .update({ last_rollover_date: todayStr })
+        .eq("roll_number", roll);
+
+      if (currentCandidate) {
+        currentCandidate.last_rollover_date = todayStr;
+      }
+      localStorage.removeItem("last_rollover_" + roll);
+
+      const { data: piData2 } = await supabaseClient.from("playlist_items")
+        .select("*")
+        .eq("student_roll", roll);
       userPlaylistItems = piData2 || [];
     }
   } catch (error) { 
@@ -1026,8 +1077,12 @@ async function fetchPlaylistsAndCheckRollover() {
   }
 }
 
-// 🚀 REVISION & MISTAKE POOL COMPILER (0 to 25 Max • Dynamic Mix from Mistakes + Past Attempted Sets)
-async function compileMasteryBoosterPool(maxLimit = 25) {
+// 🚀 REVISION & MISTAKE POOL COMPILER (RPC Optimized • Fast DB Extraction + 15s In-Memory Cache)
+async function compileMasteryBoosterPool(maxLimit = 25, forceRefresh = false) {
+  if (!forceRefresh && cachedBoosterPool && (Date.now() - lastBoosterFetchTime < 15000)) {
+    return cachedBoosterPool;
+  }
+
   let assembled = [];
   const seenIds = new Set();
 
@@ -1057,51 +1112,46 @@ async function compileMasteryBoosterPool(maxLimit = 25) {
   });
 
   const remainingNeeded = maxLimit - assembled.length;
-  if (remainingNeeded > 0 && userAttemptHistory?.length > 0) {
-    const pastTestIds = [...new Set(userAttemptHistory.map(a => a.test_id).filter(id => id > 0))];
-    if (pastTestIds.length > 0) {
-      try {
-        const { data: sRows } = await supabaseClient.from("test_sections").select("id").in("test_id", pastTestIds.slice(0, 15));
-        if (sRows?.length) {
-          const { data: qRows } = await supabaseClient
-            .from("test_section_questions")
-            .select(`questions (id, content, options, correct_answer, explanation)`)
-            .in("section_id", sRows.map(s => s.id))
-            .limit(50);
+  if (remainingNeeded > 0 && currentCandidate?.roll_number) {
+    try {
+      const { data: recallRows, error: rpcErr } = await supabaseClient.rpc('get_retention_pool', {
+        p_roll: currentCandidate.roll_number,
+        p_needed: remainingNeeded
+      });
 
-          if (qRows?.length) {
-            const recallCandidates = qRows.map(r => Array.isArray(r.questions) ? r.questions[0] : r.questions)
-              .filter(q => q && !seenIds.has(String(q.id)))
-              .sort(() => 0.5 - Math.random())
-              .slice(0, remainingNeeded);
+      if (rpcErr) throw rpcErr;
 
-            recallCandidates.forEach(q => {
-              const qid = String(q.id);
-              seenIds.add(qid);
-              let opts = [];
-              try { opts = typeof q.options === 'string' ? JSON.parse(q.options) : (q.options || []); } catch(e) { opts = []; }
-              assembled.push({
-                id: qid,
-                content: q.content,
-                options: opts,
-                correctAnswer: getNormalizedCorrectAnswerId(q.correct_answer, opts),
-                explanation: q.explanation,
-                isMistake: false
-              });
+      if (recallRows && recallRows.length > 0) {
+        recallRows.forEach(q => {
+          const qid = String(q.id);
+          if (!seenIds.has(qid)) {
+            seenIds.add(qid);
+            let opts = [];
+            try { opts = typeof q.options === 'string' ? JSON.parse(q.options) : (q.options || []); } catch(e) { opts = []; }
+            assembled.push({
+              id: qid,
+              content: q.content,
+              options: opts,
+              correctAnswer: getNormalizedCorrectAnswerId(q.correct_answer, opts),
+              explanation: q.explanation,
+              isMistake: false
             });
           }
-        }
-      } catch (err) {
-        console.error("Past retention questions fetch error:", err);
+        });
       }
+    } catch (err) {
+      console.error("Database retention pool RPC error:", err);
     }
   }
 
-  return assembled.map((q, idx) => ({ ...q, qNum: idx + 1 }));
+  const result = assembled.map((q, idx) => ({ ...q, qNum: idx + 1 }));
+  cachedBoosterPool = result;
+  lastBoosterFetchTime = Date.now();
+  return result;
 }
 
 window.launchBoosterMode = async function(mode = 'exam') {
-  const boosterQuestions = await compileMasteryBoosterPool(25);
+  const boosterQuestions = await compileMasteryBoosterPool(25, true);
   if (!boosterQuestions.length) {
     return showAppNoticeModal("Notice", "No Pending Reviews", "You have no pending mistakes or review questions right now.", "⚪", "Dismiss");
   }
@@ -1250,7 +1300,7 @@ async function renderHomePlaylists() {
       }
     }
     return `
-      <div class="set-tile">
+      <div class="set-tile" data-status="${isAtt ? (pct >= 100 ? 'mastered' : 'revise') : 'unattempted'}">
         <div class="set-tile-header">
           <div class="set-tile-title-group">
             ${isRoll}
@@ -1805,6 +1855,7 @@ window.returnToSubjectHub = function(fromPopState = false) {
   if (!fromPopState) history.replaceState({ page: 'main-tab', view: 'viewLibrary', subView: 'hub' }, "", "#viewLibrary");
 };
 
+// 🚀 HIGH-EFFICIENCY ONE-TIME DOM BUILDER (TAGGED WITH DATA-STATUS)
 function renderTopicSets() {
   const container = document.getElementById("topicsContainer"); 
   if (!container) return; 
@@ -1859,10 +1910,10 @@ function renderTopicSets() {
         if (pct >= 100) { status = 'mastered'; topicMastered++; } 
         else status = 'revise'; 
       }
-      if (currentFilter === 'all' || currentFilter === status) processed.push({ setItem, status, isAtt, best, maxMarks, pct, count: attempts.length });
+      processed.push({ setItem, status, isAtt, best, maxMarks, pct, count: attempts.length });
     });
 
-    if (processed.length === 0 && currentFilter !== 'all') return;
+    if (processed.length === 0) return;
     
     processed.sort((a, b) => {
       const titleA = String(a.setItem.test_title || "").trim();
@@ -1892,6 +1943,7 @@ function renderTopicSets() {
       const tile = document.createElement("div"); 
       tile.className = "set-tile";
       tile.setAttribute("data-test-id", setItem.test_id);
+      tile.setAttribute("data-status", status);
 
       let badgeClass = '', badgeText = '', historyHtml = '<span style="color:#64748b;">Not attempted yet</span>';
       if (isAtt) {
@@ -1969,6 +2021,8 @@ function renderTopicSets() {
       body.style.display = !isOpen ? "block" : "none";
     };
   });
+
+  applyTopicFilter(currentFilter);
 }
 
 // 🚀 HIGH-SPEED BATCHED MISTAKE BANK SYNC (REPLACES 40 SEQUENTIAL REQUESTS WITH 1 PARALLEL BATCH)
@@ -2022,6 +2076,9 @@ async function syncMistakeBank(payloads) {
 
     if (inserts.length > 0) await supabaseClient.from("student_question_stats").insert(inserts);
     if (updates.length > 0) await Promise.allSettled(updates);
+    
+    cachedBoosterPool = null;
+    lastBoosterFetchTime = 0;
     await fetchWeakQuestions();
   } catch (e) { 
     console.error("Mistake Bank Sync Error:", e); 
@@ -2311,6 +2368,10 @@ function renderScorecard() {
     attempt_date: new Date().toISOString()
   };
   userAttemptHistory.unshift(localAttemptRecord);
+
+  // Cache reset so newly attempted set immediately reflects in booster compile
+  cachedBoosterPool = null;
+  lastBoosterFetchTime = 0;
 
   let modal = document.getElementById("submitModalContainer");
   if (!modal) { 
