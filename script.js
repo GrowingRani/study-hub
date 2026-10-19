@@ -66,6 +66,14 @@ let librarySelectionMode = false, targetPlaylistForSelection = null;
 let activeTest = null, testQuestions = [], practiceQuestions = [], currentIndex = 0, flashcardIndex = 0, userResponses = {}, timeRemaining = 15 * 60, timerInterval = null, isExamFinished = false;
 let subjectRadarChartInstance = null, alertEngineStarted = false;
 
+// 🚀 RENDER LOCKS & DEBOUNCING FOR PLAYLIST / AUTH ENGINE
+let isRenderingPlaylists = false;
+let pendingPlaylistRender = false;
+let isAuthSessionInitializing = false;
+
+// 🚀 PRE-FLIGHT MISSION BRIEFING STATE
+let activeBriefingTestId = null;
+
 // 🚀 IN-MEMORY CACHE FOR BOOSTER POOL (PREVENTS DUPLICATE RPC FETCHES)
 let cachedBoosterPool = null;
 let lastBoosterFetchTime = 0;
@@ -169,6 +177,7 @@ function closeAllOverlaysAndPopups() {
   if (isVisible('threeDotsMenuOverlay')) { closeThreeDotsMenu(); closedSomething = true; }
   if (isVisible('playlistActionMenuOverlay')) { closePlaylistActionMenu(); closedSomething = true; }
   if (isVisible('playlistBottomSheetOverlay')) { closePlaylistBottomSheet(); closedSomething = true; }
+  if (isVisible('missionBriefingModal')) { closeMissionBriefingModal(); closedSomething = true; }
   if (isVisible('appNoticeModal')) { closeAppNoticeModal(); closedSomething = true; }
   if (isVisible('createPlaylistModal')) { closeCreatePlaylistModal(); closedSomething = true; }
   if (isVisible('editPlaylistModal')) { closeEditPlaylistModal(); closedSomething = true; }
@@ -357,7 +366,7 @@ window.switchMasteryView = function(viewType) {
     if (rWrap) rWrap.style.display = "none"; 
     if (gWrap) gWrap.style.display = "grid"; 
     bGrid?.classList.add("active"); 
-    bRadar?.classList.remove("active"); 
+    bGrid?.classList.remove("active"); 
   }
 };
 
@@ -375,11 +384,20 @@ supabaseClient.auth.onAuthStateChange((event) => {
 
 function initAuthSessionWatcher() {
   if (sessionStorage.getItem("recovery_mode") === "true") return showPasswordResetUI();
+  
   supabaseClient.auth.getSession().then(({ data: { session } }) => {
     if (sessionStorage.getItem("recovery_mode") === "true") return showPasswordResetUI();
-    if (session && session.user && session.user.email_confirmed_at) initCandidateSession(session.user);
-    else { currentCandidate = null; switchView("viewLogin", false); }
+    if (session && session.user && session.user.email_confirmed_at) {
+      if (!currentCandidate && !isAuthSessionInitializing) {
+        isAuthSessionInitializing = true;
+        initCandidateSession(session.user).finally(() => { isAuthSessionInitializing = false; });
+      }
+    } else { 
+      currentCandidate = null; 
+      switchView("viewLogin", false); 
+    }
   });
+
   supabaseClient.auth.onAuthStateChange(async (event, session) => {
     if (event === "PASSWORD_RECOVERY" || sessionStorage.getItem("recovery_mode") === "true") { 
       sessionStorage.setItem("recovery_mode", "true"); 
@@ -389,7 +407,10 @@ function initAuthSessionWatcher() {
       currentCandidate = null; 
       return switchView("viewLogin"); 
     }
-    if (!currentCandidate || currentCandidate.email !== session.user.email.toLowerCase()) initCandidateSession(session.user);
+    if ((!currentCandidate || currentCandidate.email !== session.user.email.toLowerCase()) && !isAuthSessionInitializing) {
+      isAuthSessionInitializing = true;
+      initCandidateSession(session.user).finally(() => { isAuthSessionInitializing = false; });
+    }
   });
 }
 
@@ -771,11 +792,17 @@ window.handleCreatePlaylistSubmit = async function(e) {
   const btn = document.getElementById("btnSubmitNewPlaylist"); 
   if (btn) { btn.innerText = "Creating..."; btn.disabled = true; }
   try {
+    const existing = userPlaylists.find(p => p.playlist_name.trim().toLowerCase() === name.toLowerCase());
+    if (existing) {
+      closeCreatePlaylistModal();
+      showSelectionToast(`Playlist "${name}" already exists`);
+      return;
+    }
     const { error } = await supabaseClient.from("playlists").insert({ student_roll: currentCandidate.roll_number, playlist_name: name, is_system_playlist: false, display_order: 10 });
     if (error) throw error;
     closeCreatePlaylistModal(); 
     await fetchPlaylistsAndCheckRollover(); 
-    await renderHomePlaylists();
+    await renderHomePlaylists(); 
     
     if (selectedTestForPlaylist) {
       openPlaylistBottomSheet(selectedTestForPlaylist);
@@ -942,7 +969,7 @@ window.confirmDeletePlaylist = async function() {
     }
     closeDeletePlaylistModal(); 
     await fetchPlaylistsAndCheckRollover(); 
-    await renderHomePlaylists();
+    await renderHomePlaylists(); 
   } catch (err) { 
     showAppNoticeModal("Error", "Action Failed", err.message, "⚠️", "Dismiss"); 
   } finally { 
@@ -951,7 +978,97 @@ window.confirmDeletePlaylist = async function() {
 };
 
 // ==========================================================================
-// 7. HOME DECK & PLAYLIST ENGINE (UNIFORM BOOSTER CARD WITH ZERO-LAG SYNC)
+// 7. PRE-FLIGHT MISSION BRIEFING CONTROLLER (APPROACH 1 ENGINE)
+// ==========================================================================
+window.openMissionBriefingModal = async function(testId) {
+  activeBriefingTestId = testId;
+  const modal = document.getElementById("missionBriefingModal");
+  if (!modal) return;
+
+  if (testId === -1) {
+    const boosterQuestions = await compileMasteryBoosterPool(25);
+    const qCount = boosterQuestions.length;
+    if (qCount === 0) {
+      return showAppNoticeModal("Notice", "No Pending Reviews", "You have no pending mistakes or review questions right now. Attempt new sets from Library to fuel future booster reviews.", "🛡️", "Dismiss");
+    }
+    const durationMins = Math.max(3, Math.ceil(qCount * 0.6));
+    const mistakeCount = boosterQuestions.filter(q => q.isMistake).length;
+    const recallCount = qCount - mistakeCount;
+    
+    document.getElementById("briefingSubjectBadge").innerText = "BONUS MASTERY BOOSTER";
+    const statusBadge = document.getElementById("briefingStatusBadge");
+    statusBadge.className = "briefing-status-tag status-progress";
+    statusBadge.innerText = `${qCount} DUE`;
+    
+    document.getElementById("briefingSetTitle").innerText = "Mistakes & Active Retention Booster";
+    document.getElementById("briefingDurationMeta").innerText = `⏱️ ${durationMins}m`;
+    document.getElementById("briefingQuestionsMeta").innerText = `📄 ${qCount} Questions`;
+    document.getElementById("briefingScoreMeta").innerText = `${mistakeCount} Mistakes • ${recallCount} Recall`;
+  } else {
+    const setCat = catalogData.find(c => String(c.test_id) === String(testId));
+    if (!setCat) return;
+
+    const qCount = setCat.total_questions || 10;
+    const durationMins = setCat.total_duration_minutes || 15;
+    const attempts = userAttemptHistory.filter(a => String(a.test_id) === String(testId));
+    const isAtt = attempts.length > 0;
+    const bestScore = isAtt ? Math.max(...attempts.map(a => parseFloat(a.score))) : 0;
+    const maxMarks = qCount * 2;
+    const pct = (maxMarks > 0 && isAtt) ? (bestScore / maxMarks) * 100 : 0;
+
+    document.getElementById("briefingSubjectBadge").innerText = (setCat.subject || activeSubject || "GENERAL STUDIES").toUpperCase();
+    
+    const statusBadge = document.getElementById("briefingStatusBadge");
+    if (!isAtt) {
+      statusBadge.className = "briefing-status-tag status-unattempted";
+      statusBadge.innerText = "UNATTEMPTED";
+    } else if (pct >= 100) {
+      statusBadge.className = "briefing-status-tag status-mastered";
+      statusBadge.innerText = `MASTERED ${bestScore}/${maxMarks}`;
+    } else {
+      statusBadge.className = "briefing-status-tag status-progress";
+      statusBadge.innerText = `IN PROGRESS (${bestScore}/${maxMarks})`;
+    }
+
+    document.getElementById("briefingSetTitle").innerText = setCat.test_title || "Question Set";
+    document.getElementById("briefingDurationMeta").innerText = `⏱️ ${durationMins}m`;
+    document.getElementById("briefingQuestionsMeta").innerText = `📄 ${qCount} Questions`;
+    document.getElementById("briefingScoreMeta").innerText = isAtt 
+      ? `★ Best: ${bestScore}/${maxMarks} (${Math.round(pct)}%) • ${attempts.length} Att`
+      : `★ Best: Untested`;
+  }
+
+  modal.style.setProperty("display", "flex", "important");
+  modal.style.pointerEvents = "auto";
+};
+
+window.closeMissionBriefingModal = function() {
+  const modal = document.getElementById("missionBriefingModal");
+  if (modal) {
+    modal.style.setProperty("display", "none", "important");
+    modal.style.pointerEvents = "none";
+  }
+  activeBriefingTestId = null;
+};
+
+window.executeBriefingMode = function(mode) {
+  const tId = activeBriefingTestId;
+  closeMissionBriefingModal();
+  if (tId === null || tId === undefined) return;
+  
+  if (tId === -1) {
+    launchBoosterMode(mode);
+  } else {
+    if (mode === 'exam') {
+      launchAssessment(tId);
+    } else {
+      launchPracticeMode(tId, mode);
+    }
+  }
+};
+
+// ==========================================================================
+// 8. HOME DECK & PLAYLIST ENGINE (QUANTUM CORE BOOSTER & ANTI-DRIFT ROLLOVER)
 // ==========================================================================
 async function mountDashboard(isInitialLoad = false) {
   const cName = document.getElementById("dashCandidateName"); 
@@ -994,9 +1111,30 @@ async function fetchPlaylistsAndCheckRollover() {
       const { data: refData } = await supabaseClient.from("playlists").select("*").eq("student_roll", roll).order("display_order", { ascending: true });
       pData = refData || pData || [];
     }
-    userPlaylists = pData || [];
+
+    // 🚀 IN-MEMORY & DB LEVEL DEDUPLICATION: PREVENTS DUPLICATE PLAYLIST BARS
+    const uniquePlaylists = [];
+    const seenPlaylistNames = new Set();
+    (pData || []).forEach(p => {
+      const pNameKey = (p.playlist_name || "").trim().toLowerCase();
+      if (!seenPlaylistNames.has(pNameKey)) {
+        seenPlaylistNames.add(pNameKey);
+        uniquePlaylists.push(p);
+      }
+    });
+    userPlaylists = uniquePlaylists;
+
     const { data: piData } = await supabaseClient.from("playlist_items").select("*").eq("student_roll", roll);
-    userPlaylistItems = piData || [];
+    const uniqueItems = [];
+    const seenItemKeys = new Set();
+    (piData || []).forEach(item => {
+      const key = `${item.playlist_id}_${item.test_id}`;
+      if (!seenItemKeys.has(key)) {
+        seenItemKeys.add(key);
+        uniqueItems.push(item);
+      }
+    });
+    userPlaylistItems = uniqueItems;
 
     const todayStr = getLocalDateString();
     
@@ -1194,206 +1332,217 @@ window.launchBoosterMode = async function(mode = 'exam') {
   }
 };
 
+// 🚀 MUTEX-LOCKED & ATOMIC ASSIGNMENT RENDERER (ELIMINATES DUPLICATE PLAYLISTS)
 async function renderHomePlaylists() {
-  const todayContainer = document.getElementById("todayPlaylistContainer"), 
-        tomorrowContainer = document.getElementById("tomorrowPlaylistContainer"), 
-        weekContainer = document.getElementById("weekPlaylistContainer"), 
-        customContainer = document.getElementById("customPlaylistsContainer"),
-        revContainer = document.getElementById("dynamicRevisionTileContainer");
+  if (isRenderingPlaylists) {
+    pendingPlaylistRender = true;
+    return;
+  }
+  isRenderingPlaylists = true;
 
-  if (!todayContainer || !tomorrowContainer || !weekContainer) return;
-  todayContainer.innerHTML = ""; 
-  tomorrowContainer.innerHTML = ""; 
-  weekContainer.innerHTML = ""; 
-  if (customContainer) customContainer.innerHTML = "";
+  try {
+    const todayContainer = document.getElementById("todayPlaylistContainer"), 
+          tomorrowContainer = document.getElementById("tomorrowPlaylistContainer"), 
+          weekContainer = document.getElementById("weekPlaylistContainer"), 
+          customContainer = document.getElementById("customPlaylistsContainer"),
+          revContainer = document.getElementById("dynamicRevisionTileContainer");
 
-  // 🚀 RENDER COMPACT UNIFORM BOOSTER CARD MATCHING EXACT GRID SLOT & SPACING
-  if (revContainer) {
-    const boosterQuestions = await compileMasteryBoosterPool(25);
-    const qCount = boosterQuestions.length;
+    if (!todayContainer || !tomorrowContainer || !weekContainer) return;
+    todayContainer.innerHTML = ""; 
+    tomorrowContainer.innerHTML = ""; 
+    weekContainer.innerHTML = ""; 
 
-    if (qCount === 0) {
-      revContainer.innerHTML = `
-        <div class="set-tile dynamic-revision-tile state-clean">
-          <div class="set-tile-header">
-            <div class="set-tile-title-group">
-              <div class="set-tile-title" style="color: #64748b;">Bonus Mastery Booster</div>
-            </div>
-            <div style="display:flex; gap: 6px; align-items: center; flex-shrink: 0;">
-              <span class="clean-slate-pill">0 Due</span>
-            </div>
-          </div>
-          <div class="set-tile-meta">
-            <span>${clockSvg} 0m</span>
-            <span>${docSvg} 0 Qs</span>
-          </div>
-          <div class="set-score-info"><span style="color:#64748b;">Mistakes & Recall Cleared</span></div>
-          <div class="set-action-footer">
-            <button type="button" class="btn-launch-set" style="background:var(--bg-surface-elevated); color:#94a3b8; border:1px solid var(--border-color); cursor:default;" disabled>
-              <span>✓</span> <span>Clean</span>
-            </button>
-          </div>
-        </div>
-      `;
-    } else {
-      const durationMins = Math.max(3, Math.ceil(qCount * 0.6));
-      revContainer.innerHTML = `
-        <div class="set-tile dynamic-revision-tile state-active">
-          <div class="set-tile-header">
-            <div class="set-tile-title-group">
-              <div class="set-tile-title">Bonus Mastery Booster</div>
-            </div>
-            <div style="display:flex; gap: 6px; align-items: center; flex-shrink: 0;">
-              <div class="set-status-badge status-progress" style="background:rgba(245,158,11,0.15); color:#d97706; border:1px solid rgba(245,158,11,0.3);">
-                ${qCount} Due
+    // RENDER QUANTUM CORE BONUS MASTERY BOOSTER
+    if (revContainer) {
+      const boosterQuestions = await compileMasteryBoosterPool(25);
+      const qCount = boosterQuestions.length;
+
+      if (qCount === 0) {
+        revContainer.innerHTML = `
+          <div class="set-tile dynamic-revision-tile state-clean">
+            <div class="set-tile-header">
+              <div class="set-tile-title-group">
+                <div class="set-tile-title">Bonus Mastery Booster</div>
+              </div>
+              <div style="display:flex; gap: 6px; align-items: center; flex-shrink: 0;">
+                <span class="clean-slate-pill">0 Due • All Clear</span>
               </div>
             </div>
-          </div>
-          <div class="set-tile-meta">
-            <span>${clockSvg} ${durationMins}m</span>
-            <span>${docSvg} ${qCount} Qs</span>
-          </div>
-          <div class="set-score-info"><span style="color:#d97706;">Mistakes & Active Recall</span></div>
-          <div class="set-action-footer">
-            <button type="button" class="btn-launch-set" onclick="launchBoosterMode('exam')">
-              <span>▶</span> <span>Exam</span>
-            </button>
-            <div class="secondary-modes-strip">
-              <button type="button" class="btn-mode-icon" title="Read Mode" onclick="launchBoosterMode('read')">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
-              </button>
-              <button type="button" class="btn-mode-icon" title="Flashcards" onclick="launchBoosterMode('flashcard')">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="14" height="14" rx="2" ry="2"></rect><path d="M21 7v12a2 2 0 0 1-2 2H7"></path></svg>
-              </button>
-              <button type="button" class="btn-mode-icon" title="Instant Quiz" onclick="launchBoosterMode('quiz')">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1 2-2h11"></path></svg>
+            <div class="set-tile-meta">
+              <span>${clockSvg} 0m</span>
+              <span>${docSvg} 0 Qs</span>
+              <span style="font-size:10px; color:#10b981; font-weight:700;">(100% Spaced Review Sync)</span>
+            </div>
+            <div class="set-score-info"><span style="color:#10b981; font-weight:600;">✓ Mistake Bank Cleared • Zero Reviews Due</span></div>
+            <div class="set-action-footer">
+              <button type="button" class="btn-launch-set" disabled title="All reviews optimal. Attempt new questions from Library.">
+                <span>🛡️</span> <span>System Optimal</span>
               </button>
             </div>
           </div>
-        </div>
-      `;
-    }
-  }
+        `;
+      } else {
+        const durationMins = Math.max(3, Math.ceil(qCount * 0.6));
+        const mistakeCount = boosterQuestions.filter(q => q.isMistake).length;
+        const recallCount = qCount - mistakeCount;
+        const poolDetail = mistakeCount > 0 && recallCount > 0 
+          ? `${mistakeCount} Mistakes • ${recallCount} Active Recall` 
+          : (mistakeCount > 0 ? `${mistakeCount} Mistakes for Review` : `${recallCount} Active Recall Questions`);
 
-  let todayLoad = 0, tomorrowLoad = 0;
-  const getSetHtml = (item, pName) => {
-    const setCat = catalogData.find(c => String(c.test_id) === String(item.test_id)); 
-    if (!setCat) return "";
-    const qCount = setCat.total_questions || 10;
-    if (pName === 'Today') todayLoad += qCount; 
-    if (pName === 'Tomorrow') tomorrowLoad += qCount;
-    
-    const isRoll = item.is_rollover ? `<span class="set-rollover-tag">⚠️ ROLLOVER</span>` : '';
-    
-    const attempts = userAttemptHistory.filter(a => String(a.test_id) === String(setCat.test_id)), isAtt = attempts.length > 0;
-    const bestScore = isAtt ? Math.max(...attempts.map(a => parseFloat(a.score))) : 0, maxMarks = qCount * 2, pct = (maxMarks > 0 && isAtt) ? (bestScore / maxMarks) * 100 : 0;
-    let badgeClass = '', badgeText = '', historyHtml = '<span style="color:#64748b;">Not attempted yet</span>';
-    if (isAtt) {
-      if (pct >= 100) { 
-        badgeClass = 'status-mastered'; 
-        badgeText = `MASTERED ${bestScore}/${maxMarks}`; 
-        historyHtml = `<span style="color:#16a34a;">★ Best: ${bestScore} (${Math.round(pct)}%) | Att: ${attempts.length}</span>`; 
-      } else { 
-        badgeClass = 'status-progress'; 
-        badgeText = `IN PROGRESS`; 
-        historyHtml = `<span style="color:#d97706;">Review: ${bestScore}/${maxMarks} | Att: ${attempts.length}</span>`; 
+        revContainer.innerHTML = `
+          <div class="set-tile dynamic-revision-tile state-active">
+            <div class="set-tile-header">
+              <div class="set-tile-title-group">
+                <div class="set-tile-title">Bonus Mastery Booster</div>
+              </div>
+              <div style="display:flex; gap: 6px; align-items: center; flex-shrink: 0;">
+                <div class="set-status-badge status-progress" style="background:rgba(245,158,11,0.18); color:#d97706; border:1px solid rgba(245,158,11,0.35);">
+                  ${qCount} Due
+                </div>
+              </div>
+            </div>
+            <div class="set-tile-meta">
+              <span>${clockSvg} ${durationMins}m</span>
+              <span>${docSvg} ${qCount} Qs</span>
+              <span style="font-size:10px; color:#f59e0b; font-weight:700;">(Bonus • Excluded from 100-Q Target)</span>
+            </div>
+            <div class="set-score-info"><span style="color:#d97706; font-weight:700;">⚡ ${poolDetail}</span></div>
+            <div class="set-action-footer">
+              <button type="button" class="btn-launch-set" onclick="openMissionBriefingModal(-1)">
+                <span>▶</span> <span>Start Booster Session</span>
+              </button>
+            </div>
+          </div>
+        `;
       }
     }
-    return `
-      <div class="set-tile" data-status="${isAtt ? (pct >= 100 ? 'mastered' : 'revise') : 'unattempted'}">
-        <div class="set-tile-header">
-          <div class="set-tile-title-group">
-            ${isRoll}
-            <div class="set-tile-title">${setCat.test_title}</div>
-          </div>
-          <div style="display:flex; gap: 6px; align-items: center; flex-shrink: 0;">
-             ${badgeText ? `<div class="set-status-badge ${badgeClass}">${badgeText}</div>` : ''}
-             <button type="button" class="btn-three-dots" onclick="openThreeDotsMenu(event, ${setCat.test_id})" title="Options">⋮</button>
-          </div>
-        </div>
-        <div class="set-tile-meta"><span>${clockSvg} ${setCat.total_duration_minutes}m</span><span>${docSvg} ${qCount} Qs</span></div>
-        <div class="set-score-info">${historyHtml}</div>
-        <div class="set-action-footer">
-          <button type="button" class="btn-launch-set" onclick="launchAssessment(${setCat.test_id})"><span>▶</span> <span>${isAtt ? 'Retake' : 'Exam'}</span></button>
-          <div class="secondary-modes-strip">
-            <button type="button" class="btn-mode-icon" title="Read Mode" onclick="launchPracticeMode(${setCat.test_id}, 'read')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg></button>
-            <button type="button" class="btn-mode-icon" title="Flashcards" onclick="launchPracticeMode(${setCat.test_id}, 'flashcard')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="14" height="14" rx="2" ry="2"></rect><path d="M21 7v12a2 2 0 0 1-2 2H7"></path></svg></button>
-            <button type="button" class="btn-mode-icon" title="Instant Quiz" onclick="launchPracticeMode(${setCat.test_id}, 'quiz')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1 2-2h11"></path></svg></button>
-          </div>
-        </div>
-      </div>
-    `;
-  };
 
-  const getAddBtn = (pId, pName) => `<button type="button" class="btn-create-playlist-trigger" style="margin-top: 10px; grid-column: 1 / -1;" onclick="enableLibrarySelectionMode('${pId}', '${pName.replace(/'/g, "\\'")}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg><span>Add Sets to ${pName}</span></button>`;
-  const todayList = userPlaylists.find(p => p.playlist_name === 'Today'), tomorrowList = userPlaylists.find(p => p.playlist_name === 'Tomorrow'), weekList = userPlaylists.find(p => p.playlist_name === 'This Week');
-
-  if (todayList) {
-    const items = userPlaylistItems.filter(pi => pi.playlist_id === todayList.id);
-    todayContainer.innerHTML = (items.length > 0 ? items.map(i => getSetHtml(i, 'Today')).join("") : `<div style="text-align:center; padding:18px; color:#94a3b8; font-size:12.5px; font-weight:600; grid-column:1 / -1;">No sets queued for today yet.</div>`) + getAddBtn(todayList.id, 'Today');
-    const pill = document.getElementById("todayCountPill"); if (pill) pill.innerText = `${items.length} Sets ▼`;
-  }
-  if (tomorrowList) {
-    const items = userPlaylistItems.filter(pi => pi.playlist_id === tomorrowList.id);
-    tomorrowContainer.innerHTML = (items.length > 0 ? items.map(i => getSetHtml(i, 'Tomorrow')).join("") : `<div style="text-align:center; padding:18px; color:#94a3b8; font-size:12.5px; font-weight:600; grid-column:1 / -1;">Queue is empty.</div>`) + getAddBtn(tomorrowList.id, 'Tomorrow');
-    const badge = document.getElementById("tomorrowCountPill"); if (badge) badge.innerText = `${items.length} Sets ▼`;
-  }
-  if (weekList) {
-    const items = userPlaylistItems.filter(pi => pi.playlist_id === weekList.id);
-    weekContainer.innerHTML = (items.length > 0 ? items.map(i => getSetHtml(i, 'This Week')).join("") : `<div style="text-align:center; padding:18px; color:#94a3b8; font-size:12.5px; font-weight:600; grid-column:1 / -1;">Backlog is empty.</div>`) + getAddBtn(weekList.id, 'This Week');
-    const badge = document.getElementById("weekCountPill"); if (badge) badge.innerText = `${items.length} Sets ▼`;
-  }
-  
-  const customLists = userPlaylists.filter(p => !['Today', 'Tomorrow', 'This Week'].includes(p.playlist_name));
-  if (customContainer && customLists.length > 0) {
-    customLists.forEach(playlist => {
-      const items = userPlaylistItems.filter(pi => pi.playlist_id === playlist.id);
-      customContainer.innerHTML += `
-        <div class="mission-playlist-card collapsed playlist-accordion-card">
-          <div class="playlist-header" onclick="this.parentElement.classList.toggle('expanded'); this.parentElement.classList.toggle('collapsed');">
-            <div class="playlist-header-left"><h3 class="playlist-title">${playlist.playlist_name}</h3></div>
-            <div class="playlist-header-right">
-              <span class="playlist-count-pill">${items.length} Sets ▼</span>
-              <button type="button" class="btn-playlist-dots" onclick="event.stopPropagation(); openPlaylistActionMenu(event, '${playlist.id}', '${playlist.playlist_name.replace(/'/g, "\\'")}', false)" title="Playlist Options">⋮</button>
+    let todayLoad = 0, tomorrowLoad = 0;
+    const getSetHtml = (item, pName) => {
+      const setCat = catalogData.find(c => String(c.test_id) === String(item.test_id)); 
+      if (!setCat) return "";
+      const qCount = setCat.total_questions || 10;
+      if (pName === 'Today') todayLoad += qCount; 
+      if (pName === 'Tomorrow') tomorrowLoad += qCount;
+      
+      const isRoll = item.is_rollover ? `<span class="set-rollover-tag">⚠️ ROLLOVER</span>` : '';
+      
+      const attempts = userAttemptHistory.filter(a => String(a.test_id) === String(setCat.test_id)), isAtt = attempts.length > 0;
+      const bestScore = isAtt ? Math.max(...attempts.map(a => parseFloat(a.score))) : 0, maxMarks = qCount * 2, pct = (maxMarks > 0 && isAtt) ? (bestScore / maxMarks) * 100 : 0;
+      let badgeClass = '', badgeText = '', historyHtml = '<span style="color:#64748b;">Not attempted yet</span>';
+      if (isAtt) {
+        if (pct >= 100) { 
+          badgeClass = 'status-mastered'; 
+          badgeText = `MASTERED ${bestScore}/${maxMarks}`; 
+          historyHtml = `<span style="color:#16a34a;">★ Best: ${bestScore} (${Math.round(pct)}%) | Att: ${attempts.length}</span>`; 
+        } else { 
+          badgeClass = 'status-progress'; 
+          badgeText = `IN PROGRESS`; 
+          historyHtml = `<span style="color:#d97706;">Review: ${bestScore}/${maxMarks} | Att: ${attempts.length}</span>`; 
+        }
+      }
+      return `
+        <div class="set-tile" data-status="${isAtt ? (pct >= 100 ? 'mastered' : 'revise') : 'unattempted'}">
+          <div class="set-tile-header">
+            <div class="set-tile-title-group">
+              ${isRoll}
+              <div class="set-tile-title">${setCat.test_title}</div>
+            </div>
+            <div style="display:flex; gap: 6px; align-items: center; flex-shrink: 0;">
+               ${badgeText ? `<div class="set-status-badge ${badgeClass}">${badgeText}</div>` : ''}
+               <button type="button" class="btn-three-dots" onclick="openThreeDotsMenu(event, ${setCat.test_id})" title="Options">⋮</button>
             </div>
           </div>
-          <div class="playlist-body">
-            <div class="playlist-sets-stream sets-card-grid">${items.length > 0 ? items.map(i => getSetHtml(i, playlist.playlist_name)).join("") : `<div style="text-align:center; padding:18px; color:#94a3b8; font-size:12.5px; font-weight:600; grid-column:1 / -1;">No sets in ${playlist.playlist_name}.</div>`}</div>
-            ${getAddBtn(playlist.id, playlist.playlist_name)}
+          <div class="set-tile-meta"><span>${clockSvg} ${setCat.total_duration_minutes}m</span><span>${docSvg} ${qCount} Qs</span></div>
+          <div class="set-score-info">${historyHtml}</div>
+          <div class="set-action-footer">
+            <button type="button" class="btn-launch-set" onclick="openMissionBriefingModal(${setCat.test_id})">
+              <span>▶</span> <span>${isAtt ? 'Retake / Review' : 'Start Session'}</span>
+            </button>
           </div>
         </div>
       `;
+    };
+
+    const getAddBtn = (pId, pName) => `<button type="button" class="btn-create-playlist-trigger" style="margin-top: 10px; grid-column: 1 / -1;" onclick="enableLibrarySelectionMode('${pId}', '${pName.replace(/'/g, "\\'")}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg><span>Add Sets to ${pName}</span></button>`;
+    const todayList = userPlaylists.find(p => p.playlist_name === 'Today'), tomorrowList = userPlaylists.find(p => p.playlist_name === 'Tomorrow'), weekList = userPlaylists.find(p => p.playlist_name === 'This Week');
+
+    if (todayList) {
+      const items = userPlaylistItems.filter(pi => pi.playlist_id === todayList.id);
+      todayContainer.innerHTML = (items.length > 0 ? items.map(i => getSetHtml(i, 'Today')).join("") : `<div style="text-align:center; padding:18px; color:#94a3b8; font-size:12.5px; font-weight:600; grid-column:1 / -1;">No sets queued for today yet.</div>`) + getAddBtn(todayList.id, 'Today');
+      const pill = document.getElementById("todayCountPill"); if (pill) pill.innerText = `${items.length} Sets ▼`;
+    }
+    if (tomorrowList) {
+      const items = userPlaylistItems.filter(pi => pi.playlist_id === tomorrowList.id);
+      tomorrowContainer.innerHTML = (items.length > 0 ? items.map(i => getSetHtml(i, 'Tomorrow')).join("") : `<div style="text-align:center; padding:18px; color:#94a3b8; font-size:12.5px; font-weight:600; grid-column:1 / -1;">Queue is empty.</div>`) + getAddBtn(tomorrowList.id, 'Tomorrow');
+      const badge = document.getElementById("tomorrowCountPill"); if (badge) badge.innerText = `${items.length} Sets ▼`;
+    }
+    if (weekList) {
+      const items = userPlaylistItems.filter(pi => pi.playlist_id === weekList.id);
+      weekContainer.innerHTML = (items.length > 0 ? items.map(i => getSetHtml(i, 'This Week')).join("") : `<div style="text-align:center; padding:18px; color:#94a3b8; font-size:12.5px; font-weight:600; grid-column:1 / -1;">Backlog is empty.</div>`) + getAddBtn(weekList.id, 'This Week');
+      const badge = document.getElementById("weekCountPill"); if (badge) badge.innerText = `${items.length} Sets ▼`;
+    }
+    
+    // 🚀 ATOMIC BATCHED RENDER FOR CUSTOM PLAYLISTS (NEVER APPENDS TO PREVIOUS DOM)
+    if (customContainer) {
+      const customLists = userPlaylists.filter(p => !['Today', 'Tomorrow', 'This Week'].includes(p.playlist_name));
+      let customHtml = "";
+      customLists.forEach(playlist => {
+        const items = userPlaylistItems.filter(pi => pi.playlist_id === playlist.id);
+        customHtml += `
+          <div class="mission-playlist-card collapsed playlist-accordion-card">
+            <div class="playlist-header" onclick="this.parentElement.classList.toggle('expanded'); this.parentElement.classList.toggle('collapsed');">
+              <div class="playlist-header-left"><h3 class="playlist-title">${playlist.playlist_name}</h3></div>
+              <div class="playlist-header-right">
+                <span class="playlist-count-pill">${items.length} Sets ▼</span>
+                <button type="button" class="btn-playlist-dots" onclick="event.stopPropagation(); openPlaylistActionMenu(event, '${playlist.id}', '${playlist.playlist_name.replace(/'/g, "\\'")}', false)" title="Playlist Options">⋮</button>
+              </div>
+            </div>
+            <div class="playlist-body">
+              <div class="playlist-sets-stream sets-card-grid">${items.length > 0 ? items.map(i => getSetHtml(i, playlist.playlist_name)).join("") : `<div style="text-align:center; padding:18px; color:#94a3b8; font-size:12.5px; font-weight:600; grid-column:1 / -1;">No sets in ${playlist.playlist_name}.</div>`}</div>
+              ${getAddBtn(playlist.id, playlist.playlist_name)}
+            </div>
+          </div>
+        `;
+      });
+      customContainer.innerHTML = customHtml;
+    }
+
+    const targetQ = 100, todayStr = getLocalDateString();
+    const todayAttempts = userAttemptHistory.filter(a => (a.attempt_date || "").split("T")[0] === todayStr && a.test_id > 0);
+    let todayMasteredQ = 0;
+    todayAttempts.forEach(a => { 
+      const c = catalogData.find(x => String(x.test_id) === String(a.test_id)), qc = c ? (c.total_questions || 10) : 10; 
+      if (parseFloat(a.score) >= (qc * 2)) todayMasteredQ += qc; 
+      else if (a.total_correct) todayMasteredQ += a.total_correct; 
     });
+
+    const capPct = Math.min(100, Math.round((todayLoad / targetQ) * 100)), 
+          attPct = Math.min(100, Math.round(((dailyPerf.total_questions_attempted || 0) / targetQ) * 100)), 
+          masPct = Math.min(attPct, Math.min(100, Math.round((todayMasteredQ / targetQ) * 100)));
+
+    const capFill = document.getElementById("centuryCapacityFill"), 
+          attFill = document.getElementById("centuryAttemptedFill"), 
+          masFill = document.getElementById("centuryMasteredFill"), 
+          meterText = document.getElementById("centuryLoadText");
+
+    if (capFill) capFill.style.width = capPct + "%"; 
+    if (attFill) attFill.style.width = attPct + "%"; 
+    if (masFill) masFill.style.width = masPct + "%";
+
+    if (meterText) {
+      if ((dailyPerf.total_questions_attempted || 0) >= 100) meterText.innerText = `${dailyPerf.total_questions_attempted} / 100 Qs 🔥 (Century Secured)`;
+      else if (todayLoad < 100) meterText.innerText = `${dailyPerf.total_questions_attempted || 0} / 100 Qs ⚠️ (Queue: ${todayLoad} Qs)`;
+      else meterText.innerText = `${dailyPerf.total_questions_attempted || 0} / 100 Qs 🎯 (${todayLoad} Staged)`;
+    }
+    localStorage.setItem("tomorrow_load_" + currentCandidate.roll_number, tomorrowLoad);
+  } finally {
+    isRenderingPlaylists = false;
+    if (pendingPlaylistRender) {
+      pendingPlaylistRender = false;
+      renderHomePlaylists();
+    }
   }
-
-  const targetQ = 100, todayStr = getLocalDateString();
-  const todayAttempts = userAttemptHistory.filter(a => (a.attempt_date || "").split("T")[0] === todayStr && a.test_id > 0);
-  let todayMasteredQ = 0;
-  todayAttempts.forEach(a => { 
-    const c = catalogData.find(x => String(x.test_id) === String(a.test_id)), qc = c ? (c.total_questions || 10) : 10; 
-    if (parseFloat(a.score) >= (qc * 2)) todayMasteredQ += qc; 
-    else if (a.total_correct) todayMasteredQ += a.total_correct; 
-  });
-
-  const capPct = Math.min(100, Math.round((todayLoad / targetQ) * 100)), 
-        attPct = Math.min(100, Math.round(((dailyPerf.total_questions_attempted || 0) / targetQ) * 100)), 
-        masPct = Math.min(attPct, Math.min(100, Math.round((todayMasteredQ / targetQ) * 100)));
-
-  const capFill = document.getElementById("centuryCapacityFill"), 
-        attFill = document.getElementById("centuryAttemptedFill"), 
-        masFill = document.getElementById("centuryMasteredFill"), 
-        meterText = document.getElementById("centuryLoadText");
-
-  if (capFill) capFill.style.width = capPct + "%"; 
-  if (attFill) attFill.style.width = attPct + "%"; 
-  if (masFill) masFill.style.width = masPct + "%";
-
-  if (meterText) {
-    if ((dailyPerf.total_questions_attempted || 0) >= 100) meterText.innerText = `${dailyPerf.total_questions_attempted} / 100 Qs 🔥 (Century Secured)`;
-    else if (todayLoad < 100) meterText.innerText = `${dailyPerf.total_questions_attempted || 0} / 100 Qs ⚠️ (Queue: ${todayLoad} Qs)`;
-    else meterText.innerText = `${dailyPerf.total_questions_attempted || 0} / 100 Qs 🎯 (${todayLoad} Staged)`;
-  }
-  localStorage.setItem("tomorrow_load_" + currentCandidate.roll_number, tomorrowLoad);
 }
 
 // ==========================================================================
@@ -1559,9 +1708,6 @@ window.cancelLibrarySelectionMode = async function() {
   switchView('viewDashboard');
   updateBottomNav(document.getElementById('navHomeBtn'));
 
-  renderHomePlaylists();
-  autoExpandPlaylistCard(targetName);
-
   if (stagedCount > 0) {
     showSelectionToast(`✓ ${targetName} updated (${stagedCount} Sets ready)`);
   } else {
@@ -1696,7 +1842,7 @@ window.togglePlaylistMembership = async function(pId, testId, inList) {
 };
 
 // ==========================================================================
-// 8. TELEMETRY, MISTAKE BANK & DEDUPLICATED NATURAL DICTIONARY SORT
+// 9. TELEMETRY, MISTAKE BANK & DEDUPLICATED NATURAL DICTIONARY SORT
 // ==========================================================================
 async function fetchWeakQuestions() {
   if (!currentCandidate) return;
@@ -1855,7 +2001,7 @@ window.returnToSubjectHub = function(fromPopState = false) {
   if (!fromPopState) history.replaceState({ page: 'main-tab', view: 'viewLibrary', subView: 'hub' }, "", "#viewLibrary");
 };
 
-// 🚀 HIGH-EFFICIENCY ONE-TIME DOM BUILDER (TAGGED WITH DATA-STATUS)
+// 🚀 HIGH-EFFICIENCY ONE-TIME DOM BUILDER (APPROACH 1 BRIEFING MODAL INTEGRATED)
 function renderTopicSets() {
   const container = document.getElementById("topicsContainer"); 
   if (!container) return; 
@@ -1991,12 +2137,9 @@ function renderTopicSets() {
           <div class="set-tile-meta"><span>${clockSvg} ${setItem.total_duration_minutes}m</span><span>${docSvg} ${setItem.total_questions} Qs</span></div>
           <div class="set-score-info">${historyHtml}</div>
           <div class="set-action-footer">
-            <button type="button" class="btn-launch-set" onclick="launchAssessment(${setItem.test_id})"><span>▶</span> <span>${isAtt ? 'Retake' : 'Exam'}</span></button>
-            <div class="secondary-modes-strip">
-              <button type="button" class="btn-mode-icon" title="Read Mode" onclick="launchPracticeMode(${setItem.test_id}, 'read')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg></button>
-              <button type="button" class="btn-mode-icon" title="Flashcards" onclick="launchPracticeMode(${setItem.test_id}, 'flashcard')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="14" height="14" rx="2" ry="2"></rect><path d="M21 7v12a2 2 0 0 1-2 2H7"></path></svg></button>
-              <button type="button" class="btn-mode-icon" title="Instant Quiz" onclick="launchPracticeMode(${setItem.test_id}, 'quiz')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1 2-2h11"></path></svg></button>
-            </div>
+            <button type="button" class="btn-launch-set" onclick="openMissionBriefingModal(${setItem.test_id})">
+              <span>▶</span> <span>${isAtt ? 'Retake / Review' : 'Start Session'}</span>
+            </button>
           </div>
         `;
       }
@@ -2358,7 +2501,6 @@ function renderScorecard() {
   const tSecs = Math.max(0, ((activeTest.total_duration_minutes || 15) * 60) - timeRemaining);
   const tMins = Math.ceil(tSecs / 60);
 
-  // 🚀 1. IMMEDIATE IN-MEMORY PUSH: GUI & Library recognize score instantly
   const localAttemptRecord = {
     test_id: activeTest.id,
     score: score,
@@ -2369,7 +2511,6 @@ function renderScorecard() {
   };
   userAttemptHistory.unshift(localAttemptRecord);
 
-  // Cache reset so newly attempted set immediately reflects in booster compile
   cachedBoosterPool = null;
   lastBoosterFetchTime = 0;
 
@@ -2407,7 +2548,6 @@ function renderScorecard() {
 
   (async () => {
     try {
-      // 🚀 2. INSERT TEST ATTEMPT FIRST SO RECORD IS NEVER LOST
       const { error: insErr } = await supabaseClient.from("test_attempts").insert({ 
         student_roll: currentCandidate.roll_number, 
         test_id: activeTest.id, 
@@ -2418,7 +2558,6 @@ function renderScorecard() {
       });
       if (insErr) throw insErr;
 
-      // 🚀 3. IMMEDIATE METRICS CONFIRMATION
       const sMsg = document.getElementById("syncStatusMsg"); 
       if (sMsg) { 
         sMsg.style.color = "#16a34a"; 
@@ -2456,7 +2595,6 @@ function renderScorecard() {
       if (att) await supabaseClient.from("daily_attendance").update({ total_minutes_spent: att.total_minutes_spent + tMins }).eq("id", att.id);
       else await supabaseClient.from("daily_attendance").insert({ student_roll: currentCandidate.roll_number, study_date: today, total_minutes_spent: tMins });
 
-      // 🚀 4. BATCHED MISTAKE BANK SYNC
       if (statsPayload.length) await syncMistakeBank(statsPayload);
     } catch (e) { 
       console.error("Score Sync Error:", e); 
@@ -2473,7 +2611,6 @@ window.closeExamAndReload = async function() {
   closeExamModal(); 
   isExamFinished = true; 
   
-  // 🚀 RE-SYNC FRESH ATTEMPTS FROM SERVER TO PREVENT "NOT ATTEMPTED" GLITCH
   try {
     const { data: hist } = await supabaseClient
       .from("test_attempts")
@@ -2487,9 +2624,9 @@ window.closeExamAndReload = async function() {
 
   await fetchPlaylistsAndCheckRollover(); 
   await renderHomePlaylists(); 
-  renderSubjectHubGrid();
-  if (activeSubject) renderTopicSets();
-  fetchStudentAnalytics(true);
+  renderSubjectHubGrid(); 
+  if (activeSubject) renderTopicSets(); 
+  fetchStudentAnalytics(true); 
   switchView('viewDashboard'); 
 };
 
@@ -2546,7 +2683,7 @@ function renderPaletteGrid() {
 }
 
 // ==========================================================================
-// 9. PERFORMANCE ANALYTICS & SMART HEATMAP BOUNDARY CLAMPING
+// 10. PERFORMANCE ANALYTICS & SMART HEATMAP BOUNDARY CLAMPING
 // ==========================================================================
 function drawSparkline(id, data, color) {
   const el = document.getElementById(id); 
@@ -2800,7 +2937,7 @@ function renderHeatmap(attMap) {
 }
 
 // ==========================================================================
-// 10. MULTI-MODE PRACTICE (READ/FLASHCARD/QUIZ - REFINED TOP BARS)
+// 11. MULTI-MODE PRACTICE (READ/FLASHCARD/QUIZ - REFINED TOP BARS)
 // ==========================================================================
 window.launchPracticeMode = async function(testId, mode) {
   const { data: tInfo } = await supabaseClient.from("tests").select("id, title").eq("id", testId).single();
@@ -2825,7 +2962,7 @@ window.launchPracticeMode = async function(testId, mode) {
 
   const tEl = document.getElementById("practiceSetTitle"); 
   if (tEl) tEl.innerText = tInfo ? tInfo.title : "Practice Set";
-  const mEl = document.getElementById("practiceModeTitle");
+  const mEl = document.getElementById("practiceModeTitle"); 
   if (mEl) mEl.innerText = mode === "read" ? "📖 READ MODE" : (mode === "quiz" ? "⚡ INSTANT QUIZ" : "🗂️ FLASHCARDS");
 
   switchView("viewPractice");
@@ -3101,7 +3238,7 @@ function renderFlashcardMode() {
 }
 
 // ==========================================================================
-// 11. ELEGANT MOBILE APP EXIT DIALOG CONTROLLER (ZERO ABOUT:BLANK WINDOW)
+// 12. ELEGANT MOBILE APP EXIT DIALOG CONTROLLER (ZERO ABOUT:BLANK WINDOW)
 // ==========================================================================
 window.showExitConfirmModal = function() {
   const modal = document.getElementById('exitConfirmModal');
