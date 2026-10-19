@@ -91,15 +91,15 @@ function getLocalizedText(obj) {
     text = (currentLang === "hi") ? (obj.hi ? obj.hi : (obj.en ? (obj.en + "\n\n*(यह सामग्री अभी हिंदी में उपलब्ध नहीं है)*") : "")) : (obj.en || obj.hi || ""); 
   } else {
     let str = String(obj).trim();
-    if (str.startsWith("{") && str.endsWith("}")) {
-      try {
-        let parsed = JSON.parse(str);
-        text = (currentLang === "hi") ? (parsed.hi ? parsed.hi : (parsed.en ? (parsed.en + "\n\n*(यह सामग्री अभी हिंदी में उपलब्ध नहीं है)*") : "")) : (parsed.en || parsed.hi || "");
-      } catch (e) {
-        text = str;
-      }
-    } else {
-      text = str;
+    if (str.startsWith("{") && str.endsWith("}")) { 
+      try { 
+        let parsed = JSON.parse(str); 
+        text = (currentLang === "hi") ? (parsed.hi ? parsed.hi : (parsed.en ? (parsed.en + "\n\n*(यह सामग्री अभी हिंदी में उपलब्ध नहीं है)*") : "")) : (parsed.en || parsed.hi || ""); 
+      } catch (e) { 
+        text = str; 
+      } 
+    } else { 
+      text = str; 
     }
   }
   return typeof text === "string" ? text.replace(/\\n/g, "\n") : String(text || "");
@@ -325,7 +325,7 @@ function setupMobileExamGestures() {
   if (!document.getElementById("paletteGrabHandle")) {
     const h = document.createElement("div"); 
     h.id = "paletteGrabHandle";
-    h.style.cssText = "width: 44px; height: 5px; background: #cbd5e1; border-radius: 4px; margin: 8px auto 4px auto; flex-shrink: 0; cursor: grab;";
+    h.style.cssText = "width: 44px; height: 5px; background: var(--border-color); border-radius: 4px; margin: 8px auto 4px auto; flex-shrink: 0; cursor: grab;";
     panel.insertBefore(h, panel.firstChild);
   }
   let touchStartY = 0, touchStartX = 0;
@@ -428,7 +428,7 @@ function showPasswordResetUI() {
       b.id = "btnCancelReset"; 
       b.type = "button"; 
       b.innerText = "Cancel & Sign Out";
-      b.style.cssText = "background:none; border:none; color:#dc2626; font-size:12px; font-weight:bold; width:100%; margin-top:16px; cursor:pointer; text-decoration:underline;";
+      b.style.cssText = "background:none; border:none; color:var(--danger); font-size:12px; font-weight:bold; width:100%; margin-top:16px; cursor:pointer; text-decoration:underline;";
       b.onclick = () => { 
         sessionStorage.removeItem("recovery_mode"); 
         supabaseClient.auth.signOut().then(() => { window.location.href = window.location.pathname; }); 
@@ -470,9 +470,9 @@ function showAuthNotice(msg, isError = true) {
   if (!box) return;
   box.innerText = msg; 
   box.style.display = "block";
-  box.style.background = isError ? "rgba(239, 68, 68, 0.15)" : "rgba(34, 197, 94, 0.15)";
-  box.style.borderColor = isError ? "#ef4444" : "#22c55e"; 
-  box.style.color = isError ? "#fca5a5" : "#4ade80";
+  box.style.background = isError ? "var(--danger-bg-subtle)" : "var(--success-bg-subtle)";
+  box.style.borderColor = isError ? "var(--danger)" : "var(--success)"; 
+  box.style.color = isError ? "var(--danger)" : "var(--success-dark)";
 }
 
 // ==========================================================================
@@ -534,6 +534,25 @@ function filterAccordionCards(query) {
   }
 }
 
+// 🚀 MUTUAL-EXCLUSION ACCORDION CONTROLLER FOR SECONDARY PLAYLISTS
+window.toggleSecondaryPlaylist = function(headerElement) {
+  const card = headerElement.closest('.playlist-accordion-card');
+  if (!card) return;
+  const wasExpanded = card.classList.contains('expanded');
+
+  // Collapse all secondary playlists (Tomorrow, This Week, and all Custom Playlists)
+  document.querySelectorAll('.mission-column-secondary .playlist-accordion-card').forEach(c => {
+    c.classList.remove('expanded');
+    c.classList.add('collapsed');
+  });
+
+  // If the clicked playlist was previously collapsed, expand only this one
+  if (!wasExpanded) {
+    card.classList.remove('collapsed');
+    card.classList.add('expanded');
+  }
+};
+
 function setupAppEvents() {
   document.addEventListener("click", (e) => {
     const pMenu = document.getElementById("playlistActionMenu");
@@ -541,6 +560,12 @@ function setupAppEvents() {
     const tMenu = document.getElementById("threeDotsMenu");
     if (tMenu && tMenu.style.display !== "none" && !tMenu.contains(e.target) && !e.target.closest(".btn-three-dots")) closeThreeDotsMenu();
   });
+
+  // Bind single-open accordion behavior for Tomorrow & This Week headers
+  const tomHeader = document.querySelector("#tomorrowPlaylistCard .playlist-header");
+  if (tomHeader) tomHeader.onclick = () => window.toggleSecondaryPlaylist(tomHeader);
+  const weekHeader = document.querySelector("#weekPlaylistCard .playlist-header");
+  if (weekHeader) weekHeader.onclick = () => window.toggleSecondaryPlaylist(weekHeader);
 
   const tabIn = document.getElementById("tabSignIn"), 
         tabReg = document.getElementById("tabRegister"), 
@@ -654,14 +679,14 @@ function setupAppEvents() {
 
   document.getElementById("btnSaveProfile")?.addEventListener("click", async () => {
     const newName = document.getElementById("editProfileName")?.value.trim(), newTarget = document.getElementById("editProfileTarget")?.value.trim();
-    try {
-      const { error } = await supabaseClient.from("students").update({ full_name: newName, target_exam: newTarget }).eq("roll_number", currentCandidate.roll_number);
-      if (error) throw error;
+    try { 
+      const { error } = await supabaseClient.from("students").update({ full_name: newName, target_exam: newTarget }).eq("roll_number", currentCandidate.roll_number); 
+      if (error) throw error; 
       currentCandidate.full_name = newName; 
-      currentCandidate.target_exam = newTarget;
+      currentCandidate.target_exam = newTarget; 
       const dName = document.getElementById("dashCandidateName"); 
-      if (dName) dName.innerText = newName;
-      showAppNoticeModal("Profile Updated", "Changes Saved Successfully", "Your profile details and target exam specifications have been updated.", "👤", "Return to Home", () => switchView('viewDashboard'));
+      if (dName) dName.innerText = newName; 
+      showAppNoticeModal("Profile Updated", "Changes Saved Successfully", "Your profile details and target exam specifications have been updated.", "👤", "Return to Home", () => switchView('viewDashboard')); 
     } catch (err) { 
       showAppNoticeModal("Profile Error", "Update Failed", err.message, "⚠️", "Dismiss"); 
     }
@@ -1371,9 +1396,9 @@ async function renderHomePlaylists() {
             <div class="set-tile-meta">
               <span>${clockSvg} 0m</span>
               <span>${docSvg} 0 Qs</span>
-              <span style="font-size:10px; color:#10b981; font-weight:700;">(100% Spaced Review Sync)</span>
+              <span style="font-size:10px; color:var(--success-dark); font-weight:700;">(100% Spaced Review Sync)</span>
             </div>
-            <div class="set-score-info"><span style="color:#10b981; font-weight:600;">✓ Mistake Bank Cleared • Zero Reviews Due</span></div>
+            <div class="set-score-info"><span style="color:var(--success-dark); font-weight:600;">✓ Mistake Bank Cleared • Zero Reviews Due</span></div>
             <div class="set-action-footer">
               <button type="button" class="btn-launch-set" disabled title="All reviews optimal. Attempt new questions from Library.">
                 <span>🛡️</span> <span>System Optimal</span>
@@ -1396,7 +1421,7 @@ async function renderHomePlaylists() {
                 <div class="set-tile-title">Bonus Mastery Booster</div>
               </div>
               <div style="display:flex; gap: 6px; align-items: center; flex-shrink: 0;">
-                <div class="set-status-badge status-progress" style="background:rgba(245,158,11,0.18); color:#d97706; border:1px solid rgba(245,158,11,0.35);">
+                <div class="set-status-badge status-progress" style="background:var(--warning-bg-subtle); color:var(--warning-dark); border:1px solid var(--warning-border);">
                   ${qCount} Due
                 </div>
               </div>
@@ -1404,9 +1429,9 @@ async function renderHomePlaylists() {
             <div class="set-tile-meta">
               <span>${clockSvg} ${durationMins}m</span>
               <span>${docSvg} ${qCount} Qs</span>
-              <span style="font-size:10px; color:#f59e0b; font-weight:700;">(Bonus • Excluded from 100-Q Target)</span>
+              <span style="font-size:10px; color:var(--warning); font-weight:700;">(Bonus • Excluded from 100-Q Target)</span>
             </div>
-            <div class="set-score-info"><span style="color:#d97706; font-weight:700;">⚡ ${poolDetail}</span></div>
+            <div class="set-score-info"><span style="color:var(--warning-dark); font-weight:700;">⚡ ${poolDetail}</span></div>
             <div class="set-action-footer">
               <button type="button" class="btn-launch-set" onclick="openMissionBriefingModal(-1)">
                 <span>▶</span> <span>Start Booster Session</span>
@@ -1429,16 +1454,16 @@ async function renderHomePlaylists() {
       
       const attempts = userAttemptHistory.filter(a => String(a.test_id) === String(setCat.test_id)), isAtt = attempts.length > 0;
       const bestScore = isAtt ? Math.max(...attempts.map(a => parseFloat(a.score))) : 0, maxMarks = qCount * 2, pct = (maxMarks > 0 && isAtt) ? (bestScore / maxMarks) * 100 : 0;
-      let badgeClass = '', badgeText = '', historyHtml = '<span style="color:#64748b;">Not attempted yet</span>';
+      let badgeClass = '', badgeText = '', historyHtml = '<span style="color:var(--text-muted);">Not attempted yet</span>';
       if (isAtt) {
         if (pct >= 100) { 
           badgeClass = 'status-mastered'; 
           badgeText = `MASTERED ${bestScore}/${maxMarks}`; 
-          historyHtml = `<span style="color:#16a34a;">★ Best: ${bestScore} (${Math.round(pct)}%) | Att: ${attempts.length}</span>`; 
+          historyHtml = `<span style="color:var(--success-dark);">★ Best: ${bestScore} (${Math.round(pct)}%) | Att: ${attempts.length}</span>`; 
         } else { 
           badgeClass = 'status-progress'; 
           badgeText = `IN PROGRESS`; 
-          historyHtml = `<span style="color:#d97706;">Review: ${bestScore}/${maxMarks} | Att: ${attempts.length}</span>`; 
+          historyHtml = `<span style="color:var(--warning-dark);">Review: ${bestScore}/${maxMarks} | Att: ${attempts.length}</span>`; 
         }
       }
       return `
@@ -1469,21 +1494,29 @@ async function renderHomePlaylists() {
 
     if (todayList) {
       const items = userPlaylistItems.filter(pi => pi.playlist_id === todayList.id);
-      todayContainer.innerHTML = (items.length > 0 ? items.map(i => getSetHtml(i, 'Today')).join("") : `<div style="text-align:center; padding:18px; color:#94a3b8; font-size:12.5px; font-weight:600; grid-column:1 / -1;">No sets queued for today yet.</div>`) + getAddBtn(todayList.id, 'Today');
+      todayContainer.innerHTML = (items.length > 0 ? items.map(i => getSetHtml(i, 'Today')).join("") : `<div style="text-align:center; padding:18px; color:var(--text-muted); font-size:12.5px; font-weight:600; grid-column:1 / -1;">No sets queued for today yet.</div>`) + getAddBtn(todayList.id, 'Today');
       const pill = document.getElementById("todayCountPill"); if (pill) pill.innerText = `${items.length} Sets ▼`;
     }
     if (tomorrowList) {
       const items = userPlaylistItems.filter(pi => pi.playlist_id === tomorrowList.id);
-      tomorrowContainer.innerHTML = (items.length > 0 ? items.map(i => getSetHtml(i, 'Tomorrow')).join("") : `<div style="text-align:center; padding:18px; color:#94a3b8; font-size:12.5px; font-weight:600; grid-column:1 / -1;">Queue is empty.</div>`) + getAddBtn(tomorrowList.id, 'Tomorrow');
+      tomorrowContainer.innerHTML = (items.length > 0 ? items.map(i => getSetHtml(i, 'Tomorrow')).join("") : `<div style="text-align:center; padding:18px; color:var(--text-muted); font-size:12.5px; font-weight:600; grid-column:1 / -1;">Queue is empty.</div>`) + getAddBtn(tomorrowList.id, 'Tomorrow');
       const badge = document.getElementById("tomorrowCountPill"); if (badge) badge.innerText = `${items.length} Sets ▼`;
+      
+      // Ensure single-open click behavior is attached
+      const tomHeader = document.querySelector("#tomorrowPlaylistCard .playlist-header");
+      if (tomHeader) tomHeader.onclick = () => window.toggleSecondaryPlaylist(tomHeader);
     }
     if (weekList) {
       const items = userPlaylistItems.filter(pi => pi.playlist_id === weekList.id);
-      weekContainer.innerHTML = (items.length > 0 ? items.map(i => getSetHtml(i, 'This Week')).join("") : `<div style="text-align:center; padding:18px; color:#94a3b8; font-size:12.5px; font-weight:600; grid-column:1 / -1;">Backlog is empty.</div>`) + getAddBtn(weekList.id, 'This Week');
+      weekContainer.innerHTML = (items.length > 0 ? items.map(i => getSetHtml(i, 'This Week')).join("") : `<div style="text-align:center; padding:18px; color:var(--text-muted); font-size:12.5px; font-weight:600; grid-column:1 / -1;">Backlog is empty.</div>`) + getAddBtn(weekList.id, 'This Week');
       const badge = document.getElementById("weekCountPill"); if (badge) badge.innerText = `${items.length} Sets ▼`;
+
+      // Ensure single-open click behavior is attached
+      const weekHeader = document.querySelector("#weekPlaylistCard .playlist-header");
+      if (weekHeader) weekHeader.onclick = () => window.toggleSecondaryPlaylist(weekHeader);
     }
     
-    // 🚀 ATOMIC BATCHED RENDER FOR CUSTOM PLAYLISTS (NEVER APPENDS TO PREVIOUS DOM)
+    // 🚀 ATOMIC BATCHED RENDER FOR CUSTOM PLAYLISTS (SINGLE-OPEN MUTUAL EXCLUSION HOOKED)
     if (customContainer) {
       const customLists = userPlaylists.filter(p => !['Today', 'Tomorrow', 'This Week'].includes(p.playlist_name));
       let customHtml = "";
@@ -1491,7 +1524,7 @@ async function renderHomePlaylists() {
         const items = userPlaylistItems.filter(pi => pi.playlist_id === playlist.id);
         customHtml += `
           <div class="mission-playlist-card collapsed playlist-accordion-card">
-            <div class="playlist-header" onclick="this.parentElement.classList.toggle('expanded'); this.parentElement.classList.toggle('collapsed');">
+            <div class="playlist-header" onclick="window.toggleSecondaryPlaylist(this)">
               <div class="playlist-header-left"><h3 class="playlist-title">${playlist.playlist_name}</h3></div>
               <div class="playlist-header-right">
                 <span class="playlist-count-pill">${items.length} Sets ▼</span>
@@ -1499,7 +1532,7 @@ async function renderHomePlaylists() {
               </div>
             </div>
             <div class="playlist-body">
-              <div class="playlist-sets-stream sets-card-grid">${items.length > 0 ? items.map(i => getSetHtml(i, playlist.playlist_name)).join("") : `<div style="text-align:center; padding:18px; color:#94a3b8; font-size:12.5px; font-weight:600; grid-column:1 / -1;">No sets in ${playlist.playlist_name}.</div>`}</div>
+              <div class="playlist-sets-stream sets-card-grid">${items.length > 0 ? items.map(i => getSetHtml(i, playlist.playlist_name)).join("") : `<div style="text-align:center; padding:18px; color:var(--text-muted); font-size:12.5px; font-weight:600; grid-column:1 / -1;">No sets in ${playlist.playlist_name}.</div>`}</div>
               ${getAddBtn(playlist.id, playlist.playlist_name)}
             </div>
           </div>
@@ -1625,7 +1658,12 @@ function updateStagingDockUI() {
   }
 
   dock.style.display = "block";
-  renderStagingDomainScroller();
+  const setsExp = document.getElementById("setsExplorerStage");
+  if (setsExp && setsExp.style.display === "block") {
+    renderStagingDomainScroller();
+  } else if (scroller) {
+    scroller.style.display = "none";
+  }
 
   const nameEl = document.getElementById("dockTargetPlaylistName");
   if (nameEl) nameEl.innerText = targetPlaylistForSelection.name;
@@ -1652,11 +1690,17 @@ window.enableLibrarySelectionMode = function(pId, pName) {
   switchView('viewLibrary'); 
   updateBottomNav(document.getElementById('navLibraryBtn')); 
 
-  if (!activeSubject && catalogData.length > 0) {
-    activeSubject = (catalogData[0].subject || "General Studies").trim();
-  }
+  // 🚀 DIRECT TO SUBJECT HUB PORTFOLIO FIRST (NO AUTO-DRILL)
+  const hub = document.getElementById("subjectHubStage");
+  const exp = document.getElementById("setsExplorerStage");
+  toggleMastheadSearch(false);
+  if (exp) exp.style.display = "none";
+  if (hub) hub.style.display = "block";
 
-  drillDownToSubject(activeSubject || "General Studies", false);
+  const scroller = document.getElementById("stagingDomainScroller");
+  if (scroller) scroller.style.display = "none";
+
+  renderSubjectHubGrid();
   updateStagingDockUI();
 
   window.scrollTo({ top: 0, behavior: 'instant' });
@@ -1668,20 +1712,28 @@ function autoExpandPlaylistCard(pName) {
   if (nameClean === 'today') {
     const c = document.getElementById('todayPayloadCard');
     if (c && c.classList.contains('collapsed')) { c.classList.remove('collapsed'); c.classList.add('expanded'); }
-  } else if (nameClean === 'tomorrow') {
-    const c = document.getElementById('tomorrowPlaylistCard');
-    if (c && c.classList.contains('collapsed')) { c.classList.remove('collapsed'); c.classList.add('expanded'); }
-  } else if (nameClean === 'this week') {
-    const c = document.getElementById('weekPlaylistCard');
-    if (c && c.classList.contains('collapsed')) { c.classList.remove('collapsed'); c.classList.add('expanded'); }
   } else {
-    document.querySelectorAll('#customPlaylistsContainer .playlist-accordion-card').forEach(card => {
-      const titleEl = card.querySelector('.playlist-title');
-      if (titleEl && titleEl.innerText.trim().toLowerCase() === nameClean) {
-        card.classList.remove('collapsed');
-        card.classList.add('expanded');
-      }
+    // Collapse all secondary playlists first to preserve single-open rule
+    document.querySelectorAll('.mission-column-secondary .playlist-accordion-card').forEach(c => {
+      c.classList.remove('expanded');
+      c.classList.add('collapsed');
     });
+
+    if (nameClean === 'tomorrow') {
+      const c = document.getElementById('tomorrowPlaylistCard');
+      if (c) { c.classList.remove('collapsed'); c.classList.add('expanded'); }
+    } else if (nameClean === 'this week') {
+      const c = document.getElementById('weekPlaylistCard');
+      if (c) { c.classList.remove('collapsed'); c.classList.add('expanded'); }
+    } else {
+      document.querySelectorAll('#customPlaylistsContainer .playlist-accordion-card').forEach(card => {
+        const titleEl = card.querySelector('.playlist-title');
+        if (titleEl && titleEl.innerText.trim().toLowerCase() === nameClean) {
+          card.classList.remove('collapsed');
+          card.classList.add('expanded');
+        }
+      });
+    }
   }
 }
 
@@ -1695,7 +1747,7 @@ window.cancelLibrarySelectionMode = async function() {
 
   const dock = document.getElementById("libraryFloatingDock"); 
   if (dock) dock.style.display = "none"; 
-  const scroller = document.getElementById("stagingDomainScroller");
+  const scroller = document.getElementById("stagingDomainScroller"); 
   if (scroller) scroller.style.display = "none";
 
   const toast = document.getElementById("selectionToast");
@@ -1805,11 +1857,11 @@ window.openPlaylistBottomSheet = function(testId) {
     const icon = p.playlist_name === 'Today' ? '🔥' : (p.playlist_name === 'Tomorrow' ? '⏳' : (p.playlist_name === 'This Week' ? '📅' : '📁'));
     const bookmarkSvg = inList
       ? `<svg width="20" height="20" viewBox="0 0 24 24" fill="var(--tcs-blue-accent)" stroke="var(--tcs-blue-accent)" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path><polyline points="9 10 12 13 16 8" stroke="#ffffff" stroke-width="2" fill="none"></polyline></svg>`
-      : `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>`;
+      : `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>`;
     html += `
       <div class="playlist-select-row" onclick="togglePlaylistMembership('${p.id}', ${testId}, ${inList})">
         <div class="playlist-select-left"><span class="playlist-select-icon">${icon}</span><span class="playlist-select-title">${p.playlist_name}</span></div>
-        <div style="display:flex; align-items:center; gap:8px;">${inList ? '<span style="color:#16a34a; font-weight:800; font-size:11.5px; letter-spacing:0.3px;">SAVED</span>' : ''}<span class="playlist-select-checkbox">${bookmarkSvg}</span></div>
+        <div style="display:flex; align-items:center; gap:8px;">${inList ? '<span style="color:var(--success-dark); font-weight:800; font-size:11.5px; letter-spacing:0.3px;">SAVED</span>' : ''}<span class="playlist-select-checkbox">${bookmarkSvg}</span></div>
       </div>
     `;
   });
@@ -1834,11 +1886,41 @@ window.closePlaylistBottomSheet = function() {
 };
 
 window.togglePlaylistMembership = async function(pId, testId, inList) {
-  if (inList) await supabaseClient.from("playlist_items").delete().eq("playlist_id", pId).eq("test_id", testId).eq("student_roll", currentCandidate.roll_number);
-  else await supabaseClient.from("playlist_items").insert({ playlist_id: pId, test_id: testId, student_roll: currentCandidate.roll_number });
-  await fetchPlaylistsAndCheckRollover(); 
-  openPlaylistBottomSheet(testId); 
-  await renderHomePlaylists();
+  if (!currentCandidate) return;
+  const roll = currentCandidate.roll_number;
+
+  // 🚀 Step 1: Instant 0ms Local Memory Toggle
+  if (inList) {
+    userPlaylistItems = userPlaylistItems.filter(pi => !(pi.playlist_id === pId && String(pi.test_id) === String(testId)));
+  } else {
+    userPlaylistItems.push({ playlist_id: pId, test_id: testId, student_roll: roll });
+  }
+
+  // 🚀 Step 2: Instant DOM Re-render (Zero Waiting)
+  openPlaylistBottomSheet(testId);
+  renderHomePlaylists();
+
+  // 🚀 Step 3: Background Cloud Sync (Silent Execution)
+  try {
+    if (inList) {
+      await supabaseClient.from("playlist_items").delete().eq("playlist_id", pId).eq("test_id", testId).eq("student_roll", roll);
+    } else {
+      await supabaseClient.from("playlist_items").insert({ playlist_id: pId, test_id: testId, student_roll: roll });
+    }
+  } catch (err) {
+    console.error("Cloud playlist sync failed, reverting:", err);
+    // Rollback local state on network failure
+    if (inList) {
+      userPlaylistItems.push({ playlist_id: pId, test_id: testId, student_roll: roll });
+    } else {
+      userPlaylistItems = userPlaylistItems.filter(pi => !(pi.playlist_id === pId && String(pi.test_id) === String(testId)));
+    }
+    openPlaylistBottomSheet(testId);
+    renderHomePlaylists();
+    if (typeof showSelectionToast === "function") {
+      showSelectionToast("Network sync failed. Changes reverted.");
+    }
+  }
 };
 
 // ==========================================================================
@@ -1866,7 +1948,7 @@ async function fetchWeakQuestions() {
 async function fetchTestCatalog() {
   const hub = document.getElementById("subjectHubContainer"); 
   if (!hub) return;
-  hub.innerHTML = "<p style='padding:20px; color:#64748b;'>Compiling Subject Mastery Matrix...</p>";
+  hub.innerHTML = "<p style='padding:20px; color:var(--text-muted);'>Compiling Subject Mastery Matrix...</p>";
   
   let allCat = [];
   let from = 0;
@@ -1888,7 +1970,7 @@ async function fetchTestCatalog() {
   }
 
   if (allCat.length === 0) {
-    hub.innerHTML = "<p style='padding:20px; color:#dc2626;'>Catalog failed to load.</p>";
+    hub.innerHTML = "<p style='padding:20px; color:var(--danger);'>Catalog failed to load.</p>";
     return;
   }
 
@@ -1944,11 +2026,11 @@ function renderSubjectHubGrid() {
       <div class="tile-top-row"><span class="tile-subject-title">${subName}</span><span class="tile-status-pill ${sClass}">${sText}</span></div>
       <div class="tile-progress-container"><div class="tile-progress-labels"><span>Mastery Progress</span><span>${progPct}%</span></div><div class="tile-progress-track"><div class="tile-progress-fill" style="width: ${progPct}%;"></div></div></div>
       <div class="tile-metrics-grid">
-        <div class="tile-metric-item"><span class="tile-metric-label">Mastered</span><span class="tile-metric-value" style="color:#16a34a;">${completedSets} <small style="font-size:10px; color:#64748b;">/${totalSets}</small></span></div>
-        <div class="tile-metric-item"><span class="tile-metric-label">Remaining</span><span class="tile-metric-value" style="color:#d97706;">${remaining} Sets</span></div>
+        <div class="tile-metric-item"><span class="tile-metric-label">Mastered</span><span class="tile-metric-value" style="color:var(--success-dark);">${completedSets} <small style="font-size:10px; color:var(--text-muted);">/${totalSets}</small></span></div>
+        <div class="tile-metric-item"><span class="tile-metric-label">Remaining</span><span class="tile-metric-value" style="color:var(--warning-dark);">${remaining} Sets</span></div>
         <div class="tile-metric-item"><span class="tile-metric-label">Avg Accuracy</span><span class="tile-metric-value">${avgAcc > 0 ? avgAcc + '%' : '--'}</span></div>
       </div>
-      <div class="tile-action-footer"><span style="color:#64748b; font-size:11px; font-weight:600;">${totalAtt} Attempts Logged</span><span>Explore Sets ➔</span></div>
+      <div class="tile-action-footer"><span style="color:var(--text-muted); font-size:11px; font-weight:600;">${totalAtt} Attempts Logged</span><span>Explore Sets ➔</span></div>
     `;
     tile.onclick = () => drillDownToSubject(subName); 
     container.appendChild(tile);
@@ -2091,16 +2173,16 @@ function renderTopicSets() {
       tile.setAttribute("data-test-id", setItem.test_id);
       tile.setAttribute("data-status", status);
 
-      let badgeClass = '', badgeText = '', historyHtml = '<span style="color:#64748b;">Not attempted yet</span>';
+      let badgeClass = '', badgeText = '', historyHtml = '<span style="color:var(--text-muted);">Not attempted yet</span>';
       if (isAtt) {
         if (pct >= 100) { 
           badgeClass = 'status-mastered'; 
           badgeText = `MASTERED ${best}/${maxMarks}`; 
-          historyHtml = `<span style="color:#16a34a;">★ Best: ${best} (${Math.round(pct)}%) | Att: ${count}</span>`; 
+          historyHtml = `<span style="color:var(--success-dark);">★ Best: ${best} (${Math.round(pct)}%) | Att: ${count}</span>`; 
         } else { 
           badgeClass = 'status-progress'; 
           badgeText = `IN PROGRESS`; 
-          historyHtml = `<span style="color:#d97706;">Review: ${best}/${maxMarks} | Att: ${count}</span>`; 
+          historyHtml = `<span style="color:var(--warning-dark);">Review: ${best}/${maxMarks} | Att: ${count}</span>`; 
         }
       }
 
@@ -2275,7 +2357,7 @@ window.launchAssessment = async function(testId) {
   if (cBox) cBox.innerText = "Configuring assessment runtime..."; 
   if (rEl) rEl.innerText = currentCandidate?.roll_number || "---";
 
-  try {
+  try { 
     const { data: tInfo, error: tErr } = await supabaseClient.from("tests").select("id, title, total_duration_minutes").eq("id", testId).maybeSingle(); 
     if (tErr || !tInfo) throw new Error("Test details missing.");
     activeTest = tInfo; 
@@ -2457,10 +2539,10 @@ window.showExamSummaryModal = function() {
           <thead><tr><th>Status Category</th><th>Total Count</th></tr></thead>
           <tbody>
             <tr><td>Total Questions</td><td>${testQuestions.length}</td></tr>
-            <tr><td>Answered</td><td style="color:#16a34a; font-weight:bold;">${ans}</td></tr>
-            <tr><td>Not Answered</td><td style="color:#dc2626; font-weight:bold;">${nAns}</td></tr>
-            <tr><td>Marked for Review</td><td style="color:#7c3aed; font-weight:bold;">${rev}</td></tr>
-            <tr><td>Answered & Marked for Review</td><td style="color:#7c3aed; font-weight:bold;">${aRev}</td></tr>
+            <tr><td>Answered</td><td style="color:var(--success-dark); font-weight:bold;">${ans}</td></tr>
+            <tr><td>Not Answered</td><td style="color:var(--danger-dark); font-weight:bold;">${nAns}</td></tr>
+            <tr><td>Marked for Review</td><td style="color:var(--c-review); font-weight:bold;">${rev}</td></tr>
+            <tr><td>Answered & Marked for Review</td><td style="color:var(--c-review); font-weight:bold;">${aRev}</td></tr>
             <tr><td>Not Visited</td><td>${nVis}</td></tr>
           </tbody>
         </table>
@@ -2524,7 +2606,7 @@ function renderScorecard() {
   modal.style.setProperty("display", "flex", "important");
   modal.innerHTML = `
     <div class="tcs-modal-box">
-      <div class="tcs-modal-header" style="background:#16a34a;">Assessment Scorecard & Analysis</div>
+      <div class="tcs-modal-header" style="background:var(--success-dark);">Assessment Scorecard & Analysis</div>
       <div class="tcs-modal-body">
         <div class="score-highlight-card">
           <h2 class="score-highlight-title">Score: ${score.toFixed(2)} / ${(testQuestions.length * 2)}</h2>
@@ -2532,13 +2614,13 @@ function renderScorecard() {
         </div>
         <table class="modal-summary-table">
           <tbody>
-            <tr><td>Correct Answers</td><td style="color:#16a34a; font-weight:bold;">${correct} (+${(correct * 2).toFixed(2)})</td></tr>
-            <tr><td>Incorrect Answers</td><td style="color:#dc2626; font-weight:bold;">${incorrect} (-${(incorrect * 0.5).toFixed(2)})</td></tr>
+            <tr><td>Correct Answers</td><td style="color:var(--success-dark); font-weight:bold;">${correct} (+${(correct * 2).toFixed(2)})</td></tr>
+            <tr><td>Incorrect Answers</td><td style="color:var(--danger-dark); font-weight:bold;">${incorrect} (-${(incorrect * 0.5).toFixed(2)})</td></tr>
             <tr><td>Unattempted</td><td>${unattempted}</td></tr>
             <tr><td>Accuracy</td><td>${actuallyAttemptedThisExam > 0 ? (((correct / actuallyAttemptedThisExam) * 100).toFixed(1)) : 0}%</td></tr>
           </tbody>
         </table>
-        <div id="syncStatusMsg" style="font-size:12px; color:#2563eb; text-align:center; font-weight:600; margin-top:8px;">Syncing results to database...</div>
+        <div id="syncStatusMsg" style="font-size:12px; color:var(--tcs-blue-accent); text-align:center; font-weight:600; margin-top:8px;">Syncing results to database...</div>
       </div>
       <div class="tcs-modal-footer">
         <button type="button" class="tcs-btn btn-secondary" onclick="openSolutionsView()">View Detailed Solutions</button>
@@ -2560,7 +2642,7 @@ function renderScorecard() {
 
       const sMsg = document.getElementById("syncStatusMsg"); 
       if (sMsg) { 
-        sMsg.style.color = "#16a34a"; 
+        sMsg.style.color = "var(--success-dark)"; 
         sMsg.innerText = "✔ Progress & Metrics Synced Successfully"; 
       }
 
@@ -2600,7 +2682,7 @@ function renderScorecard() {
       console.error("Score Sync Error:", e); 
       const sMsg = document.getElementById("syncStatusMsg"); 
       if (sMsg) { 
-        sMsg.style.color = "#dc2626"; 
+        sMsg.style.color = "var(--danger-dark)"; 
         sMsg.innerText = "⚠ Saved in local session (Cloud sync failed)"; 
       }
     }
@@ -2757,36 +2839,36 @@ window.fetchStudentAnalytics = async function(isSilent = false) {
     }
 
     const eAcc = document.getElementById("statAccuracy"); 
-    if (eAcc) eAcc.innerHTML = `<div style="display:flex; align-items:baseline; gap:6px;"><span>${accVal}%</span><span style="font-size:10px; font-weight:700; color:#16a34a; font-family:var(--font-family);">+${nCorr}</span><span style="font-size:10px; font-weight:700; color:#dc2626; font-family:var(--font-family);">-${nIncorr}</span></div>`;
+    if (eAcc) eAcc.innerHTML = `<div style="display:flex; align-items:baseline; gap:6px;"><span>${accVal}%</span><span style="font-size:10px; font-weight:700; color:var(--success-dark); font-family:var(--font-family);">+${nCorr}</span><span style="font-size:10px; font-weight:700; color:var(--danger-dark); font-family:var(--font-family);">-${nIncorr}</span></div>`;
     const eStr = document.getElementById("statStreak"); 
-    if (eStr) eStr.innerHTML = `<div style="display:flex; align-items:baseline; gap:6px;"><span>${streak} 🔥</span><span style="font-size:10px; font-weight:700; color:#2563eb; font-family:var(--font-family); text-transform:uppercase;">${streak > 2 ? 'Consistent' : 'Starting'}</span></div>`;
+    if (eStr) eStr.innerHTML = `<div style="display:flex; align-items:baseline; gap:6px;"><span>${streak} 🔥</span><span style="font-size:10px; font-weight:700; color:var(--tcs-blue-accent); font-family:var(--font-family); text-transform:uppercase;">${streak > 2 ? 'Consistent' : 'Starting'}</span></div>`;
     const eSpd = document.getElementById("statSpeed"); 
-    if (eSpd) eSpd.innerHTML = `<div style="display:flex; align-items:baseline; gap:6px;"><span>${avgSpd}s</span><span style="font-size:10px; font-weight:700; color:#2563eb; font-family:var(--font-family); text-transform:uppercase;">${avgSpd <= 15 ? 'Rapid' : (avgSpd > 35 ? 'Thorough' : 'Balanced')}</span></div>`;
+    if (eSpd) eSpd.innerHTML = `<div style="display:flex; align-items:baseline; gap:6px;"><span>${avgSpd}s</span><span style="font-size:10px; font-weight:700; color:var(--tcs-blue-accent); font-family:var(--font-family); text-transform:uppercase;">${avgSpd <= 15 ? 'Rapid' : (avgSpd > 35 ? 'Thorough' : 'Balanced')}</span></div>`;
 
-    drawSparkline("sparkAccuracy", accTrends.slice(-10), "#38bdf8");
-    drawSparkline("sparkStreak", Object.keys(attMap).sort((a,b) => new Date(a) - new Date(b)).slice(-10).map(d => attMap[d] || 0), "#f59e0b");
-    drawSparkline("sparkSpeed", accTrends.slice(-10).map(() => avgSpd), "#10b981");
+    drawSparkline("sparkAccuracy", accTrends.slice(-10), "var(--tcs-blue-accent)");
+    drawSparkline("sparkStreak", Object.keys(attMap).sort((a,b) => new Date(a) - new Date(b)).slice(-10).map(d => attMap[d] || 0), "var(--warning)");
+    drawSparkline("sparkSpeed", accTrends.slice(-10).map(() => avgSpd), "var(--success)");
 
     const extra = document.getElementById("extraAnalyticsSummary");
     if (extra) {
       const dots = past7.slice().reverse().map(d => {
         const act = (attMap[d] || 0) > 0, lbl = new Date(d).toLocaleDateString('en-US', { weekday: 'narrow' });
-        return `<div style="display:flex; flex-direction:column; align-items:center; gap:3px;"><span style="font-size:9px; color:#64748b; font-weight:700;">${lbl}</span><span style="width:18px; height:18px; border-radius:50%; background:${act ? 'var(--tcs-blue-accent)' : 'var(--border-color)'}; color:${act ? '#fff' : '#64748b'}; display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:800;">${act ? '✓' : '•'}</span></div>`;
+        return `<div style="display:flex; flex-direction:column; align-items:center; gap:3px;"><span style="font-size:9px; color:var(--text-muted); font-weight:700;">${lbl}</span><span style="width:18px; height:18px; border-radius:50%; background:${act ? 'var(--tcs-blue-accent)' : 'var(--border-color)'}; color:${act ? '#fff' : 'var(--text-muted)'}; display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:800;">${act ? '✓' : '•'}</span></div>`;
       }).join("");
       extra.innerHTML = `
-        <div class="profile-section-card" style="padding:16px; border-left:4px solid #22c55e;">
+        <div class="profile-section-card" style="padding:16px; border-left:4px solid var(--success);">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
             <h4 style="font-size:13.5px; font-weight:700; color:var(--tcs-blue-header); margin:0;">🎯 Today's Focus & Output</h4>
-            <span style="font-size:10px; font-weight:800; background:rgba(34,197,94,0.12); color:#16a34a; padding:2px 8px; border-radius:12px;">ACTIVE SESSION</span>
+            <span style="font-size:10px; font-weight:800; background:var(--success-bg-subtle); color:var(--success-dark); padding:2px 8px; border-radius:12px;">ACTIVE SESSION</span>
           </div>
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px;">
             <div style="background:var(--bg-primary); padding:10px; border-radius:6px; border:1px solid var(--border-color);">
-              <span style="font-size:11px; color:#64748b; font-weight:600; display:block;">Time Invested</span>
-              <strong style="font-size:16px; color:#16a34a; font-family:var(--font-mono);">${Math.floor(todayMins / 60)}h ${todayMins % 60}m</strong>
+              <span style="font-size:11px; color:var(--text-muted); font-weight:600; display:block;">Time Invested</span>
+              <strong style="font-size:16px; color:var(--success-dark); font-family:var(--font-mono);">${Math.floor(todayMins / 60)}h ${todayMins % 60}m</strong>
             </div>
             <div style="background:var(--bg-primary); padding:10px; border-radius:6px; border:1px solid var(--border-color);">
-              <span style="font-size:11px; color:#64748b; font-weight:600; display:block;">Sets Mastered (100%)</span>
-              <strong style="font-size:16px; color:#16a34a; font-family:var(--font-mono);">${masteredTests.size} Sets</strong>
+              <span style="font-size:11px; color:var(--text-muted); font-weight:600; display:block;">Sets Mastered (100%)</span>
+              <strong style="font-size:16px; color:var(--success-dark); font-family:var(--font-mono);">${masteredTests.size} Sets</strong>
             </div>
           </div>
         </div>
@@ -2796,7 +2878,7 @@ window.fetchStudentAnalytics = async function(isSilent = false) {
             <span style="font-size:11px; font-weight:700; color:var(--tcs-blue-accent); font-family:var(--font-mono);">${Object.keys(attMap).filter(d => past7.includes(d)).length} / 7 Days Active</span>
           </div>
           <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 6px; margin:8px 0; background:var(--bg-primary); border-radius:6px; border:1px solid var(--border-color);">${dots}</div>
-          <div style="display:flex; justify-content:space-between; font-size:11.5px; color:#64748b; margin-top:4px;">
+          <div style="display:flex; justify-content:space-between; font-size:11.5px; color:var(--text-muted); margin-top:4px;">
             <span>Total: <strong style="color:var(--tcs-blue-accent); font-family:var(--font-mono);">${Math.floor(last7Mins / 60)}h ${last7Mins % 60}m</strong></span>
             <span>Daily Pace: <strong style="color:var(--tcs-blue-accent); font-family:var(--font-mono);">${Math.round(last7Mins / 7)}m / day</strong></span>
           </div>
@@ -2816,9 +2898,9 @@ window.fetchStudentAnalytics = async function(isSilent = false) {
     });
 
     const iS = document.getElementById("insightStrong"); 
-    if (iS) iS.innerHTML = bestSub?.sets > 0 ? `<div style="display:flex; justify-content:space-between; align-items:center;"><strong>🔥 Strongest Domain: ${bestSub.name}</strong><span style="font-weight:800; font-family:var(--font-mono); color:#16a34a;">${Math.round(bestSub.acc)}%</span></div><div style="font-size:11.5px; color:#64748b; margin-top:4px;">High strike-rate across ${bestSub.sets} completed sets (${bestSub.correct} correct answers).</div>` : `<strong>🔥 Strongest:</strong> Complete sets to identify your core strength.`;
+    if (iS) iS.innerHTML = bestSub?.sets > 0 ? `<div style="display:flex; justify-content:space-between; align-items:center;"><strong>🔥 Strongest Domain: ${bestSub.name}</strong><span style="font-weight:800; font-family:var(--font-mono); color:var(--success-dark);">${Math.round(bestSub.acc)}%</span></div><div style="font-size:11.5px; color:var(--text-muted); margin-top:4px;">High strike-rate across ${bestSub.sets} completed sets (${bestSub.correct} correct answers).</div>` : `<strong>🔥 Strongest:</strong> Complete sets to identify your core strength.`;
     const iW = document.getElementById("insightWeak"); 
-    if (iW) iW.innerHTML = worstSub?.sets > 0 ? `<div style="display:flex; justify-content:space-between; align-items:center;"><strong>⚠️ Priority Focus: ${worstSub.name}</strong><span style="font-weight:800; font-family:var(--font-mono); color:#dc2626;">${Math.round(worstSub.acc)}%</span></div><div style="font-size:11.5px; color:#64748b; margin-top:4px;">Negative marking penalty: <strong style="color:#dc2626;">-${(worstSub.incorrect * 0.5).toFixed(1)} Marks</strong> (${worstSub.incorrect} wrong). Curtail random guesses.</div>` : `<strong>⚠️ Priority Focus:</strong> Attempt diagnostic assessments to flag weaker domains.`;
+    if (iW) iW.innerHTML = worstSub?.sets > 0 ? `<div style="display:flex; justify-content:space-between; align-items:center;"><strong>⚠️ Priority Focus: ${worstSub.name}</strong><span style="font-weight:800; font-family:var(--font-mono); color:var(--danger-dark);">${Math.round(worstSub.acc)}%</span></div><div style="font-size:11.5px; color:var(--text-muted); margin-top:4px;">Negative marking penalty: <strong style="color:var(--danger-dark);">-${(worstSub.incorrect * 0.5).toFixed(1)} Marks</strong> (${worstSub.incorrect} wrong). Curtail random guesses.</div>` : `<strong>⚠️ Priority Focus:</strong> Attempt diagnostic assessments to flag weaker domains.`;
 
     const subList = Array.from(new Set(catalogData.map(c => c.subject || "General Studies"))).map(s => {
       const st = subStats[s] || { earned: 0, max: 0, sets: 0 }; 
@@ -2905,8 +2987,8 @@ function renderHeatmap(attMap) {
     cell.onmouseenter = () => {
       const h = Math.floor(mins / 60), rm = mins % 60;
       tooltip.innerHTML = `
-        <div style="font-weight:700; color:#94a3b8; font-size:10px; margin-bottom:2px; letter-spacing:0.3px;">${displayDate}</div>
-        <div style="font-size:12.5px; font-family:var(--font-mono); font-weight:800; color:${mins > 45 ? '#34d399' : (mins > 0 ? '#38bdf8' : '#94a3b8')};">⏱️ ${mins === 0 ? 'No activity' : (h > 0 ? `${h}h${rm}m` : `${rm} mins`)}</div>
+        <div style="font-weight:700; color:var(--text-muted); font-size:10px; margin-bottom:2px; letter-spacing:0.3px;">${displayDate}</div>
+        <div style="font-size:12.5px; font-family:var(--font-mono); font-weight:800; color:${mins > 45 ? 'var(--success)' : (mins > 0 ? 'var(--tcs-blue-accent)' : 'var(--text-muted)')};">⏱️ ${mins === 0 ? 'No activity' : (h > 0 ? `${h}h${rm}m` : `${rm} mins`)}</div>
       `;
       tooltip.classList.add("show"); 
       
@@ -3021,22 +3103,22 @@ function renderQuizUI() {
     banner.innerHTML = `
       <div style="display:flex; justify-content:space-between; align-items:center;">
         <h4 style="margin:0; font-size:15px; font-weight:800; color:var(--tcs-blue-header);">📊 Session Review</h4>
-        <span style="font-size:11px; font-weight:800; background:rgba(37,99,235,0.1); color:var(--tcs-blue-accent); padding:3px 10px; border-radius:12px;">UNOFFICIAL / IN-MEMORY</span>
+        <span style="font-size:11px; font-weight:800; background:var(--tcs-blue-bg-subtle); color:var(--tcs-blue-accent); padding:3px 10px; border-radius:12px;">UNOFFICIAL / IN-MEMORY</span>
       </div>
       <div class="quiz-score-grid">
         ${isMB ? `
           <div class="quiz-score-item stat-item-score"><span class="label">Attempted</span><span class="value" style="color:var(--tcs-blue-accent);">${attCount}</span></div>
-          <div class="quiz-score-item stat-item-unattempted"><span class="label">Unattempted</span><span class="value" style="color:#94a3b8;">${unattCount}</span></div>
-          <div class="quiz-score-item stat-item-promoted"><span class="label">Promoted</span><span class="value" style="color:#16a34a;">${corrCount} ✅</span></div>
-          <div class="quiz-score-item stat-item-demoted"><span class="label">Demoted</span><span class="value" style="color:#dc2626;">${wrCount} ⚠️</span></div>
+          <div class="quiz-score-item stat-item-unattempted"><span class="label">Unattempted</span><span class="value" style="color:var(--text-muted);">${unattCount}</span></div>
+          <div class="quiz-score-item stat-item-promoted"><span class="label">Promoted</span><span class="value" style="color:var(--success-dark);">${corrCount} ✅</span></div>
+          <div class="quiz-score-item stat-item-demoted"><span class="label">Demoted</span><span class="value" style="color:var(--danger-dark);">${wrCount} ⚠️</span></div>
         ` : `
           <div class="quiz-score-item stat-item-score"><span class="label">Score</span><span class="value" style="color:var(--tcs-blue-accent);">${score.toFixed(2)}</span></div>
-          <div class="quiz-score-item stat-item-unattempted"><span class="label">Unattempted</span><span class="value" style="color:#94a3b8;">${unattCount}</span></div>
-          <div class="quiz-score-item stat-item-correct"><span class="label">Correct</span><span class="value" style="color:#16a34a;">+${corrCount}</span></div>
-          <div class="quiz-score-item stat-item-incorrect"><span class="label">Incorrect</span><span class="value" style="color:#dc2626;">-${wrCount}</span></div>
+          <div class="quiz-score-item stat-item-unattempted"><span class="label">Unattempted</span><span class="value" style="color:var(--text-muted);">${unattCount}</span></div>
+          <div class="quiz-score-item stat-item-correct"><span class="label">Correct</span><span class="value" style="color:var(--success-dark);">+${corrCount}</span></div>
+          <div class="quiz-score-item stat-item-incorrect"><span class="label">Incorrect</span><span class="value" style="color:var(--danger-dark);">-${wrCount}</span></div>
         `}
-        <div class="quiz-score-item stat-item-starred"><span class="label">Starred ⭐</span><span class="value" style="color:#f59e0b;">${stCount}</span></div>
-        <div class="quiz-score-item stat-item-accuracy"><span class="label">Accuracy</span><span class="value" style="color:#7c3aed;">${acc}%</span></div>
+        <div class="quiz-score-item stat-item-starred"><span class="label">Starred ⭐</span><span class="value" style="color:var(--warning-dark);">${stCount}</span></div>
+        <div class="quiz-score-item stat-item-accuracy"><span class="label">Accuracy</span><span class="value" style="color:var(--c-review);">${acc}%</span></div>
       </div>
       <div class="quiz-filter-strip">
         <button type="button" class="quiz-chip-btn ${localQuizState.filter === 'all' ? 'active' : ''}" onclick="filterQuizReview('all')">All (${totalQ})</button>
@@ -3070,10 +3152,10 @@ function renderQuizUI() {
       if (sAns) { 
         if (isOptionMatching(oid, q.correctAnswer)) {
           oCls += " sol-opt-correct"; 
-          feedbackSymbol = `<span class="opt-feedback-indicator" style="margin-left:auto; font-weight:800; font-size:16px; color:#16a34a;">✔</span>`;
+          feedbackSymbol = `<span class="opt-feedback-indicator" style="margin-left:auto; font-weight:800; font-size:16px; color:var(--success-dark);">✔</span>`;
         } else if (isOptionMatching(oid, sAns.selected) && !sAns.isCorrect) {
           oCls += " sol-opt-wrong"; 
-          feedbackSymbol = `<span class="opt-feedback-indicator" style="margin-left:auto; font-weight:800; font-size:16px; color:#dc2626;">✖</span>`;
+          feedbackSymbol = `<span class="opt-feedback-indicator" style="margin-left:auto; font-weight:800; font-size:16px; color:var(--danger-dark);">✖</span>`;
         }
       }
       return `<div class="${oCls} quiz-opt-${idx}" data-opt-id="${opt.id}" style="${sAns ? 'pointer-events:none;' : 'cursor:pointer;'} margin-bottom: 8px;">
@@ -3120,7 +3202,7 @@ function renderQuizUI() {
               if (!el.querySelector(".opt-feedback-indicator")) {
                 const ind = document.createElement("span");
                 ind.className = "opt-feedback-indicator";
-                ind.style.cssText = "margin-left:auto; font-weight:800; font-size:16px; color:#16a34a;";
+                ind.style.cssText = "margin-left:auto; font-weight:800; font-size:16px; color:var(--success-dark);";
                 ind.innerText = "✔";
                 el.appendChild(ind);
               }
@@ -3129,7 +3211,7 @@ function renderQuizUI() {
               if (!el.querySelector(".opt-feedback-indicator")) {
                 const ind = document.createElement("span");
                 ind.className = "opt-feedback-indicator";
-                ind.style.cssText = "margin-left:auto; font-weight:800; font-size:16px; color:#dc2626;";
+                ind.style.cssText = "margin-left:auto; font-weight:800; font-size:16px; color:var(--danger-dark);";
                 ind.innerText = "✖";
                 el.appendChild(ind);
               }
@@ -3218,10 +3300,10 @@ function renderFlashcardMode() {
   const cOpt = (q.options || []).find(o => isOptionMatching(o.id, q.correctAnswer));
   const cText = cOpt ? getLocalizedText({ en: cOpt.en || cOpt.text, hi: cOpt.hi }) : "";
   container.innerHTML = `
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;"><span style="font-weight:700; color:#64748b;">Card ${flashcardIndex + 1} of ${practiceQuestions.length}</span><span style="font-size:12px; color:var(--tcs-blue-accent);">Tap card to reveal Answer</span></div>
-    <div id="flashcardBox" style="min-height:280px; background:var(--bg-panel); border:2px solid var(--border-color); border-radius:8px; padding:30px; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; cursor:pointer; box-shadow:0 4px 15px rgba(0,0,0,0.06); transition:all 0.2s ease;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;"><span style="font-weight:700; color:var(--text-muted);">Card ${flashcardIndex + 1} of ${practiceQuestions.length}</span><span style="font-size:12px; color:var(--tcs-blue-accent);">Tap card to reveal Answer</span></div>
+    <div id="flashcardBox" style="min-height:280px; background:var(--bg-panel); border:2px solid var(--border-color); border-radius:8px; padding:30px; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; cursor:pointer; box-shadow:var(--shadow-sm); transition:all 0.2s ease; color:var(--text-main);">
       <div id="cardFront"><span class="login-badge" style="margin-bottom:14px;">QUESTION</span><h3 style="font-size:18px; line-height:1.5; color:inherit;">${getLocalizedText(q.content)}</h3></div>
-      <div id="cardBack" style="display:none; width:100%;"><span class="login-badge" style="background:#dcfce7; color:#15803d; margin-bottom:14px;">CORRECT ANSWER</span><h4 style="font-size:17px; color:#16a34a; margin-bottom:12px;">${cText}</h4><div class="sol-explanation" style="text-align:left; margin-top:10px;"><strong>Explanation:</strong><br/>${formatExplanation(q.explanation)}</div></div>
+      <div id="cardBack" style="display:none; width:100%;"><span class="login-badge" style="background:var(--success-bg-subtle); color:var(--success-dark); border-color:var(--success-border); margin-bottom:14px;">CORRECT ANSWER</span><h4 style="font-size:17px; color:var(--success-dark); margin-bottom:12px;">${cText}</h4><div class="sol-explanation" style="text-align:left; margin-top:10px;"><strong>Explanation:</strong><br/>${formatExplanation(q.explanation)}</div></div>
     </div>
     <div style="display:flex; justify-content:space-between; margin-top:20px;"><button type="button" class="tcs-btn btn-secondary" ${flashcardIndex === 0 ? 'disabled' : ''} id="btnPrevCard">← Previous</button><button type="button" class="tcs-btn btn-primary" ${flashcardIndex === practiceQuestions.length - 1 ? 'disabled' : ''} id="btnNextCard">Next →</button></div>
   `;
