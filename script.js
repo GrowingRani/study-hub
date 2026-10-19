@@ -77,6 +77,9 @@ let activeBriefingTestId = null;
 // 🚀 IN-MEMORY CACHE FOR BOOSTER POOL (PREVENTS DUPLICATE RPC FETCHES)
 let cachedBoosterPool = null;
 let lastBoosterFetchTime = 0;
+ 
+let isExitingApp = false;
+
 
 if ("serviceWorker" in navigator) { 
   window.addEventListener("load", () => { 
@@ -255,7 +258,13 @@ window.switchView = function(viewId, pushHistory = true) {
   }
 };
 
+// 🚀 Ensure this flag is declared at the top of script.js if not already present:
+// let isExitingApp = false;
+
 window.addEventListener("popstate", function(e) {
+  // 1. Exit guard: If exit is in progress, bypass popstate interception
+  if (typeof isExitingApp !== 'undefined' && isExitingApp) return;
+
   const exitModal = document.getElementById('exitConfirmModal');
   if (exitModal && exitModal.style.display === 'flex') {
     exitModal.style.display = 'none';
@@ -305,6 +314,7 @@ window.addEventListener("popstate", function(e) {
     return; 
   }
 
+  // 2. Trigger exit modal only on the root dashboard when not already terminating
   if (!e.state || e.state.page === 'exit-gate' || currentActiveView === 'viewDashboard') {
     history.pushState({ page: 'dashboard', view: 'viewDashboard' }, '', '#viewDashboard');
     showExitConfirmModal();
@@ -3323,6 +3333,7 @@ function renderFlashcardMode() {
 // 12. ELEGANT MOBILE APP EXIT DIALOG CONTROLLER (ZERO ABOUT:BLANK WINDOW)
 // ==========================================================================
 window.showExitConfirmModal = function() {
+  isExitingApp = false;
   const modal = document.getElementById('exitConfirmModal');
   if (modal) {
     modal.style.setProperty("display", "flex", "important");
@@ -3331,6 +3342,7 @@ window.showExitConfirmModal = function() {
 };
 
 window.closeExitConfirmModal = function() {
+  isExitingApp = false;
   const modal = document.getElementById('exitConfirmModal');
   if (modal) {
     modal.style.setProperty("display", "none", "important");
@@ -3348,19 +3360,24 @@ window.confirmExitApp = function() {
     modal.style.pointerEvents = "none";
   }
   
+  // Cordova / Capacitor जैसे नेटिव कंटेनर के लिए
   if (window.navigator && window.navigator.app && typeof window.navigator.app.exitApp === "function") {
     window.navigator.app.exitApp();
     return;
   }
   
+  // 🚀 फ्लैग एक्टिवेट करें ताकि popstate दोबारा मोडल को न खोले
+  isExitingApp = true;
+  
+  // Chrome PWA क्लोज करने का प्रयास
   window.close();
   
   setTimeout(() => {
-    try {
-      window.close();
-    } catch (e) {}
+    // अगर ब्राउज़र ने window.close() ब्लॉक कर दिया, तो हिस्ट्री से बाहर निकलें
     if (window.history.length > 1) {
-      window.history.back();
+      window.history.go(-(window.history.length - 1));
+    } else {
+      window.location.replace("about:blank");
     }
   }, 100);
 };
