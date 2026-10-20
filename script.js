@@ -80,6 +80,10 @@ let lastBoosterFetchTime = 0;
  
 let isExitingApp = false;
 
+// 🔥 STATE FOR QUIZ & READ MODES
+let localQuizState = { answers: {}, starred: new Set(), isFinished: false, filter: "all" };
+let localReadState = { starred: new Set(), filter: "all" };
+
 
 if ("serviceWorker" in navigator) { 
   window.addEventListener("load", () => { 
@@ -257,9 +261,6 @@ window.switchView = function(viewId, pushHistory = true) {
     }
   }
 };
-
-// 🚀 Ensure this flag is declared at the top of script.js if not already present:
-// let isExitingApp = false;
 
 window.addEventListener("popstate", function(e) {
   // 1. Exit guard: If exit is in progress, bypass popstate interception
@@ -3066,20 +3067,97 @@ window.launchPracticeMode = async function(testId, mode) {
 function renderReadMode() {
   const mEl = document.getElementById("practiceModeTitle"); 
   if (mEl) mEl.innerText = "📖 READ MODE";
+  localReadState = { starred: new Set(), filter: "all" }; 
+  renderReadUI();
+}
+
+function renderReadUI() {
   const container = document.getElementById("practiceContainer"); 
   if (!container) return; 
   container.innerHTML = "";
-  practiceQuestions.forEach(q => {
+
+  const totalQ = practiceQuestions.length;
+  const stCount = localReadState.starred.size;
+
+  const banner = document.createElement("div"); 
+  banner.className = "quiz-score-banner";
+  banner.innerHTML = `
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <h4 style="margin:0; font-size:15px; font-weight:800; color:var(--tcs-blue-header);">📖 Read Mode Filter</h4>
+      <span style="font-size:11px; font-weight:800; background:var(--tcs-blue-bg-subtle); color:var(--tcs-blue-accent); padding:3px 10px; border-radius:12px;">UNOFFICIAL / IN-MEMORY</span>
+    </div>
+    <div class="quiz-score-grid">
+      <div class="quiz-score-item stat-item-score"><span class="label">Total</span><span class="value" style="color:var(--tcs-blue-accent);">${totalQ}</span></div>
+      <div class="quiz-score-item stat-item-starred"><span class="label">Starred ⭐</span><span class="value" style="color:var(--warning-dark);">${stCount}</span></div>
+    </div>
+    <div class="quiz-filter-strip">
+      <button type="button" class="quiz-chip-btn ${localReadState.filter === 'all' ? 'active' : ''}" onclick="filterReadMode('all')">All (${totalQ})</button>
+      <button type="button" class="quiz-chip-btn chip-starred ${localReadState.filter === 'starred' ? 'active' : ''}" onclick="filterReadMode('starred')"><span>⭐</span> Starred (${stCount})</button>
+    </div>
+  `;
+  container.appendChild(banner);
+
+  practiceQuestions.forEach((q, idx) => {
+    const isSt = localReadState.starred.has(idx);
+    
+    if (localReadState.filter === 'starred' && !isSt) return; 
+
     let oHtml = (q.options || []).map(opt => `<div class="sol-option ${isOptionMatching(opt.id, q.correctAnswer) ? 'sol-opt-correct' : ''}" style="margin-bottom:6px;"><span>${isOptionMatching(opt.id, q.correctAnswer) ? '✔' : '•'}</span><span>${getLocalizedText({ en: opt.en || opt.text, hi: opt.hi })}</span></div>`).join("");
     const card = document.createElement("div"); 
     card.className = "solution-card"; 
+    card.id = `readCard_${idx}`; 
     card.style.marginBottom = "16px";
-    card.innerHTML = `<div class="sol-q-header"><span>Q${q.qNum}. Question</span></div><div class="sol-content">${getLocalizedText(q.content)}</div><div>${oHtml}</div><div class="sol-explanation"><strong>Explanation:</strong><br/>${formatExplanation(q.explanation)}</div>`;
+    card.innerHTML = `
+      <div class="sol-q-header">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span>Q${q.qNum}. Question</span>
+        </div>
+        <button type="button" class="btn-star-q ${isSt ? 'starred' : ''}" onclick="toggleReadStar(${idx})">${isSt ? '★' : '☆'}</button>
+      </div>
+      <div class="sol-content">${getLocalizedText(q.content)}</div>
+      <div>${oHtml}</div>
+      <div class="sol-explanation"><strong>Explanation:</strong><br/>${formatExplanation(q.explanation)}</div>
+    `;
     container.appendChild(card);
   });
 }
 
-let localQuizState = { answers: {}, starred: new Set(), isFinished: false, filter: "all" };
+window.toggleReadStar = function(idx) { 
+  const isStarred = localReadState.starred.has(idx);
+  if (isStarred) {
+    localReadState.starred.delete(idx);
+  } else {
+    localReadState.starred.add(idx);
+  }
+  const nowStarred = localReadState.starred.has(idx);
+
+  const card = document.getElementById(`readCard_${idx}`);
+  if (card) {
+    const btn = card.querySelector(".btn-star-q");
+    if (btn) {
+      btn.classList.toggle("starred", nowStarred);
+      btn.innerHTML = nowStarred ? "★" : "☆";
+    }
+  }
+
+  const starStat = document.querySelector(".quiz-score-item.stat-item-starred .value");
+  if (starStat) starStat.innerText = `${localReadState.starred.size}`;
+
+  const starBtn = document.querySelector(".quiz-chip-btn.chip-starred");
+  if (starBtn) starBtn.innerHTML = `<span>⭐</span> Starred (${localReadState.starred.size})`;
+
+  if (localReadState.filter === 'starred' && !nowStarred && card) {
+    card.style.display = "none";
+  } else if (localReadState.filter === 'starred' && nowStarred && card) {
+    card.style.display = "block";
+  }
+};
+
+window.filterReadMode = function(t) { 
+  localReadState.filter = t; 
+  renderReadUI(); 
+};
+
 function renderInteractiveQuizMode() {
   const mEl = document.getElementById("practiceModeTitle"); 
   if (mEl) mEl.innerText = "⚡ INSTANT QUIZ";
