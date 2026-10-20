@@ -900,6 +900,21 @@
         <button type="button" class="btn-close-sheet" onclick="closeMissionBriefingModal()" title="Close Briefing">✕</button>
       </div>
 
+      <!-- 🔀 PRE-FLIGHT SESSION PREFERENCES / SHUFFLE TOGGLE (DEFAULT ON) -->
+      <div class="briefing-pref-bar" id="briefingPrefBar">
+        <div class="pref-bar-left">
+          <span class="pref-icon">🔀</span>
+          <div class="pref-text-stack">
+            <span class="pref-title">Shuffle Questions</span>
+            <span class="pref-subtitle">Randomize question sequence</span>
+          </div>
+        </div>
+        <label class="pref-toggle-switch" for="toggleShuffleMode" title="Toggle Question Shuffle">
+          <input type="checkbox" id="toggleShuffleMode" checked onchange="toggleShuffleSetting(this.checked)">
+          <span class="pref-toggle-slider"></span>
+        </label>
+      </div>
+
       <div class="briefing-modes-grid">
         <!-- Mode 1: TCS iON Mock Exam -->
         <div class="briefing-mode-card mode-exam" onclick="executeBriefingMode('exam')">

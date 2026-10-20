@@ -49,6 +49,16 @@ function getLocalDateString(d = new Date()) {
   return new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split("T")[0];
 }
 
+// 🔀 FAST FISHER-YATES ARRAY SHUFFLER
+function shuffleArray(arr) {
+  const copy = [...arr];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
+
 const clockSvg = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>`;
 const docSvg = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>`;
 const bookmarkOutlineSvg = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>`;
@@ -71,8 +81,9 @@ let isRenderingPlaylists = false;
 let pendingPlaylistRender = false;
 let isAuthSessionInitializing = false;
 
-// 🚀 PRE-FLIGHT MISSION BRIEFING STATE
+// 🚀 PRE-FLIGHT MISSION BRIEFING & SHUFFLE STATE (DEFAULT: ON)
 let activeBriefingTestId = null;
+let isShuffleEnabled = true;
 
 // 🚀 IN-MEMORY CACHE FOR BOOSTER POOL (PREVENTS DUPLICATE RPC FETCHES)
 let cachedBoosterPool = null;
@@ -84,6 +95,9 @@ let isExitingApp = false;
 let localQuizState = { answers: {}, starred: new Set(), isFinished: false, filter: "all" };
 let localReadState = { starred: new Set(), filter: "all" };
 
+window.toggleShuffleSetting = function(val) {
+  isShuffleEnabled = !!val;
+};
 
 if ("serviceWorker" in navigator) { 
   window.addEventListener("load", () => { 
@@ -893,7 +907,7 @@ window.openPlaylistActionMenu = function(event, playlistId, playlistName, isSyst
   const menuWidth = 180; 
   let leftPos = btnRect.right - menuWidth; 
   if (leftPos < 10) leftPos = 10;
-  let topPos = btnRect.bottom + 6; 
+  topPos = btnRect.bottom + 6; 
   if (topPos + 120 > window.innerHeight) topPos = Math.max(10, btnRect.top - 120);
   menu.style.top = `${topPos}px`; 
   menu.style.left = `${leftPos}px`;
@@ -1020,6 +1034,9 @@ window.openMissionBriefingModal = async function(testId) {
   activeBriefingTestId = testId;
   const modal = document.getElementById("missionBriefingModal");
   if (!modal) return;
+
+  const shufToggle = document.getElementById("toggleShuffleMode");
+  if (shufToggle) shufToggle.checked = isShuffleEnabled;
 
   if (testId === -1) {
     const boosterQuestions = await compileMasteryBoosterPool(25);
@@ -1325,9 +1342,14 @@ async function compileMasteryBoosterPool(maxLimit = 25, forceRefresh = false) {
 }
 
 window.launchBoosterMode = async function(mode = 'exam') {
-  const boosterQuestions = await compileMasteryBoosterPool(25, true);
+  let boosterQuestions = await compileMasteryBoosterPool(25, true);
   if (!boosterQuestions.length) {
     return showAppNoticeModal("Notice", "No Pending Reviews", "You have no pending mistakes or review questions right now.", "⚪", "Dismiss");
+  }
+
+  if (isShuffleEnabled) {
+    boosterQuestions = shuffleArray(boosterQuestions);
+    boosterQuestions.forEach((q, idx) => { q.qNum = idx + 1; });
   }
 
   const qCount = boosterQuestions.length;
@@ -1837,7 +1859,7 @@ window.openThreeDotsMenu = function(event, testId) {
   const menuWidth = 165; 
   let leftPos = btnRect.right - menuWidth; 
   if (leftPos < 10) leftPos = 10;
-  let topPos = btnRect.bottom + 6; 
+  topPos = btnRect.bottom + 6; 
   if (topPos + 60 > window.innerHeight) topPos = Math.max(10, btnRect.top - 50);
   menu.style.top = `${topPos}px`; 
   menu.style.left = `${leftPos}px`;
@@ -2397,6 +2419,11 @@ window.launchAssessment = async function(testId) {
         explanation: q.explanation 
       };
     }).filter(Boolean);
+
+    if (isShuffleEnabled) {
+      testQuestions = shuffleArray(testQuestions);
+      testQuestions.forEach((q, idx) => { q.qNum = idx + 1; });
+    }
 
     userResponses = {}; 
     testQuestions.forEach((q, idx) => { 
@@ -3032,6 +3059,18 @@ function renderHeatmap(attMap) {
 // ==========================================================================
 // 11. MULTI-MODE PRACTICE (READ/FLASHCARD/QUIZ - REFINED TOP BARS)
 // ==========================================================================
+window.scrollToTopOfPractice = function() {
+  const container = document.getElementById("practiceContainer");
+  if (container) {
+    container.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+  const viewPractice = document.getElementById("viewPractice");
+  if (viewPractice) {
+    viewPractice.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+
 window.launchPracticeMode = async function(testId, mode) {
   const { data: tInfo } = await supabaseClient.from("tests").select("id, title").eq("id", testId).single();
   const { data: sections } = await supabaseClient.from("test_sections").select("id").eq("test_id", testId).limit(1); 
@@ -3052,6 +3091,11 @@ window.launchPracticeMode = async function(testId, mode) {
       explanation: q.explanation 
     };
   }).filter(Boolean);
+
+  if (isShuffleEnabled) {
+    practiceQuestions = shuffleArray(practiceQuestions);
+    practiceQuestions.forEach((q, idx) => { q.qNum = idx + 1; });
+  }
 
   const tEl = document.getElementById("practiceSetTitle"); 
   if (tEl) tEl.innerText = tInfo ? tInfo.title : "Practice Set";
@@ -3097,10 +3141,12 @@ function renderReadUI() {
   `;
   container.appendChild(banner);
 
+  let renderedCount = 0;
   practiceQuestions.forEach((q, idx) => {
     const isSt = localReadState.starred.has(idx);
     
     if (localReadState.filter === 'starred' && !isSt) return; 
+    renderedCount++;
 
     let oHtml = (q.options || []).map(opt => `<div class="sol-option ${isOptionMatching(opt.id, q.correctAnswer) ? 'sol-opt-correct' : ''}" style="margin-bottom:6px;"><span>${isOptionMatching(opt.id, q.correctAnswer) ? '✔' : '•'}</span><span>${getLocalizedText({ en: opt.en || opt.text, hi: opt.hi })}</span></div>`).join("");
     const card = document.createElement("div"); 
@@ -3120,6 +3166,27 @@ function renderReadUI() {
     `;
     container.appendChild(card);
   });
+
+  if (renderedCount === 0 && localReadState.filter === 'starred') {
+    const emptyNotice = document.createElement("div");
+    emptyNotice.style.cssText = "text-align:center; padding:30px 16px; color:var(--text-muted); font-size:13px; font-weight:600;";
+    emptyNotice.innerText = "No starred questions yet. Click ☆ on any question above to star it for quick revision.";
+    container.appendChild(emptyNotice);
+  }
+
+  // 🔝 Sleek Floating Back to Top Button
+  const foot = document.createElement("div");
+  foot.className = "read-footer-actions";
+  foot.innerHTML = `
+    <button type="button" class="btn-scroll-top" onclick="scrollToTopOfPractice()">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="12" y1="19" x2="12" y2="5"></line>
+        <polyline points="5 12 12 5 19 12"></polyline>
+      </svg>
+      <span>Back to Top</span>
+    </button>
+  `;
+  container.appendChild(foot);
 }
 
 window.toggleReadStar = function(idx) { 
