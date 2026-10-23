@@ -289,12 +289,14 @@ window.addEventListener("popstate", function(e) {
 
   const currentActiveView = Array.from(document.querySelectorAll('.view-screen')).find(v => v.style.display === 'flex')?.id;
 
+  // Active Exam Protection
   if (currentActiveView === 'viewExam' && !isExamFinished) { 
     history.pushState({ page: 'sub-view', view: 'viewExam' }, '', '#viewExam'); 
     abortExamSession(); 
     return; 
   }
 
+  // Modals, Drawers & Popups Dismissal
   if (closeAllOverlaysAndPopups()) {
     history.pushState({ 
       page: MAIN_TABS.includes(currentActiveView) ? (currentActiveView === 'viewDashboard' ? 'dashboard' : 'main-tab') : 'sub-view', 
@@ -303,6 +305,7 @@ window.addEventListener("popstate", function(e) {
     return; 
   }
 
+  // Close Masthead Search Bar if open
   const searchBar = document.getElementById("mastheadSearchBar");
   if (searchBar && searchBar.style.display === "flex") { 
     toggleMastheadSearch(false); 
@@ -310,11 +313,8 @@ window.addEventListener("popstate", function(e) {
     return; 
   }
 
-  if (librarySelectionMode) {
-    cancelLibrarySelectionMode();
-    return; 
-  }
-
+  // 🚀 PRIORITY FIX 1: If inside a Subject's Sets Explorer, return to All-Subjects Hub first
+  // (Yeh Selection Mode ko active rakhega aur candidate doosre subject par ja sakega)
   if (currentActiveView === 'viewLibrary') {
     const setsExp = document.getElementById("setsExplorerStage");
     if (setsExp && setsExp.style.display === "block") {
@@ -323,19 +323,27 @@ window.addEventListener("popstate", function(e) {
     }
   }
 
+  // 🚀 PRIORITY FIX 2: Cancel Selection Mode only when already on All-Subjects Hub (Root Library)
+  if (librarySelectionMode) {
+    cancelLibrarySelectionMode();
+    return; 
+  }
+
+  // Main navigation tabs fallback to Dashboard
   if (['viewLibrary', 'viewAnalytics', 'viewProfile'].includes(currentActiveView)) {
     renderViewDOM('viewDashboard');
     history.replaceState({ page: 'dashboard', view: 'viewDashboard' }, '', '#viewDashboard');
     return; 
   }
 
-  // 2. Trigger exit modal only on the root dashboard when not already terminating
+  // 2. Trigger exit modal only on root dashboard
   if (!e.state || e.state.page === 'exit-gate' || currentActiveView === 'viewDashboard') {
     history.pushState({ page: 'dashboard', view: 'viewDashboard' }, '', '#viewDashboard');
     showExitConfirmModal();
     return;
   }
 
+  // General History State View Restoration
   if (e.state && e.state.view) {
     if (['viewPractice', 'viewSolutions'].includes(currentActiveView)) {
       isExamFinished = true;
@@ -2109,9 +2117,13 @@ window.returnToSubjectHub = function(fromPopState = false) {
   toggleMastheadSearch(false); 
   if (exp) exp.style.display = "none"; 
   if (hub) hub.style.display = "block";
+  
   const scroller = document.getElementById("stagingDomainScroller");
-  if (scroller) scroller.style.display = "none";
+  if (scroller) scroller.style.display = librarySelectionMode ? "flex" : "none";
+  
   renderSubjectHubGrid(); 
+  if (librarySelectionMode) updateStagingDockUI();
+  
   window.scrollTo({ top: 0, behavior: 'smooth' });
   if (!fromPopState) history.replaceState({ page: 'main-tab', view: 'viewLibrary', subView: 'hub' }, "", "#viewLibrary");
 };
