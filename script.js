@@ -824,7 +824,7 @@ window.showAppNoticeModal = function(title, heading, message, icon = '🎯', act
 
   const secBtn = document.getElementById("btnNoticeSecondary") || modal.querySelector(".notice-modal-actions .btn-secondary");
   if (secBtn) {
-    secBtn.innerText = secText; 
+    secBtn.innerText = secText;
     secBtn.onclick = () => {
       closeAppNoticeModal();
       if (secCallback) secCallback();
@@ -1007,11 +1007,7 @@ window.openDeletePlaylistModal = function(pId, pName, isClearOnly) {
         tEl = document.getElementById("deleteModalTitle"), 
         hEl = document.getElementById("deleteModalHeading"), 
         msgEl = document.getElementById("deleteModalMessage"), 
-        btn = document.getElementById("btnConfirmDeletePlaylist") || m?.querySelector(".notice-modal-actions .btn-primary");
-        
-  const cancelBtn = m?.querySelector(".notice-modal-actions .btn-secondary");
-  if (cancelBtn) cancelBtn.onclick = closeDeletePlaylistModal;
-
+        btn = document.getElementById("btnConfirmDeletePlaylist");
   if (isClearOnly) {
     if (tEl) tEl.innerText = `Clear ${pName}`; 
     if (hEl) hEl.innerText = `Clear all sets from ${pName}?`;
@@ -1034,8 +1030,7 @@ window.closeDeletePlaylistModal = function() {
 
 window.confirmDeletePlaylist = async function() {
   if (!pendingDeleteTarget) return; 
-  const { id, isClearOnly } = pendingDeleteTarget;
-  const btn = document.getElementById("btnConfirmDeletePlaylist") || document.querySelector("#deletePlaylistConfirmModal .btn-primary");
+  const { id, isClearOnly } = pendingDeleteTarget, btn = document.getElementById("btnConfirmDeletePlaylist");
   if (btn) { btn.innerText = "Processing..."; btn.disabled = true; }
   try { 
     if (isClearOnly) { 
@@ -1189,16 +1184,38 @@ async function mountDashboard(isInitialLoad = false) {
   if (rollEl) rollEl.innerText = "ROLL: " + (currentCandidate?.roll_number || "---");
   fetchStudentAnalytics(true); 
 
-  // 👑 Sunday Golden UI & Header Sync
+  // 👑 Sunday Golden UI & Header Sync (Immediate 0ms UI Swap)
   const isSun = isSunday();
   document.body.classList.toggle("sunday-mode", isSun);
-  const pTag = document.getElementById("dashPortalTag"), pSub = document.getElementById("dashPortalSub");
+
+  const pTag = document.getElementById("dashPortalTag") || document.querySelector("#viewDashboard .portal-tag");
+  const pSub = document.getElementById("dashPortalSub") || document.querySelector("#viewDashboard .portal-sub");
   if (pTag) pTag.innerText = isSun ? "REVISION PROTOCOL" : "HOME";
   if (pSub) pSub.innerText = isSun ? "Sunday Crucible Deck" : "Execution Deck";
-  const cIcon = document.getElementById("centuryIcon"), cTitle = document.getElementById("centuryTitleText"), cSub = document.getElementById("centurySubtitleText");
+
+  const cIcon = document.getElementById("centuryIcon"), 
+        cTitle = document.getElementById("centuryTitleText"), 
+        cSub = document.getElementById("centurySubtitleText"),
+        cMeter = document.getElementById("centuryLoadText");
+
   if (cIcon) cIcon.innerText = isSun ? "👑" : "🎯";
   if (cTitle) cTitle.innerText = isSun ? "Sunday Revision Target" : "Daily Milestone";
   if (cSub) cSub.innerText = isSun ? "Weekly Backlog & Mastery Crucible" : "100-Question Target & Mastery Barometer";
+
+  // 🚀 0ms Anti-Flicker Badge Initialization
+  if (cMeter) {
+    if (dailyPerf?.is_century_hit) {
+      cMeter.innerText = isSun 
+        ? `${dailyPerf.total_questions_attempted || 0} Qs 👑 (Crucible Conquered)` 
+        : `${dailyPerf.total_questions_attempted || 0} / 100 Qs 🔥 (Century Secured)`;
+    } else if ((dailyPerf?.total_questions_attempted || 0) > 0) {
+      cMeter.innerText = isSun 
+        ? `${dailyPerf.total_questions_attempted} Qs ⚔️ (Crucible Target)` 
+        : `${dailyPerf.total_questions_attempted} / 100 Qs 🎯`;
+    } else {
+      cMeter.innerText = isSun ? "0 Qs ⚔️ (Crucible Target)" : "0 / 100 Qs";
+    }
+  }
   
   renderViewDOM('viewDashboard');
 
@@ -1274,10 +1291,11 @@ async function fetchPlaylistsAndCheckRollover() {
       .eq("student_roll", roll);
 
     const actualExamAttemptedToday = (todayAttRows || [])
-      .filter(a => (a.attempt_date || "").split("T")[0] === todayStr && (Number(a.test_id) > 0 || (Number(a.test_id) === -1 && isSunday())))
+      .filter(a => (a.attempt_date || "").split("T")[0] === todayStr && (a.test_id > 0 || (a.test_id === -1 && isSunday())))
       .reduce((sum, a) => sum + (a.total_correct || 0) + (a.total_incorrect || 0), 0);
 
-    const crucibleAttempted = (todayAttRows || []).some(a => Number(a.test_id) === -1 && (a.attempt_date || "").split("T")[0] === todayStr);
+    // 🚀 APPROACH A: संडे को कोई भी प्रयास होने पर टारगेट सिक्योर माना जाए
+    const targetHitToday = isSunday() ? (actualExamAttemptedToday > 0) : (actualExamAttemptedToday >= 100);
 
     let { data: dpData } = await supabaseClient
       .from("daily_performance")
@@ -1285,9 +1303,6 @@ async function fetchPlaylistsAndCheckRollover() {
       .eq("student_roll", roll)
       .eq("target_date", todayStr)
       .maybeSingle();
-
-    // 🚀 FIX: Monotonic Protection - If already hit, never downgrade to false
-    const targetHitToday = Boolean(dpData?.is_century_hit || (isSunday() && crucibleAttempted) || (actualExamAttemptedToday >= 100));
 
     if (dpData) {
       if (dpData.total_questions_attempted !== actualExamAttemptedToday || dpData.is_century_hit !== targetHitToday) {
@@ -1685,11 +1700,11 @@ async function renderHomePlaylists() {
     }
 
     const targetQ = 100, todayStr = getLocalDateString();
-    const todayAttempts = userAttemptHistory.filter(a => (a.attempt_date || "").split("T")[0] === todayStr && (Number(a.test_id) > 0 || (Number(a.test_id) === -1 && isSunday())));
+    const todayAttempts = userAttemptHistory.filter(a => (a.attempt_date || "").split("T")[0] === todayStr && (a.test_id > 0 || (a.test_id === -1 && isSunday())));
     let todayMasteredQ = 0;
     todayAttempts.forEach(a => { 
       let qc = 10;
-      if (Number(a.test_id) > 0) {
+      if (a.test_id > 0) {
         const c = catalogData.find(x => String(x.test_id) === String(a.test_id));
         qc = c ? (c.total_questions || 10) : 10;
       } else {
@@ -1700,8 +1715,7 @@ async function renderHomePlaylists() {
     });
 
     const isSun = isSunday();
-    // 🚀 FIX: Sirf tabhi 100% fill hoga jab Crucible conquer ho chuka ho
-    const isSunHit = isSun && dailyPerf.is_century_hit;
+    const isSunHit = isSun && (dailyPerf.is_century_hit || (dailyPerf.total_questions_attempted || 0) > 0);
 
     const capPct = isSun ? 100 : Math.min(100, Math.round((todayLoad / targetQ) * 100)), 
           attPct = isSunHit ? 100 : Math.min(100, Math.round(((dailyPerf.total_questions_attempted || 0) / targetQ) * 100)), 
@@ -1718,8 +1732,7 @@ async function renderHomePlaylists() {
 
     if (meterText) {
       if (isSun) {
-        // 🚀 FIX: Truthful status check
-        if (dailyPerf.is_century_hit) {
+        if (dailyPerf.is_century_hit || (dailyPerf.total_questions_attempted || 0) > 0) {
           meterText.innerText = `${dailyPerf.total_questions_attempted} Qs 👑 (Crucible Conquered)`;
         } else {
           meterText.innerText = `${dailyPerf.total_questions_attempted || 0} Qs ⚔️ (Crucible Target)`;
@@ -2429,7 +2442,7 @@ function renderTopicSets() {
 
       // ⭐ Check if this set is in Starred Sets
       const starredPl = userPlaylists.find(p => p.playlist_name === 'Starred Sets');
-      const isStarred = starredPl && userPlaylistItems.some(pi => pi.playlist_id === starredPl.id && String(pi.test_id) === String(setCat.test_id));
+      const isStarred = starredPl && userPlaylistItems.some(pi => pi.playlist_id === starredPl.id && String(pi.test_id) === String(setItem.test_id));
 
       if (librarySelectionMode) {
         const inTarget = targetPlaylistForSelection && userPlaylistItems.some(pi => pi.playlist_id === targetPlaylistForSelection.id && String(pi.test_id) === String(setItem.test_id));
@@ -2899,12 +2912,11 @@ function renderScorecard() {
         sMsg.innerText = "✔ Progress & Metrics Synced Successfully"; 
       }
 
-      if (Number(activeTest.id) > 0 || (Number(activeTest.id) === -1 && isSunday())) {
+      if (activeTest.id > 0 || (activeTest.id === -1 && isSunday())) {
         dailyPerf.total_questions_attempted = (dailyPerf.total_questions_attempted || 0) + actuallyAttemptedThisExam;
         
-        // 🚀 APPROACH A: संडे को क्रूसीबल सबमिट होते ही टारगेट हिट माना जाएगा
-        // 🚀 MONOTONIC HIT GUARD: अगर टारगेट एक बार हिट हो चुका है तो वह कभी false नहीं होगा
-        const hit = Boolean(dailyPerf.is_century_hit || (isSunday() && Number(activeTest.id) === -1) || (dailyPerf.total_questions_attempted >= 100));
+        // 🚀 APPROACH A: संडे को क्रूसीबल सबमिट होते ही टारगेट हिट माना जाएगा (भले सवाल < 100 हों)
+        const hit = isSunday() ? true : (dailyPerf.total_questions_attempted >= 100);
         let nStreak = dailyPerf.streak_count || 0;
         
         if (hit && !dailyPerf.is_century_hit) { 
