@@ -261,6 +261,7 @@
         </div>
 
         <!-- COLUMN 2: Staging Queues & Custom Playlists -->
+
         <div class="mission-column-secondary">
           <div class="staging-queues-header">
             <h4>Staging & Playlists</h4>
@@ -296,6 +297,22 @@
             </div>
             <div class="playlist-body">
               <div id="weekPlaylistContainer" class="playlist-sets-stream sets-card-grid"></div>
+            </div>
+          </div>
+
+          <!-- ⭐ Starred / Important Sets (Permanent VIP Bucket) -->
+          <div class="mission-playlist-card collapsed playlist-accordion-card" id="starredPlaylistCard">
+            <div class="playlist-header" onclick="this.parentElement.classList.toggle('expanded'); this.parentElement.classList.toggle('collapsed');">
+              <div class="playlist-header-left">
+                <h3 class="playlist-title">⭐ Starred Sets</h3>
+              </div>
+              <div class="playlist-header-right">
+                <span class="playlist-count-pill" id="starredCountPill">0 Sets ▼</span>
+                <button type="button" class="btn-playlist-dots" onclick="event.stopPropagation(); openPlaylistActionMenu(event, 'system_Starred', 'Starred Sets', true)" title="Playlist Options">⋮</button>
+              </div>
+            </div>
+            <div class="playlist-body">
+              <div id="starredPlaylistContainer" class="playlist-sets-stream sets-card-grid"></div>
             </div>
           </div>
 
@@ -1181,7 +1198,7 @@
     </div>
   </div>
 
-  <!-- ================= CUSTOM CONFIRM DELETE / CLEAR MODAL ================= -->
+<!-- ================= CUSTOM CONFIRM DELETE / CLEAR MODAL ================= -->
   <div id="deletePlaylistConfirmModal" class="tcs-modal-overlay" style="display: none;">
     <div class="tcs-modal-box notice-modal-box" style="border-color: #ef4444;">
       <div class="tcs-modal-header" style="background: #dc2626; color: #ffffff;">
@@ -1206,12 +1223,13 @@
         <h3 id="deleteModalHeading" class="notice-heading">Are you sure?</h3>
         <p id="deleteModalMessage" class="notice-message">This action cannot be undone.</p>
         <div class="notice-modal-actions">
-          <button type="button" class="tcs-btn btn-primary" id="btnNoticeAction" onclick="handleNoticeAction()">Explore Library</button>
-          <button type="button" class="tcs-btn btn-secondary" id="btnNoticeSecondary" onclick="closeAppNoticeModal()">Dismiss</button>
+          <!-- 🚀 FIX: Correct IDs, texts, and functions for Delete Modal -->
+          <button type="button" class="tcs-btn btn-secondary" onclick="closeDeletePlaylistModal()">Cancel</button>
+          <button type="button" class="tcs-btn btn-primary" id="btnConfirmDeletePlaylist" onclick="confirmDeletePlaylist()">Yes, Delete</button>
         </div>
       </div>
     </div>
-  </div>
+  </div>  
 
   <!-- ================= ELEGANT APP EXIT CONFIRMATION MODAL ================= -->
   <div id="exitConfirmModal" class="tcs-modal-overlay" style="display: none; z-index: 9999;">

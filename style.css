@@ -311,6 +311,65 @@ body.portal-body { font-family: var(--font-family); background-color: var(--bg-p
 .set-tile-title { font-size: 13px; font-weight: 700; color: inherit; line-height: 1.4; flex: 1; min-width: 0; word-break: break-word; }
 .btn-three-dots { background: transparent; border: none; font-size: 16px; color: var(--text-muted); cursor: pointer; padding: 4px; border-radius: 4px; display: flex; align-items: center; justify-content: center; transition: all 0.2s; flex-shrink: 0; }
 .btn-three-dots:hover { background: var(--bg-surface-elevated); color: var(--text-main); }
+/* ==========================================================================
+   ⭐ 1-TAP STARRED SETS (VIP BOOKMARK BUTTON & POP ANIMATION)
+   ========================================================================== */
+.btn-star-set {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.btn-star-set svg {
+  width: 17px;
+  height: 17px;
+  stroke: var(--text-muted);
+  stroke-width: 2;
+  fill: transparent;
+  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), fill 0.2s ease, stroke 0.2s ease;
+}
+
+/* Hover State */
+.btn-star-set:hover {
+  background: var(--warning-bg-subtle);
+}
+.btn-star-set:hover svg {
+  stroke: var(--warning-dark);
+  transform: scale(1.1);
+}
+
+/* Starred (Active VIP) State - Smooth Elastic Pop */
+.btn-star-set.starred {
+  color: #f59e0b !important;
+}
+.btn-star-set.starred svg {
+  fill: #f59e0b !important;
+  stroke: #d97706 !important;
+  filter: drop-shadow(0 0 6px rgba(245, 158, 11, 0.55));
+  animation: starElasticPop 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+/* Starred Playlist Card Header Styling */
+#starredPlaylistCard.expanded > .playlist-header .playlist-count-pill {
+  color: var(--warning-dark) !important;
+  border-color: var(--warning) !important;
+  background: var(--warning-bg-subtle) !important;
+}
+
+@keyframes starElasticPop {
+  0% { transform: scale(0.7); }
+  50% { transform: scale(1.35); }
+  100% { transform: scale(1); }
+}
 .set-status-badge { font-size: 9px; font-weight: 800; padding: 3px 7px; border-radius: 4px; text-transform: uppercase; white-space: nowrap; letter-spacing: 0.4px; display: inline-flex; align-items: center; flex-shrink: 0; }
 .set-status-badge.status-progress { background: var(--warning-bg); color: var(--warning-dark); border: 1px solid var(--warning-border); }
 .set-status-badge.status-mastered { background: var(--success-bg); color: var(--success-dark); border: 1px solid var(--success-border); }
