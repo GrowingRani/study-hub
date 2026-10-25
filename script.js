@@ -59,6 +59,11 @@ function shuffleArray(arr) {
   return copy;
 }
 
+// 👑 SUNDAY REVISION PROTOCOL HELPER (FIX: Missing definition restored)
+function isSunday() {
+  return new Date().getDay() === 0;
+}
+
 const clockSvg = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>`;
 const docSvg = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>`;
 const bookmarkOutlineSvg = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>`;
@@ -133,15 +138,15 @@ function formatExplanation(exp) {
     text = currentLang === "hi" ? (exp.hi || exp.en || "") : (exp.en || exp.hi || "");
   } else {
     let str = String(exp).trim();
-    if (str.startsWith("{") && str.endsWith("}")) {
-      try {
-        let parsed = JSON.parse(str);
-        text = currentLang === "hi" ? (parsed.hi || parsed.en || "") : (parsed.en || parsed.hi || "");
-      } catch (e) {
-        text = str;
+    if (str.startsWith("{") && str.endsWith("}")) { 
+      try { 
+        let parsed = JSON.parse(str); 
+        text = currentLang === "hi" ? (parsed.hi || parsed.en || "") : (parsed.en || parsed.hi || ""); 
+      } catch (e) { 
+        text = str; 
       }
-    } else {
-      text = str;
+    } else { 
+      text = str; 
     }
   }
   text = String(text || "").trim();
@@ -289,14 +294,14 @@ window.addEventListener("popstate", function(e) {
 
   const currentActiveView = Array.from(document.querySelectorAll('.view-screen')).find(v => v.style.display === 'flex')?.id;
 
-  // Active Exam Protection
+  // 2. Active Exam Protection
   if (currentActiveView === 'viewExam' && !isExamFinished) { 
     history.pushState({ page: 'sub-view', view: 'viewExam' }, '', '#viewExam'); 
     abortExamSession(); 
     return; 
   }
 
-  // Modals, Drawers & Popups Dismissal
+  // 3. Modals, Drawers & Popups Dismissal
   if (closeAllOverlaysAndPopups()) {
     history.pushState({ 
       page: MAIN_TABS.includes(currentActiveView) ? (currentActiveView === 'viewDashboard' ? 'dashboard' : 'main-tab') : 'sub-view', 
@@ -305,7 +310,7 @@ window.addEventListener("popstate", function(e) {
     return; 
   }
 
-  // Close Masthead Search Bar if open
+  // 4. Close Masthead Search Bar if open
   const searchBar = document.getElementById("mastheadSearchBar");
   if (searchBar && searchBar.style.display === "flex") { 
     toggleMastheadSearch(false); 
@@ -313,8 +318,23 @@ window.addEventListener("popstate", function(e) {
     return; 
   }
 
-  // 🚀 PRIORITY FIX 1: If inside a Subject's Sets Explorer, return to All-Subjects Hub first
-  // (Yeh Selection Mode ko active rakhega aur candidate doosre subject par ja sakega)
+  // 🚀 5. PRACTICE / SOLUTIONS SE WAPAS AANE PAR SETS EXPLORER RESTORE KARNA
+  if (['viewPractice', 'viewSolutions'].includes(currentActiveView)) {
+    isExamFinished = true;
+    if (e.state && e.state.view) {
+      renderViewDOM(e.state.view);
+      // Agar pichla view Library tha aur subject active hai, toh wahi sets khol kar rakho
+      if (e.state.view === 'viewLibrary' && activeSubject) {
+        const hub = document.getElementById("subjectHubStage");
+        const exp = document.getElementById("setsExplorerStage");
+        if (hub) hub.style.display = "none";
+        if (exp) exp.style.display = "block";
+      }
+      return;
+    }
+  }
+
+  // 6. Library ke andar agar Sets Explorer khula hai, toh pehle All-Subjects Hub par jao
   if (currentActiveView === 'viewLibrary') {
     const setsExp = document.getElementById("setsExplorerStage");
     if (setsExp && setsExp.style.display === "block") {
@@ -323,32 +343,30 @@ window.addEventListener("popstate", function(e) {
     }
   }
 
-  // 🚀 PRIORITY FIX 2: Cancel Selection Mode only when already on All-Subjects Hub (Root Library)
+  // 7. Selection Mode cancel sirf All-Subjects Hub par hi hoga
   if (librarySelectionMode) {
     cancelLibrarySelectionMode();
     return; 
   }
 
-  // Main navigation tabs fallback to Dashboard
+  // 8. General History State View Restoration
+  if (e.state && e.state.view) {
+    renderViewDOM(e.state.view);
+    return;
+  }
+
+  // 9. Main navigation tabs fallback to Dashboard
   if (['viewLibrary', 'viewAnalytics', 'viewProfile'].includes(currentActiveView)) {
     renderViewDOM('viewDashboard');
     history.replaceState({ page: 'dashboard', view: 'viewDashboard' }, '', '#viewDashboard');
     return; 
   }
 
-  // 2. Trigger exit modal only on root dashboard
+  // 10. Root dashboard par exit dialog trigger karna
   if (!e.state || e.state.page === 'exit-gate' || currentActiveView === 'viewDashboard') {
     history.pushState({ page: 'dashboard', view: 'viewDashboard' }, '', '#viewDashboard');
     showExitConfirmModal();
     return;
-  }
-
-  // General History State View Restoration
-  if (e.state && e.state.view) {
-    if (['viewPractice', 'viewSolutions'].includes(currentActiveView)) {
-      isExamFinished = true;
-    }
-    renderViewDOM(e.state.view);
   }
 });
 
@@ -511,7 +529,6 @@ function showAuthNotice(msg, isError = true) {
 // ==========================================================================
 // 5. APPLICATION EVENTS & INTERACTIVE CONTROLLERS
 // ==========================================================================
-// 🚀 0ms ZERO-DOM-DESTRUCTION FAST FILTER ENGINE FOR BUDGET MOBILE
 function applyTopicFilter(filter = currentFilter) {
   currentFilter = filter;
   const searchInput = document.getElementById("topicSearchInput");
@@ -567,19 +584,16 @@ function filterAccordionCards(query) {
   }
 }
 
-// 🚀 MUTUAL-EXCLUSION ACCORDION CONTROLLER FOR SECONDARY PLAYLISTS
 window.toggleSecondaryPlaylist = function(headerElement) {
   const card = headerElement.closest('.playlist-accordion-card');
   if (!card) return;
   const wasExpanded = card.classList.contains('expanded');
 
-  // Collapse all secondary playlists (Tomorrow, This Week, and all Custom Playlists)
   document.querySelectorAll('.mission-column-secondary .playlist-accordion-card').forEach(c => {
     c.classList.remove('expanded');
     c.classList.add('collapsed');
   });
 
-  // If the clicked playlist was previously collapsed, expand only this one
   if (!wasExpanded) {
     card.classList.remove('collapsed');
     card.classList.add('expanded');
@@ -594,7 +608,6 @@ function setupAppEvents() {
     if (tMenu && tMenu.style.display !== "none" && !tMenu.contains(e.target) && !e.target.closest(".btn-three-dots")) closeThreeDotsMenu();
   });
 
-  // Bind single-open accordion behavior for Tomorrow & This Week headers
   const tomHeader = document.querySelector("#tomorrowPlaylistCard .playlist-header");
   if (tomHeader) tomHeader.onclick = () => window.toggleSecondaryPlaylist(tomHeader);
   const weekHeader = document.querySelector("#weekPlaylistCard .playlist-header");
@@ -748,7 +761,6 @@ function setupAppEvents() {
     };
   });
 
-  // 🚀 FAST CHIP TOGGLER (ZERO INNERHTML WIPES)
   document.querySelectorAll('.filter-chip-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
       document.querySelectorAll('.filter-chip-btn').forEach(b => b.classList.remove('active'));
@@ -799,14 +811,17 @@ function start5PMEngine() {
 // ==========================================================================
 // 6. CUSTOM IN-APP MODALS (ALERT, CREATE, EDIT & DELETE PLAYLIST)
 // ==========================================================================
-window.showAppNoticeModal = function(title, heading, message, icon = '🎯', actionText = 'Explore Library', actionCallback = null) {
+window.showAppNoticeModal = function(title, heading, message, icon = '🎯', actionText = 'Explore Library', actionCallback = null, secText = 'Dismiss', secCallback = null) {
   const modal = document.getElementById("appNoticeModal"); 
   if (!modal) return alert(message);
+  
   document.getElementById("noticeModalTitle").innerText = title; 
   document.getElementById("noticeHeading").innerText = heading; 
   document.getElementById("noticeMessage").innerText = message; 
   document.getElementById("noticeIconBadge").innerText = icon;
-  const actionBtn = document.getElementById("btnNoticeAction");
+
+  // Primary Action Button (e.g. Back to Crucible)
+  const actionBtn = document.getElementById("btnNoticeAction") || modal.querySelector(".notice-modal-actions .btn-primary");
   if (actionBtn) { 
     actionBtn.innerText = actionText; 
     actionBtn.onclick = () => { 
@@ -815,10 +830,20 @@ window.showAppNoticeModal = function(title, heading, message, icon = '🎯', act
       else { switchView("viewLibrary"); returnToSubjectHub(true); } 
     }; 
   }
+
+  // 🚀 Secondary Bypass Button (e.g. Continue Anyway) - Fallback selector included
+  const secBtn = document.getElementById("btnNoticeSecondary") || modal.querySelector(".notice-modal-actions .btn-secondary");
+  if (secBtn) {
+    secBtn.innerText = secText;
+    secBtn.onclick = () => {
+      closeAppNoticeModal();
+      if (secCallback) secCallback();
+    };
+  }
+
   modal.style.display = "flex"; 
   modal.style.pointerEvents = "auto";
 };
-
 window.closeAppNoticeModal = function() { 
   const m = document.getElementById("appNoticeModal"); 
   if (m) { m.style.display = "none"; m.style.pointerEvents = "none"; } 
@@ -896,7 +921,7 @@ window.openPlaylistActionMenu = function(event, playlistId, playlistName, isSyst
   if (isSystem) { 
     if (btnEdit) btnEdit.style.display = "none"; 
     if (btnClear) btnClear.style.display = "flex";
-    if (btnDel) btnDel.style.display = "none";
+    if (btnDel) btnDel.style.display = "none"; 
   } else { 
     if (btnEdit) btnEdit.style.display = "flex"; 
     if (btnClear) btnClear.style.display = "flex";
@@ -915,7 +940,7 @@ window.openPlaylistActionMenu = function(event, playlistId, playlistName, isSyst
   const menuWidth = 180; 
   let leftPos = btnRect.right - menuWidth; 
   if (leftPos < 10) leftPos = 10;
-  topPos = btnRect.bottom + 6; 
+  let topPos = btnRect.bottom + 6; 
   if (topPos + 120 > window.innerHeight) topPos = Math.max(10, btnRect.top - 120);
   menu.style.top = `${topPos}px`; 
   menu.style.left = `${leftPos}px`;
@@ -1016,7 +1041,7 @@ window.confirmDeletePlaylist = async function() {
   if (!pendingDeleteTarget) return; 
   const { id, isClearOnly } = pendingDeleteTarget, btn = document.getElementById("btnConfirmDeletePlaylist");
   if (btn) { btn.innerText = "Processing..."; btn.disabled = true; }
-  try {
+  try { 
     if (isClearOnly) { 
       const { error } = await supabaseClient.from("playlist_items").delete().eq("playlist_id", id).eq("student_roll", currentCandidate.roll_number); 
       if (error) throw error; 
@@ -1036,9 +1061,28 @@ window.confirmDeletePlaylist = async function() {
 };
 
 // ==========================================================================
-// 7. PRE-FLIGHT MISSION BRIEFING CONTROLLER (APPROACH 1 ENGINE)
+// 7. PRE-FLIGHT MISSION BRIEFING CONTROLLER (SUNDAY CRUCIBLE & SPEEDBUMP INTEGRATED)
 // ==========================================================================
-window.openMissionBriefingModal = async function(testId) {
+window.openMissionBriefingModal = async function(testId, bypassSundayCheck = false) {
+  const isSun = typeof isSunday === 'function' ? isSunday() : (new Date().getDay() === 0);
+
+  // 👑 Sunday Soft Friction: अनअटेम्प्टेड सेट्स पर जेंटल स्पीडबम्प (रिवीजन प्राथमिकता के लिए)
+  if (isSun && testId !== -1 && !bypassSundayCheck) {
+    const isAtt = userAttemptHistory.some(a => String(a.test_id) === String(testId));
+    if (!isAtt) {
+      return showAppNoticeModal(
+        "Revision Day Alert",
+        "Sunday Revision Protocol",
+        "Today is dedicated to Sunday Crucible Revision! Are you sure you want to tackle new territory before clearing your weekly backlog?",
+        "👑",
+        "Back to Crucible",
+        () => switchView("viewDashboard"),
+        "Continue Anyway",
+        () => openMissionBriefingModal(testId, true)
+      );
+    }
+  }
+
   activeBriefingTestId = testId;
   const modal = document.getElementById("missionBriefingModal");
   if (!modal) return;
@@ -1047,21 +1091,33 @@ window.openMissionBriefingModal = async function(testId) {
   if (shufToggle) shufToggle.checked = isShuffleEnabled;
 
   if (testId === -1) {
-    const boosterQuestions = await compileMasteryBoosterPool(25);
+    // संडे को 100 प्रश्नों का वीकली क्रूसीबल पूल, बाकी दिनों में 25 प्रश्न
+    const poolLimit = isSun ? 100 : 25;
+    const boosterQuestions = await compileMasteryBoosterPool(poolLimit);
     const qCount = boosterQuestions.length;
+
     if (qCount === 0) {
-      return showAppNoticeModal("Notice", "No Pending Reviews", "You have no pending mistakes or review questions right now. Attempt new sets from Library to fuel future booster reviews.", "🛡️", "Dismiss");
+      return showAppNoticeModal(
+        "Notice",
+        "No Pending Reviews",
+        isSun 
+          ? "You have zero pending reviews and mistakes from this week! Outstanding job." 
+          : "You have no pending mistakes or review questions right now. Attempt new sets from Library to fuel future booster reviews.",
+        "🛡️",
+        "Dismiss"
+      );
     }
+
     const durationMins = Math.max(3, Math.ceil(qCount * 0.6));
     const mistakeCount = boosterQuestions.filter(q => q.isMistake).length;
     const recallCount = qCount - mistakeCount;
     
-    document.getElementById("briefingSubjectBadge").innerText = "BONUS MASTERY BOOSTER";
+    document.getElementById("briefingSubjectBadge").innerText = isSun ? "SUNDAY CRUCIBLE EXAM" : "BONUS MASTERY BOOSTER";
     const statusBadge = document.getElementById("briefingStatusBadge");
     statusBadge.className = "briefing-status-tag status-progress";
     statusBadge.innerText = `${qCount} DUE`;
     
-    document.getElementById("briefingSetTitle").innerText = "Mistakes & Active Retention Booster";
+    document.getElementById("briefingSetTitle").innerText = isSun ? "Weekly Backlog & Mastery Crucible" : "Mistakes & Active Retention Booster";
     document.getElementById("briefingDurationMeta").innerText = `⏱️ ${durationMins}m`;
     document.getElementById("briefingQuestionsMeta").innerText = `📄 ${qCount} Questions`;
     document.getElementById("briefingScoreMeta").innerText = `${mistakeCount} Mistakes • ${recallCount} Recall`;
@@ -1137,6 +1193,17 @@ async function mountDashboard(isInitialLoad = false) {
   const rollEl = document.getElementById("dashCandidateRoll"); 
   if (rollEl) rollEl.innerText = "ROLL: " + (currentCandidate?.roll_number || "---");
   fetchStudentAnalytics(true); 
+
+  // 👑 Sunday Golden UI & Header Sync
+  const isSun = isSunday();
+  document.body.classList.toggle("sunday-mode", isSun);
+  const pTag = document.getElementById("dashPortalTag"), pSub = document.getElementById("dashPortalSub");
+  if (pTag) pTag.innerText = isSun ? "REVISION PROTOCOL" : "HOME";
+  if (pSub) pSub.innerText = isSun ? "Sunday Crucible Deck" : "Execution Deck";
+  const cIcon = document.getElementById("centuryIcon"), cTitle = document.getElementById("centuryTitleText"), cSub = document.getElementById("centurySubtitleText");
+  if (cIcon) cIcon.innerText = isSun ? "👑" : "🎯";
+  if (cTitle) cTitle.innerText = isSun ? "Sunday Revision Target" : "Daily Milestone";
+  if (cSub) cSub.innerText = isSun ? "Weekly Backlog & Mastery Crucible" : "100-Question Target & Mastery Barometer";
   
   renderViewDOM('viewDashboard');
 
@@ -1173,7 +1240,7 @@ async function fetchPlaylistsAndCheckRollover() {
       pData = refData || pData || [];
     }
 
-    // 🚀 IN-MEMORY & DB LEVEL DEDUPLICATION: PREVENTS DUPLICATE PLAYLIST BARS
+    // 🚀 IN-MEMORY & DB LEVEL DEDUPLICATION
     const uniquePlaylists = [];
     const seenPlaylistNames = new Set();
     (pData || []).forEach(p => {
@@ -1238,7 +1305,7 @@ async function fetchPlaylistsAndCheckRollover() {
       if (insData) dailyPerf = insData;
     }
 
-    // 🚀 MULTI-DEVICE SYNCHRONIZED ROLLOVER (SERVER-ANCHORED SOURCE OF TRUTH)
+    // 🚀 MULTI-DEVICE SYNCHRONIZED ROLLOVER
     const serverLastRollover = currentCandidate?.last_rollover_date;
 
     if (serverLastRollover !== todayStr) {
@@ -1276,7 +1343,7 @@ async function fetchPlaylistsAndCheckRollover() {
   }
 }
 
-// 🚀 REVISION & MISTAKE POOL COMPILER (RPC Optimized • Fast DB Extraction + 15s In-Memory Cache)
+// 🚀 REVISION & MISTAKE POOL COMPILER
 async function compileMasteryBoosterPool(maxLimit = 25, forceRefresh = false) {
   if (!forceRefresh && cachedBoosterPool && (Date.now() - lastBoosterFetchTime < 15000)) {
     return cachedBoosterPool;
@@ -1350,7 +1417,8 @@ async function compileMasteryBoosterPool(maxLimit = 25, forceRefresh = false) {
 }
 
 window.launchBoosterMode = async function(mode = 'exam') {
-  let boosterQuestions = await compileMasteryBoosterPool(25, true);
+  const isSun = isSunday();
+  let boosterQuestions = await compileMasteryBoosterPool(isSun ? 100 : 25, true);
   if (!boosterQuestions.length) {
     return showAppNoticeModal("Notice", "No Pending Reviews", "You have no pending mistakes or review questions right now.", "⚪", "Dismiss");
   }
@@ -1365,15 +1433,15 @@ window.launchBoosterMode = async function(mode = 'exam') {
   if (mode === 'exam') {
     isExamFinished = false;
     switchView("viewExam", true);
+    
     activeTest = {
       id: -1,
-      title: "Bonus Mastery Booster",
-      total_duration_minutes: Math.max(3, Math.ceil(qCount * 0.6))
+      title: isSun ? "Sunday Crucible Exam" : "Bonus Mastery Booster",
+      total_duration_minutes: isSun ? Math.min(60, Math.max(15, Math.ceil(qCount * 0.6))) : Math.max(3, Math.ceil(qCount * 0.6))
     };
-
     document.getElementById("examTitle").innerText = activeTest.title;
-    document.getElementById("subjectLabelBreadcrumb").innerText = "Bonus Booster";
-    document.getElementById("sectionTabs").innerHTML = `<button type="button" class="section-tab">Section 1: Active Review (${qCount} Qs)</button>`;
+    document.getElementById("subjectLabelBreadcrumb").innerText = isSun ? "Sunday Crucible" : "Bonus Booster";
+    document.getElementById("sectionTabs").innerHTML = `<button type="button" class="section-tab">Section 1: ${isSun ? 'Weekly Backlog Clearance' : 'Active Review'} (${qCount} Qs)</button>`;
     timeRemaining = activeTest.total_duration_minutes * 60;
 
     testQuestions = boosterQuestions;
@@ -1387,7 +1455,7 @@ window.launchBoosterMode = async function(mode = 'exam') {
   } else {
     practiceQuestions = boosterQuestions;
     const tEl = document.getElementById("practiceSetTitle");
-    if (tEl) tEl.innerText = `Bonus Mastery Booster (${qCount} Qs)`;
+    if (tEl) tEl.innerText = `${isSun ? 'Sunday Crucible Exam' : 'Bonus Mastery Booster'} (${qCount} Qs)`;
     const mEl = document.getElementById("practiceModeTitle");
     if (mEl) mEl.innerText = mode === "read" ? "📖 READ MODE" : (mode === "quiz" ? "⚡ INSTANT QUIZ" : "🗂️ FLASHCARDS");
 
@@ -1398,7 +1466,7 @@ window.launchBoosterMode = async function(mode = 'exam') {
   }
 };
 
-// 🚀 MUTEX-LOCKED & ATOMIC ASSIGNMENT RENDERER (ELIMINATES DUPLICATE PLAYLISTS)
+// 🚀 MUTEX-LOCKED & ATOMIC ASSIGNMENT RENDERER
 async function renderHomePlaylists() {
   if (isRenderingPlaylists) {
     pendingPlaylistRender = true;
@@ -1418,17 +1486,21 @@ async function renderHomePlaylists() {
     tomorrowContainer.innerHTML = ""; 
     weekContainer.innerHTML = ""; 
 
-    // RENDER QUANTUM CORE BONUS MASTERY BOOSTER
+    // RENDER QUANTUM CORE BOOSTER / SUNDAY CRUCIBLE EXAM
     if (revContainer) {
-      const boosterQuestions = await compileMasteryBoosterPool(25);
+      const isSun = isSunday();
+      const boosterLimit = isSun ? 100 : 25;
+      const boosterQuestions = await compileMasteryBoosterPool(boosterLimit);
       const qCount = boosterQuestions.length;
+      const tileTitle = isSun ? "Sunday Crucible Exam" : "Bonus Mastery Booster";
+      const tileThemeClass = isSun ? "sunday-crucible-tile" : "";
 
       if (qCount === 0) {
         revContainer.innerHTML = `
-          <div class="set-tile dynamic-revision-tile state-clean">
+          <div class="set-tile dynamic-revision-tile ${tileThemeClass} state-clean">
             <div class="set-tile-header">
               <div class="set-tile-title-group">
-                <div class="set-tile-title">Bonus Mastery Booster</div>
+                <div class="set-tile-title">${tileTitle}</div>
               </div>
               <div style="display:flex; gap: 6px; align-items: center; flex-shrink: 0;">
                 <span class="clean-slate-pill">0 Due • All Clear</span>
@@ -1456,10 +1528,10 @@ async function renderHomePlaylists() {
           : (mistakeCount > 0 ? `${mistakeCount} Mistakes for Review` : `${recallCount} Active Recall Questions`);
 
         revContainer.innerHTML = `
-          <div class="set-tile dynamic-revision-tile state-active">
+          <div class="set-tile dynamic-revision-tile ${tileThemeClass} state-active">
             <div class="set-tile-header">
               <div class="set-tile-title-group">
-                <div class="set-tile-title">Bonus Mastery Booster</div>
+                <div class="set-tile-title">${tileTitle}</div>
               </div>
               <div style="display:flex; gap: 6px; align-items: center; flex-shrink: 0;">
                 <div class="set-status-badge status-progress" style="background:var(--warning-bg-subtle); color:var(--warning-dark); border:1px solid var(--warning-border);">
@@ -1470,12 +1542,12 @@ async function renderHomePlaylists() {
             <div class="set-tile-meta">
               <span>${clockSvg} ${durationMins}m</span>
               <span>${docSvg} ${qCount} Qs</span>
-              <span style="font-size:10px; color:var(--warning); font-weight:700;">(Bonus • Excluded from 100-Q Target)</span>
+              <span style="font-size:10px; color:var(--warning); font-weight:700;">(${isSun ? 'Weekly Backlog Clearance' : 'Bonus • Excluded from 100-Q Target'})</span>
             </div>
             <div class="set-score-info"><span style="color:var(--warning-dark); font-weight:700;">⚡ ${poolDetail}</span></div>
             <div class="set-action-footer">
               <button type="button" class="btn-launch-set" onclick="openMissionBriefingModal(-1)">
-                <span>▶</span> <span>Start Booster Session</span>
+                <span>${isSun ? '⚔️' : '▶'}</span> <span>${isSun ? 'Launch Sunday Crucible' : 'Start Booster Session'}</span>
               </button>
             </div>
           </div>
@@ -1543,7 +1615,6 @@ async function renderHomePlaylists() {
       tomorrowContainer.innerHTML = (items.length > 0 ? items.map(i => getSetHtml(i, 'Tomorrow')).join("") : `<div style="text-align:center; padding:18px; color:var(--text-muted); font-size:12.5px; font-weight:600; grid-column:1 / -1;">Queue is empty.</div>`) + getAddBtn(tomorrowList.id, 'Tomorrow');
       const badge = document.getElementById("tomorrowCountPill"); if (badge) badge.innerText = `${items.length} Sets ▼`;
       
-      // Ensure single-open click behavior is attached
       const tomHeader = document.querySelector("#tomorrowPlaylistCard .playlist-header");
       if (tomHeader) tomHeader.onclick = () => window.toggleSecondaryPlaylist(tomHeader);
     }
@@ -1552,12 +1623,11 @@ async function renderHomePlaylists() {
       weekContainer.innerHTML = (items.length > 0 ? items.map(i => getSetHtml(i, 'This Week')).join("") : `<div style="text-align:center; padding:18px; color:var(--text-muted); font-size:12.5px; font-weight:600; grid-column:1 / -1;">Backlog is empty.</div>`) + getAddBtn(weekList.id, 'This Week');
       const badge = document.getElementById("weekCountPill"); if (badge) badge.innerText = `${items.length} Sets ▼`;
 
-      // Ensure single-open click behavior is attached
       const weekHeader = document.querySelector("#weekPlaylistCard .playlist-header");
       if (weekHeader) weekHeader.onclick = () => window.toggleSecondaryPlaylist(weekHeader);
     }
     
-    // 🚀 ATOMIC BATCHED RENDER FOR CUSTOM PLAYLISTS (SINGLE-OPEN MUTUAL EXCLUSION HOOKED)
+    // 🚀 ATOMIC BATCHED RENDER FOR CUSTOM PLAYLISTS
     if (customContainer) {
       const customLists = userPlaylists.filter(p => !['Today', 'Tomorrow', 'This Week'].includes(p.playlist_name));
       let customHtml = "";
@@ -1731,7 +1801,6 @@ window.enableLibrarySelectionMode = function(pId, pName) {
   switchView('viewLibrary'); 
   updateBottomNav(document.getElementById('navLibraryBtn')); 
 
-  // 🚀 DIRECT TO SUBJECT HUB PORTFOLIO FIRST (NO AUTO-DRILL)
   const hub = document.getElementById("subjectHubStage");
   const exp = document.getElementById("setsExplorerStage");
   toggleMastheadSearch(false);
@@ -1754,7 +1823,6 @@ function autoExpandPlaylistCard(pName) {
     const c = document.getElementById('todayPayloadCard');
     if (c && c.classList.contains('collapsed')) { c.classList.remove('collapsed'); c.classList.add('expanded'); }
   } else {
-    // Collapse all secondary playlists first to preserve single-open rule
     document.querySelectorAll('.mission-column-secondary .playlist-accordion-card').forEach(c => {
       c.classList.remove('expanded');
       c.classList.add('collapsed');
@@ -1867,7 +1935,7 @@ window.openThreeDotsMenu = function(event, testId) {
   const menuWidth = 165; 
   let leftPos = btnRect.right - menuWidth; 
   if (leftPos < 10) leftPos = 10;
-  topPos = btnRect.bottom + 6; 
+  let topPos = btnRect.bottom + 6; 
   if (topPos + 60 > window.innerHeight) topPos = Math.max(10, btnRect.top - 50);
   menu.style.top = `${topPos}px`; 
   menu.style.left = `${leftPos}px`;
@@ -1937,11 +2005,11 @@ window.togglePlaylistMembership = async function(pId, testId, inList) {
     userPlaylistItems.push({ playlist_id: pId, test_id: testId, student_roll: roll });
   }
 
-  // 🚀 Step 2: Instant DOM Re-render (Zero Waiting)
+  // 🚀 Step 2: Instant DOM Re-render
   openPlaylistBottomSheet(testId);
   renderHomePlaylists();
 
-  // 🚀 Step 3: Background Cloud Sync (Silent Execution)
+  // 🚀 Step 3: Background Cloud Sync
   try {
     if (inList) {
       await supabaseClient.from("playlist_items").delete().eq("playlist_id", pId).eq("test_id", testId).eq("student_roll", roll);
@@ -1950,7 +2018,6 @@ window.togglePlaylistMembership = async function(pId, testId, inList) {
     }
   } catch (err) {
     console.error("Cloud playlist sync failed, reverting:", err);
-    // Rollback local state on network failure
     if (inList) {
       userPlaylistItems.push({ playlist_id: pId, test_id: testId, student_roll: roll });
     } else {
@@ -2116,7 +2183,7 @@ window.returnToSubjectHub = function(fromPopState = false) {
   const hub = document.getElementById("subjectHubStage"), exp = document.getElementById("setsExplorerStage");
   toggleMastheadSearch(false); 
   if (exp) exp.style.display = "none"; 
-  if (hub) hub.style.display = "block";
+  if (hub) hub.style.display = "block"; 
   
   const scroller = document.getElementById("stagingDomainScroller");
   if (scroller) scroller.style.display = librarySelectionMode ? "flex" : "none";
@@ -2128,7 +2195,7 @@ window.returnToSubjectHub = function(fromPopState = false) {
   if (!fromPopState) history.replaceState({ page: 'main-tab', view: 'viewLibrary', subView: 'hub' }, "", "#viewLibrary");
 };
 
-// 🚀 HIGH-EFFICIENCY ONE-TIME DOM BUILDER (APPROACH 1 BRIEFING MODAL INTEGRATED)
+// 🚀 HIGH-EFFICIENCY ONE-TIME DOM BUILDER
 function renderTopicSets() {
   const container = document.getElementById("topicsContainer"); 
   if (!container) return; 
@@ -2295,7 +2362,7 @@ function renderTopicSets() {
   applyTopicFilter(currentFilter);
 }
 
-// 🚀 HIGH-SPEED BATCHED MISTAKE BANK SYNC (REPLACES 40 SEQUENTIAL REQUESTS WITH 1 PARALLEL BATCH)
+// 🚀 HIGH-SPEED BATCHED MISTAKE BANK SYNC
 const REVIEW_INTERVALS_DAYS = [1, 3, 6, 15];
 async function syncMistakeBank(payloads) {
   if (!payloads?.length || !currentCandidate) return;
@@ -2611,7 +2678,6 @@ window.confirmAndFinishExam = function() {
   renderScorecard(); 
 };
 
-// 🚀 CRITICAL FIX: INSTANT IN-MEMORY TELEMETRY RECORDING & ZERO-LAG ATTEMPT SYNC
 function renderScorecard() {
   let correct = 0, incorrect = 0, unattempted = 0, statsPayload = [];
   testQuestions.forEach((q, idx) => {
@@ -3114,7 +3180,7 @@ window.launchPracticeMode = async function(testId, mode) {
   const mEl = document.getElementById("practiceModeTitle"); 
   if (mEl) mEl.innerText = mode === "read" ? "📖 READ MODE" : (mode === "quiz" ? "⚡ INSTANT QUIZ" : "🗂️ FLASHCARDS");
 
-  switchView("viewPractice");
+  switchView("viewPractice",true);
   if (mode === "read") renderReadMode(); 
   else if (mode === "quiz") renderInteractiveQuizMode(); 
   else { flashcardIndex = 0; renderFlashcardMode(); }
@@ -3155,8 +3221,7 @@ function renderReadUI() {
 
   let renderedCount = 0;
   practiceQuestions.forEach((q, idx) => {
-    const isSt = localReadState.starred.has(idx);
-    
+    const isSt = localReadState.starred.has(idx); 
     if (localReadState.filter === 'starred' && !isSt) return; 
     renderedCount++;
 
@@ -3186,7 +3251,6 @@ function renderReadUI() {
     container.appendChild(emptyNotice);
   }
 
-  // 🔝 Sleek Floating Back to Top Button
   const foot = document.createElement("div");
   foot.className = "read-footer-actions";
   foot.innerHTML = `
@@ -3361,7 +3425,7 @@ function renderQuizUI() {
           }
 
           card.querySelectorAll(`.quiz-opt-${idx}`).forEach(el => { 
-            el.style.pointerEvents = "none";
+            el.style.pointerEvents = "none"; 
             const optVal = el.getAttribute("data-opt-id");
             if (isOptionMatching(optVal, q.correctAnswer)) {
               el.classList.remove("sol-opt-wrong");
@@ -3517,20 +3581,15 @@ window.confirmExitApp = function() {
     modal.style.pointerEvents = "none";
   }
   
-  // Cordova / Capacitor जैसे नेटिव कंटेनर के लिए
   if (window.navigator && window.navigator.app && typeof window.navigator.app.exitApp === "function") {
     window.navigator.app.exitApp();
     return;
   }
   
-  // 🚀 फ्लैग एक्टिवेट करें ताकि popstate दोबारा मोडल को न खोले
   isExitingApp = true;
-  
-  // Chrome PWA क्लोज करने का प्रयास
   window.close();
   
   setTimeout(() => {
-    // अगर ब्राउज़र ने window.close() ब्लॉक कर दिया, तो हिस्ट्री से बाहर निकलें
     if (window.history.length > 1) {
       window.history.go(-(window.history.length - 1));
     } else {

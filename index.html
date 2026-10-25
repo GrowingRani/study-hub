@@ -206,10 +206,10 @@
       <div class="century-meter-card full-width-milestone" id="dailyMilestoneCard">
         <div class="century-meter-header">
           <div class="century-meter-label">
-            <span class="century-icon">🎯</span>
+            <span class="century-icon" id="centuryIcon">🎯</span>
             <div class="century-title-stack">
-              <span class="century-title">Daily Milestone</span>
-              <span class="century-subtitle">100-Question Target & Mastery Barometer</span>
+              <span class="century-title" id="centuryTitleText">Daily Milestone</span>
+              <span class="century-subtitle" id="centurySubtitleText">100-Question Target & Mastery Barometer</span>
             </div>
           </div>
           <span id="centuryLoadText" class="century-count-badge">0 / 100 Qs</span>
@@ -857,7 +857,7 @@
   <section id="viewPractice" class="view-screen" style="display: none; background: var(--bg-primary); overflow-y: auto;">
     <header class="practice-top-bar glass-header">
       <div class="practice-header-left">
-        <button type="button" class="btn-masthead-back" onclick="switchView('viewDashboard')" title="Exit Practice">
+        <button type="button" class="btn-masthead-back" onclick="history.back()" title="Back">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <line x1="19" y1="12" x2="5" y2="12"></line>
             <polyline points="12 19 5 12 12 5"></polyline>
@@ -1122,7 +1122,7 @@
         <p id="noticeMessage" class="notice-message">Notice details will be shown here.</p>
         <div class="notice-modal-actions">
           <button type="button" class="tcs-btn btn-primary" id="btnNoticeAction" onclick="handleNoticeAction()">Explore Library</button>
-          <button type="button" class="tcs-btn btn-secondary" onclick="closeAppNoticeModal()">Dismiss</button>
+          <button type="button" class="tcs-btn btn-secondary" id="btnNoticeSecondary" onclick="closeAppNoticeModal()">Dismiss</button>
         </div>
       </div>
     </div>
@@ -1206,8 +1206,8 @@
         <h3 id="deleteModalHeading" class="notice-heading">Are you sure?</h3>
         <p id="deleteModalMessage" class="notice-message">This action cannot be undone.</p>
         <div class="notice-modal-actions">
-          <button type="button" class="tcs-btn btn-secondary" onclick="closeDeletePlaylistModal()">Cancel</button>
-          <button type="button" class="tcs-btn" id="btnConfirmDeletePlaylist" style="background:#ef4444; color:#ffffff;">Confirm</button>
+          <button type="button" class="tcs-btn btn-primary" id="btnNoticeAction" onclick="handleNoticeAction()">Explore Library</button>
+          <button type="button" class="tcs-btn btn-secondary" id="btnNoticeSecondary" onclick="closeAppNoticeModal()">Dismiss</button>
         </div>
       </div>
     </div>
