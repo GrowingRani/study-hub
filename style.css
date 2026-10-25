@@ -834,3 +834,118 @@ body.portal-body { font-family: var(--font-family); background-color: var(--bg-p
   from { opacity: 0; transform: scale(0.97); }
   to { opacity: 1; transform: scale(1); }
 }
+/* ==========================================================================
+   ELEGANT QUANTUM RUNTIME LOADER (PRACTICE ENGINE)
+   ========================================================================== */
+.practice-loader-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 24px;
+  margin: 40px auto;
+  max-width: 420px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  box-shadow: var(--shadow-md);
+  text-align: center;
+  animation: modalFadeIn 0.25s ease-out;
+}
+
+.quantum-loader-sphere {
+  position: relative;
+  width: 60px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 22px;
+}
+
+.quantum-ring {
+  position: absolute;
+  border-radius: 50%;
+  border: 2px solid transparent;
+}
+
+.quantum-ring.ring-1 {
+  width: 58px;
+  height: 58px;
+  border-top-color: var(--tcs-blue-accent);
+  border-left-color: var(--tcs-blue-accent);
+  animation: quantumSpin 1.2s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+}
+
+.quantum-ring.ring-2 {
+  width: 42px;
+  height: 42px;
+  border-bottom-color: var(--success);
+  border-right-color: var(--success);
+  animation: quantumSpinReverse 0.9s linear infinite;
+}
+
+.quantum-core {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--tcs-blue-accent);
+  box-shadow: 0 0 14px var(--tcs-blue-accent);
+  animation: coreBreathe 1.4s ease-in-out infinite alternate;
+}
+
+.loader-status-text {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  color: var(--tcs-blue-header);
+  margin-bottom: 6px;
+}
+
+.loader-status-sub {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  font-weight: 600;
+  margin-bottom: 20px;
+}
+
+.loader-progress-track {
+  width: 180px;
+  height: 4px;
+  background: var(--bg-surface-hover);
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+
+.loader-progress-shimmer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 40%;
+  background: linear-gradient(90deg, transparent, var(--tcs-blue-accent), transparent);
+  border-radius: 4px;
+  animation: progressSweep 1.3s infinite ease-in-out;
+}
+
+@keyframes quantumSpin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes quantumSpinReverse {
+  0% { transform: rotate(360deg); }
+  100% { transform: rotate(0deg); }
+}
+
+@keyframes coreBreathe {
+  0% { transform: scale(0.8); opacity: 0.7; }
+  100% { transform: scale(1.25); opacity: 1; }
+}
+
+@keyframes progressSweep {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(250%); }
+}

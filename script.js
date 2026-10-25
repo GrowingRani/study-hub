@@ -59,7 +59,7 @@ function shuffleArray(arr) {
   return copy;
 }
 
-// 👑 SUNDAY REVISION PROTOCOL HELPER (FIX: Missing definition restored)
+// 👑 SUNDAY REVISION PROTOCOL HELPER
 function isSunday() {
   return new Date().getDay() === 0;
 }
@@ -282,7 +282,6 @@ window.switchView = function(viewId, pushHistory = true) {
 };
 
 window.addEventListener("popstate", function(e) {
-  // 1. Exit guard: If exit is in progress, bypass popstate interception
   if (typeof isExitingApp !== 'undefined' && isExitingApp) return;
 
   const exitModal = document.getElementById('exitConfirmModal');
@@ -294,14 +293,12 @@ window.addEventListener("popstate", function(e) {
 
   const currentActiveView = Array.from(document.querySelectorAll('.view-screen')).find(v => v.style.display === 'flex')?.id;
 
-  // 2. Active Exam Protection
   if (currentActiveView === 'viewExam' && !isExamFinished) { 
     history.pushState({ page: 'sub-view', view: 'viewExam' }, '', '#viewExam'); 
     abortExamSession(); 
     return; 
   }
 
-  // 3. Modals, Drawers & Popups Dismissal
   if (closeAllOverlaysAndPopups()) {
     history.pushState({ 
       page: MAIN_TABS.includes(currentActiveView) ? (currentActiveView === 'viewDashboard' ? 'dashboard' : 'main-tab') : 'sub-view', 
@@ -310,7 +307,6 @@ window.addEventListener("popstate", function(e) {
     return; 
   }
 
-  // 4. Close Masthead Search Bar if open
   const searchBar = document.getElementById("mastheadSearchBar");
   if (searchBar && searchBar.style.display === "flex") { 
     toggleMastheadSearch(false); 
@@ -318,12 +314,11 @@ window.addEventListener("popstate", function(e) {
     return; 
   }
 
-  // 🚀 5. PRACTICE / SOLUTIONS SE WAPAS AANE PAR SETS EXPLORER RESTORE KARNA
+  // 🚀 PRACTICE / SOLUTIONS SE WAPAS AANE PAR SETS EXPLORER RESTORE KARNA
   if (['viewPractice', 'viewSolutions'].includes(currentActiveView)) {
     isExamFinished = true;
     if (e.state && e.state.view) {
       renderViewDOM(e.state.view);
-      // Agar pichla view Library tha aur subject active hai, toh wahi sets khol kar rakho
       if (e.state.view === 'viewLibrary' && activeSubject) {
         const hub = document.getElementById("subjectHubStage");
         const exp = document.getElementById("setsExplorerStage");
@@ -334,7 +329,6 @@ window.addEventListener("popstate", function(e) {
     }
   }
 
-  // 6. Library ke andar agar Sets Explorer khula hai, toh pehle All-Subjects Hub par jao
   if (currentActiveView === 'viewLibrary') {
     const setsExp = document.getElementById("setsExplorerStage");
     if (setsExp && setsExp.style.display === "block") {
@@ -343,26 +337,22 @@ window.addEventListener("popstate", function(e) {
     }
   }
 
-  // 7. Selection Mode cancel sirf All-Subjects Hub par hi hoga
   if (librarySelectionMode) {
     cancelLibrarySelectionMode();
     return; 
   }
 
-  // 8. General History State View Restoration
   if (e.state && e.state.view) {
     renderViewDOM(e.state.view);
     return;
   }
 
-  // 9. Main navigation tabs fallback to Dashboard
   if (['viewLibrary', 'viewAnalytics', 'viewProfile'].includes(currentActiveView)) {
     renderViewDOM('viewDashboard');
     history.replaceState({ page: 'dashboard', view: 'viewDashboard' }, '', '#viewDashboard');
     return; 
   }
 
-  // 10. Root dashboard par exit dialog trigger karna
   if (!e.state || e.state.page === 'exit-gate' || currentActiveView === 'viewDashboard') {
     history.pushState({ page: 'dashboard', view: 'viewDashboard' }, '', '#viewDashboard');
     showExitConfirmModal();
@@ -820,7 +810,6 @@ window.showAppNoticeModal = function(title, heading, message, icon = '🎯', act
   document.getElementById("noticeMessage").innerText = message; 
   document.getElementById("noticeIconBadge").innerText = icon;
 
-  // Primary Action Button (e.g. Back to Crucible)
   const actionBtn = document.getElementById("btnNoticeAction") || modal.querySelector(".notice-modal-actions .btn-primary");
   if (actionBtn) { 
     actionBtn.innerText = actionText; 
@@ -831,7 +820,6 @@ window.showAppNoticeModal = function(title, heading, message, icon = '🎯', act
     }; 
   }
 
-  // 🚀 Secondary Bypass Button (e.g. Continue Anyway) - Fallback selector included
   const secBtn = document.getElementById("btnNoticeSecondary") || modal.querySelector(".notice-modal-actions .btn-secondary");
   if (secBtn) {
     secBtn.innerText = secText;
@@ -844,6 +832,7 @@ window.showAppNoticeModal = function(title, heading, message, icon = '🎯', act
   modal.style.display = "flex"; 
   modal.style.pointerEvents = "auto";
 };
+
 window.closeAppNoticeModal = function() { 
   const m = document.getElementById("appNoticeModal"); 
   if (m) { m.style.display = "none"; m.style.pointerEvents = "none"; } 
@@ -1091,7 +1080,6 @@ window.openMissionBriefingModal = async function(testId, bypassSundayCheck = fal
   if (shufToggle) shufToggle.checked = isShuffleEnabled;
 
   if (testId === -1) {
-    // संडे को 100 प्रश्नों का वीकली क्रूसीबल पूल, बाकी दिनों में 25 प्रश्न
     const poolLimit = isSun ? 100 : 25;
     const boosterQuestions = await compileMasteryBoosterPool(poolLimit);
     const qCount = boosterQuestions.length;
@@ -1272,8 +1260,11 @@ async function fetchPlaylistsAndCheckRollover() {
       .eq("student_roll", roll);
 
     const actualExamAttemptedToday = (todayAttRows || [])
-      .filter(a => (a.attempt_date || "").split("T")[0] === todayStr && a.test_id > 0)
+      .filter(a => (a.attempt_date || "").split("T")[0] === todayStr && (a.test_id > 0 || (a.test_id === -1 && isSunday())))
       .reduce((sum, a) => sum + (a.total_correct || 0) + (a.total_incorrect || 0), 0);
+
+    // 🚀 APPROACH A: संडे को कोई भी प्रयास होने पर टारगेट सिक्योर माना जाए
+    const targetHitToday = isSunday() ? (actualExamAttemptedToday > 0) : (actualExamAttemptedToday >= 100);
 
     let { data: dpData } = await supabaseClient
       .from("daily_performance")
@@ -1283,12 +1274,12 @@ async function fetchPlaylistsAndCheckRollover() {
       .maybeSingle();
 
     if (dpData) {
-      if (dpData.total_questions_attempted !== actualExamAttemptedToday) {
+      if (dpData.total_questions_attempted !== actualExamAttemptedToday || dpData.is_century_hit !== targetHitToday) {
         dpData.total_questions_attempted = actualExamAttemptedToday;
-        dpData.is_century_hit = actualExamAttemptedToday >= 100;
+        dpData.is_century_hit = targetHitToday;
         await supabaseClient.from("daily_performance").update({
           total_questions_attempted: actualExamAttemptedToday,
-          is_century_hit: actualExamAttemptedToday >= 100
+          is_century_hit: targetHitToday
         }).eq("id", dpData.id);
       }
       dailyPerf = dpData;
@@ -1300,15 +1291,17 @@ async function fetchPlaylistsAndCheckRollover() {
         student_roll: roll, 
         target_date: todayStr, 
         total_questions_attempted: actualExamAttemptedToday, 
+        is_century_hit: targetHitToday,
         streak_count: newStreak 
       }).select().single();
       if (insData) dailyPerf = insData;
     }
 
-    // 🚀 MULTI-DEVICE SYNCHRONIZED ROLLOVER
+    // 🚀 MULTI-DEVICE SYNCHRONIZED ROLLOVER (SUNDAY FROZEN)
     const serverLastRollover = currentCandidate?.last_rollover_date;
 
-    if (serverLastRollover !== todayStr) {
+    // संडे को रोलओवर स्किप रहेगा (ताकि Tomorrow बकेट सोमवार के लिए सुरक्षित रहे)
+    if (serverLastRollover !== todayStr && !isSunday()) {
       const todayList = userPlaylists.find(p => p.playlist_name === 'Today');
       const tomorrowList = userPlaylists.find(p => p.playlist_name === 'Tomorrow');
 
@@ -1459,7 +1452,7 @@ window.launchBoosterMode = async function(mode = 'exam') {
     const mEl = document.getElementById("practiceModeTitle");
     if (mEl) mEl.innerText = mode === "read" ? "📖 READ MODE" : (mode === "quiz" ? "⚡ INSTANT QUIZ" : "🗂️ FLASHCARDS");
 
-    switchView("viewPractice");
+    switchView("viewPractice", true);
     if (mode === "read") renderReadMode();
     else if (mode === "quiz") renderInteractiveQuizMode();
     else { flashcardIndex = 0; renderFlashcardMode(); }
@@ -1653,15 +1646,21 @@ async function renderHomePlaylists() {
     }
 
     const targetQ = 100, todayStr = getLocalDateString();
-    const todayAttempts = userAttemptHistory.filter(a => (a.attempt_date || "").split("T")[0] === todayStr && a.test_id > 0);
+    const todayAttempts = userAttemptHistory.filter(a => (a.attempt_date || "").split("T")[0] === todayStr && (a.test_id > 0 || (a.test_id === -1 && isSunday())));
     let todayMasteredQ = 0;
     todayAttempts.forEach(a => { 
-      const c = catalogData.find(x => String(x.test_id) === String(a.test_id)), qc = c ? (c.total_questions || 10) : 10; 
+      let qc = 10;
+      if (a.test_id > 0) {
+        const c = catalogData.find(x => String(x.test_id) === String(a.test_id));
+        qc = c ? (c.total_questions || 10) : 10;
+      } else {
+        qc = (a.total_correct || 0) + (a.total_incorrect || 0) || 100;
+      }
       if (parseFloat(a.score) >= (qc * 2)) todayMasteredQ += qc; 
       else if (a.total_correct) todayMasteredQ += a.total_correct; 
     });
 
-    const capPct = Math.min(100, Math.round((todayLoad / targetQ) * 100)), 
+    const capPct = isSunday() ? 100 : Math.min(100, Math.round((todayLoad / targetQ) * 100)), 
           attPct = Math.min(100, Math.round(((dailyPerf.total_questions_attempted || 0) / targetQ) * 100)), 
           masPct = Math.min(attPct, Math.min(100, Math.round((todayMasteredQ / targetQ) * 100)));
 
@@ -1675,9 +1674,14 @@ async function renderHomePlaylists() {
     if (masFill) masFill.style.width = masPct + "%";
 
     if (meterText) {
-      if ((dailyPerf.total_questions_attempted || 0) >= 100) meterText.innerText = `${dailyPerf.total_questions_attempted} / 100 Qs 🔥 (Century Secured)`;
-      else if (todayLoad < 100) meterText.innerText = `${dailyPerf.total_questions_attempted || 0} / 100 Qs ⚠️ (Queue: ${todayLoad} Qs)`;
-      else meterText.innerText = `${dailyPerf.total_questions_attempted || 0} / 100 Qs 🎯 (${todayLoad} Staged)`;
+      if (isSunday()) {
+        if ((dailyPerf.total_questions_attempted || 0) >= 100) meterText.innerText = `${dailyPerf.total_questions_attempted} / 100 Qs 👑 (Crucible Conquered)`;
+        else meterText.innerText = `${dailyPerf.total_questions_attempted || 0} / 100 Qs ⚔️ (Crucible Target)`;
+      } else {
+        if ((dailyPerf.total_questions_attempted || 0) >= 100) meterText.innerText = `${dailyPerf.total_questions_attempted} / 100 Qs 🔥 (Century Secured)`;
+        else if (todayLoad < 100) meterText.innerText = `${dailyPerf.total_questions_attempted || 0} / 100 Qs ⚠️ (Queue: ${todayLoad} Qs)`;
+        else meterText.innerText = `${dailyPerf.total_questions_attempted || 0} / 100 Qs 🎯 (${todayLoad} Staged)`;
+      }
     }
     localStorage.setItem("tomorrow_load_" + currentCandidate.roll_number, tomorrowLoad);
   } finally {
@@ -2678,6 +2682,7 @@ window.confirmAndFinishExam = function() {
   renderScorecard(); 
 };
 
+// 🚀 CRITICAL FIX: INSTANT IN-MEMORY TELEMETRY RECORDING & ZERO-LAG ATTEMPT SYNC
 function renderScorecard() {
   let correct = 0, incorrect = 0, unattempted = 0, statsPayload = [];
   testQuestions.forEach((q, idx) => {
@@ -2762,19 +2767,28 @@ function renderScorecard() {
         sMsg.innerText = "✔ Progress & Metrics Synced Successfully"; 
       }
 
-      if (activeTest.id > 0) {
+      if (activeTest.id > 0 || (activeTest.id === -1 && isSunday())) {
         dailyPerf.total_questions_attempted = (dailyPerf.total_questions_attempted || 0) + actuallyAttemptedThisExam;
-        const hit = dailyPerf.total_questions_attempted >= 100; 
+        
+        // 🚀 APPROACH A: संडे को क्रूसीबल सबमिट होते ही टारगेट हिट माना जाएगा (भले सवाल < 100 हों)
+        const hit = isSunday() ? true : (dailyPerf.total_questions_attempted >= 100);
         let nStreak = dailyPerf.streak_count || 0;
+        
         if (hit && !dailyPerf.is_century_hit) { 
           nStreak += 1; 
-          showAppNoticeModal("Daily Milestone", "Baseline Target Hit! 🔥", "You completed your 100-Question Target for today! Streak +1 secured.", "🎉", "Keep Going"); 
+          if (isSunday()) {
+            showAppNoticeModal("Sunday Crucible", "Crucible Conquered! 👑", "Weekly Backlog & Mastery session completed! Streak +1 secured.", "🎉", "View Dashboard");
+          } else {
+            showAppNoticeModal("Daily Milestone", "Baseline Target Hit! 🔥", "You completed your 100-Question Target for today! Streak +1 secured.", "🎉", "Keep Going");
+          }
         }
+
         await supabaseClient.from("daily_performance").update({ 
           total_questions_attempted: dailyPerf.total_questions_attempted, 
           is_century_hit: hit, 
           streak_count: nStreak 
         }).eq("id", dailyPerf.id);
+        
         dailyPerf.is_century_hit = hit; 
         dailyPerf.streak_count = nStreak;
 
@@ -2816,8 +2830,8 @@ window.closeExamAndReload = async function() {
       .eq("student_roll", currentCandidate.roll_number)
       .order("attempt_date", { ascending: false });
     if (hist && hist.length > 0) userAttemptHistory = hist;
-  } catch (e) {
-    console.error("Error refreshing attempt history:", e);
+  } catch (e) { 
+    console.error("Error refreshing attempt history:", e); 
   }
 
   await fetchPlaylistsAndCheckRollover(); 
@@ -3150,40 +3164,82 @@ window.scrollToTopOfPractice = function() {
 };
 
 window.launchPracticeMode = async function(testId, mode) {
-  const { data: tInfo } = await supabaseClient.from("tests").select("id, title").eq("id", testId).single();
-  const { data: sections } = await supabaseClient.from("test_sections").select("id").eq("test_id", testId).limit(1); 
-  if (!sections?.length) return;
-  const { data: qData } = await supabaseClient.from("test_section_questions").select(`question_number, questions (id, content, options, correct_answer, explanation)`).eq("section_id", sections[0].id).order("question_number", { ascending: true });
+  switchView("viewPractice", true);
 
-  practiceQuestions = qData.map(item => {
-    const q = Array.isArray(item.questions) ? item.questions[0] : item.questions; 
-    if (!q) return null;
-    let opts = []; 
-    try { opts = typeof q.options === 'string' ? JSON.parse(q.options) : (q.options || []); } catch(e) { opts = []; }
-    return { 
-      qNum: item.question_number, 
-      id: q.id, 
-      content: q.content, 
-      options: opts, 
-      correctAnswer: getNormalizedCorrectAnswerId(q.correct_answer, opts), 
-      explanation: q.explanation 
-    };
-  }).filter(Boolean);
+  const container = document.getElementById("practiceContainer");
+  const tEl = document.getElementById("practiceSetTitle");
+  const mEl = document.getElementById("practiceModeTitle");
 
-  if (isShuffleEnabled) {
-    practiceQuestions = shuffleArray(practiceQuestions);
-    practiceQuestions.forEach((q, idx) => { q.qNum = idx + 1; });
+  if (mEl) mEl.innerText = mode === "read" ? "📖 READ MODE" : (mode === "quiz" ? "⚡ INSTANT QUIZ" : "🗂️ FLASHCARDS");
+  if (tEl) tEl.innerText = "Connecting to Exam Node...";
+
+  if (container) {
+    container.innerHTML = `
+      <div class="practice-loader-card">
+        <div class="quantum-loader-sphere">
+          <div class="quantum-ring ring-1"></div>
+          <div class="quantum-ring ring-2"></div>
+          <div class="quantum-core"></div>
+        </div>
+        <div class="loader-status-text">INITIALIZING PRACTICE ENGINE</div>
+        <div class="loader-status-sub">Compiling question matrix & active telemetry...</div>
+        <div class="loader-progress-track">
+          <div class="loader-progress-shimmer"></div>
+        </div>
+      </div>
+    `;
   }
 
-  const tEl = document.getElementById("practiceSetTitle"); 
-  if (tEl) tEl.innerText = tInfo ? tInfo.title : "Practice Set";
-  const mEl = document.getElementById("practiceModeTitle"); 
-  if (mEl) mEl.innerText = mode === "read" ? "📖 READ MODE" : (mode === "quiz" ? "⚡ INSTANT QUIZ" : "🗂️ FLASHCARDS");
+  try {
+    const { data: tInfo } = await supabaseClient.from("tests").select("id, title").eq("id", testId).single();
+    const { data: sections } = await supabaseClient.from("test_sections").select("id").eq("test_id", testId).limit(1); 
+    if (!sections?.length) throw new Error("Sections not configured");
 
-  switchView("viewPractice",true);
-  if (mode === "read") renderReadMode(); 
-  else if (mode === "quiz") renderInteractiveQuizMode(); 
-  else { flashcardIndex = 0; renderFlashcardMode(); }
+    const { data: qData, error: qErr } = await supabaseClient
+      .from("test_section_questions")
+      .select(`question_number, questions (id, content, options, correct_answer, explanation)`)
+      .eq("section_id", sections[0].id)
+      .order("question_number", { ascending: true });
+
+    if (qErr || !qData?.length) throw new Error("Questions payload empty");
+
+    practiceQuestions = qData.map(item => {
+      const q = Array.isArray(item.questions) ? item.questions[0] : item.questions; 
+      if (!q) return null;
+      let opts = []; 
+      try { opts = typeof q.options === 'string' ? JSON.parse(q.options) : (q.options || []); } catch(e) { opts = []; }
+      return { 
+        qNum: item.question_number, 
+        id: q.id, 
+        content: q.content, 
+        options: opts, 
+        correctAnswer: getNormalizedCorrectAnswerId(q.correct_answer, opts), 
+        explanation: q.explanation 
+      };
+    }).filter(Boolean);
+
+    if (isShuffleEnabled) {
+      practiceQuestions = shuffleArray(practiceQuestions);
+      practiceQuestions.forEach((q, idx) => { q.qNum = idx + 1; });
+    }
+
+    if (tEl) tEl.innerText = tInfo ? tInfo.title : "Practice Set";
+
+    if (mode === "read") renderReadMode(); 
+    else if (mode === "quiz") renderInteractiveQuizMode(); 
+    else { flashcardIndex = 0; renderFlashcardMode(); }
+
+  } catch (err) {
+    if (container) {
+      container.innerHTML = `
+        <div style="text-align:center; padding:60px 20px; color:var(--danger);">
+          <div style="font-size:36px; margin-bottom:12px;">⚠️</div>
+          <h4 style="font-size:16px; font-weight:800; margin-bottom:6px;">Runtime Synchronization Failed</h4>
+          <p style="font-size:12.5px; color:var(--text-muted);">${err.message}</p>
+        </div>
+      `;
+    }
+  }
 };
 
 function renderReadMode() {
@@ -3305,7 +3361,7 @@ function renderInteractiveQuizMode() {
   const mEl = document.getElementById("practiceModeTitle"); 
   if (mEl) mEl.innerText = "⚡ INSTANT QUIZ";
   localQuizState = { answers: {}, starred: new Set(), isFinished: false, filter: "all" }; 
-  renderQuizUI();
+  renderQuizUI(); 
 }
 
 function renderQuizUI() {
