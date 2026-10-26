@@ -3402,23 +3402,22 @@ function renderReadUI() {
   const totalQ = practiceQuestions.length;
   const stCount = localReadState.starred.size;
 
-  const banner = document.createElement("div"); 
-  banner.className = "quiz-score-banner";
-  banner.innerHTML = `
-    <div style="display:flex; justify-content:space-between; align-items:center;">
-      <h4 style="margin:0; font-size:15px; font-weight:800; color:var(--tcs-blue-header);">📖 Read Mode Filter</h4>
-      <span style="font-size:11px; font-weight:800; background:var(--tcs-blue-bg-subtle); color:var(--tcs-blue-accent); padding:3px 10px; border-radius:12px;">UNOFFICIAL / IN-MEMORY</span>
-    </div>
-    <div class="quiz-score-grid">
-      <div class="quiz-score-item stat-item-score"><span class="label">Total</span><span class="value" style="color:var(--tcs-blue-accent);">${totalQ}</span></div>
-      <div class="quiz-score-item stat-item-starred"><span class="label">Starred ⭐</span><span class="value" style="color:var(--warning-dark);">${stCount}</span></div>
-    </div>
-    <div class="quiz-filter-strip">
-      <button type="button" class="quiz-chip-btn ${localReadState.filter === 'all' ? 'active' : ''}" onclick="filterReadMode('all')">All (${totalQ})</button>
-      <button type="button" class="quiz-chip-btn chip-starred ${localReadState.filter === 'starred' ? 'active' : ''}" onclick="filterReadMode('starred')"><span>⭐</span> Starred (${stCount})</button>
+  // 🚀 ULTRA-SLEEK COMPACT SEGMENTED BAR (~40px HEIGHT)
+  const toolbar = document.createElement("div"); 
+  toolbar.className = "read-compact-toolbar";
+  toolbar.innerHTML = `
+    <div class="read-segment-group">
+      <button type="button" class="read-segment-btn ${localReadState.filter === 'all' ? 'active' : ''}" onclick="filterReadMode('all')">
+        <span>All Questions</span>
+        <span class="segment-badge" id="readTotalBadge">${totalQ}</span>
+      </button>
+      <button type="button" class="read-segment-btn ${localReadState.filter === 'starred' ? 'active' : ''}" onclick="filterReadMode('starred')">
+        <span>⭐ Starred</span>
+        <span class="segment-badge badge-starred" id="readStarredBadge">${stCount}</span>
+      </button>
     </div>
   `;
-  container.appendChild(banner);
+  container.appendChild(toolbar);
 
   let renderedCount = 0;
   practiceQuestions.forEach((q, idx) => {
@@ -3484,11 +3483,9 @@ window.toggleReadStar = function(idx) {
     }
   }
 
-  const starStat = document.querySelector(".quiz-score-item.stat-item-starred .value");
-  if (starStat) starStat.innerText = `${localReadState.starred.size}`;
-
-  const starBtn = document.querySelector(".quiz-chip-btn.chip-starred");
-  if (starBtn) starBtn.innerHTML = `<span>⭐</span> Starred (${localReadState.starred.size})`;
+  // 🚀 Instant zero-lag badge counter update
+  const starBadge = document.getElementById("readStarredBadge");
+  if (starBadge) starBadge.innerText = `${localReadState.starred.size}`;
 
   if (localReadState.filter === 'starred' && !nowStarred && card) {
     card.style.display = "none";
@@ -3533,9 +3530,9 @@ function renderQuizUI() {
     const banner = document.createElement("div"); 
     banner.className = "quiz-score-banner";
     banner.innerHTML = `
-      <div style="display:flex; justify-content:space-between; align-items:center;">
-        <h4 style="margin:0; font-size:15px; font-weight:800; color:var(--tcs-blue-header);">📊 Session Review</h4>
-        <span style="font-size:11px; font-weight:800; background:var(--tcs-blue-bg-subtle); color:var(--tcs-blue-accent); padding:3px 10px; border-radius:12px;">UNOFFICIAL / IN-MEMORY</span>
+      <div class="quiz-score-header">
+        <h4 class="quiz-score-header-title">📊 Session Scorecard</h4>
+        <span class="quiz-score-badge">INSTANT TELEMETRY</span>
       </div>
       <div class="quiz-score-grid">
         ${isMB ? `
@@ -3549,7 +3546,7 @@ function renderQuizUI() {
           <div class="quiz-score-item stat-item-correct"><span class="label">Correct</span><span class="value" style="color:var(--success-dark);">+${corrCount}</span></div>
           <div class="quiz-score-item stat-item-incorrect"><span class="label">Incorrect</span><span class="value" style="color:var(--danger-dark);">-${wrCount}</span></div>
         `}
-        <div class="quiz-score-item stat-item-starred"><span class="label">Starred ⭐</span><span class="value" style="color:var(--warning-dark);">${stCount}</span></div>
+        <div class="quiz-score-item stat-item-starred"><span class="label">Starred</span><span class="value" style="color:var(--warning-dark);">${stCount} ⭐</span></div>
         <div class="quiz-score-item stat-item-accuracy"><span class="label">Accuracy</span><span class="value" style="color:var(--c-review);">${acc}%</span></div>
       </div>
       <div class="quiz-filter-strip">
@@ -3563,10 +3560,14 @@ function renderQuizUI() {
   }
 
   practiceQuestions.forEach((q, idx) => {
-    const isAns = localQuizState.answers[idx] !== undefined, isWr = isAns && !localQuizState.answers[idx].isCorrect, isSt = localQuizState.starred.has(idx), sAns = localQuizState.answers[idx];
-    
-    if (localQuizState.isFinished) { 
-      const isUnatt = !isAns;
+    const isAns = localQuizState.answers[idx] !== undefined;
+    const isWr = isAns && !localQuizState.answers[idx].isCorrect;
+    const isSt = localQuizState.starred.has(idx);
+    const sAns = localQuizState.answers[idx];
+    const isReview = localQuizState.isFinished;
+    const isUnatt = !isAns;
+
+    if (isReview) { 
       if (localQuizState.filter === 'wrong' && !isWr) return; 
       if (localQuizState.filter === 'starred' && !isSt) return; 
       if (localQuizState.filter === 'priority' && !(isWr || isSt || isUnatt)) return;
@@ -3577,41 +3578,64 @@ function renderQuizUI() {
     card.id = `quizCard_${idx}`; 
     card.style.marginBottom = "20px";
     
+    // Status Badge determination
+    let badgeHtml = `<span id="quizBadge_${idx}" class="sol-status-badge" style="display:none;"></span>`;
+    if (sAns) {
+      badgeHtml = `<span id="quizBadge_${idx}" class="sol-status-badge ${sAns.isCorrect ? 'sol-status-correct' : 'sol-status-incorrect'}">${sAns.isCorrect ? 'Correct' : 'Incorrect'}</span>`;
+    } else if (isReview) {
+      badgeHtml = `<span id="quizBadge_${idx}" class="sol-status-badge sol-status-unattempted">Unattempted</span>`;
+    }
+
+    // Options rendering
     let oHtml = (q.options || []).map(opt => {
       const oid = String(opt.id); 
       let oCls = "option-row";
       let feedbackSymbol = "";
+      
       if (sAns) { 
-        if (isOptionMatching(oid, q.correctAnswer)) {
+        if (isOptionMatching(oid, q.correctAnswer)) { 
           oCls += " sol-opt-correct"; 
           feedbackSymbol = `<span class="opt-feedback-indicator" style="margin-left:auto; font-weight:800; font-size:16px; color:var(--success-dark);">✔</span>`;
-        } else if (isOptionMatching(oid, sAns.selected) && !sAns.isCorrect) {
+        } else if (isOptionMatching(oid, sAns.selected) && !sAns.isCorrect) { 
           oCls += " sol-opt-wrong"; 
           feedbackSymbol = `<span class="opt-feedback-indicator" style="margin-left:auto; font-weight:800; font-size:16px; color:var(--danger-dark);">✖</span>`;
         }
+      } else if (isReview) {
+        // Review mode for unattempted: Highlight the correct answer in green
+        if (isOptionMatching(oid, q.correctAnswer)) {
+          oCls += " sol-opt-correct";
+          feedbackSymbol = `<span class="opt-feedback-indicator" style="margin-left:auto; font-weight:800; font-size:16px; color:var(--success-dark);">✔</span>`;
+        }
       }
-      return `<div class="${oCls} quiz-opt-${idx}" data-opt-id="${opt.id}" style="${sAns ? 'pointer-events:none;' : 'cursor:pointer;'} margin-bottom: 8px;">
+
+      // Freeze clicks if already answered OR if quiz is finished
+      const isClickable = !sAns && !isReview;
+
+      return `<div class="${oCls} quiz-opt-${idx}" data-opt-id="${opt.id}" style="${isClickable ? 'cursor:pointer;' : 'pointer-events:none;'} margin-bottom: 8px;">
         <span style="font-weight:700; min-width:20px;">${opt.id}.</span>
         <span style="flex:1;">${getLocalizedText({ en: opt.en || opt.text, hi: opt.hi })}</span>
         ${feedbackSymbol}
       </div>`;
     }).join("");
 
+    const showExp = Boolean(sAns) || isReview;
+
     card.innerHTML = `
       <div class="sol-q-header">
         <div style="display:flex; align-items:center; gap:10px;">
           <span>Q${q.qNum}</span>
-          ${sAns ? `<span id="quizBadge_${idx}" class="sol-status-badge ${sAns.isCorrect ? 'sol-status-correct' : 'sol-status-incorrect'}">${sAns.isCorrect ? 'Correct' : 'Incorrect'}</span>` : `<span id="quizBadge_${idx}" class="sol-status-badge" style="display:none;"></span>`}
+          ${badgeHtml}
         </div>
         <button type="button" class="btn-star-q ${isSt ? 'starred' : ''}" onclick="toggleQuizStar(${idx})">${isSt ? '★' : '☆'}</button>
       </div>
       <div class="sol-content">${getLocalizedText(q.content)}</div>
       <div id="quizOpts_${idx}">${oHtml}</div>
-      <div id="quizExp_${idx}" class="sol-explanation" style="display:${sAns ? 'block' : 'none'};"><strong>Explanation:</strong><br/>${formatExplanation(q.explanation)}</div>
+      <div id="quizExp_${idx}" class="sol-explanation" style="display:${showExp ? 'block' : 'none'};"><strong>Explanation:</strong><br/>${formatExplanation(q.explanation)}</div>
     `;
     container.appendChild(card);
 
-    if (!sAns) {
+    // Click listeners only active while Quiz is in progress
+    if (!sAns && !isReview) {
       card.querySelectorAll(`.quiz-opt-${idx}`).forEach(row => {
         row.onclick = async () => {
           const selId = row.getAttribute("data-opt-id");
@@ -3687,7 +3711,7 @@ window.toggleQuizStar = function(idx) {
 
   if (localQuizState.isFinished) {
     const starStat = document.querySelector(".quiz-score-item.stat-item-starred .value");
-    if (starStat) starStat.innerText = `${localQuizState.starred.size}`;
+    if (starStat) starStat.innerText = `${localQuizState.starred.size} ⭐`;
 
     let priorityCount = 0;
     practiceQuestions.forEach((q, i) => {
