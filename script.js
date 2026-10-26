@@ -69,6 +69,8 @@ const docSvg = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stro
 const bookmarkOutlineSvg = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>`;
 const bookmarkFilledSvg = `<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>`;
 const starIconSvg = `<svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>`;
+const checkIconSvg = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+const crossIconSvg = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
 
 // ==========================================================================
 // 3. GLOBAL STATE & APPLICATION ROUTING (LOOP-FREE ROUTING & EXIT ENGINE)
@@ -362,26 +364,71 @@ window.addEventListener("popstate", function(e) {
 
 function setupMobileExamGestures() {
   const panel = document.querySelector(".tcs-side-panel"), overlay = document.getElementById("paletteOverlay");
-  if (!panel) return;
+  const examWorkspace = document.querySelector(".question-workspace");
+  if (!panel || !examWorkspace) return;
+
   if (!document.getElementById("paletteGrabHandle")) {
-    const h = document.createElement("div"); 
+    const h = document.createElement("div");
     h.id = "paletteGrabHandle";
     h.style.cssText = "width: 44px; height: 5px; background: var(--border-color); border-radius: 4px; margin: 8px auto 4px auto; flex-shrink: 0; cursor: grab;";
     panel.insertBefore(h, panel.firstChild);
   }
-  let touchStartY = 0, touchStartX = 0;
-  panel.addEventListener("touchstart", (e) => { 
-    if (window.innerWidth > 768) return; 
-    touchStartY = e.touches[0].clientY; 
-    touchStartX = e.touches[0].clientX; 
+
+  // 1. Palette Drawer Pull-Down Gesture
+  let pStartY = 0, pStartX = 0;
+  panel.addEventListener("touchstart", (e) => {
+    if (window.innerWidth > 768) return;
+    pStartY = e.touches[0].clientY;
+    pStartX = e.touches[0].clientX;
   }, { passive: true });
+
   panel.addEventListener("touchend", (e) => {
     if (window.innerWidth > 768 || !panel.classList.contains("open")) return;
-    if ((e.changedTouches[0].clientY - touchStartY) > 50 && Math.abs(e.changedTouches[0].clientX - touchStartX) < 80) {
-      panel.classList.remove("open"); 
-      if (overlay) { 
-        overlay.classList.remove("open"); 
-        overlay.style.pointerEvents = "none"; 
+    if ((e.changedTouches[0].clientY - pStartY) > 50 && Math.abs(e.changedTouches[0].clientX - pStartX) < 80) {
+      panel.classList.remove("open");
+      if (overlay) {
+        overlay.classList.remove("open");
+        overlay.style.pointerEvents = "none";
+      }
+    }
+  }, { passive: true });
+
+  // 2. Edge-Safe Center-Only Horizontal Swipe Navigation
+  let touchStartX = 0, touchStartY = 0, touchStartTime = 0;
+  const EDGE_DEADZONE = 30; // Kinare ke 30px me swipe disable rahega (OS back gesture safe)
+  const SWIPE_THRESHOLD = 50; // Minimum drag distance
+  const MAX_PERPENDICULAR = 45; // Vertical scrolling ke waqt horizontal swipe lock rahega
+
+  examWorkspace.addEventListener("touchstart", (e) => {
+    if (window.innerWidth > 768 || isExamFinished) return;
+    const touch = e.touches[0];
+    touchStartX = touch.clientX;
+    touchStartY = touch.clientY;
+    touchStartTime = Date.now();
+  }, { passive: true });
+
+  examWorkspace.addEventListener("touchend", (e) => {
+    if (window.innerWidth > 768 || isExamFinished || !testQuestions.length) return;
+    const touch = e.changedTouches[0];
+    const diffX = touch.clientX - touchStartX;
+    const diffY = touch.clientY - touchStartY;
+    const duration = Date.now() - touchStartTime;
+
+    // Edge check: Agar touch screen ke bilkul kinare se start hua toh ignore karein
+    if (touchStartX <= EDGE_DEADZONE || touchStartX >= (window.innerWidth - EDGE_DEADZONE)) return;
+
+    // Fast horizontal swipe check
+    if (Math.abs(diffX) >= SWIPE_THRESHOLD && Math.abs(diffY) <= MAX_PERPENDICULAR && duration <= 400) {
+      if (diffX < 0) {
+        // Swipe Left -> Next Question
+        if (currentIndex + 1 < testQuestions.length) {
+          renderQuestion(currentIndex + 1);
+        }
+      } else {
+        // Swipe Right -> Previous Question
+        if (currentIndex - 1 >= 0) {
+          renderQuestion(currentIndex - 1);
+        }
       }
     }
   }, { passive: true });
@@ -2988,32 +3035,60 @@ window.closeExamAndReload = async function() {
 };
 
 window.openSolutionsView = function() {
-  closeExamModal(); 
+  closeExamModal();
   document.getElementById("solExamTitle").innerText = activeTest?.title || "Assessment";
-  switchView("viewSolutions", false); 
+  switchView("viewSolutions", false);
   history.replaceState({ view: 'viewSolutions' }, "", "#viewSolutions");
-  const container = document.getElementById("solutionsContainer"); 
-  if (!container) return; 
+  const container = document.getElementById("solutionsContainer");
+  if (!container) return;
   container.innerHTML = "";
+
   testQuestions.forEach((q, idx) => {
     const uAns = userResponses[idx].selected;
     const isUserCorrect = uAns && isOptionMatching(uAns, q.correctAnswer);
     let sText = "Unattempted", sClass = "sol-status-unattempted";
-    if (uAns) { 
-      if (isUserCorrect) { sText = "Correct"; sClass = "sol-status-correct"; } 
-      else { sText = "Incorrect"; sClass = "sol-status-incorrect"; } 
+    if (uAns) {
+      if (isUserCorrect) { sText = "Correct"; sClass = "sol-status-correct"; }
+      else { sText = "Incorrect"; sClass = "sol-status-incorrect"; }
     }
-    let expText = formatExplanation(q.explanation);
-    let oHtml = (q.options || []).map(opt => {
-      const oid = String(opt.id); 
-      let oCls = "sol-option", ic = "⚪";
-      if (isOptionMatching(oid, q.correctAnswer)) { oCls += " sol-opt-correct"; ic = "✔️"; } 
-      else if (uAns && isOptionMatching(oid, uAns) && !isUserCorrect) { oCls += " sol-opt-wrong"; ic = "❌"; }
-      return `<div class="${oCls}"><span>${ic}</span><span>${getLocalizedText({ en: opt.en || opt.text, hi: opt.hi })}</span></div>`;
+    const expText = formatExplanation(q.explanation);
+
+    // 🔘 Strict Exam Format: Radio bubbles without 1,2,3,4 numbers
+    const oHtml = (q.options || []).map(opt => {
+      const oid = String(opt.id);
+      let oCls = "sol-option";
+      let bubbleCls = "sol-radio-bubble bubble-neutral";
+      let bubbleIcon = "";
+
+      if (isOptionMatching(oid, q.correctAnswer)) {
+        oCls += " sol-opt-correct";
+        bubbleCls = "sol-radio-bubble bubble-correct";
+        bubbleIcon = checkIconSvg;
+      } else if (uAns && isOptionMatching(oid, uAns) && !isUserCorrect) {
+        oCls += " sol-opt-wrong";
+        bubbleCls = "sol-radio-bubble bubble-wrong";
+        bubbleIcon = crossIconSvg;
+      }
+
+      return `
+        <div class="${oCls}">
+          <span class="${bubbleCls}">${bubbleIcon}</span>
+          <span class="sol-option-text">${getLocalizedText({ en: opt.en || opt.text, hi: opt.hi })}</span>
+        </div>
+      `;
     }).join("");
-    const card = document.createElement("div"); 
-    card.className = "solution-card"; 
-    card.innerHTML = `<div class="sol-q-header"><span>Question ${q.qNum}</span><span class="sol-status-badge ${sClass}">${sText}</span></div><div class="sol-content">${getLocalizedText(q.content)}</div><div style="margin-bottom:16px;">${oHtml}</div><div class="sol-explanation"><strong>Explanation:</strong><br/>${expText}</div>`;
+
+    const card = document.createElement("div");
+    card.className = "solution-card";
+    card.innerHTML = `
+      <div class="sol-q-header">
+        <span class="sol-q-title">Question ${q.qNum}</span>
+        <span class="sol-status-badge ${sClass}">${sText}</span>
+      </div>
+      <div class="sol-content">${getLocalizedText(q.content)}</div>
+      <div style="margin-bottom:16px;">${oHtml}</div>
+      <div class="sol-explanation"><strong>Explanation:</strong><br/>${expText}</div>
+    `;
     container.appendChild(card);
   });
 };
@@ -3395,15 +3470,15 @@ function renderReadMode() {
 }
 
 function renderReadUI() {
-  const container = document.getElementById("practiceContainer"); 
-  if (!container) return; 
+  const container = document.getElementById("practiceContainer");
+  if (!container) return;
   container.innerHTML = "";
 
   const totalQ = practiceQuestions.length;
   const stCount = localReadState.starred.size;
 
   // 🚀 ULTRA-SLEEK COMPACT SEGMENTED BAR (~40px HEIGHT)
-  const toolbar = document.createElement("div"); 
+  const toolbar = document.createElement("div");
   toolbar.className = "read-compact-toolbar";
   toolbar.innerHTML = `
     <div class="read-segment-group">
@@ -3421,21 +3496,31 @@ function renderReadUI() {
 
   let renderedCount = 0;
   practiceQuestions.forEach((q, idx) => {
-    const isSt = localReadState.starred.has(idx); 
-    if (localReadState.filter === 'starred' && !isSt) return; 
+    const isSt = localReadState.starred.has(idx);
+    if (localReadState.filter === 'starred' && !isSt) return;
     renderedCount++;
 
-    let oHtml = (q.options || []).map(opt => `<div class="sol-option ${isOptionMatching(opt.id, q.correctAnswer) ? 'sol-opt-correct' : ''}" style="margin-bottom:6px;"><span>${isOptionMatching(opt.id, q.correctAnswer) ? '✔' : '•'}</span><span>${getLocalizedText({ en: opt.en || opt.text, hi: opt.hi })}</span></div>`).join("");
-    const card = document.createElement("div"); 
-    card.className = "solution-card"; 
-    card.id = `readCard_${idx}`; 
+    const oHtml = (q.options || []).map(opt => {
+      const isCorrect = isOptionMatching(opt.id, q.correctAnswer);
+      return `
+        <div class="sol-option ${isCorrect ? 'sol-opt-correct' : ''}">
+          <span class="opt-index-badge">${opt.id}</span>
+          <span class="opt-text-label">${getLocalizedText({ en: opt.en || opt.text, hi: opt.hi })}</span>
+          ${isCorrect ? `<span class="opt-feedback-indicator badge-correct" title="Correct Answer">${checkIconSvg}</span>` : ''}
+        </div>
+      `;
+    }).join("");
+
+    const card = document.createElement("div");
+    card.className = "solution-card";
+    card.id = `readCard_${idx}`;
     card.style.marginBottom = "16px";
     card.innerHTML = `
       <div class="sol-q-header">
         <div style="display:flex; align-items:center; gap:10px;">
-          <span>Q${q.qNum}. Question</span>
+          <span class="sol-q-title">Question ${q.qNum}</span>
         </div>
-        <button type="button" class="btn-star-q ${isSt ? 'starred' : ''}" onclick="toggleReadStar(${idx})">${isSt ? '★' : '☆'}</button>
+        <button type="button" class="btn-star-q ${isSt ? 'starred' : ''}" onclick="toggleReadStar(${idx})" title="${isSt ? 'Remove Star' : 'Star for Revision'}">${starIconSvg}</button>
       </div>
       <div class="sol-content">${getLocalizedText(q.content)}</div>
       <div>${oHtml}</div>
@@ -3507,17 +3592,21 @@ function renderInteractiveQuizMode() {
 }
 
 function renderQuizUI() {
-  const container = document.getElementById("practiceContainer"); 
-  if (!container) return; 
+  const container = document.getElementById("practiceContainer");
+  if (!container) return;
   container.innerHTML = "";
   const isMB = (document.getElementById("practiceSetTitle")?.innerText || "").includes("Mistake Bank");
 
   if (localQuizState.isFinished) {
-    const totalQ = practiceQuestions.length, attCount = Object.keys(localQuizState.answers).length, unattCount = totalQ - attCount;
-    let corrCount = 0, wrCount = 0; 
+    const totalQ = practiceQuestions.length;
+    const attCount = Object.keys(localQuizState.answers).length;
+    const unattCount = totalQ - attCount;
+    let corrCount = 0, wrCount = 0;
     Object.values(localQuizState.answers).forEach(a => { if (a.isCorrect) corrCount++; else wrCount++; });
-    const score = (corrCount * 2.00) - (wrCount * 0.50), acc = attCount > 0 ? Math.round((corrCount / attCount) * 100) : 0, stCount = localQuizState.starred.size;
-    
+    const score = (corrCount * 2.00) - (wrCount * 0.50);
+    const acc = attCount > 0 ? Math.round((corrCount / attCount) * 100) : 0;
+    const stCount = localQuizState.starred.size;
+
     let priorityCount = 0;
     practiceQuestions.forEach((q, idx) => {
       const isAns = localQuizState.answers[idx] !== undefined;
@@ -3527,7 +3616,7 @@ function renderQuizUI() {
       if (isWr || isSt || isUnatt) priorityCount++;
     });
 
-    const banner = document.createElement("div"); 
+    const banner = document.createElement("div");
     banner.className = "quiz-score-banner";
     banner.innerHTML = `
       <div class="quiz-score-header">
@@ -3567,18 +3656,17 @@ function renderQuizUI() {
     const isReview = localQuizState.isFinished;
     const isUnatt = !isAns;
 
-    if (isReview) { 
-      if (localQuizState.filter === 'wrong' && !isWr) return; 
-      if (localQuizState.filter === 'starred' && !isSt) return; 
+    if (isReview) {
+      if (localQuizState.filter === 'wrong' && !isWr) return;
+      if (localQuizState.filter === 'starred' && !isSt) return;
       if (localQuizState.filter === 'priority' && !(isWr || isSt || isUnatt)) return;
     }
 
-    const card = document.createElement("div"); 
-    card.className = "solution-card"; 
-    card.id = `quizCard_${idx}`; 
+    const card = document.createElement("div");
+    card.className = "solution-card";
+    card.id = `quizCard_${idx}`;
     card.style.marginBottom = "20px";
-    
-    // Status Badge determination
+
     let badgeHtml = `<span id="quizBadge_${idx}" class="sol-status-badge" style="display:none;"></span>`;
     if (sAns) {
       badgeHtml = `<span id="quizBadge_${idx}" class="sol-status-badge ${sAns.isCorrect ? 'sol-status-correct' : 'sol-status-incorrect'}">${sAns.isCorrect ? 'Correct' : 'Incorrect'}</span>`;
@@ -3586,36 +3674,35 @@ function renderQuizUI() {
       badgeHtml = `<span id="quizBadge_${idx}" class="sol-status-badge sol-status-unattempted">Unattempted</span>`;
     }
 
-    // Options rendering
-    let oHtml = (q.options || []).map(opt => {
-      const oid = String(opt.id); 
+    const oHtml = (q.options || []).map(opt => {
+      const oid = String(opt.id);
       let oCls = "option-row";
       let feedbackSymbol = "";
-      
-      if (sAns) { 
-        if (isOptionMatching(oid, q.correctAnswer)) { 
-          oCls += " sol-opt-correct"; 
-          feedbackSymbol = `<span class="opt-feedback-indicator" style="margin-left:auto; font-weight:800; font-size:16px; color:var(--success-dark);">✔</span>`;
-        } else if (isOptionMatching(oid, sAns.selected) && !sAns.isCorrect) { 
-          oCls += " sol-opt-wrong"; 
-          feedbackSymbol = `<span class="opt-feedback-indicator" style="margin-left:auto; font-weight:800; font-size:16px; color:var(--danger-dark);">✖</span>`;
-        }
-      } else if (isReview) {
-        // Review mode for unattempted: Highlight the correct answer in green
+
+      if (sAns) {
         if (isOptionMatching(oid, q.correctAnswer)) {
           oCls += " sol-opt-correct";
-          feedbackSymbol = `<span class="opt-feedback-indicator" style="margin-left:auto; font-weight:800; font-size:16px; color:var(--success-dark);">✔</span>`;
+          feedbackSymbol = `<span class="opt-feedback-indicator badge-correct">${checkIconSvg}</span>`;
+        } else if (isOptionMatching(oid, sAns.selected) && !sAns.isCorrect) {
+          oCls += " sol-opt-wrong";
+          feedbackSymbol = `<span class="opt-feedback-indicator badge-wrong">${crossIconSvg}</span>`;
+        }
+      } else if (isReview) {
+        if (isOptionMatching(oid, q.correctAnswer)) {
+          oCls += " sol-opt-correct";
+          feedbackSymbol = `<span class="opt-feedback-indicator badge-correct">${checkIconSvg}</span>`;
         }
       }
 
-      // Freeze clicks if already answered OR if quiz is finished
       const isClickable = !sAns && !isReview;
 
-      return `<div class="${oCls} quiz-opt-${idx}" data-opt-id="${opt.id}" style="${isClickable ? 'cursor:pointer;' : 'pointer-events:none;'} margin-bottom: 8px;">
-        <span style="font-weight:700; min-width:20px;">${opt.id}.</span>
-        <span style="flex:1;">${getLocalizedText({ en: opt.en || opt.text, hi: opt.hi })}</span>
-        ${feedbackSymbol}
-      </div>`;
+      return `
+        <div class="${oCls} quiz-opt-${idx}" data-opt-id="${opt.id}" style="${isClickable ? 'cursor:pointer;' : 'pointer-events:none;'}">
+          <span class="opt-index-badge">${opt.id}</span>
+          <span class="opt-text-label">${getLocalizedText({ en: opt.en || opt.text, hi: opt.hi })}</span>
+          ${feedbackSymbol}
+        </div>
+      `;
     }).join("");
 
     const showExp = Boolean(sAns) || isReview;
@@ -3623,10 +3710,10 @@ function renderQuizUI() {
     card.innerHTML = `
       <div class="sol-q-header">
         <div style="display:flex; align-items:center; gap:10px;">
-          <span>Q${q.qNum}</span>
+          <span class="sol-q-title">Question ${q.qNum}</span>
           ${badgeHtml}
         </div>
-        <button type="button" class="btn-star-q ${isSt ? 'starred' : ''}" onclick="toggleQuizStar(${idx})">${isSt ? '★' : '☆'}</button>
+        <button type="button" class="btn-star-q ${isSt ? 'starred' : ''}" onclick="toggleQuizStar(${idx})" title="${isSt ? 'Remove Star' : 'Star for Revision'}">${starIconSvg}</button>
       </div>
       <div class="sol-content">${getLocalizedText(q.content)}</div>
       <div id="quizOpts_${idx}">${oHtml}</div>
@@ -3634,7 +3721,6 @@ function renderQuizUI() {
     `;
     container.appendChild(card);
 
-    // Click listeners only active while Quiz is in progress
     if (!sAns && !isReview) {
       card.querySelectorAll(`.quiz-opt-${idx}`).forEach(row => {
         row.onclick = async () => {
@@ -3649,32 +3735,30 @@ function renderQuizUI() {
             badge.innerText = isC ? 'Correct' : 'Incorrect';
           }
 
-          card.querySelectorAll(`.quiz-opt-${idx}`).forEach(el => { 
-            el.style.pointerEvents = "none"; 
+          card.querySelectorAll(`.quiz-opt-${idx}`).forEach(el => {
+            el.style.pointerEvents = "none";
             const optVal = el.getAttribute("data-opt-id");
             if (isOptionMatching(optVal, q.correctAnswer)) {
               el.classList.remove("sol-opt-wrong");
               el.classList.add("sol-opt-correct");
               if (!el.querySelector(".opt-feedback-indicator")) {
                 const ind = document.createElement("span");
-                ind.className = "opt-feedback-indicator";
-                ind.style.cssText = "margin-left:auto; font-weight:800; font-size:16px; color:var(--success-dark);";
-                ind.innerText = "✔";
+                ind.className = "opt-feedback-indicator badge-correct";
+                ind.innerHTML = checkIconSvg;
                 el.appendChild(ind);
               }
             } else if (isOptionMatching(optVal, selId) && !isC) {
               el.classList.add("sol-opt-wrong");
               if (!el.querySelector(".opt-feedback-indicator")) {
                 const ind = document.createElement("span");
-                ind.className = "opt-feedback-indicator";
-                ind.style.cssText = "margin-left:auto; font-weight:800; font-size:16px; color:var(--danger-dark);";
-                ind.innerText = "✖";
+                ind.className = "opt-feedback-indicator badge-wrong";
+                ind.innerHTML = crossIconSvg;
                 el.appendChild(ind);
               }
             }
           });
 
-          const exp = document.getElementById(`quizExp_${idx}`); 
+          const exp = document.getElementById(`quizExp_${idx}`);
           if (exp) exp.style.display = "block";
 
           if (isMB) await syncMistakeBank([{ student_roll: currentCandidate.roll_number, subject: activeSubject || "General", question_id: q.id, question_data: q, isCorrect: isC }]);
@@ -3684,7 +3768,7 @@ function renderQuizUI() {
   });
 
   if (!localQuizState.isFinished) {
-    const f = document.createElement("div"); 
+    const f = document.createElement("div");
     f.className = "quiz-footer-actions";
     f.innerHTML = `<button type="button" class="btn-finish-quiz" onclick="finishQuizSession()"><span>🏁</span> Finish & Review Score</button>`;
     container.appendChild(f);
