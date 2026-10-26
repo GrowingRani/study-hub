@@ -589,8 +589,10 @@ body.portal-body { font-family: var(--font-family); background-color: var(--bg-p
 
 .solution-card { background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 8px; padding: 20px 22px; box-shadow: var(--shadow-sm); }
 .sol-q-header { display: flex; justify-content: space-between; font-weight: 700; color: var(--tcs-blue-header); margin-bottom: 16px; border-bottom: 1px solid var(--border-hover); padding-bottom: 10px; }
-.sol-status-badge { padding: 4px 10px; border-radius: 2px; font-size: 11px; color: #ffffff; text-transform: uppercase; }
-.sol-status-correct { background: var(--success-dark); } .sol-status-incorrect { background: var(--danger-dark); } .sol-status-unattempted { background: var(--text-muted); }
+.sol-status-badge { display: inline-flex !important; align-items: center !important; justify-content: center !important; padding: 2.5px 9px !important; border-radius: 12px !important; font-size: 10.5px !important; font-weight: 800 !important; font-family: var(--font-mono) !important; letter-spacing: 0.5px !important; text-transform: uppercase !important; line-height: 1.2 !important; box-sizing: border-box !important; }
+.sol-status-correct { background: var(--success-bg-subtle) !important; color: var(--success-dark) !important; border: 1px solid var(--success-border) !important; box-shadow: 0 0 10px rgba(34, 197, 94, 0.15) !important; }
+.sol-status-incorrect { background: var(--danger-bg-subtle) !important; color: var(--danger-dark) !important; border: 1px solid var(--danger-border) !important; box-shadow: 0 0 10px rgba(239, 68, 68, 0.15) !important; }
+.sol-status-unattempted { background: var(--bg-surface-elevated) !important; color: var(--text-muted) !important; border: 1px solid var(--border-color) !important; }
 .sol-content { margin-top: 4px; margin-bottom: 18px !important; font-size: 15px; font-weight: 500; color: var(--text-main); white-space: pre-line !important; line-height: 1.65; word-break: break-word; }
 
 .sol-explanation { background: var(--bg-surface-elevated) !important; border-left: 4px solid var(--tcs-blue-accent) !important; padding: 16px; margin-top: 20px; font-size: 14px; color: var(--text-muted) !important; white-space: pre-line !important; line-height: 1.65; word-break: break-word; }

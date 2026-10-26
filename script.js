@@ -3056,14 +3056,15 @@ window.openSolutionsView = function() {
   testQuestions.forEach((q, idx) => {
     const uAns = userResponses[idx].selected;
     const isUserCorrect = uAns && isOptionMatching(uAns, q.correctAnswer);
-    let sText = "Unattempted", sClass = "sol-status-unattempted";
+    
+    // 🚀 SHORT & CRISP STATUS LABELS
+    let sText = "Skipped", sClass = "sol-status-unattempted";
     if (uAns) {
-      if (isUserCorrect) { sText = "Correct"; sClass = "sol-status-correct"; }
-      else { sText = "Incorrect"; sClass = "sol-status-incorrect"; }
+      if (isUserCorrect) { sText = "Right"; sClass = "sol-status-correct"; }
+      else { sText = "Wrong"; sClass = "sol-status-incorrect"; }
     }
     const expText = formatExplanation(q.explanation);
 
-    // 🔘 Strict Exam CBT Format: Clean Radio bubbles (no 1, 2, 3, 4 indexing)
     const oHtml = (q.options || []).map(opt => {
       const oid = String(opt.id);
       let oCls = "sol-option";
@@ -3677,11 +3678,12 @@ function renderQuizUI() {
     card.id = `quizCard_${idx}`;
     card.style.marginBottom = "20px";
 
+    // 🚀 Safe badge declaration: hamesha scope ke andar exist karega
     let badgeHtml = `<span id="quizBadge_${idx}" class="sol-status-badge" style="display:none;"></span>`;
     if (sAns) {
-      badgeHtml = `<span id="quizBadge_${idx}" class="sol-status-badge ${sAns.isCorrect ? 'sol-status-correct' : 'sol-status-incorrect'}">${sAns.isCorrect ? 'Correct' : 'Incorrect'}</span>`;
+      badgeHtml = `<span id="quizBadge_${idx}" class="sol-status-badge ${sAns.isCorrect ? 'sol-status-correct' : 'sol-status-incorrect'}">${sAns.isCorrect ? 'Right' : 'Wrong'}</span>`;
     } else if (isReview) {
-      badgeHtml = `<span id="quizBadge_${idx}" class="sol-status-badge sol-status-unattempted">Unattempted</span>`;
+      badgeHtml = `<span id="quizBadge_${idx}" class="sol-status-badge sol-status-unattempted">Skipped</span>`;
     }
 
     const oHtml = (q.options || []).map(opt => {
@@ -3740,9 +3742,9 @@ function renderQuizUI() {
 
           const badge = document.getElementById(`quizBadge_${idx}`);
           if (badge) {
-            badge.style.display = "inline-block";
+            badge.style.display = "inline-flex";
             badge.className = `sol-status-badge ${isC ? 'sol-status-correct' : 'sol-status-incorrect'}`;
-            badge.innerText = isC ? 'Correct' : 'Incorrect';
+            badge.innerText = isC ? 'Right' : 'Wrong';
           }
 
           card.querySelectorAll(`.quiz-opt-${idx}`).forEach(el => {
