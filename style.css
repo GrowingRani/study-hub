@@ -494,11 +494,13 @@ body.portal-body { font-family: var(--font-family); background-color: var(--bg-p
 .exam-progress-track { width: 100%; height: 3px; background: var(--bg-surface-hover); border-radius: 2px; overflow: hidden; }
 .exam-progress-fill { width: 0%; height: 100%; background: var(--tcs-blue-accent); transition: width 0.3s ease; }
 .tcs-sub-bar { background-color: var(--tcs-sub-bar-bg); color: #ffffff; display: flex; justify-content: space-between; align-items: center; padding: 0 16px; height: 36px; }
+.tcs-sub-left { display: flex; align-items: center; min-width: 0; flex: 1; }
+.mobile-exam-title { font-size: 12.5px; font-weight: 700; color: #ffffff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 8px; }
 .section-tabs-wrap { display: flex; gap: 4px; align-items: center; }
 .section-tab { background: transparent; color: #ffffff; border: none; font-size: 13px; font-weight: 600; padding: 8px 14px; border-bottom: 3px solid var(--tcs-blue-accent); cursor: pointer; }
 .exam-candidate-roll-badge { font-size: 12px; font-family: var(--font-mono); color: #94a3b8; }
 .exam-candidate-roll-badge span { color: #ffffff; font-weight: 700; }
-.btn-abort-exam { background: transparent; color: #fca5a5; border: 1px solid #ef4444; padding: 4px 10px; font-size: 11px; font-weight: 700; border-radius: 4px; cursor: pointer; transition: all 0.2s ease; white-space: nowrap; }
+.btn-abort-exam { background: transparent; color: #fca5a5; border: 1px solid #ef4444; padding: 4px 10px; font-size: 11px; font-weight: 700; border-radius: 4px; cursor: pointer; transition: all 0.2s ease; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; line-height: 1; }
 .btn-abort-exam:hover { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
 .tcs-workspace { display: flex; flex: 1; height: calc(100vh - 140px); }
 .question-workspace { flex: 1; background: var(--bg-panel); border-right: 2px solid var(--border-color); display: flex; flex-direction: column; color: var(--text-main); }
@@ -814,13 +816,14 @@ body.portal-body { font-family: var(--font-family); background-color: var(--bg-p
   .solution-card { padding: 16px 14px !important; margin-bottom: 14px !important; }
 
   .tcs-top-bar { display: none; }
-  .tcs-sub-bar { padding: 8px 12px; }
-  .tcs-workspace { flex-direction: column; height: calc(100dvh - 120px); }
+  .tcs-sub-bar { height: 34px !important; min-height: 34px !important; padding: 0 12px !important; }
+  .btn-abort-exam { width: 26px !important; height: 26px !important; padding: 0 !important; border-radius: 6px !important; border: 1px solid rgba(239, 68, 68, 0.4) !important; color: #fca5a5 !important; font-size: 13px !important; line-height: 1 !important; flex-shrink: 0; }
+  .tcs-workspace { flex-direction: column; flex: 1; height: auto; min-height: 0; }
   .question-workspace { border-right: none; height: 100%; overflow: hidden; display: flex; flex-direction: column; }
-  .q-meta-strip { flex-direction: row; justify-content: space-between; align-items: center; padding: 10px 15px; }
-  .mobile-exam-controls { display: flex !important; align-items: center; gap: 10px; position: relative; z-index: 1001; }
-  .m-timer { font-family: var(--font-mono); font-weight: 800; color: var(--danger-dark); font-size: 13px; background: var(--danger-bg); padding: 4px 8px; border-radius: 4px; border: 1px solid var(--danger-border); }
-  .btn-mobile-palette { background: var(--tcs-blue-header); color: #ffffff; border: none; padding: 6px 12px; font-size: 12px; font-weight: 700; border-radius: 4px; cursor: pointer; }
+  .q-meta-strip { flex-direction: row; justify-content: space-between; align-items: center; padding: 0 12px !important; height: 38px !important; min-height: 38px !important; }
+  .mobile-exam-controls { display: flex !important; align-items: center; gap: 8px; position: relative; z-index: 1001; }
+  .m-timer { font-family: var(--font-mono); font-weight: 800; color: var(--danger-dark); font-size: 12px; background: var(--danger-bg); padding: 3px 7px; border-radius: 4px; border: 1px solid var(--danger-border); }
+  .btn-mobile-palette { background: var(--tcs-blue-header); color: #ffffff; border: none; padding: 4px 10px; font-size: 11.5px; font-weight: 700; border-radius: 4px; cursor: pointer; }
   
   /* 🚀 ZERO-OVERLAP: EXPANDED BOTTOM PADDING ENSURES NO QUESTIONS HIDE BEHIND 4-BUTTON FIXED FOOTER */
   .q-scroll-area { flex: 1; padding: 15px; overflow-y: auto; padding-bottom: calc(var(--safe-bottom) + 140px) !important; }

@@ -393,7 +393,7 @@ function setupMobileExamGestures() {
     }
   }, { passive: true });
 
-  // 2. Edge-Safe Center-Only Horizontal Swipe Navigation
+  // 2. 🚀 Edge-Safe Center-Only Horizontal Swipe Navigation
   let touchStartX = 0, touchStartY = 0, touchStartTime = 0;
   const EDGE_DEADZONE = 30; // Kinare ke 30px me swipe disable rahega (OS back gesture safe)
   const SWIPE_THRESHOLD = 50; // Minimum drag distance
@@ -414,7 +414,7 @@ function setupMobileExamGestures() {
     const diffY = touch.clientY - touchStartY;
     const duration = Date.now() - touchStartTime;
 
-    // Edge check: Agar touch screen ke bilkul kinare se start hua toh ignore karein
+    // Edge check: Agar touch screen ke bilkul kinare se start hua toh ignore karein (OS Back Safe)
     if (touchStartX <= EDGE_DEADZONE || touchStartX >= (window.innerWidth - EDGE_DEADZONE)) return;
 
     // Fast horizontal swipe check
@@ -1512,6 +1512,11 @@ window.launchBoosterMode = async function(mode = 'exam') {
     };
     document.getElementById("examTitle").innerText = activeTest.title;
     document.getElementById("subjectLabelBreadcrumb").innerText = isSun ? "Sunday Crucible" : "Bonus Booster";
+    
+    // 🚀 Mobile Row 1 Set Title Populate
+    const mTitle = document.getElementById("mobileExamTitle");
+    if (mTitle) mTitle.innerText = activeTest.title;
+
     document.getElementById("sectionTabs").innerHTML = `<button type="button" class="section-tab">Section 1: ${isSun ? 'Weekly Backlog Clearance' : 'Active Review'} (${qCount} Qs)</button>`;
     timeRemaining = activeTest.total_duration_minutes * 60;
 
@@ -2671,6 +2676,11 @@ window.launchAssessment = async function(testId) {
     activeTest = tInfo; 
     document.getElementById("examTitle").innerText = activeTest.title || "Assessment"; 
     document.getElementById("subjectLabelBreadcrumb").innerText = activeSubject || "General";
+    
+    // 🚀 Mobile Row 1 Set Title Populate
+    const mTitle = document.getElementById("mobileExamTitle");
+    if (mTitle) mTitle.innerText = activeTest.title || "Assessment";
+
     timeRemaining = (activeTest.total_duration_minutes || 15) * 60;
     
     const { data: sections, error: sErr } = await supabaseClient.from("test_sections").select("id, section_name").eq("test_id", testId).limit(1); 
@@ -3053,7 +3063,7 @@ window.openSolutionsView = function() {
     }
     const expText = formatExplanation(q.explanation);
 
-    // 🔘 Strict Exam Format: Radio bubbles without 1,2,3,4 numbers
+    // 🔘 Strict Exam CBT Format: Clean Radio bubbles (no 1, 2, 3, 4 indexing)
     const oHtml = (q.options || []).map(opt => {
       const oid = String(opt.id);
       let oCls = "sol-option";

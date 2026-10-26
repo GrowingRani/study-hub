@@ -768,7 +768,7 @@
   <!-- ================= SCREEN 4: TCS iON EXAM CONSOLE ================= -->
   <section id="viewExam" class="view-screen" style="display: none;">
     <header class="tcs-top-bar glass-header" style="flex-direction: column; align-items: flex-start; height: auto; padding: 10px 16px;">
-      <div style="display: flex; justify-content: space-between; width: 100%; align-items: center; margin-bottom: 8px;">
+      <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
         <div class="exam-meta">
           <span id="subjectLabelBreadcrumb">Subject</span> 
           <span class="exam-breadcrumb-sep">❯</span> 
@@ -782,21 +782,28 @@
           </select>
         </div>
       </div>
-      <div class="exam-progress-track">
-        <div id="examProgressLine" class="exam-progress-fill"></div>
-      </div>
     </header>
 
+    <!-- 🚀 ROW 1: DESKTOP TABS & MOBILE QUESTION SET TITLE + SLEEK '✕' ABORT -->
     <div class="tcs-sub-bar" id="examSubBar">
-      <div id="sectionTabs" class="section-tabs-wrap"></div>
-      <div style="display: flex; align-items: center; gap: 16px;">
-        <div class="exam-candidate-roll-badge">
+      <div class="tcs-sub-left">
+        <div id="sectionTabs" class="section-tabs-wrap hide-on-mobile"></div>
+        <span class="mobile-exam-title hide-on-desktop" id="mobileExamTitle">Assessment Set</span>
+      </div>
+      <div class="tcs-sub-right" style="display: flex; align-items: center; gap: 12px;">
+        <div class="exam-candidate-roll-badge hide-on-mobile">
           Roll: <span id="examCandidateRoll">---</span>
         </div>
-        <button type="button" class="btn-abort-exam" onclick="abortExamSession()" title="Exit without saving">
-          <span class="hide-on-mobile">✕ </span><strong>ABORT</strong>
+        <button type="button" class="btn-abort-exam" onclick="abortExamSession()" title="Exit Assessment">
+          <span class="abort-text-desk hide-on-mobile">✕ <strong>ABORT</strong></span>
+          <span class="abort-icon-mob hide-on-desktop">✕</span>
         </button>
       </div>
+    </div>
+
+    <!-- 🚀 ACCENT PROGRESS LINE: VISIBLE ON BOTH MOBILE & DESKTOP (Between Row 1 & Row 2) -->
+    <div class="exam-progress-track" id="globalExamProgressTrack">
+      <div id="examProgressLine" class="exam-progress-fill"></div>
     </div>
 
     <main class="tcs-workspace">
