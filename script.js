@@ -1542,7 +1542,85 @@ window.launchBoosterMode = async function(mode = 'exam') {
   }
 };
 
-// 🚀 MUTEX-LOCKED & ATOMIC ASSIGNMENT RENDERER
+// 🚀 REUSABLE ATOMIC SET TILE BUILDER
+function renderPlaylistSetTileHtml(item, pName) {
+  const setCat = catalogData.find(c => String(c.test_id) === String(item.test_id)); 
+  if (!setCat) return "";
+  const qCount = setCat.total_questions || 10;
+  
+  const isRoll = item.is_rollover ? `<span class="set-rollover-tag">⚠️ ROLLOVER</span>` : '';
+  
+  const attempts = userAttemptHistory.filter(a => String(a.test_id) === String(setCat.test_id)), isAtt = attempts.length > 0;
+  const bestScore = isAtt ? Math.max(...attempts.map(a => parseFloat(a.score))) : 0, maxMarks = qCount * 2, pct = (maxMarks > 0 && isAtt) ? (bestScore / maxMarks) * 100 : 0;
+  let badgeClass = '', badgeText = '', historyHtml = '<span style="color:var(--text-muted);">Not attempted yet</span>';
+  if (isAtt) {
+    if (pct >= 100) { 
+      badgeClass = 'status-mastered'; 
+      badgeText = `MASTERED ${bestScore}/${maxMarks}`; 
+      historyHtml = `<span style="color:var(--success-dark);">★ Best: ${bestScore} (${Math.round(pct)}%) | Att: ${attempts.length}</span>`; 
+    } else { 
+      badgeClass = 'status-progress'; 
+      badgeText = `IN PROGRESS`; 
+      historyHtml = `<span style="color:var(--warning-dark);">Review: ${bestScore}/${maxMarks} | Att: ${attempts.length}</span>`; 
+    }
+  }
+
+  // ⭐ Check if this set is in Starred Sets
+  const starredPl = userPlaylists.find(p => p.playlist_name === 'Starred Sets');
+  const isStarred = starredPl && userPlaylistItems.some(pi => pi.playlist_id === starredPl.id && String(pi.test_id) === String(setCat.test_id));
+
+  return `
+    <div class="set-tile" data-status="${isAtt ? (pct >= 100 ? 'mastered' : 'revise') : 'unattempted'}">
+      <div class="set-tile-header">
+        <div class="set-tile-title-group">
+          ${isRoll}
+          <div class="set-tile-title">${setCat.test_title}</div>
+        </div>
+        <div style="display:flex; gap: 6px; align-items: center; flex-shrink: 0;">
+           ${badgeText ? `<div class="set-status-badge ${badgeClass}">${badgeText}</div>` : ''}
+           <button type="button" class="btn-star-set ${isStarred ? 'starred' : ''}" data-test-id="${setCat.test_id}" onclick="toggleStarSet(event, ${setCat.test_id})" title="${isStarred ? 'Unstar set' : 'Star set'}">
+             ${starIconSvg}
+           </button>
+           <button type="button" class="btn-three-dots" onclick="openThreeDotsMenu(event, ${setCat.test_id})" title="Options">⋮</button>
+        </div>
+      </div>
+      <div class="set-tile-meta"><span>${clockSvg} ${setCat.total_duration_minutes}m</span><span>${docSvg} ${qCount} Qs</span></div>
+      <div class="set-score-info">${historyHtml}</div>
+      <div class="set-action-footer">
+        <button type="button" class="btn-launch-set" onclick="openMissionBriefingModal(${setCat.test_id})">
+          <span>▶</span> <span>${isAtt ? 'Retake / Review' : 'Start Session'}</span>
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+function getPlaylistAddBtnHtml(pId, pName) {
+  return `<button type="button" class="btn-create-playlist-trigger" style="margin-top: 10px; grid-column: 1 / -1;" onclick="enableLibrarySelectionMode('${pId}', '${pName.replace(/'/g, "\\'")}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg><span>Add Sets to ${pName}</span></button>`;
+}
+
+// 🚀 SURGICAL STARRED CONTAINER RENDERER (TODAY CONTAINER REMAINS UNTOUCHED)
+function renderStarredPlaylistOnly() {
+  const starredContainer = document.getElementById("starredPlaylistContainer");
+  const badge = document.getElementById("starredCountPill");
+  const starredList = userPlaylists.find(p => p.playlist_name === 'Starred Sets');
+  if (!starredList || !starredContainer) return;
+
+  const items = userPlaylistItems.filter(pi => pi.playlist_id === starredList.id);
+  const prevScroll = starredContainer.scrollTop;
+  starredContainer.innerHTML = (items.length > 0 
+    ? items.map(i => renderPlaylistSetTileHtml(i, 'Starred Sets')).join("") 
+    : `<div style="text-align:center; padding:18px; color:var(--text-muted); font-size:12.5px; font-weight:600; grid-column:1 / -1;">No starred sets yet. Click ☆ on any set to save here.</div>`
+  ) + getPlaylistAddBtnHtml(starredList.id, 'Starred Sets');
+  starredContainer.scrollTop = prevScroll;
+
+  if (badge) badge.innerText = `${items.length} Sets ▼`;
+
+  const starredHeader = document.querySelector("#starredPlaylistCard .playlist-header");
+  if (starredHeader) starredHeader.onclick = () => window.toggleSecondaryPlaylist(starredHeader);
+}
+
+// 🚀 MUTEX-LOCKED & ATOMIC ASSIGNMENT RENDERER (WITH SCROLL PRESERVATION)
 async function renderHomePlaylists() {
   if (isRenderingPlaylists) {
     pendingPlaylistRender = true;
@@ -1559,6 +1637,15 @@ async function renderHomePlaylists() {
           revContainer = document.getElementById("dynamicRevisionTileContainer");
 
     if (!todayContainer || !tomorrowContainer || !weekContainer) return;
+
+    // 🚀 CACHE SCROLL POSITIONS BEFORE WIPING TO PREVENT JUMPING
+    const scrollMap = {
+      today: todayContainer.scrollTop,
+      tomorrow: tomorrowContainer.scrollTop,
+      week: weekContainer.scrollTop,
+      starred: starredContainer ? starredContainer.scrollTop : 0
+    };
+
     todayContainer.innerHTML = ""; 
     tomorrowContainer.innerHTML = ""; 
     weekContainer.innerHTML = ""; 
@@ -1634,62 +1721,6 @@ async function renderHomePlaylists() {
     }
 
     let todayLoad = 0, tomorrowLoad = 0;
-    const getSetHtml = (item, pName) => {
-      const setCat = catalogData.find(c => String(c.test_id) === String(item.test_id)); 
-      if (!setCat) return "";
-      const qCount = setCat.total_questions || 10;
-      if (pName === 'Today') todayLoad += qCount; 
-      if (pName === 'Tomorrow') tomorrowLoad += qCount;
-      
-      const isRoll = item.is_rollover ? `<span class="set-rollover-tag">⚠️ ROLLOVER</span>` : '';
-      
-      const attempts = userAttemptHistory.filter(a => String(a.test_id) === String(setCat.test_id)), isAtt = attempts.length > 0;
-      const bestScore = isAtt ? Math.max(...attempts.map(a => parseFloat(a.score))) : 0, maxMarks = qCount * 2, pct = (maxMarks > 0 && isAtt) ? (bestScore / maxMarks) * 100 : 0;
-      let badgeClass = '', badgeText = '', historyHtml = '<span style="color:var(--text-muted);">Not attempted yet</span>';
-      if (isAtt) {
-        if (pct >= 100) { 
-          badgeClass = 'status-mastered'; 
-          badgeText = `MASTERED ${bestScore}/${maxMarks}`; 
-          historyHtml = `<span style="color:var(--success-dark);">★ Best: ${bestScore} (${Math.round(pct)}%) | Att: ${attempts.length}</span>`; 
-        } else { 
-          badgeClass = 'status-progress'; 
-          badgeText = `IN PROGRESS`; 
-          historyHtml = `<span style="color:var(--warning-dark);">Review: ${bestScore}/${maxMarks} | Att: ${attempts.length}</span>`; 
-        }
-      }
-
-      // ⭐ Check if this set is in Starred Sets
-      const starredPl = userPlaylists.find(p => p.playlist_name === 'Starred Sets');
-      const isStarred = starredPl && userPlaylistItems.some(pi => pi.playlist_id === starredPl.id && String(pi.test_id) === String(setCat.test_id));
-
-      return `
-        <div class="set-tile" data-status="${isAtt ? (pct >= 100 ? 'mastered' : 'revise') : 'unattempted'}">
-          <div class="set-tile-header">
-            <div class="set-tile-title-group">
-              ${isRoll}
-              <div class="set-tile-title">${setCat.test_title}</div>
-            </div>
-            <div style="display:flex; gap: 6px; align-items: center; flex-shrink: 0;">
-               ${badgeText ? `<div class="set-status-badge ${badgeClass}">${badgeText}</div>` : ''}
-               <button type="button" class="btn-star-set ${isStarred ? 'starred' : ''}" data-test-id="${setCat.test_id}" onclick="toggleStarSet(event, ${setCat.test_id})" title="${isStarred ? 'Unstar set' : 'Star set'}">
-                 ${starIconSvg}
-               </button>
-               <button type="button" class="btn-three-dots" onclick="openThreeDotsMenu(event, ${setCat.test_id})" title="Options">⋮</button>
-            </div>
-          </div>
-          <div class="set-tile-meta"><span>${clockSvg} ${setCat.total_duration_minutes}m</span><span>${docSvg} ${qCount} Qs</span></div>
-          <div class="set-score-info">${historyHtml}</div>
-          <div class="set-action-footer">
-            <button type="button" class="btn-launch-set" onclick="openMissionBriefingModal(${setCat.test_id})">
-              <span>▶</span> <span>${isAtt ? 'Retake / Review' : 'Start Session'}</span>
-            </button>
-          </div>
-        </div>
-      `;
-    };
-
-    const getAddBtn = (pId, pName) => `<button type="button" class="btn-create-playlist-trigger" style="margin-top: 10px; grid-column: 1 / -1;" onclick="enableLibrarySelectionMode('${pId}', '${pName.replace(/'/g, "\\'")}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg><span>Add Sets to ${pName}</span></button>`;
-    
     const todayList = userPlaylists.find(p => p.playlist_name === 'Today'), 
           tomorrowList = userPlaylists.find(p => p.playlist_name === 'Tomorrow'), 
           weekList = userPlaylists.find(p => p.playlist_name === 'This Week'),
@@ -1697,36 +1728,51 @@ async function renderHomePlaylists() {
 
     if (todayList) {
       const items = userPlaylistItems.filter(pi => pi.playlist_id === todayList.id);
-      todayContainer.innerHTML = (items.length > 0 ? items.map(i => getSetHtml(i, 'Today')).join("") : `<div style="text-align:center; padding:18px; color:var(--text-muted); font-size:12.5px; font-weight:600; grid-column:1 / -1;">No sets queued for today yet.</div>`) + getAddBtn(todayList.id, 'Today');
+      items.forEach(i => {
+        const c = catalogData.find(x => String(x.test_id) === String(i.test_id));
+        todayLoad += c ? (c.total_questions || 10) : 10;
+      });
+      todayContainer.innerHTML = (items.length > 0 ? items.map(i => renderPlaylistSetTileHtml(i, 'Today')).join("") : `<div style="text-align:center; padding:18px; color:var(--text-muted); font-size:12.5px; font-weight:600; grid-column:1 / -1;">No sets queued for today yet.</div>`) + getPlaylistAddBtnHtml(todayList.id, 'Today');
+      todayContainer.scrollTop = scrollMap.today;
       const pill = document.getElementById("todayCountPill"); if (pill) pill.innerText = `${items.length} Sets ▼`;
     }
+
     if (tomorrowList) {
       const items = userPlaylistItems.filter(pi => pi.playlist_id === tomorrowList.id);
-      tomorrowContainer.innerHTML = (items.length > 0 ? items.map(i => getSetHtml(i, 'Tomorrow')).join("") : `<div style="text-align:center; padding:18px; color:var(--text-muted); font-size:12.5px; font-weight:600; grid-column:1 / -1;">Queue is empty.</div>`) + getAddBtn(tomorrowList.id, 'Tomorrow');
+      items.forEach(i => {
+        const c = catalogData.find(x => String(x.test_id) === String(i.test_id));
+        tomorrowLoad += c ? (c.total_questions || 10) : 10;
+      });
+      tomorrowContainer.innerHTML = (items.length > 0 ? items.map(i => renderPlaylistSetTileHtml(i, 'Tomorrow')).join("") : `<div style="text-align:center; padding:18px; color:var(--text-muted); font-size:12.5px; font-weight:600; grid-column:1 / -1;">Queue is empty.</div>`) + getPlaylistAddBtnHtml(tomorrowList.id, 'Tomorrow');
+      tomorrowContainer.scrollTop = scrollMap.tomorrow;
       const badge = document.getElementById("tomorrowCountPill"); if (badge) badge.innerText = `${items.length} Sets ▼`;
       
       const tomHeader = document.querySelector("#tomorrowPlaylistCard .playlist-header");
       if (tomHeader) tomHeader.onclick = () => window.toggleSecondaryPlaylist(tomHeader);
     }
+
     if (weekList) {
       const items = userPlaylistItems.filter(pi => pi.playlist_id === weekList.id);
-      weekContainer.innerHTML = (items.length > 0 ? items.map(i => getSetHtml(i, 'This Week')).join("") : `<div style="text-align:center; padding:18px; color:var(--text-muted); font-size:12.5px; font-weight:600; grid-column:1 / -1;">Backlog is empty.</div>`) + getAddBtn(weekList.id, 'This Week');
+      weekContainer.innerHTML = (items.length > 0 ? items.map(i => renderPlaylistSetTileHtml(i, 'This Week')).join("") : `<div style="text-align:center; padding:18px; color:var(--text-muted); font-size:12.5px; font-weight:600; grid-column:1 / -1;">Backlog is empty.</div>`) + getPlaylistAddBtnHtml(weekList.id, 'This Week');
+      weekContainer.scrollTop = scrollMap.week;
       const badge = document.getElementById("weekCountPill"); if (badge) badge.innerText = `${items.length} Sets ▼`;
 
       const weekHeader = document.querySelector("#weekPlaylistCard .playlist-header");
       if (weekHeader) weekHeader.onclick = () => window.toggleSecondaryPlaylist(weekHeader);
     }
+
     // ⭐ RENDER STARRED SETS CONTAINER
     if (starredList && starredContainer) {
       const items = userPlaylistItems.filter(pi => pi.playlist_id === starredList.id);
-      starredContainer.innerHTML = (items.length > 0 ? items.map(i => getSetHtml(i, 'Starred Sets')).join("") : `<div style="text-align:center; padding:18px; color:var(--text-muted); font-size:12.5px; font-weight:600; grid-column:1 / -1;">No starred sets yet. Click ☆ on any set to save here.</div>`) + getAddBtn(starredList.id, 'Starred Sets');
+      starredContainer.innerHTML = (items.length > 0 ? items.map(i => renderPlaylistSetTileHtml(i, 'Starred Sets')).join("") : `<div style="text-align:center; padding:18px; color:var(--text-muted); font-size:12.5px; font-weight:600; grid-column:1 / -1;">No starred sets yet. Click ☆ on any set to save here.</div>`) + getPlaylistAddBtnHtml(starredList.id, 'Starred Sets');
+      starredContainer.scrollTop = scrollMap.starred;
       const badge = document.getElementById("starredCountPill"); if (badge) badge.innerText = `${items.length} Sets ▼`;
 
       const starredHeader = document.querySelector("#starredPlaylistCard .playlist-header");
       if (starredHeader) starredHeader.onclick = () => window.toggleSecondaryPlaylist(starredHeader);
     }
     
-    // 🚀 ATOMIC BATCHED RENDER FOR CUSTOM PLAYLISTS (EXCLUDES STARRED SETS)
+    // 🚀 ATOMIC BATCHED RENDER FOR CUSTOM PLAYLISTS
     if (customContainer) {
       const customLists = userPlaylists.filter(p => !['Today', 'Tomorrow', 'This Week', 'Starred Sets'].includes(p.playlist_name));
       let customHtml = "";
@@ -1742,8 +1788,8 @@ async function renderHomePlaylists() {
               </div>
             </div>
             <div class="playlist-body">
-              <div class="playlist-sets-stream sets-card-grid">${items.length > 0 ? items.map(i => getSetHtml(i, playlist.playlist_name)).join("") : `<div style="text-align:center; padding:18px; color:var(--text-muted); font-size:12.5px; font-weight:600; grid-column:1 / -1;">No sets in ${playlist.playlist_name}.</div>`}</div>
-              ${getAddBtn(playlist.id, playlist.playlist_name)}
+              <div class="playlist-sets-stream sets-card-grid">${items.length > 0 ? items.map(i => renderPlaylistSetTileHtml(i, playlist.playlist_name)).join("") : `<div style="text-align:center; padding:18px; color:var(--text-muted); font-size:12.5px; font-weight:600; grid-column:1 / -1;">No sets in ${playlist.playlist_name}.</div>`}</div>
+              ${getPlaylistAddBtnHtml(playlist.id, playlist.playlist_name)}
             </div>
           </div>
         `;
@@ -1752,11 +1798,11 @@ async function renderHomePlaylists() {
     }
 
     const targetQ = 100, todayStr = getLocalDateString();
-    const todayAttempts = userAttemptHistory.filter(a => (a.attempt_date || "").split("T")[0] === todayStr && (a.test_id > 0 || (a.test_id === -1 && isSunday())));
+    const todayAttempts = userAttemptHistory.filter(a => (a.attempt_date || "").split("T")[0] === todayStr && (Number(a.test_id) > 0 || (Number(a.test_id) === -1 && isSunday())));
     let todayMasteredQ = 0;
     todayAttempts.forEach(a => { 
       let qc = 10;
-      if (a.test_id > 0) {
+      if (Number(a.test_id) > 0) {
         const c = catalogData.find(x => String(x.test_id) === String(a.test_id));
         qc = c ? (c.total_questions || 10) : 10;
       } else {
@@ -1767,7 +1813,7 @@ async function renderHomePlaylists() {
     });
 
     const isSun = isSunday();
-    const isSunHit = isSun && (dailyPerf.is_century_hit || (dailyPerf.total_questions_attempted || 0) > 0);
+    const isSunHit = isSun && dailyPerf.is_century_hit;
 
     const capPct = isSun ? 100 : Math.min(100, Math.round((todayLoad / targetQ) * 100)), 
           attPct = isSunHit ? 100 : Math.min(100, Math.round(((dailyPerf.total_questions_attempted || 0) / targetQ) * 100)), 
@@ -1784,7 +1830,7 @@ async function renderHomePlaylists() {
 
     if (meterText) {
       if (isSun) {
-        if (dailyPerf.is_century_hit || (dailyPerf.total_questions_attempted || 0) > 0) {
+        if (dailyPerf.is_century_hit) {
           meterText.innerText = `${dailyPerf.total_questions_attempted} Qs 👑 (Crucible Conquered)`;
         } else {
           meterText.innerText = `${dailyPerf.total_questions_attempted || 0} Qs ⚔️ (Crucible Target)`;
@@ -1805,7 +1851,7 @@ async function renderHomePlaylists() {
   }
 }
 
-// 🚀 FAST 1-TAP STAR TOGGLE CONTROLLER
+// 🚀 FAST 1-TAP STAR TOGGLE CONTROLLER (ZERO JITTER & ZERO SCROLL-RESET)
 window.toggleStarSet = async function(event, testId) {
   if (event) {
     event.preventDefault();
@@ -1838,16 +1884,17 @@ window.toggleStarSet = async function(event, testId) {
     userPlaylistItems.push({ playlist_id: pId, test_id: testId, student_roll: roll });
   }
 
-  // 2. Instant UI Flip across all matching buttons in view
+  // 2. Instant UI Flip across all matching buttons in view (In-place, no layout shift)
   document.querySelectorAll(`.btn-star-set[data-test-id="${testId}"]`).forEach(btn => {
     btn.classList.toggle("starred", !isStarred);
     btn.title = !isStarred ? "Unstar set" : "Star set";
   });
 
-  renderHomePlaylists();
+  // 3. 🚀 SURGICAL UPDATE: Re-render ONLY Starred Sets playlist (Today Payload stays 100% frozen)
+  renderStarredPlaylistOnly();
   showSelectionToast(!isStarred ? "⭐ Added to Starred Sets" : "Removed from Starred Sets");
 
-  // 3. Background Cloud Sync
+  // 4. Background Cloud Sync
   try {
     if (isStarred) {
       await supabaseClient.from("playlist_items").delete().eq("playlist_id", pId).eq("test_id", testId).eq("student_roll", roll);
@@ -1864,7 +1911,7 @@ window.toggleStarSet = async function(event, testId) {
     document.querySelectorAll(`.btn-star-set[data-test-id="${testId}"]`).forEach(btn => {
       btn.classList.toggle("starred", isStarred);
     });
-    renderHomePlaylists();
+    renderStarredPlaylistOnly();
     showSelectionToast("Network sync failed. Changes reverted.");
   }
 };
