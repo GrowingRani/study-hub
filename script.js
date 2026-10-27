@@ -3597,12 +3597,10 @@ function renderReadUI() {
   const foot = document.createElement("div");
   foot.className = "read-footer-actions";
   foot.innerHTML = `
-    <button type="button" class="btn-scroll-top" onclick="scrollToTopOfPractice()">
+    <button type="button" class="btn-scroll-top" onclick="scrollToTopOfPractice()" title="Back to Top">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <line x1="12" y1="19" x2="12" y2="5"></line>
-        <polyline points="5 12 12 5 19 12"></polyline>
+        <polyline points="18 15 12 9 6 15"></polyline>
       </svg>
-      <span>Back to Top</span>
     </button>
   `;
   container.appendChild(foot);
@@ -3830,7 +3828,15 @@ function renderQuizUI() {
   if (!localQuizState.isFinished) {
     const f = document.createElement("div");
     f.className = "quiz-footer-actions";
-    f.innerHTML = `<button type="button" class="btn-finish-quiz" onclick="finishQuizSession()"><span>🏁</span> Finish & Review Score</button>`;
+    f.innerHTML = `
+      <button type="button" class="btn-finish-quiz" onclick="finishQuizSession(this)" title="Submit and review performance">
+        <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path>
+          <line x1="4" y1="22" x2="4" y2="15"></line>
+        </svg>
+        <span>Finish & Review</span>
+      </button>
+    `;
     container.appendChild(f);
   }
 }
@@ -3882,11 +3888,25 @@ window.toggleQuizStar = function(idx) {
   }
 };
 
-window.finishQuizSession = function() {
-  localQuizState.isFinished = true; 
-  localQuizState.filter = "all";
-  renderQuizUI(); 
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+window.finishQuizSession = function(btnElement) {
+  if (localQuizState.isFinished) return;
+
+  const btn = btnElement || document.querySelector(".btn-finish-quiz");
+  if (btn) {
+    btn.classList.add("is-submitting");
+    btn.innerHTML = `
+      <span class="btn-micro-spinner"></span>
+      <span>Compiling Score...</span>
+    `;
+  }
+
+  // 🚀 320ms Tactile Buffer: User ko click register feel hota hai aur result smooth aata hai
+  setTimeout(() => {
+    localQuizState.isFinished = true;
+    localQuizState.filter = "all";
+    renderQuizUI();
+    scrollToTopOfPractice();
+  }, 320);
 };
 
 window.filterQuizReview = function(t) { 
