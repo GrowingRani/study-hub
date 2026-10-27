@@ -3622,11 +3622,11 @@ window.toggleReadStar = function(idx) {
     const btn = card.querySelector(".btn-star-q");
     if (btn) {
       btn.classList.toggle("starred", nowStarred);
-      btn.innerHTML = nowStarred ? "★" : "☆";
+      btn.title = nowStarred ? "Unstar Question" : "Star Question";
+      // ❌ btn.innerHTML = ... permanently removed! SVG remains intact!
     }
   }
 
-  // 🚀 Instant zero-lag badge counter update
   const starBadge = document.getElementById("readStarredBadge");
   if (starBadge) starBadge.innerText = `${localReadState.starred.size}`;
 
@@ -3848,7 +3848,8 @@ window.toggleQuizStar = function(idx) {
     const btn = card.querySelector(".btn-star-q");
     if (btn) {
       btn.classList.toggle("starred", nowStarred);
-      btn.innerHTML = nowStarred ? "★" : "☆";
+      btn.title = nowStarred ? "Unstar Question" : "Star Question";
+      // ❌ btn.innerHTML = ... permanently removed! SVG remains intact!
     }
   }
 
