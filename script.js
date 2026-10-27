@@ -3570,7 +3570,7 @@ function renderReadUI() {
     }).join("");
 
     const card = document.createElement("div");
-    card.className = "solution-card";
+    card.className = `solution-card ${isSt ? 'card-starred' : ''}`;
     card.id = `readCard_${idx}`;
     card.style.marginBottom = "16px";
     card.innerHTML = `
@@ -3619,16 +3619,19 @@ window.toggleReadStar = function(idx) {
 
   const card = document.getElementById(`readCard_${idx}`);
   if (card) {
+    card.classList.toggle("card-starred", nowStarred);
     const btn = card.querySelector(".btn-star-q");
     if (btn) {
       btn.classList.toggle("starred", nowStarred);
-      btn.title = nowStarred ? "Unstar Question" : "Star Question";
-      // ❌ btn.innerHTML = ... permanently removed! SVG remains intact!
+      btn.title = nowStarred ? "Unstar Question" : "Star for Revision";
     }
   }
 
+  // Instant zero-lag badge counter update
   const starBadge = document.getElementById("readStarredBadge");
   if (starBadge) starBadge.innerText = `${localReadState.starred.size}`;
+
+  // 🔕 Toast notification removed for distraction-free study
 
   if (localReadState.filter === 'starred' && !nowStarred && card) {
     card.style.display = "none";
@@ -3636,7 +3639,6 @@ window.toggleReadStar = function(idx) {
     card.style.display = "block";
   }
 };
-
 window.filterReadMode = function(t) { 
   localReadState.filter = t; 
   renderReadUI(); 
@@ -3721,11 +3723,10 @@ function renderQuizUI() {
     }
 
     const card = document.createElement("div");
-    card.className = "solution-card";
+    card.className = `solution-card ${isSt ? 'card-starred' : ''}`;
     card.id = `quizCard_${idx}`;
     card.style.marginBottom = "20px";
 
-    // 🚀 Safe badge declaration: hamesha scope ke andar exist karega
     let badgeHtml = `<span id="quizBadge_${idx}" class="sol-status-badge" style="display:none;"></span>`;
     if (sAns) {
       badgeHtml = `<span id="quizBadge_${idx}" class="sol-status-badge ${sAns.isCorrect ? 'sol-status-correct' : 'sol-status-incorrect'}">${sAns.isCorrect ? 'Right' : 'Wrong'}</span>`;
@@ -3845,13 +3846,15 @@ window.toggleQuizStar = function(idx) {
 
   const card = document.getElementById(`quizCard_${idx}`);
   if (card) {
+    card.classList.toggle("card-starred", nowStarred);
     const btn = card.querySelector(".btn-star-q");
     if (btn) {
       btn.classList.toggle("starred", nowStarred);
-      btn.title = nowStarred ? "Unstar Question" : "Star Question";
-      // ❌ btn.innerHTML = ... permanently removed! SVG remains intact!
+      btn.title = nowStarred ? "Unstar Question" : "Star for Revision";
     }
   }
+
+  // 🔕 Toast notification removed for distraction-free study
 
   if (localQuizState.isFinished) {
     const starStat = document.querySelector(".quiz-score-item.stat-item-starred .value");
