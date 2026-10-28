@@ -170,7 +170,7 @@ window.addEventListener("DOMContentLoaded", () => {
   document.documentElement.style.overscrollBehaviorY = 'none'; 
   document.body.style.overscrollBehaviorY = 'none';
 
-  // 🚀 0ms SYNCHRONOUS PWA EXIT GATE (Fixes instant swipe-out before Supabase finishes)
+  // 🚀 0ms SYNCHRONOUS PWA EXIT GATE (Fixes instant cold-swipe closing)
   if (!history.state || history.state.page !== 'dashboard') {
     history.replaceState({ page: 'exit-gate' }, '', window.location.pathname);
     history.pushState({ page: 'dashboard', view: 'viewDashboard' }, '', '#viewDashboard');
@@ -322,15 +322,6 @@ window.switchView = function(viewId, pushHistory = true) {
 window.addEventListener("popstate", function(e) {
   if (typeof isExitingApp !== 'undefined' && isExitingApp) return;
 
-  // 🚀 DOUBLE-SWIPE EXIT: अगर मोडल पहले से खुला है और फिर से बैक स्वाइप हुआ तो सीधा एग्जिट
-  const exitModal = document.getElementById('exitConfirmModal');
-  if (exitModal && (exitModal.style.display === 'flex' || exitModal.style.display === 'block')) {
-    exitModal.style.display = 'none';
-    isExitingApp = true;
-    history.back();
-    return;
-  }
-
   const currentActiveView = Array.from(document.querySelectorAll('.view-screen')).find(v => v.style.display === 'flex')?.id;
 
   if (currentActiveView === 'viewExam' && !isExamFinished) { 
@@ -392,10 +383,9 @@ window.addEventListener("popstate", function(e) {
     return; 
   }
 
-  // 🚀 HOME EXIT TRIGGER: मोडल दिखाओ और हिस्ट्री स्टेट सुरक्षित रखो
+  // 🚀 HOME EXIT GATE: Native Double-Back Trigger
   if (!e.state || e.state.page === 'exit-gate' || currentActiveView === 'viewDashboard') {
-    history.pushState({ page: 'dashboard', view: 'viewDashboard' }, '', '#viewDashboard');
-    showExitConfirmModal();
+    handleNativeExitTrigger();
     return;
   }
 });
@@ -4243,65 +4233,33 @@ function setupFlashcardTouchGestures() {
 }
 
 // ==========================================================================
-// 12. PWA NATIVE EXIT CONTROLLER (ZERO-GLITCH HISTORY ENGINE)
+// 12. PWA NATIVE DOUBLE-BACK EXIT ENGINE (ZERO-GLITCH)
 // ==========================================================================
-let lastBackSwipeTime = 0;
-let isExitPending = false;
+let lastExitSwipeTime = 0;
 
-window.showExitConfirmModal = function() {
+function handleNativeExitTrigger() {
   const now = Date.now();
-  
-  // 🚀 FAST DOUBLE-SWIPE EXIT: अगर यूजर ने 2 सेकंड में दोबारा स्वाइप किया तो सीधे क्लोज़
-  if (now - lastBackSwipeTime < 2200) {
+
+  // 🚀 2 सेकंड के भीतर दोबारा बैक स्वाइप हुआ -> सीधे क्लोज़
+  if (now - lastExitSwipeTime < 2000) {
     isExitingApp = true;
-    history.back(); // यह Android OS को ऐप क्लोज़ करने देता है
+    history.back(); // Android OS को ऐप बंद करने देता है
     return;
   }
-  
-  lastBackSwipeTime = now;
-  isExitPending = true;
 
-  const modal = document.getElementById('exitConfirmModal');
-  if (modal) {
-    modal.style.setProperty("display", "flex", "important");
-    modal.style.pointerEvents = "auto";
-  }
-};
+  lastExitSwipeTime = now;
 
-window.closeExitConfirmModal = function() {
-  isExitPending = false;
-  isExitingApp = false;
-  const modal = document.getElementById('exitConfirmModal');
-  if (modal) {
-    modal.style.setProperty("display", "none", "important");
-    modal.style.pointerEvents = "none";
-  }
-  
-  // हिस्ट्री को दोबारा डैशबोर्ड पर लॉक करें
-  if (!history.state || history.state.page === 'exit-gate') {
-    history.pushState({ page: 'dashboard', view: 'viewDashboard' }, '', '#viewDashboard');
-  }
-};
+  // हिस्ट्री स्टेट को री-आर्म करें ताकि दूसरा स्वाइप काम करे
+  history.pushState({ page: 'dashboard', view: 'viewDashboard' }, '', '#viewDashboard');
 
+  // नेटिव स्टाइल टोस्ट दिखाएं
+  showSelectionToast("Press back again to exit");
+}
+
+// यदि कहीं पुराने मोडल फंक्शन्स का कॉल बचा हो तो सेफ्टी के लिए:
+window.showExitConfirmModal = function() { handleNativeExitTrigger(); };
+window.closeExitConfirmModal = function() { lastExitSwipeTime = 0; };
 window.confirmExitApp = function() {
-  const modal = document.getElementById('exitConfirmModal');
-  if (modal) {
-    modal.style.setProperty("display", "none", "important");
-    modal.style.pointerEvents = "none";
-  }
-
-  if (window.navigator && window.navigator.app && typeof window.navigator.app.exitApp === "function") {
-    window.navigator.app.exitApp();
-    return;
-  }
-
   isExitingApp = true;
-
-  // 🚀 FIX FOR ISSUE 2:
-  // चूंकि ब्राउज़र बटन क्लिक से विंडो को किल नहीं करने देता, 
-  // हम हिस्ट्री को नेचुरल गेट पर ले जाकर बैक ट्रिगर करते हैं
-  history.go(-1);
-  setTimeout(() => {
-    window.close();
-  }, 50);
+  history.go(-2);
 };
