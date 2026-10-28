@@ -3676,6 +3676,7 @@ window.toggleReadStar = function(idx) {
     if (btn) {
       btn.classList.toggle("starred", nowStarred);
       btn.title = nowStarred ? "Unstar Question" : "Star for Revision";
+      btn.blur(); // 🚀 Mobile tap focus turant clear karega (prevents sticky highlight)
     }
   }
 
@@ -3691,6 +3692,7 @@ window.toggleReadStar = function(idx) {
     card.style.display = "block";
   }
 };
+
 window.filterReadMode = function(t) { 
   localReadState.filter = t; 
   renderReadUI(); 
@@ -3951,10 +3953,9 @@ window.toggleQuizStar = function(idx) {
     if (btn) {
       btn.classList.toggle("starred", nowStarred);
       btn.title = nowStarred ? "Unstar Question" : "Star for Revision";
+      btn.blur(); // 🚀 मोबाइल फोकस को तुरंत हटाएगा ताकि विजुअल ग्लिच न बने
     }
   }
-
-  // 🔕 Toast notification removed for distraction-free study
 
   if (localQuizState.isFinished) {
     const starStat = document.querySelector(".quiz-score-item.stat-item-starred .value");
