@@ -3657,12 +3657,14 @@ function renderQuizUI() {
 
   if (localQuizState.isFinished) {
     const totalQ = practiceQuestions.length;
+    const maxMarks = totalQ * 2;
     const attCount = Object.keys(localQuizState.answers).length;
     const unattCount = totalQ - attCount;
     let corrCount = 0, wrCount = 0;
     Object.values(localQuizState.answers).forEach(a => { if (a.isCorrect) corrCount++; else wrCount++; });
     const score = (corrCount * 2.00) - (wrCount * 0.50);
     const acc = attCount > 0 ? Math.round((corrCount / attCount) * 100) : 0;
+    const attRate = totalQ > 0 ? Math.round((attCount / totalQ) * 100) : 0;
     const stCount = localQuizState.starred.size;
 
     let priorityCount = 0;
@@ -3679,22 +3681,60 @@ function renderQuizUI() {
     banner.innerHTML = `
       <div class="quiz-score-header">
         <h4 class="quiz-score-header-title">📊 Session Scorecard</h4>
-        <span class="quiz-score-badge">INSTANT TELEMETRY</span>
+        <span class="quiz-score-badge">${attCount} / ${totalQ} SOLVED</span>
       </div>
       <div class="quiz-score-grid">
         ${isMB ? `
-          <div class="quiz-score-item stat-item-score"><span class="label">Attempted</span><span class="value" style="color:var(--tcs-blue-accent);">${attCount}</span></div>
-          <div class="quiz-score-item stat-item-unattempted"><span class="label">Unattempted</span><span class="value" style="color:var(--text-muted);">${unattCount}</span></div>
-          <div class="quiz-score-item stat-item-promoted"><span class="label">Promoted</span><span class="value" style="color:var(--success-dark);">${corrCount} ✅</span></div>
-          <div class="quiz-score-item stat-item-demoted"><span class="label">Demoted</span><span class="value" style="color:var(--danger-dark);">${wrCount} ⚠️</span></div>
+          <div class="quiz-score-item stat-item-score">
+            <span class="label">Attempted</span>
+            <span class="value" style="color:var(--tcs-blue-accent);">${attCount} <small style="font-size:10px; opacity:0.7;">/${totalQ}</small></span>
+          </div>
+          <div class="quiz-score-item stat-item-accuracy">
+            <span class="label">Accuracy</span>
+            <span class="value" style="color:var(--c-review);">${acc}%</span>
+          </div>
+          <div class="quiz-score-item stat-item-promoted">
+            <span class="label">Promoted</span>
+            <span class="value" style="color:var(--success-dark);">${corrCount} ✅</span>
+          </div>
+          <div class="quiz-score-item stat-item-demoted">
+            <span class="label">Demoted</span>
+            <span class="value" style="color:var(--danger-dark);">${wrCount} ⚠️</span>
+          </div>
+          <div class="quiz-score-item stat-item-unattempted">
+            <span class="label">Skipped</span>
+            <span class="value" style="color:var(--text-muted);">${unattCount}</span>
+          </div>
+          <div class="quiz-score-item stat-item-rate">
+            <span class="label">Cleared</span>
+            <span class="value" style="color:var(--success);">${totalQ > 0 ? Math.round((corrCount / totalQ) * 100) : 0}%</span>
+          </div>
         ` : `
-          <div class="quiz-score-item stat-item-score"><span class="label">Score</span><span class="value" style="color:var(--tcs-blue-accent);">${score.toFixed(2)}</span></div>
-          <div class="quiz-score-item stat-item-unattempted"><span class="label">Unattempted</span><span class="value" style="color:var(--text-muted);">${unattCount}</span></div>
-          <div class="quiz-score-item stat-item-correct"><span class="label">Correct</span><span class="value" style="color:var(--success-dark);">+${corrCount}</span></div>
-          <div class="quiz-score-item stat-item-incorrect"><span class="label">Incorrect</span><span class="value" style="color:var(--danger-dark);">-${wrCount}</span></div>
+          <div class="quiz-score-item stat-item-score">
+            <span class="label">Score</span>
+            <span class="value" style="color:var(--tcs-blue-accent);">${score.toFixed(2)} <small style="font-size:10px; opacity:0.7;">/${maxMarks}</small></span>
+          </div>
+          <div class="quiz-score-item stat-item-accuracy">
+            <span class="label">Accuracy</span>
+            <span class="value" style="color:var(--c-review);">${acc}%</span>
+          </div>
+          <div class="quiz-score-item stat-item-rate">
+            <span class="label">Attempted</span>
+            <span class="value" style="color:var(--warning-dark);">${attRate}%</span>
+          </div>
+          <div class="quiz-score-item stat-item-correct">
+            <span class="label">Correct</span>
+            <span class="value" style="color:var(--success-dark);">+${corrCount}</span>
+          </div>
+          <div class="quiz-score-item stat-item-incorrect">
+            <span class="label">Wrong</span>
+            <span class="value" style="color:var(--danger-dark);">-${wrCount}</span>
+          </div>
+          <div class="quiz-score-item stat-item-unattempted">
+            <span class="label">Skipped</span>
+            <span class="value" style="color:var(--text-muted);">${unattCount}</span>
+          </div>
         `}
-        <div class="quiz-score-item stat-item-starred"><span class="label">Starred</span><span class="value" style="color:var(--warning-dark);">${stCount} ⭐</span></div>
-        <div class="quiz-score-item stat-item-accuracy"><span class="label">Accuracy</span><span class="value" style="color:var(--c-review);">${acc}%</span></div>
       </div>
       <div class="quiz-filter-strip">
         <button type="button" class="quiz-chip-btn ${localQuizState.filter === 'all' ? 'active' : ''}" onclick="filterQuizReview('all')">All (${totalQ})</button>
