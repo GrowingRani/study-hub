@@ -597,10 +597,33 @@ body.portal-body { font-family: var(--font-family); background-color: var(--bg-p
 
 .sol-explanation { background: var(--bg-surface-elevated) !important; border-left: 4px solid var(--tcs-blue-accent) !important; padding: 16px; margin-top: 20px; font-size: 14px; color: var(--text-muted) !important; white-space: pre-line !important; line-height: 1.65; word-break: break-word; }
 .sol-explanation strong { color: var(--tcs-blue-accent) !important; display: block; margin-bottom: 6px; }
-#cardFront h3, #cardBack .sol-explanation { white-space: pre-line !important; line-height: 1.6; }
+
+/* 🗂️ ULTIMATE 3D SPATIAL FLASHCARD ENGINE & STACK DEPTH */
+.flashcard-deck-stage { position: relative; width: 100%; max-width: 580px; margin: 0 auto 16px auto; perspective: 1200px; -webkit-perspective: 1200px; min-height: 380px; display: flex; align-items: center; justify-content: center; }
+.flashcard-stack-layer { position: absolute; width: 95%; height: 95%; border-radius: 14px; background: var(--bg-surface-elevated); border: 1.5px solid var(--border-color); opacity: 0.65; transform: translateY(10px) scale(0.97); z-index: 1; transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); pointer-events: none; }
+.flashcard-stack-layer.layer-2 { width: 90%; height: 90%; opacity: 0.35; transform: translateY(18px) scale(0.94); z-index: 0; }
+.flashcard-3d-card { position: relative; width: 100%; min-height: 360px; border-radius: 14px; transform-style: preserve-3d; -webkit-transform-style: preserve-3d; transition: transform 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.25s ease; cursor: pointer; z-index: 2; box-shadow: var(--shadow-md); outline: none; user-select: none; }
+.flashcard-3d-card.is-flipped { transform: rotateY(180deg); }
+.flashcard-3d-card.swipe-left { transform: translateX(-40px) rotate(-6deg); border-color: var(--danger) !important; }
+.flashcard-3d-card.swipe-right { transform: translateX(40px) rotate(6deg); border-color: var(--success) !important; }
+.flashcard-face { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 14px; backface-visibility: hidden; -webkit-backface-visibility: hidden; display: flex; flex-direction: column; justify-content: space-between; padding: 24px 22px; background: var(--bg-panel); border: 1.5px solid var(--border-color); box-sizing: border-box; overflow: hidden; }
+.flashcard-front { z-index: 2; }
+.flashcard-back { transform: rotateY(180deg); z-index: 1; background: linear-gradient(145deg, var(--bg-panel) 0%, var(--bg-surface-elevated) 100%); border-color: var(--success-border); }
+.flashcard-content-scroll { overflow-y: auto; flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 6px 0; -webkit-overflow-scrolling: touch; }
+.flashcard-punchline { font-size: 19px; font-weight: 800; color: var(--success-dark); line-height: 1.35; margin: 4px 0 12px 0; }
+.flashcard-keyhook { background: var(--bg-surface-elevated); border-left: 3.5px solid var(--success); padding: 8px 12px; border-radius: 6px; font-size: 13px; font-weight: 700; color: var(--text-main); margin-bottom: 10px; }
+.flashcard-context { font-size: 12.5px; color: var(--text-muted); line-height: 1.55; white-space: pre-line; background: var(--bg-panel); padding: 10px 12px; border-radius: 6px; border: 1px dashed var(--border-color); max-height: 130px; overflow-y: auto; text-align: left; }
+.flashcard-controls-dock { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: 100%; max-width: 580px; margin: 0 auto; }
+.btn-fc-hard { height: 42px; border-radius: 10px; border: 1.5px solid var(--danger-border); background: var(--danger-bg-subtle); color: var(--danger-dark); font-family: var(--font-family); font-size: 12.5px; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1); outline: none; }
+.btn-fc-hard:hover, .btn-fc-hard:active { background: var(--danger-dark); color: #ffffff; border-color: var(--danger-dark); transform: translateY(-2px); box-shadow: 0 4px 14px var(--danger-bg-subtle); }
+.btn-fc-mastered { height: 42px; border-radius: 10px; border: 1.5px solid var(--success-border); background: var(--success-bg-subtle); color: var(--success-dark); font-family: var(--font-family); font-size: 12.5px; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1); outline: none; }
+.btn-fc-mastered:hover, .btn-fc-mastered:active { background: var(--success-dark); color: #ffffff; border-color: var(--success-dark); transform: translateY(-2px); box-shadow: 0 4px 14px var(--success-bg-subtle); }
+.fc-badge-key { font-family: var(--font-mono); font-size: 10px; opacity: 0.75; padding: 1px 5px; border-radius: 4px; background: rgba(0, 0, 0, 0.08); }
+.fc-telemetry-strip { display: flex; align-items: center; justify-content: space-between; width: 100%; max-width: 580px; margin: 0 auto 10px auto; font-family: var(--font-mono); font-size: 11.5px; font-weight: 700; color: var(--text-muted); }
+.fc-progress-bar { width: 100%; height: 4px; background: var(--bg-surface-hover); border-radius: 4px; overflow: hidden; margin-top: 6px; }
+.fc-progress-fill { height: 100%; background: linear-gradient(90deg, var(--tcs-blue-accent), var(--success)); transition: width 0.3s ease; }
 
 .quiz-header-actions { display: flex; align-items: center; gap: 8px; }
-
 /* ⭐ SLEEK INDUSTRIAL QUESTION STAR BUTTON & HEADER */
 .sol-q-title { font-size: 14.5px; font-weight: 800; color: var(--tcs-blue-header); letter-spacing: -0.2px; display: inline-flex; align-items: center; gap: 8px; }
 .btn-star-q { background: transparent; border: none; cursor: pointer; width: 34px; height: 34px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; color: var(--text-muted); transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1); padding: 0; flex-shrink: 0; }

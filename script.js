@@ -103,6 +103,13 @@ let isExitingApp = false;
 let localQuizState = { answers: {}, starred: new Set(), isFinished: false, filter: "all" };
 let localReadState = { starred: new Set(), filter: "all" };
 
+// 🗂️ STATE FOR 3D SPATIAL LEITNER FLASHCARDS
+let flashcardDeck = [];
+let flashcardOriginalCount = 0;
+let flashcardMasteredCount = 0;
+let isFlashcardFlipped = false;
+let isFlashcardListenerActive = false;
+
 window.toggleShuffleSetting = function(val) {
   isShuffleEnabled = !!val;
 };
@@ -4002,32 +4009,222 @@ window.filterQuizReview = function(t) {
   renderQuizUI(); 
 };
 
+// 🚀 IN-SESSION ZERO-LEAK LEITNER FLASHCARD ENGINE
 function renderFlashcardMode() {
-  const mEl = document.getElementById("practiceModeTitle"); 
-  if (mEl) mEl.innerText = "🗂️ FLASHCARDS";
-  const container = document.getElementById("practiceContainer"); 
+  const mEl = document.getElementById("practiceModeTitle");
+  if (mEl) mEl.innerText = "🗂️ SPATIAL FLASHCARDS";
+
+  // Initial Deck Compilation
+  if (!flashcardDeck.length && practiceQuestions.length) {
+    flashcardDeck = [...practiceQuestions];
+    flashcardOriginalCount = practiceQuestions.length;
+    flashcardMasteredCount = 0;
+  }
+
+  isFlashcardFlipped = false;
+  setupFlashcardKeyboardShortcuts();
+  renderFlashcardCardDOM();
+}
+
+function renderFlashcardCardDOM() {
+  const container = document.getElementById("practiceContainer");
   if (!container) return;
-  const q = practiceQuestions[flashcardIndex];
+  container.innerHTML = "";
+
+  // 1. Completion State (All Backlog & Leaks 100% Cleared)
+  if (!flashcardDeck.length) {
+    container.innerHTML = `
+      <div class="practice-loader-card" style="padding: 40px 24px; animation: modalFadeIn 0.3s ease-out;">
+        <div style="font-size: 48px; margin-bottom: 12px;">🏆</div>
+        <h3 style="font-size: 18px; font-weight: 800; color: var(--tcs-blue-header); margin-bottom: 6px;">Deck Fully Conquered!</h3>
+        <p style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 24px; line-height: 1.5;">Zero recall leaks remaining. All ${flashcardOriginalCount} questions verified in active memory.</p>
+        <button type="button" class="btn-primary" style="height: 38px; padding: 0 20px; font-size: 12.5px;" onclick="resetFlashcardDeck()">
+          <span>↺ Restart Deck</span>
+        </button>
+      </div>
+    `;
+    return;
+  }
+
+  const q = flashcardDeck[0];
   const cOpt = (q.options || []).find(o => isOptionMatching(o.id, q.correctAnswer));
   const cText = cOpt ? getLocalizedText({ en: cOpt.en || cOpt.text, hi: cOpt.hi }) : "";
-  container.innerHTML = `
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;"><span style="font-weight:700; color:var(--text-muted);">Card ${flashcardIndex + 1} of ${practiceQuestions.length}</span><span style="font-size:12px; color:var(--tcs-blue-accent);">Tap card to reveal Answer</span></div>
-    <div id="flashcardBox" style="min-height:280px; background:var(--bg-panel); border:2px solid var(--border-color); border-radius:8px; padding:30px; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; cursor:pointer; box-shadow:var(--shadow-sm); transition:all 0.2s ease; color:var(--text-main);">
-      <div id="cardFront"><span class="login-badge" style="margin-bottom:14px;">QUESTION</span><h3 style="font-size:18px; line-height:1.5; color:inherit;">${getLocalizedText(q.content)}</h3></div>
-      <div id="cardBack" style="display:none; width:100%;"><span class="login-badge" style="background:var(--success-bg-subtle); color:var(--success-dark); border-color:var(--success-border); margin-bottom:14px;">CORRECT ANSWER</span><h4 style="font-size:17px; color:var(--success-dark); margin-bottom:12px;">${cText}</h4><div class="sol-explanation" style="text-align:left; margin-top:10px;"><strong>Explanation:</strong><br/>${formatExplanation(q.explanation)}</div></div>
+  const remainingInDeck = flashcardDeck.length;
+  const progressPct = Math.round((flashcardMasteredCount / flashcardOriginalCount) * 100);
+
+  // Stack Depth Visual Logic (2 layers behind)
+  const layer1Html = remainingInDeck > 1 ? `<div class="flashcard-stack-layer"></div>` : "";
+  const layer2Html = remainingInDeck > 2 ? `<div class="flashcard-stack-layer layer-2"></div>` : "";
+
+  // Telemetry Strip + Top Progress Line
+  const telemetryHtml = `
+    <div class="fc-telemetry-strip">
+      <span>REMAINING: <strong>${remainingInDeck}</strong></span>
+      <span>MASTERED: <strong style="color:var(--success);">${progressPct}%</strong></span>
     </div>
-    <div style="display:flex; justify-content:space-between; margin-top:20px;"><button type="button" class="tcs-btn btn-secondary" ${flashcardIndex === 0 ? 'disabled' : ''} id="btnPrevCard">← Previous</button><button type="button" class="tcs-btn btn-primary" ${flashcardIndex === practiceQuestions.length - 1 ? 'disabled' : ''} id="btnNextCard">Next →</button></div>
+    <div class="fc-progress-bar" style="max-width:580px; margin:0 auto 16px auto;">
+      <div class="fc-progress-fill" style="width: ${progressPct}%;"></div>
+    </div>
   `;
-  document.getElementById("flashcardBox")?.addEventListener("click", () => { 
-    const f = document.getElementById("cardFront"), b = document.getElementById("cardBack"); 
-    if (f && b) { 
-      const isF = f.style.display !== "none"; 
-      f.style.display = isF ? "none" : "block"; 
-      b.style.display = isF ? "block" : "none"; 
-    } 
+
+  // 3D Card Stage
+  const stageHtml = `
+    <div class="flashcard-deck-stage">
+      ${layer2Html}
+      ${layer1Html}
+      <div class="flashcard-3d-card" id="flashcardBox" onclick="toggleFlashcard3DFlip()">
+        <!-- FRONT FACE -->
+        <div class="flashcard-face flashcard-front">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span class="briefing-badge">QUESTION • Q${q.qNum}</span>
+            <span style="font-size:11px; font-weight:700; color:var(--text-muted);">Tap to Reveal ↺</span>
+          </div>
+          <div class="flashcard-content-scroll">
+            <h3 style="font-size:17.5px; line-height:1.6; color:var(--text-main); font-weight:600; text-align:center;">
+              ${getLocalizedText(q.content)}
+            </h3>
+          </div>
+          <div style="text-align:center; font-size:11px; font-weight:700; color:var(--text-muted); font-family:var(--font-mono);">
+            SPACEBAR OR TAP TO FLIP
+          </div>
+        </div>
+
+        <!-- BACK FACE (HIERARCHICAL RECALL) -->
+        <div class="flashcard-face flashcard-back">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span class="briefing-badge" style="background:var(--success-bg-subtle); color:var(--success-dark); border-color:var(--success-border);">ANSWER</span>
+            <span style="font-size:11px; font-weight:700; color:var(--text-muted);">Tap to Flip ↻</span>
+          </div>
+          <div class="flashcard-content-scroll" style="text-align:center;">
+            <div class="flashcard-punchline">${cText}</div>
+            <div class="flashcard-context"><strong>Takeaway Context:</strong><br/>${formatExplanation(q.explanation)}</div>
+          </div>
+          <div style="text-align:center; font-size:11px; font-weight:700; color:var(--text-muted); font-family:var(--font-mono);">
+            RATE RETENTION TO ADVANCE
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Action Dock
+  const dockHtml = `
+    <div class="flashcard-controls-dock">
+      <button type="button" class="btn-fc-hard" onclick="handleFlashcardGrading(false)">
+        <span>⚠️ Forgot / Hard</span>
+        <span class="fc-badge-key">1</span>
+      </button>
+      <button type="button" class="btn-fc-mastered" onclick="handleFlashcardGrading(true)">
+        <span>✔ Mastered</span>
+        <span class="fc-badge-key">2</span>
+      </button>
+    </div>
+  `;
+
+  container.innerHTML = telemetryHtml + stageHtml + dockHtml;
+  setupFlashcardTouchGestures();
+}
+
+// 🔄 3D FLIP CONTROLLER
+window.toggleFlashcard3DFlip = function() {
+  const card = document.getElementById("flashcardBox");
+  if (!card) return;
+  isFlashcardFlipped = !isFlashcardFlipped;
+  card.classList.toggle("is-flipped", isFlashcardFlipped);
+};
+
+// 🎯 LEITNER IN-SESSION MICRO-LOOP ALGORITHM
+window.handleFlashcardGrading = async function(isMastered) {
+  if (!flashcardDeck.length) return;
+  const currentQ = flashcardDeck.shift(); // Remove from front
+
+  if (isMastered) {
+    flashcardMasteredCount++;
+    // Optional Mistake Bank Sync if question had stats
+    if (currentCandidate && currentQ.id) {
+      syncMistakeBank([{
+        student_roll: currentCandidate.roll_number,
+        subject: activeSubject || "General",
+        question_id: currentQ.id,
+        question_data: currentQ,
+        isCorrect: true
+      }]);
+    }
+  } else {
+    // 🚀 ZERO-LEAK RE-QUEUE: Insert exactly 3 cards deeper in the current deck
+    const reinsertIndex = Math.min(flashcardDeck.length, 3);
+    flashcardDeck.splice(reinsertIndex, 0, currentQ);
+  }
+
+  isFlashcardFlipped = false;
+  renderFlashcardCardDOM();
+};
+
+window.resetFlashcardDeck = function() {
+  flashcardDeck = [...practiceQuestions];
+  flashcardOriginalCount = practiceQuestions.length;
+  flashcardMasteredCount = 0;
+  renderFlashcardCardDOM();
+};
+
+// ⌨️ SINGLE-KEY PC PRODUCTIVITY FLOW
+function setupFlashcardKeyboardShortcuts() {
+  if (isFlashcardListenerActive) return;
+  isFlashcardListenerActive = true;
+
+  window.addEventListener("keydown", (e) => {
+    const isPracticeView = document.getElementById("viewPractice")?.style.display === "flex";
+    const isFcMode = (document.getElementById("practiceModeTitle")?.innerText || "").includes("FLASHCARDS");
+    if (!isPracticeView || !isFcMode || !flashcardDeck.length) return;
+
+    if (e.code === "Space") {
+      e.preventDefault();
+      toggleFlashcard3DFlip();
+    } else if (e.key === "1" || e.code === "ArrowLeft") {
+      e.preventDefault();
+      handleFlashcardGrading(false);
+    } else if (e.key === "2" || e.code === "ArrowRight") {
+      e.preventDefault();
+      handleFlashcardGrading(true);
+    }
   });
-  document.getElementById("btnPrevCard")?.addEventListener("click", () => { if (flashcardIndex > 0) { flashcardIndex--; renderFlashcardMode(); } });
-  document.getElementById("btnNextCard")?.addEventListener("click", () => { if (flashcardIndex < practiceQuestions.length - 1) { flashcardIndex++; renderFlashcardMode(); } });
+}
+
+// 📱 TACTILE MOBILE SWIPE SENSORS
+function setupFlashcardTouchGestures() {
+  const card = document.getElementById("flashcardBox");
+  if (!card || window.innerWidth > 768) return;
+
+  let startX = 0, startY = 0, startTime = 0;
+  card.addEventListener("touchstart", (e) => {
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+    startTime = Date.now();
+  }, { passive: true });
+
+  card.addEventListener("touchmove", (e) => {
+    const diffX = e.touches[0].clientX - startX;
+    if (Math.abs(diffX) > 25) {
+      card.classList.toggle("swipe-right", diffX > 0);
+      card.classList.toggle("swipe-left", diffX < 0);
+    }
+  }, { passive: true });
+
+  card.addEventListener("touchend", (e) => {
+    const diffX = e.changedTouches[0].clientX - startX;
+    const diffY = e.changedTouches[0].clientY - startY;
+    const elapsed = Date.now() - startTime;
+    card.classList.remove("swipe-left", "swipe-right");
+
+    // Fast horizontal swipe detection (> 60px)
+    if (Math.abs(diffX) > 60 && Math.abs(diffY) < 50 && elapsed < 400) {
+      if (diffX > 0) {
+        handleFlashcardGrading(true); // Swiped Right = Mastered
+      } else {
+        handleFlashcardGrading(false); // Swiped Left = Forgot / Hard
+      }
+    }
+  }, { passive: true });
 }
 
 // ==========================================================================
