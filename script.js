@@ -194,6 +194,27 @@ function updateDesktopNav(viewId) {
   });
 }
 
+// 🚀 INSTANT 0ms HEADER TELEMETRY SYNC (STREAK + ACCURACY TOGETHER)
+function updateHeaderBadges() {
+  const isMobile = window.innerWidth <= 768;
+  const roll = currentCandidate?.roll_number;
+
+  // 1. Streak Sync
+  const streak = dailyPerf?.streak_count || 0;
+  ['headerStreakCount', 'headerStreakCount_lib', 'headerStreakCount_stats', 'headerStreakCount_prof'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerText = streak + (isMobile ? "" : " Days");
+  });
+
+  // 2. Accuracy Sync (0ms Cache)
+  const cachedAcc = roll ? localStorage.getItem("cache_accuracy_" + roll) : null;
+  const accText = cachedAcc !== null ? cachedAcc + "%" : "--%";
+  ['headerAccuracyCount', 'headerAccuracyCount_lib', 'headerAccuracyCount_stats', 'headerAccuracyCount_prof'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerText = accText;
+  });
+}
+
 function closeAllOverlaysAndPopups() {
   let closedSomething = false;
 
@@ -1224,12 +1245,25 @@ window.executeBriefingMode = function(mode) {
 // ==========================================================================
 // 8. HOME DECK & PLAYLIST ENGINE (QUANTUM CORE BOOSTER & ANTI-DRIFT ROLLOVER)
 // ==========================================================================
+// 🚀 0ms CACHE-FIRST & PARALLEL HYDRATION DASHBOARD
 async function mountDashboard(isInitialLoad = false) {
   const cName = document.getElementById("dashCandidateName"); 
   if (cName) cName.innerText = currentCandidate?.full_name || "Candidate";
   const rollEl = document.getElementById("dashCandidateRoll"); 
   if (rollEl) rollEl.innerText = "ROLL: " + (currentCandidate?.roll_number || "---");
-  fetchStudentAnalytics(true); 
+
+  // 1. LocalStorage से 0ms Instant State Restore
+  const roll = currentCandidate?.roll_number;
+  if (roll) {
+    try {
+      const cachedPerf = localStorage.getItem("cache_daily_perf_" + roll);
+      if (cachedPerf) dailyPerf = JSON.parse(cachedPerf);
+      const cachedPlaylists = localStorage.getItem("cache_playlists_" + roll);
+      if (cachedPlaylists) userPlaylists = JSON.parse(cachedPlaylists);
+      const cachedItems = localStorage.getItem("cache_playlist_items_" + roll);
+      if (cachedItems) userPlaylistItems = JSON.parse(cachedItems);
+    } catch (e) { console.warn("Cache parse skipped", e); }
+  }
 
   // 👑 Sunday Golden UI & Header Sync (Immediate 0ms UI Swap)
   const isSun = isSunday();
@@ -1263,18 +1297,30 @@ async function mountDashboard(isInitialLoad = false) {
       cMeter.innerText = isSun ? "0 Qs ⚔️ (Crucible Target)" : "0 / 100 Qs";
     }
   }
+
+  // 🚀 स्ट्रीक बैज को 0ms पर सही संख्या के साथ पेंट करें
+  updateHeaderBadges();
   
+  // स्क्रीन तुरंत बिना किसी लोडर के दिखेगी
   renderViewDOM('viewDashboard');
+  if (catalogData.length > 0 && userPlaylists.length > 0) {
+    renderHomePlaylists();
+  }
 
   if (isInitialLoad || !history.state || history.state.page !== 'dashboard') {
     history.replaceState({ page: 'exit-gate' }, '', window.location.pathname);
     history.pushState({ page: 'dashboard', view: 'viewDashboard' }, '', '#viewDashboard');
   }
 
-  await fetchPlaylistsAndCheckRollover(); 
-  await fetchWeakQuestions(); 
-  await fetchTestCatalog(); 
-  await renderHomePlaylists(); 
+  // 🚀 WATERFALL ELIMINATED: सभी कॉल्स एक साथ (Parallel) चलेंगी
+  await Promise.allSettled([
+    fetchPlaylistsAndCheckRollover(),
+    fetchWeakQuestions(),
+    fetchTestCatalog()
+  ]);
+
+  await renderHomePlaylists();
+  fetchStudentAnalytics(true);
   start5PMEngine();
 }
 
@@ -1285,7 +1331,6 @@ async function fetchPlaylistsAndCheckRollover() {
     let { data: pData, error: pErr } = await supabaseClient.from("playlists").select("*").eq("student_roll", roll).order("display_order", { ascending: true });
     if (pErr) console.error("Playlists fetch error:", pErr);
     
-    // 🚀 STARRED SETS INCLUDED AS ESSENTIAL PERMANENT SYSTEM PLAYLIST
     const required = [
       { name: 'Today', order: 1 }, 
       { name: 'Tomorrow', order: 2 }, 
@@ -1306,7 +1351,6 @@ async function fetchPlaylistsAndCheckRollover() {
       pData = refData || pData || [];
     }
 
-    // 🚀 IN-MEMORY & DB LEVEL DEDUPLICATION
     const uniquePlaylists = [];
     const seenPlaylistNames = new Set();
     (pData || []).forEach(p => {
@@ -1338,11 +1382,10 @@ async function fetchPlaylistsAndCheckRollover() {
       .eq("student_roll", roll);
 
     const actualExamAttemptedToday = (todayAttRows || [])
-      .filter(a => (a.attempt_date || "").split("T")[0] === todayStr && (a.test_id > 0 || (a.test_id === -1 && isSunday())))
+      .filter(a => (a.attempt_date || "").split("T")[0] === todayStr && (Number(a.test_id) > 0 || (Number(a.test_id) === -1 && isSunday())))
       .reduce((sum, a) => sum + (a.total_correct || 0) + (a.total_incorrect || 0), 0);
 
-    // 🚀 APPROACH A: संडे को कोई भी प्रयास होने पर टारगेट सिक्योर माना जाए
-    const targetHitToday = isSunday() ? (actualExamAttemptedToday > 0) : (actualExamAttemptedToday >= 100);
+    const crucibleAttempted = (todayAttRows || []).some(a => Number(a.test_id) === -1 && (a.attempt_date || "").split("T")[0] === todayStr);
 
     let { data: dpData } = await supabaseClient
       .from("daily_performance")
@@ -1350,6 +1393,8 @@ async function fetchPlaylistsAndCheckRollover() {
       .eq("student_roll", roll)
       .eq("target_date", todayStr)
       .maybeSingle();
+
+    const targetHitToday = Boolean(dpData?.is_century_hit || (isSunday() && crucibleAttempted) || (actualExamAttemptedToday >= 100));
 
     if (dpData) {
       if (dpData.total_questions_attempted !== actualExamAttemptedToday || dpData.is_century_hit !== targetHitToday) {
@@ -1375,38 +1420,31 @@ async function fetchPlaylistsAndCheckRollover() {
       if (insData) dailyPerf = insData;
     }
 
-    // 🚀 MULTI-DEVICE SYNCHRONIZED ROLLOVER (SUNDAY FROZEN)
-    const serverLastRollover = currentCandidate?.last_rollover_date;
+    // 🚀 FIX: स्ट्रीक आते ही तुरंत हेडर को अपडेट करें (बिना Analytics टैब खोले)
+    updateHeaderBadges();
 
-    // संडे को रोलओवर स्किप रहेगा (ताकि Tomorrow बकेट सोमवार के लिए सुरक्षित रहे)
+    // 🚀 Fast Cache Save
+    try {
+      localStorage.setItem("cache_daily_perf_" + roll, JSON.stringify(dailyPerf));
+      localStorage.setItem("cache_playlists_" + roll, JSON.stringify(userPlaylists));
+      localStorage.setItem("cache_playlist_items_" + roll, JSON.stringify(userPlaylistItems));
+    } catch (e) {}
+
+    // Multi-Device Rollover Check
+    const serverLastRollover = currentCandidate?.last_rollover_date;
     if (serverLastRollover !== todayStr && !isSunday()) {
       const todayList = userPlaylists.find(p => p.playlist_name === 'Today');
       const tomorrowList = userPlaylists.find(p => p.playlist_name === 'Tomorrow');
 
       if (todayList && tomorrowList) {
-        await supabaseClient.from("playlist_items")
-          .update({ is_rollover: true })
-          .eq("playlist_id", todayList.id)
-          .eq("student_roll", roll);
-
-        await supabaseClient.from("playlist_items")
-          .update({ playlist_id: todayList.id })
-          .eq("playlist_id", tomorrowList.id)
-          .eq("student_roll", roll);
+        await supabaseClient.from("playlist_items").update({ is_rollover: true }).eq("playlist_id", todayList.id).eq("student_roll", roll);
+        await supabaseClient.from("playlist_items").update({ playlist_id: todayList.id }).eq("playlist_id", tomorrowList.id).eq("student_roll", roll);
       }
 
-      await supabaseClient.from("students")
-        .update({ last_rollover_date: todayStr })
-        .eq("roll_number", roll);
+      await supabaseClient.from("students").update({ last_rollover_date: todayStr }).eq("roll_number", roll);
+      if (currentCandidate) currentCandidate.last_rollover_date = todayStr;
 
-      if (currentCandidate) {
-        currentCandidate.last_rollover_date = todayStr;
-      }
-      localStorage.removeItem("last_rollover_" + roll);
-
-      const { data: piData2 } = await supabaseClient.from("playlist_items")
-        .select("*")
-        .eq("student_roll", roll);
+      const { data: piData2 } = await supabaseClient.from("playlist_items").select("*").eq("student_roll", roll);
       userPlaylistItems = piData2 || [];
     }
   } catch (error) { 
@@ -3068,27 +3106,35 @@ function renderScorecard() {
   })();
 }
 
-window.closeExamAndReload = async function() { 
+// 🚀 INSTANT 0ms OPTIMISTIC RETURN TO HOME
+window.closeExamAndReload = function() { 
   closeExamModal(); 
   isExamFinished = true; 
-  
-  try {
-    const { data: hist } = await supabaseClient
-      .from("test_attempts")
-      .select("test_id, score, total_correct, total_incorrect, attempt_date, time_spent_seconds")
-      .eq("student_roll", currentCandidate.roll_number)
-      .order("attempt_date", { ascending: false });
-    if (hist && hist.length > 0) userAttemptHistory = hist;
-  } catch (e) { 
-    console.error("Error refreshing attempt history:", e); 
-  }
 
-  await fetchPlaylistsAndCheckRollover(); 
-  await renderHomePlaylists(); 
+  // 1. 0ms पर तुरंत डैशबोर्ड खोलें (User को कोई लैग फील नहीं होगा)
+  updateHeaderBadges();
+  renderHomePlaylists(); 
   renderSubjectHubGrid(); 
   if (activeSubject) renderTopicSets(); 
-  fetchStudentAnalytics(true); 
   switchView('viewDashboard'); 
+
+  // 2. बैकग्राउंड में फ्रेश डेटा सिंक करें (Non-blocking)
+  (async () => {
+    try {
+      const { data: hist } = await supabaseClient
+        .from("test_attempts")
+        .select("test_id, score, total_correct, total_incorrect, attempt_date, time_spent_seconds")
+        .eq("student_roll", currentCandidate.roll_number)
+        .order("attempt_date", { ascending: false });
+      if (hist && hist.length > 0) userAttemptHistory = hist;
+
+      await fetchPlaylistsAndCheckRollover();
+      await renderHomePlaylists();
+      fetchStudentAnalytics(true);
+    } catch (e) {
+      console.error("Background sync after exam:", e);
+    }
+  })();
 };
 
 window.openSolutionsView = function() {
@@ -3218,6 +3264,8 @@ window.fetchStudentAnalytics = async function(isSilent = false) {
     });
 
     const totalQ = nCorr + nIncorr, accVal = totalQ > 0 ? ((nCorr / totalQ) * 100).toFixed(1) : "0.0", avgSpd = totalQ > 0 ? Math.round(totalSecs / totalQ) : 0;
+    if (currentCandidate?.roll_number) localStorage.setItem("cache_accuracy_" + currentCandidate.roll_number, accVal);
+    
     let todayMins = 0, last7Mins = 0, attMap = {}, past7 = [];
     for (let i = 0; i < 7; i++) { 
       let dt = new Date(); 
