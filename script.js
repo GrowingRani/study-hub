@@ -169,6 +169,13 @@ function formatExplanation(exp) {
 window.addEventListener("DOMContentLoaded", () => {
   document.documentElement.style.overscrollBehaviorY = 'none'; 
   document.body.style.overscrollBehaviorY = 'none';
+
+  // 🚀 0ms SYNCHRONOUS PWA EXIT GATE (Fixes instant swipe-out before Supabase finishes)
+  if (!history.state || history.state.page !== 'dashboard') {
+    history.replaceState({ page: 'exit-gate' }, '', window.location.pathname);
+    history.pushState({ page: 'dashboard', view: 'viewDashboard' }, '', '#viewDashboard');
+  }
+
   setupAppEvents(); 
   initAuthSessionWatcher(); 
   setupMobileExamGestures();
@@ -315,10 +322,12 @@ window.switchView = function(viewId, pushHistory = true) {
 window.addEventListener("popstate", function(e) {
   if (typeof isExitingApp !== 'undefined' && isExitingApp) return;
 
+  // 🚀 DOUBLE-SWIPE EXIT: अगर मोडल पहले से खुला है और फिर से बैक स्वाइप हुआ तो सीधा एग्जिट
   const exitModal = document.getElementById('exitConfirmModal');
-  if (exitModal && exitModal.style.display === 'flex') {
+  if (exitModal && (exitModal.style.display === 'flex' || exitModal.style.display === 'block')) {
     exitModal.style.display = 'none';
-    history.pushState({ page: 'dashboard', view: 'viewDashboard' }, '', '#viewDashboard');
+    isExitingApp = true;
+    history.back();
     return;
   }
 
@@ -383,6 +392,7 @@ window.addEventListener("popstate", function(e) {
     return; 
   }
 
+  // 🚀 HOME EXIT TRIGGER: मोडल दिखाओ और हिस्ट्री स्टेट सुरक्षित रखो
   if (!e.state || e.state.page === 'exit-gate' || currentActiveView === 'viewDashboard') {
     history.pushState({ page: 'dashboard', view: 'viewDashboard' }, '', '#viewDashboard');
     showExitConfirmModal();
@@ -4228,10 +4238,24 @@ function setupFlashcardTouchGestures() {
 }
 
 // ==========================================================================
-// 12. ELEGANT MOBILE APP EXIT DIALOG CONTROLLER (ZERO ABOUT:BLANK WINDOW)
+// 12. PWA NATIVE EXIT CONTROLLER (ZERO-GLITCH HISTORY ENGINE)
 // ==========================================================================
+let lastBackSwipeTime = 0;
+let isExitPending = false;
+
 window.showExitConfirmModal = function() {
-  isExitingApp = false;
+  const now = Date.now();
+  
+  // 🚀 FAST DOUBLE-SWIPE EXIT: अगर यूजर ने 2 सेकंड में दोबारा स्वाइप किया तो सीधे क्लोज़
+  if (now - lastBackSwipeTime < 2200) {
+    isExitingApp = true;
+    history.back(); // यह Android OS को ऐप क्लोज़ करने देता है
+    return;
+  }
+  
+  lastBackSwipeTime = now;
+  isExitPending = true;
+
   const modal = document.getElementById('exitConfirmModal');
   if (modal) {
     modal.style.setProperty("display", "flex", "important");
@@ -4240,12 +4264,15 @@ window.showExitConfirmModal = function() {
 };
 
 window.closeExitConfirmModal = function() {
+  isExitPending = false;
   isExitingApp = false;
   const modal = document.getElementById('exitConfirmModal');
   if (modal) {
     modal.style.setProperty("display", "none", "important");
     modal.style.pointerEvents = "none";
   }
+  
+  // हिस्ट्री को दोबारा डैशबोर्ड पर लॉक करें
   if (!history.state || history.state.page === 'exit-gate') {
     history.pushState({ page: 'dashboard', view: 'viewDashboard' }, '', '#viewDashboard');
   }
@@ -4257,20 +4284,19 @@ window.confirmExitApp = function() {
     modal.style.setProperty("display", "none", "important");
     modal.style.pointerEvents = "none";
   }
-  
+
   if (window.navigator && window.navigator.app && typeof window.navigator.app.exitApp === "function") {
     window.navigator.app.exitApp();
     return;
   }
-  
+
   isExitingApp = true;
-  window.close();
-  
+
+  // 🚀 FIX FOR ISSUE 2:
+  // चूंकि ब्राउज़र बटन क्लिक से विंडो को किल नहीं करने देता, 
+  // हम हिस्ट्री को नेचुरल गेट पर ले जाकर बैक ट्रिगर करते हैं
+  history.go(-1);
   setTimeout(() => {
-    if (window.history.length > 1) {
-      window.history.go(-(window.history.length - 1));
-    } else {
-      window.location.replace("about:blank");
-    }
-  }, 100);
+    window.close();
+  }, 50);
 };
