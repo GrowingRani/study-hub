@@ -4200,7 +4200,7 @@ function setupFlashcardKeyboardShortcuts() {
   });
 }
 
-// 📱 TACTILE MOBILE SWIPE SENSORS
+// 📱 ERGONOMIC ONE-HANDED TOUCH SENSORS (BOTH HAND SAFE)
 function setupFlashcardTouchGestures() {
   const card = document.getElementById("flashcardBox");
   if (!card || window.innerWidth > 768) return;
@@ -4214,7 +4214,9 @@ function setupFlashcardTouchGestures() {
 
   card.addEventListener("touchmove", (e) => {
     const diffX = e.touches[0].clientX - startX;
-    if (Math.abs(diffX) > 25) {
+    const diffY = e.touches[0].clientY - startY;
+    // अगर हॉरिजॉन्टल ड्रैग वर्टिकल से ज्यादा है तो स्वाइप टिल्ट दिखाएं
+    if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 20) {
       card.classList.toggle("swipe-right", diffX > 0);
       card.classList.toggle("swipe-left", diffX < 0);
     }
@@ -4226,10 +4228,13 @@ function setupFlashcardTouchGestures() {
     const elapsed = Date.now() - startTime;
     card.classList.remove("swipe-left", "swipe-right");
 
-    // Fast horizontal swipe detection (> 60px)
-    if (Math.abs(diffX) > 60 && Math.abs(diffY) < 50 && elapsed < 400) {
+    // 🚀 NATURAL THUMB ARC RATIO:
+    // हॉरिजॉन्टल दूरी 45px से ज्यादा हो और वर्टिकल से 1.2 गुना ज्यादा प्रभावी हो
+    const isHorizontalMotion = Math.abs(diffX) > (Math.abs(diffY) * 1.15);
+    
+    if (Math.abs(diffX) > 45 && isHorizontalMotion && elapsed < 550) {
       if (diffX > 0) {
-        handleFlashcardGrading(true); // Swiped Right = Mastered
+        handleFlashcardGrading(true);  // Swiped Right = Mastered
       } else {
         handleFlashcardGrading(false); // Swiped Left = Forgot / Hard
       }
