@@ -1314,8 +1314,7 @@ async function mountDashboard(isInitialLoad = false) {
     renderHomePlaylists();
   }
 
-  if (isInitialLoad || !history.state || history.state.page !== 'dashboard') {
-    history.replaceState({ page: 'exit-gate' }, '', window.location.pathname);
+ if (!history.state || history.state.page !== 'dashboard') {
     history.pushState({ page: 'dashboard', view: 'viewDashboard' }, '', '#viewDashboard');
   }
 
