@@ -247,6 +247,7 @@ function closeAllOverlaysAndPopups() {
   if (isVisible('editPlaylistModal')) { closeEditPlaylistModal(); closedSomething = true; }
   if (isVisible('deletePlaylistConfirmModal')) { closeDeletePlaylistModal(); closedSomething = true; }
   if (isVisible('abortExamModal')) { closeAbortExamModal(); closedSomething = true; }
+  if (isVisible('practiceModeSwitcherSheet')) { closePracticeModeSwitcher(); closedSomething = true; }
   
   const submitModal = document.getElementById('submitModalContainer');
   if (submitModal && submitModal.style.display === 'flex' && submitModal.innerHTML !== "") { 
@@ -3575,8 +3576,7 @@ window.launchPracticeMode = async function(testId, mode) {
 };
 
 function renderReadMode() {
-  const mEl = document.getElementById("practiceModeTitle"); 
-  if (mEl) mEl.innerText = "📖 READ MODE";
+  updatePracticeModeHeader("📖 READ MODE", "read");
   localReadState = { starred: new Set(), filter: "all" }; 
   renderReadUI();
 }
@@ -3699,8 +3699,7 @@ window.filterReadMode = function(t) {
 };
 
 function renderInteractiveQuizMode() {
-  const mEl = document.getElementById("practiceModeTitle"); 
-  if (mEl) mEl.innerText = "⚡ INSTANT QUIZ";
+  updatePracticeModeHeader("⚡ INSTANT QUIZ", "quiz"); 
   localQuizState = { answers: {}, starred: new Set(), isFinished: false, filter: "all" }; 
   renderQuizUI(); 
 }
@@ -4011,15 +4010,12 @@ window.filterQuizReview = function(t) {
 
 // 🚀 IN-SESSION ZERO-LEAK LEITNER FLASHCARD ENGINE
 function renderFlashcardMode() {
-  const mEl = document.getElementById("practiceModeTitle");
-  if (mEl) mEl.innerText = "🗂️ SPATIAL FLASHCARDS";
+  updatePracticeModeHeader("🗂️ SPATIAL FLASHCARDS", "flashcards");
 
-  // Initial Deck Compilation
-  if (!flashcardDeck.length && practiceQuestions.length) {
-    flashcardDeck = [...practiceQuestions];
-    flashcardOriginalCount = practiceQuestions.length;
-    flashcardMasteredCount = 0;
-  }
+  // Always compile fresh deck for the currently active set
+  flashcardDeck = [...practiceQuestions];
+  flashcardOriginalCount = practiceQuestions.length;
+  flashcardMasteredCount = 0;
 
   isFlashcardFlipped = false;
   setupFlashcardKeyboardShortcuts();
@@ -4125,8 +4121,11 @@ function renderFlashcardCardDOM() {
   setupFlashcardTouchGestures();
 }
 
-// 🔄 3D FLIP CONTROLLER
+// 🔄 3D FLIP CONTROLLER (WITH PHANTOM-TAP SWIPE LOCK)
+let isSwipingCard = false;
+
 window.toggleFlashcard3DFlip = function() {
+  if (isSwipingCard) return; // स्वाइप के तुरंत बाद ग़लती से फ्लिप नहीं होगा
   const card = document.getElementById("flashcardBox");
   if (!card) return;
   isFlashcardFlipped = !isFlashcardFlipped;
@@ -4174,7 +4173,7 @@ function setupFlashcardKeyboardShortcuts() {
 
   window.addEventListener("keydown", (e) => {
     const isPracticeView = document.getElementById("viewPractice")?.style.display === "flex";
-    const isFcMode = (document.getElementById("practiceModeTitle")?.innerText || "").includes("FLASHCARDS");
+    const isFcMode = activePracticeMode === "flashcards"; // 🚀 Clean Variable State
     if (!isPracticeView || !isFcMode || !flashcardDeck.length) return;
 
     if (e.code === "Space") {
@@ -4189,6 +4188,7 @@ function setupFlashcardKeyboardShortcuts() {
     }
   });
 }
+
 
 // 📱 ERGONOMIC ONE-HANDED TOUCH SENSORS (BOTH HAND SAFE)
 function setupFlashcardTouchGestures() {
@@ -4205,7 +4205,6 @@ function setupFlashcardTouchGestures() {
   card.addEventListener("touchmove", (e) => {
     const diffX = e.touches[0].clientX - startX;
     const diffY = e.touches[0].clientY - startY;
-    // अगर हॉरिजॉन्टल ड्रैग वर्टिकल से ज्यादा है तो स्वाइप टिल्ट दिखाएं
     if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 20) {
       card.classList.toggle("swipe-right", diffX > 0);
       card.classList.toggle("swipe-left", diffX < 0);
@@ -4218,11 +4217,12 @@ function setupFlashcardTouchGestures() {
     const elapsed = Date.now() - startTime;
     card.classList.remove("swipe-left", "swipe-right");
 
-    // 🚀 NATURAL THUMB ARC RATIO:
-    // हॉरिजॉन्टल दूरी 45px से ज्यादा हो और वर्टिकल से 1.2 गुना ज्यादा प्रभावी हो
     const isHorizontalMotion = Math.abs(diffX) > (Math.abs(diffY) * 1.15);
     
     if (Math.abs(diffX) > 45 && isHorizontalMotion && elapsed < 550) {
+      isSwipingCard = true;
+      setTimeout(() => { isSwipingCard = false; }, 320); // 320ms के लिए क्लिक लॉक
+
       if (diffX > 0) {
         handleFlashcardGrading(true);  // Swiped Right = Mastered
       } else {
@@ -4231,6 +4231,83 @@ function setupFlashcardTouchGestures() {
     }
   }, { passive: true });
 }
+
+
+// 🎛️ INTERACTIVE PRACTICE MODE SWITCHER ENGINE
+let activePracticeMode = "read";
+
+function updatePracticeModeHeader(titleText, modeKey) {
+  activePracticeMode = modeKey;
+  const mEl = document.getElementById("practiceModeTitle");
+  if (!mEl) return;
+  mEl.innerHTML = `
+    <span class="practice-mode-pill" onclick="openPracticeModeSwitcher()" title="Tap to switch mode">
+      <span>${titleText}</span>
+      <svg class="pill-chevron" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="6 9 12 15 18 9"></polyline>
+      </svg>
+    </span>
+  `;
+}
+
+window.openPracticeModeSwitcher = function() {
+  const sheet = document.getElementById("practiceModeSwitcherSheet");
+  const overlay = document.getElementById("practiceModeSwitcherOverlay");
+  const shuffleToggle = document.getElementById("togglePracticeSwitchShuffle");
+  if (!sheet || !overlay) return;
+
+  if (shuffleToggle) shuffleToggle.checked = isShuffleEnabled;
+
+  // Active state highlight
+  ['read', 'quiz', 'flashcards'].forEach(m => {
+    const btn = document.getElementById(`modeBtn_${m}`);
+    if (btn) btn.classList.toggle("active-mode", m === activePracticeMode);
+  });
+
+  overlay.style.display = "block";
+  overlay.style.pointerEvents = "auto";
+  sheet.style.display = "block";
+};
+
+window.closePracticeModeSwitcher = function() {
+  const sheet = document.getElementById("practiceModeSwitcherSheet");
+  const overlay = document.getElementById("practiceModeSwitcherOverlay");
+  if (sheet) sheet.style.display = "none";
+  if (overlay) {
+    overlay.style.display = "none";
+    overlay.style.pointerEvents = "none";
+  }
+};
+
+window.switchActivePracticeMode = function(targetMode) {
+  closePracticeModeSwitcher();
+  if (targetMode === activePracticeMode || !practiceQuestions || !practiceQuestions.length) return;
+
+  // 1. Check Shuffle Preference
+  const shuffleToggle = document.getElementById("togglePracticeSwitchShuffle");
+  if (shuffleToggle) isShuffleEnabled = shuffleToggle.checked;
+
+  if (isShuffleEnabled) {
+    practiceQuestions = shuffleArray(practiceQuestions);
+  }
+  // Fresh Deck: Har baar Question 1 se cleanly start hoga
+  practiceQuestions.forEach((q, idx) => { q.qNum = idx + 1; });
+
+  // 2. Clean State Reset & Launch Target Mode
+  if (targetMode === "read") {
+    renderReadMode();
+  } else if (targetMode === "quiz") {
+    renderInteractiveQuizMode();
+  } else if (targetMode === "flashcards") {
+    flashcardDeck = [];
+    flashcardOriginalCount = practiceQuestions.length;
+    flashcardMasteredCount = 0;
+    flashcardIndex = 0;
+    renderFlashcardMode();
+  }
+
+  scrollToTopOfPractice();
+};
 
 // ==========================================================================
 // 12. PWA NATIVE DOUBLE-BACK EXIT ENGINE (ZERO-GLITCH)
