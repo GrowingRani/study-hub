@@ -3575,11 +3575,7 @@ window.launchPracticeMode = async function(testId, mode) {
   }
 };
 
-function renderReadMode() {
-  updatePracticeModeHeader("📖 READ MODE", "read");
-  localReadState = { starred: new Set(), filter: "all" }; 
-  renderReadUI();
-}
+
 
 function renderReadUI() {
   const container = document.getElementById("practiceContainer");
@@ -3698,11 +3694,7 @@ window.filterReadMode = function(t) {
   renderReadUI(); 
 };
 
-function renderInteractiveQuizMode() {
-  updatePracticeModeHeader("⚡ INSTANT QUIZ", "quiz"); 
-  localQuizState = { answers: {}, starred: new Set(), isFinished: false, filter: "all" }; 
-  renderQuizUI(); 
-}
+
 
 function renderQuizUI() {
   const container = document.getElementById("practiceContainer");
@@ -4008,19 +4000,7 @@ window.filterQuizReview = function(t) {
   renderQuizUI(); 
 };
 
-// 🚀 IN-SESSION ZERO-LEAK LEITNER FLASHCARD ENGINE
-function renderFlashcardMode() {
-  updatePracticeModeHeader("🗂️ SPATIAL FLASHCARDS", "flashcards");
 
-  // Always compile fresh deck for the currently active set
-  flashcardDeck = [...practiceQuestions];
-  flashcardOriginalCount = practiceQuestions.length;
-  flashcardMasteredCount = 0;
-
-  isFlashcardFlipped = false;
-  setupFlashcardKeyboardShortcuts();
-  renderFlashcardCardDOM();
-}
 
 function renderFlashcardCardDOM() {
   const container = document.getElementById("practiceContainer");
@@ -4234,20 +4214,48 @@ function setupFlashcardTouchGestures() {
 
 
 // 🎛️ INTERACTIVE PRACTICE MODE SWITCHER ENGINE
-let activePracticeMode = "read";
+// 🚀 SLEEK VECTOR GLYPHS FOR PRACTICE HEADER
+const MODE_ICONS = {
+  read: `<svg class="mode-glyph glyph-read" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>`,
+  quiz: `<svg class="mode-glyph glyph-quiz" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>`,
+  flashcards: `<svg class="mode-glyph glyph-fc" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="14" height="14" rx="2" ry="2"></rect><path d="M21 7v12a2 2 0 0 1-2 2H7"></path></svg>`
+};
 
 function updatePracticeModeHeader(titleText, modeKey) {
   activePracticeMode = modeKey;
   const mEl = document.getElementById("practiceModeTitle");
   if (!mEl) return;
   mEl.innerHTML = `
-    <span class="practice-mode-pill" onclick="openPracticeModeSwitcher()" title="Tap to switch mode">
-      <span>${titleText}</span>
-      <svg class="pill-chevron" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <span class="practice-mode-trigger" onclick="openPracticeModeSwitcher()" title="Tap to switch mode">
+      <span class="trigger-icon-wrap">${MODE_ICONS[modeKey] || ""}</span>
+      <span class="trigger-label">${titleText}</span>
+      <svg class="pill-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
         <polyline points="6 9 12 15 18 9"></polyline>
       </svg>
     </span>
   `;
+}
+
+function renderReadMode() {
+  updatePracticeModeHeader("Read Mode", "read");
+  localReadState = { starred: new Set(), filter: "all" }; 
+  renderReadUI();
+}
+
+function renderInteractiveQuizMode() {
+  updatePracticeModeHeader("Instant Quiz", "quiz"); 
+  localQuizState = { answers: {}, starred: new Set(), isFinished: false, filter: "all" }; 
+  renderQuizUI(); 
+}
+
+function renderFlashcardMode() {
+  updatePracticeModeHeader("Flashcards", "flashcards");
+  flashcardDeck = [...practiceQuestions];
+  flashcardOriginalCount = practiceQuestions.length;
+  flashcardMasteredCount = 0;
+  isFlashcardFlipped = false;
+  setupFlashcardKeyboardShortcuts();
+  renderFlashcardCardDOM();
 }
 
 window.openPracticeModeSwitcher = function() {

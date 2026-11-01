@@ -885,9 +885,10 @@
             <polyline points="12 19 5 12 12 5"></polyline>
           </svg>
         </button>
+        <!-- 🚀 REFINED APPLE-STYLE TYPOGRAPHY HIERARCHY -->
         <div class="practice-title-stack">
-          <span class="practice-mode-tag" id="practiceModeTitle">PRACTICE ENGINE</span>
-          <span class="practice-set-sub" id="practiceSetTitle">Set Practice</span>
+          <span class="practice-set-eyebrow" id="practiceSetTitle">Set Practice</span>
+          <div class="practice-mode-headline-wrap" id="practiceModeTitle">📖 Read Mode</div>
         </div>
       </div>
       <div class="practice-header-right">
@@ -1141,30 +1142,36 @@
     </div>
     
     <div class="mode-switch-grid">
-      <button type="button" class="mode-switch-card" id="modeBtn_read" onclick="switchActivePracticeMode('read')">
-        <div class="mode-card-icon">📖</div>
-        <div class="mode-card-text">
-          <span class="mode-card-title">Read Mode</span>
-          <span class="mode-card-sub">Instant Guide & Direct Key Context</span>
-        </div>
-      </button>
-      
-      <button type="button" class="mode-switch-card" id="modeBtn_quiz" onclick="switchActivePracticeMode('quiz')">
-        <div class="mode-card-icon">⚡</div>
-        <div class="mode-card-text">
-          <span class="mode-card-title">Instant Quiz</span>
-          <span class="mode-card-sub">Self-Assessment with Live Feedback</span>
-        </div>
-      </button>
-      
-      <button type="button" class="mode-switch-card" id="modeBtn_flashcards" onclick="switchActivePracticeMode('flashcards')">
-        <div class="mode-card-icon">🗂️</div>
-        <div class="mode-card-text">
-          <span class="mode-card-title">Spatial Flashcards</span>
-          <span class="mode-card-sub">3D Flip with Zero-Leak Leitner Loop</span>
-        </div>
-      </button>
-    </div>
+    <button type="button" class="mode-switch-card" id="modeBtn_read" onclick="switchActivePracticeMode('read')">
+      <div class="mode-card-icon-box box-read">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
+      </div>
+      <div class="mode-card-text">
+        <span class="mode-card-title">Read Mode</span>
+        <span class="mode-card-sub">Instant Guide & Direct Key Context</span>
+      </div>
+    </button>
+    
+    <button type="button" class="mode-switch-card" id="modeBtn_quiz" onclick="switchActivePracticeMode('quiz')">
+      <div class="mode-card-icon-box box-quiz">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+      </div>
+      <div class="mode-card-text">
+        <span class="mode-card-title">Instant Quiz</span>
+        <span class="mode-card-sub">Self-Assessment with Live Feedback</span>
+      </div>
+    </button>
+    
+    <button type="button" class="mode-switch-card" id="modeBtn_flashcards" onclick="switchActivePracticeMode('flashcards')">
+      <div class="mode-card-icon-box box-fc">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="14" height="14" rx="2" ry="2"></rect><path d="M21 7v12a2 2 0 0 1-2 2H7"></path></svg>
+      </div>
+      <div class="mode-card-text">
+        <span class="mode-card-title">Spatial Flashcards</span>
+        <span class="mode-card-sub">3D Flip with Zero-Leak Leitner Loop</span>
+      </div>
+    </button>
+  </div>
 
     <div class="mode-shuffle-row">
       <div style="display:flex; align-items:center; gap:8px;">
