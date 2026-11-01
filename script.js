@@ -100,6 +100,7 @@ let lastBoosterFetchTime = 0;
 let isExitingApp = false;
 
 // 🔥 STATE FOR QUIZ & READ MODES
+let currentPracticeContext = null; // { type: 'test', id: 12 } ya { type: 'booster' } ya { type: 'mistake_bank' }
 let localQuizState = { answers: {}, starred: new Set(), isFinished: false, filter: "all" };
 let localReadState = { starred: new Set(), filter: "all" };
 
@@ -1574,11 +1575,21 @@ window.launchBoosterMode = async function(mode = 'exam') {
     renderQuestion(0);
     startExamTimer();
   } else {
+    // 🚀 Record active context for one-way exam switcher routing
+    currentPracticeContext = { type: 'booster' };
+
     practiceQuestions = boosterQuestions;
     const tEl = document.getElementById("practiceSetTitle");
-    if (tEl) tEl.innerText = `${isSun ? 'Sunday Crucible Exam' : 'Bonus Mastery Booster'} (${qCount} Qs)`;
-    const mEl = document.getElementById("practiceModeTitle");
-    if (mEl) mEl.innerText = mode === "read" ? "📖 READ MODE" : (mode === "quiz" ? "⚡ INSTANT QUIZ" : "🗂️ FLASHCARDS");
+    const subEl = document.getElementById("practiceMetaSub");
+    const boosterTitle = isSun ? "Sunday Crucible" : "Bonus Mastery Booster";
+
+    if (tEl) {
+      tEl.innerText = boosterTitle;
+      tEl.title = boosterTitle;
+    }
+    if (subEl) {
+      subEl.innerText = `${isSun ? 'Weekly Backlog' : 'Mistakes & Recall'} • ${qCount} Questions`;
+    }
 
     switchView("viewPractice", true);
     if (mode === "read") renderReadMode();
@@ -2727,6 +2738,9 @@ window.launchMistakeBank = function(mode, forceAll = false) {
     });
   }
 
+  // 🚀 Record active context for one-way exam switcher routing
+  currentPracticeContext = { type: 'mistake_bank', forceAll };
+
   const targetList = (forceAll || !due.length) ? allW : due;
   practiceQuestions = targetList.map((item, i) => {
     const qData = item.question_data || {}; 
@@ -2744,7 +2758,17 @@ window.launchMistakeBank = function(mode, forceAll = false) {
   }).sort(() => 0.5 - Math.random()).slice(0, 100);
 
   const tEl = document.getElementById("practiceSetTitle"); 
-  if (tEl) tEl.innerText = forceAll ? `Mega Mistake Bank (${practiceQuestions.length} Qs)` : `Mistake Bank (${practiceQuestions.length} Qs)`;
+  const subEl = document.getElementById("practiceMetaSub");
+  const mbTitle = forceAll ? "Mega Mistake Bank" : "Mistake Bank";
+
+  if (tEl) {
+    tEl.innerText = mbTitle;
+    tEl.title = mbTitle;
+  }
+  if (subEl) {
+    subEl.innerText = `${activeSubject || "General Studies"} • ${practiceQuestions.length} Questions`;
+  }
+
   switchView("viewPractice"); 
   if (mode === "quiz") renderInteractiveQuizMode(); 
   else { flashcardIndex = 0; renderFlashcardMode(); }
@@ -3484,27 +3508,63 @@ function renderHeatmap(attMap) {
 // ==========================================================================
 // 11. MULTI-MODE PRACTICE (READ/FLASHCARD/QUIZ - REFINED TOP BARS)
 // ==========================================================================
+
+// 🚀 SMOOTH SCROLL WITH INSTANT TOUCH FOCUS RELEASE
 window.scrollToTopOfPractice = function() {
+  const btn = document.getElementById("btnScrollTopPractice");
+  if (btn) btn.blur(); // 📱 मोबाइल ब्राउज़र से स्टिकी फ़ोकस तुरंत हटाएगा
+
   const container = document.getElementById("practiceContainer");
   if (container) {
-    container.scrollTo({ top: 0, behavior: 'smooth' });
+    container.scrollTo({ top: 0, behavior: "smooth" });
+  } else {
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
-  const viewPractice = document.getElementById("viewPractice");
-  if (viewPractice) {
-    viewPractice.scrollTo({ top: 0, behavior: 'smooth' });
-  }
-  window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
+// 🧭 200px स्क्रॉल के बाद बटन खुद-ब-खुद स्मूथली पॉप-अप होगा
+function initPracticeScrollTracker() {
+  const container = document.getElementById("practiceContainer");
+  const btn = document.getElementById("btnScrollTopPractice");
+  if (!container || !btn) return;
+
+  container.addEventListener("scroll", () => {
+    if (activePracticeMode === "flashcards") {
+      btn.classList.remove("visible");
+      return;
+    }
+    if (container.scrollTop > 200) {
+      btn.classList.add("visible");
+    } else {
+      btn.classList.remove("visible");
+    }
+  }, { passive: true });
+}
+
+// Ensure initialization when app boots
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initPracticeScrollTracker);
+} else {
+  initPracticeScrollTracker();
+}
+
 window.launchPracticeMode = async function(testId, mode) {
+  // 🚀 Record active context for one-way exam switcher routing
+  currentPracticeContext = { type: 'test', id: testId };
+
   switchView("viewPractice", true);
 
   const container = document.getElementById("practiceContainer");
   const tEl = document.getElementById("practiceSetTitle");
-  const mEl = document.getElementById("practiceModeTitle");
+  const subEl = document.getElementById("practiceMetaSub");
 
-  if (mEl) mEl.innerText = mode === "read" ? "📖 READ MODE" : (mode === "quiz" ? "⚡ INSTANT QUIZ" : "🗂️ FLASHCARDS");
-  if (tEl) tEl.innerText = "Connecting to Exam Node...";
+  if (tEl) {
+    tEl.innerText = "Connecting to Exam Node...";
+    tEl.title = "Connecting...";
+  }
+  if (subEl) {
+    subEl.innerText = "Compiling question matrix...";
+  }
 
   if (container) {
     container.innerHTML = `
@@ -3556,7 +3616,19 @@ window.launchPracticeMode = async function(testId, mode) {
       practiceQuestions.forEach((q, idx) => { q.qNum = idx + 1; });
     }
 
-    if (tEl) tEl.innerText = tInfo ? tInfo.title : "Practice Set";
+    // 🚀 TWO-TIER METADATA POPULATION
+    const setCat = catalogData.find(c => String(c.test_id) === String(testId));
+    const subjName = (setCat?.subject || activeSubject || "General Studies").trim();
+    const qCount = practiceQuestions.length;
+    const setTitle = tInfo ? tInfo.title : (setCat?.test_title || "Practice Set");
+
+    if (tEl) {
+      tEl.innerText = setTitle;
+      tEl.title = setTitle;
+    }
+    if (subEl) {
+      subEl.innerText = `${subjName} • ${qCount} Questions`;
+    }
 
     if (mode === "read") renderReadMode(); 
     else if (mode === "quiz") renderInteractiveQuizMode(); 
@@ -3728,7 +3800,16 @@ function renderQuizUI() {
     banner.innerHTML = `
       <div class="quiz-score-header">
         <h4 class="quiz-score-header-title">📊 Session Scorecard</h4>
-        <span class="quiz-score-badge">${attCount} / ${totalQ} SOLVED</span>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span class="quiz-score-badge">${attCount} / ${totalQ} SOLVED</span>
+          <!-- 🚀 SLEEK MICRO-GLYPH RETAKE BUTTON (SPEEDBUMP PROTECTED) -->
+          <button type="button" class="btn-retake-glyph" onclick="triggerQuizRetake()" title="Retake Quiz from Question 1">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="1 4 1 10 7 10"></polyline>
+              <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+            </svg>
+          </button>
+        </div>
       </div>
       <div class="quiz-score-grid">
         ${isMB ? `
@@ -3912,6 +3993,7 @@ function renderQuizUI() {
     }
   });
 
+  // 🚀 FLOATING DOCK: Only shown during live attempt; completely removed in review mode to prevent accidental resets
   if (!localQuizState.isFinished) {
     const f = document.createElement("div");
     f.className = "quiz-footer-actions";
@@ -3994,6 +4076,54 @@ window.finishQuizSession = function(btnElement) {
     scrollToTopOfPractice();
   }, 320);
 };
+
+// 🚀 MODERN HAPTIC & SHUTTER QUIZ RETAKE CONTROLLER
+window.triggerQuizRetake = function() {
+  if (!practiceQuestions || !practiceQuestions.length) return;
+
+  // 1. Mobile Native Haptic Tick (अगर डिवाइस सपोर्ट करे)
+  if (typeof navigator !== "undefined" && navigator.vibrate) {
+    try { navigator.vibrate(15); } catch(e) {}
+  }
+
+  // 2. Micro-Icon Spring Spin
+  const btn = document.querySelector(".btn-retake-glyph");
+  if (btn) btn.classList.add("spinning");
+
+  // 3. Smooth Shutter Fade-Out (बिना झटके का व्यूफ़ोल्ड रीसेट)
+  const container = document.getElementById("practiceContainer");
+  if (container) container.classList.add("shutter-out");
+
+  setTimeout(() => {
+    // State Clean Reset
+    localQuizState = { answers: {}, starred: new Set(), isFinished: false, filter: "all" };
+
+    if (isShuffleEnabled) {
+      practiceQuestions = shuffleArray(practiceQuestions);
+    }
+    practiceQuestions.forEach((q, idx) => { q.qNum = idx + 1; });
+
+    // Re-render UI & Scroll to Top instantly while invisible
+    renderQuizUI();
+    scrollToTopOfPractice();
+
+    // 4. Smooth Shutter Fade-In (वापस मक्खन की तरह प्रकट होना)
+    requestAnimationFrame(() => {
+      if (container) container.classList.remove("shutter-out");
+    });
+  }, 160);
+};
+
+function executeQuizRestart() {
+  if (!practiceQuestions || !practiceQuestions.length) return;
+  localQuizState = { answers: {}, starred: new Set(), isFinished: false, filter: "all" };
+  if (isShuffleEnabled) {
+    practiceQuestions = shuffleArray(practiceQuestions);
+  }
+  practiceQuestions.forEach((q, idx) => { q.qNum = idx + 1; });
+  renderQuizUI();
+  scrollToTopOfPractice();
+}
 
 window.filterQuizReview = function(t) { 
   localQuizState.filter = t; 
@@ -4213,27 +4343,30 @@ function setupFlashcardTouchGestures() {
 }
 
 
-// 🎛️ INTERACTIVE PRACTICE MODE SWITCHER ENGINE
-// 🚀 SLEEK VECTOR GLYPHS FOR PRACTICE HEADER
+// 🚀 SEMANTIC VECTOR GLYPHS (CHECK-SQUARE FOR QUIZ)
 const MODE_ICONS = {
   read: `<svg class="mode-glyph glyph-read" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>`,
-  quiz: `<svg class="mode-glyph glyph-quiz" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>`,
+  quiz: `<svg class="mode-glyph glyph-quiz" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>`,
   flashcards: `<svg class="mode-glyph glyph-fc" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="14" height="14" rx="2" ry="2"></rect><path d="M21 7v12a2 2 0 0 1-2 2H7"></path></svg>`
 };
 
+// 🎛️ MICRO-MODE SWITCHER CONTROLLER (AUTO SCROLL-ORB TOGGLE)
 function updatePracticeModeHeader(titleText, modeKey) {
   activePracticeMode = modeKey;
-  const mEl = document.getElementById("practiceModeTitle");
-  if (!mEl) return;
-  mEl.innerHTML = `
-    <span class="practice-mode-trigger" onclick="openPracticeModeSwitcher()" title="Tap to switch mode">
-      <span class="trigger-icon-wrap">${MODE_ICONS[modeKey] || ""}</span>
-      <span class="trigger-label">${titleText}</span>
-      <svg class="pill-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-        <polyline points="6 9 12 15 18 9"></polyline>
-      </svg>
-    </span>
-  `;
+  const iconWrap = document.getElementById("practiceModeIconWrap");
+  if (iconWrap) {
+    iconWrap.innerHTML = MODE_ICONS[modeKey] || "";
+  }
+  const btn = document.getElementById("btnPracticeModeSwitcher");
+  if (btn) {
+    btn.title = `Current Mode: ${titleText} (Tap to Switch)`;
+  }
+
+  // 🚀 READ & QUIZ MEIN DIKHEGA, FLASHCARDS MEIN AUTOMATICALLY HIDE HO JAYEGA
+  const scrollDock = document.querySelector(".practice-scroll-dock");
+  if (scrollDock) {
+    scrollDock.style.display = (modeKey === "flashcards") ? "none" : "block";
+  }
 }
 
 function renderReadMode() {
@@ -4289,19 +4422,33 @@ window.closePracticeModeSwitcher = function() {
 
 window.switchActivePracticeMode = function(targetMode) {
   closePracticeModeSwitcher();
+
+  // 🚀 1. EXAM MODE SPEEDBUMP CONFIRMATION (ONE-WAY PROTECTION)
+  if (targetMode === "exam") {
+    showAppNoticeModal(
+      "Official Examination",
+      "Launch TCS iON Exam Console?",
+      "Once you enter Exam Mode, official testing rules apply: active countdown timer, negative marking (+2.00 / -0.50), and no switching back without aborting.",
+      "🎯",
+      "Yes, Launch Exam",
+      () => executeExamLaunchFromPractice(),
+      "Stay in Practice"
+    );
+    return;
+  }
+
   if (targetMode === activePracticeMode || !practiceQuestions || !practiceQuestions.length) return;
 
-  // 1. Check Shuffle Preference
+  // 2. Check Shuffle Preference
   const shuffleToggle = document.getElementById("togglePracticeSwitchShuffle");
   if (shuffleToggle) isShuffleEnabled = shuffleToggle.checked;
 
   if (isShuffleEnabled) {
     practiceQuestions = shuffleArray(practiceQuestions);
   }
-  // Fresh Deck: Har baar Question 1 se cleanly start hoga
   practiceQuestions.forEach((q, idx) => { q.qNum = idx + 1; });
 
-  // 2. Clean State Reset & Launch Target Mode
+  // 3. Switch between learning modes
   if (targetMode === "read") {
     renderReadMode();
   } else if (targetMode === "quiz") {
@@ -4316,6 +4463,19 @@ window.switchActivePracticeMode = function(targetMode) {
 
   scrollToTopOfPractice();
 };
+
+// 🚀 EXECUTE ONE-WAY EXAM LAUNCH
+function executeExamLaunchFromPractice() {
+  if (!currentPracticeContext) return;
+
+  if (currentPracticeContext.type === 'test' && currentPracticeContext.id) {
+    launchAssessment(currentPracticeContext.id);
+  } else if (currentPracticeContext.type === 'booster') {
+    launchBoosterMode('exam');
+  } else if (currentPracticeContext.type === 'mistake_bank') {
+    launchBoosterMode('exam');
+  }
+}
 
 // ==========================================================================
 // 12. PWA NATIVE DOUBLE-BACK EXIT ENGINE (ZERO-GLITCH)

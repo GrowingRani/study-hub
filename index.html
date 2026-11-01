@@ -885,17 +885,34 @@
             <polyline points="12 19 5 12 12 5"></polyline>
           </svg>
         </button>
-        <!-- 🚀 REFINED APPLE-STYLE TYPOGRAPHY HIERARCHY -->
+        <!-- 🚀 TITLE + SUBTITLE (SUBJECT • QUESTIONS) -->
         <div class="practice-title-stack">
-          <span class="practice-set-eyebrow" id="practiceSetTitle">Set Practice</span>
-          <div class="practice-mode-headline-wrap" id="practiceModeTitle">📖 Read Mode</div>
+          <h2 class="practice-main-title" id="practiceSetTitle">Set Practice</h2>
+          <span class="practice-meta-sub" id="practiceMetaSub">Loading details...</span>
         </div>
       </div>
+
       <div class="practice-header-right">
+        <!-- 🚀 MICRO-MODE SWITCHER (RIGHT ANCHORED) -->
+        <button type="button" class="btn-mode-micro-switcher" id="btnPracticeModeSwitcher" onclick="openPracticeModeSwitcher()" title="Switch Practice Mode">
+          <span id="practiceModeIconWrap"></span>
+          <svg class="micro-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="6 9 12 15 18 9"></polyline>
+          </svg>
+        </button>
         <button type="button" class="theme-toggle-btn btn-ghost icon-btn" title="Toggle Theme">🌙</button>
       </div>
     </header>
     <main class="practice-viewport" id="practiceContainer"></main>
+
+    <!-- 🚀 UNIVERSAL BACK-TO-TOP MICRO-ORB (READ & QUIZ MODES) -->
+    <div class="practice-scroll-dock">
+      <button type="button" class="btn-scroll-top" id="btnScrollTopPractice" onclick="scrollToTopOfPractice()" title="Scroll to Top">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="18 15 12 9 6 15"></polyline>
+        </svg>
+      </button>
+    </div>
   </section>
 
   <!-- Global Assessment Modal Container -->
@@ -1133,45 +1150,76 @@
   </div>
 
   <!-- 🎛️ PRACTICE MODE SWITCHER MICRO-SHEET -->
-<div id="practiceModeSwitcherOverlay" style="display:none;" onclick="closePracticeModeSwitcher()"></div>
+  <div id="practiceModeSwitcherOverlay" style="display:none;" onclick="closePracticeModeSwitcher()"></div>
   <div id="practiceModeSwitcherSheet" class="practice-mode-sheet" style="display:none; z-index:3350;">
     <div class="sheet-grab-bar"></div>
     <div class="sheet-header-row">
-      <span class="sheet-heading">SWITCH PRACTICE MODE</span>
+      <span class="sheet-heading">SWITCH MODE</span>
       <button type="button" class="btn-sheet-close" onclick="closePracticeModeSwitcher()">✕</button>
     </div>
     
     <div class="mode-switch-grid">
-    <button type="button" class="mode-switch-card" id="modeBtn_read" onclick="switchActivePracticeMode('read')">
-      <div class="mode-card-icon-box box-read">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
+      <!-- Mode 1: Read -->
+      <button type="button" class="mode-switch-card" id="modeBtn_read" onclick="switchActivePracticeMode('read')">
+        <div class="mode-card-icon-box box-read">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
+        </div>
+        <div class="mode-card-text">
+          <span class="mode-card-title">Read Mode</span>
+          <span class="mode-card-sub">Instant Guide & Direct Key Context</span>
+        </div>
+      </button>
+      
+      <!-- Mode 2: Quiz -->
+      <button type="button" class="mode-switch-card" id="modeBtn_quiz" onclick="switchActivePracticeMode('quiz')">
+        <div class="mode-card-icon-box box-quiz">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 11 12 14 22 4"></polyline>
+            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+          </svg>
+        </div>
+        <div class="mode-card-text">
+          <span class="mode-card-title">Instant Quiz</span>
+          <span class="mode-card-sub">Self-Assessment with Live Feedback</span>
+        </div>
+      </button>
+      
+      <!-- Mode 3: Flashcards -->
+      <button type="button" class="mode-switch-card" id="modeBtn_flashcards" onclick="switchActivePracticeMode('flashcards')">
+        <div class="mode-card-icon-box box-fc">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="14" height="14" rx="2" ry="2"></rect><path d="M21 7v12a2 2 0 0 1-2 2H7"></path></svg>
+        </div>
+        <div class="mode-card-text">
+          <span class="mode-card-title">Spatial Flashcards</span>
+          <span class="mode-card-sub">3D Flip with Zero-Leak Leitner Loop</span>
+        </div>
+      </button>
+
+      <!-- 🚀 SEPARATOR -->
+      <div class="mode-switch-divider">
+        <span>STRICT ASSESSMENT</span>
       </div>
-      <div class="mode-card-text">
-        <span class="mode-card-title">Read Mode</span>
-        <span class="mode-card-sub">Instant Guide & Direct Key Context</span>
-      </div>
-    </button>
-    
-    <button type="button" class="mode-switch-card" id="modeBtn_quiz" onclick="switchActivePracticeMode('quiz')">
-      <div class="mode-card-icon-box box-quiz">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
-      </div>
-      <div class="mode-card-text">
-        <span class="mode-card-title">Instant Quiz</span>
-        <span class="mode-card-sub">Self-Assessment with Live Feedback</span>
-      </div>
-    </button>
-    
-    <button type="button" class="mode-switch-card" id="modeBtn_flashcards" onclick="switchActivePracticeMode('flashcards')">
-      <div class="mode-card-icon-box box-fc">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="14" height="14" rx="2" ry="2"></rect><path d="M21 7v12a2 2 0 0 1-2 2H7"></path></svg>
-      </div>
-      <div class="mode-card-text">
-        <span class="mode-card-title">Spatial Flashcards</span>
-        <span class="mode-card-sub">3D Flip with Zero-Leak Leitner Loop</span>
-      </div>
-    </button>
-  </div>
+
+      <!-- Mode 4: TCS iON Exam Console (One-Way) -->
+      <button type="button" class="mode-switch-card card-exam-trigger" id="modeBtn_exam" onclick="switchActivePracticeMode('exam')">
+        <div class="mode-card-icon-box box-exam">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+            <line x1="8" y1="21" x2="16" y2="21"></line>
+            <line x1="12" y1="17" x2="12" y2="21"></line>
+            <path d="M6 8h12"></path>
+            <path d="M6 12h7"></path>
+          </svg>
+        </div>
+        <div class="mode-card-text">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:6px;">
+            <span class="mode-card-title">TCS iON Exam Console</span>
+            <span class="exam-oneway-pill">ONE-WAY</span>
+          </div>
+          <span class="mode-card-sub">Timed Mock (+2.00 / -0.50) • No Switch Back</span>
+        </div>
+      </button>
+    </div>
 
     <div class="mode-shuffle-row">
       <div style="display:flex; align-items:center; gap:8px;">
@@ -1184,6 +1232,7 @@
       </label>
     </div>
   </div>
+
   <!-- ================= CUSTOM IN-APP NOTICE / ALERT MODAL ================= -->
   <div id="appNoticeModal" class="tcs-modal-overlay" style="display: none;">
     <div class="tcs-modal-box notice-modal-box">
