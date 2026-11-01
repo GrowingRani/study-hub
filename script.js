@@ -618,7 +618,7 @@ function applyTopicFilter(filter = currentFilter) {
   document.querySelectorAll(".topic-accordion-card").forEach(card => {
     let visibleCount = 0;
     const body = card.querySelector(".topic-accordion-body");
-    const tiles = card.querySelectorAll(".set-tile");
+    const tiles = card.querySelectorAll(".set-tile:not(.mistake-bank-tile)");
     const hTitle = card.querySelector(".topic-title")?.innerText.toLowerCase() || "";
     const headerMatchesSearch = searchQuery ? hTitle.includes(searchQuery) : false;
 
@@ -652,6 +652,20 @@ function applyTopicFilter(filter = currentFilter) {
       card.style.display = "none";
     }
   });
+
+  // 🎯 Manage Subject Mistake Tile Visibility in Filters
+  const sTile = document.getElementById("subjectMistakeTile");
+  if (sTile) {
+    const isClean = sTile.classList.contains("state-clean");
+    if (searchQuery) {
+      sTile.style.display = "none";
+    } else if (filter === "mastered") {
+      sTile.style.display = isClean ? "flex" : "none";
+    } else {
+      // All Sets, Unattempted, aur Revise (<70%) तीनों में विज़िबल रहेगा
+      sTile.style.display = isClean ? (filter === "all" ? "flex" : "none") : "flex";
+    }
+  }
 }
 
 function filterAccordionCards(query) {
@@ -1145,11 +1159,12 @@ window.confirmDeletePlaylist = async function() {
 // ==========================================================================
 // 7. PRE-FLIGHT MISSION BRIEFING CONTROLLER (SUNDAY CRUCIBLE & SPEEDBUMP INTEGRATED)
 // ==========================================================================
+
 window.openMissionBriefingModal = async function(testId, bypassSundayCheck = false) {
   const isSun = typeof isSunday === 'function' ? isSunday() : (new Date().getDay() === 0);
 
-  // 👑 Sunday Soft Friction: अनअटेम्प्टेड सेट्स पर जेंटल स्पीडबम्प (रिवीजन प्राथमिकता के लिए)
-  if (isSun && testId !== -1 && !bypassSundayCheck) {
+  // 👑 Sunday Soft Friction: अनअटेम्प्टेड रेगुलर सेट्स पर जेंटल स्पीडबम्प (रिवीजन प्राथमिकता के लिए)
+  if (isSun && testId > 0 && !bypassSundayCheck) {
     const isAtt = userAttemptHistory.some(a => String(a.test_id) === String(testId));
     if (!isAtt) {
       return showAppNoticeModal(
@@ -1172,7 +1187,16 @@ window.openMissionBriefingModal = async function(testId, bypassSundayCheck = fal
   const shufToggle = document.getElementById("toggleShuffleMode");
   if (shufToggle) shufToggle.checked = isShuffleEnabled;
 
+  // 🎯 Distinct Theme Toggler for Mistake Bank Modal
+  const sheet = modal.querySelector(".mission-briefing-sheet");
+  if (testId === -3) {
+    if (sheet) sheet.classList.add("theme-mistake-briefing");
+  } else {
+    if (sheet) sheet.classList.remove("theme-mistake-briefing");
+  }
+
   if (testId === -1) {
+    // 🚀 TODAY'S PAYLOAD BOOSTER / SUNDAY CRUCIBLE EXAM
     const poolLimit = isSun ? 100 : 25;
     const boosterQuestions = await compileMasteryBoosterPool(poolLimit);
     const qCount = boosterQuestions.length;
@@ -1202,7 +1226,31 @@ window.openMissionBriefingModal = async function(testId, bypassSundayCheck = fal
     document.getElementById("briefingDurationMeta").innerText = `⏱️ ${durationMins}m`;
     document.getElementById("briefingQuestionsMeta").innerText = `📄 ${qCount} Questions`;
     document.getElementById("briefingScoreMeta").innerText = `${mistakeCount} Mistakes • ${recallCount} Recall`;
+  } else if (testId === -3) {
+    // 🎯 DEDICATED SUBJECT MISTAKE BANK PRE-FLIGHT BRIEFING
+    const activeClean = (activeSubject || "").trim().toLowerCase();
+    const mistakes = (userWeakQuestions || []).filter(q => 
+      (q.subject || "").trim().toLowerCase() === activeClean && 
+      (q.times_wrong || 0) > 0 && 
+      (q.mastery_streak || 0) < 4
+    );
+    const qCount = mistakes.length;
+    if (qCount === 0) {
+      return showAppNoticeModal("Notice", "Zero Leaks", `No active mistakes found in ${activeSubject}.`, "🛡️", "Dismiss");
+    }
+    const durationMins = Math.max(3, Math.ceil(qCount * 0.6));
+
+    document.getElementById("briefingSubjectBadge").innerText = `${activeSubject.toUpperCase()} MISTAKE VAULT`;
+    const statusBadge = document.getElementById("briefingStatusBadge");
+    statusBadge.className = "briefing-status-tag status-progress";
+    statusBadge.innerText = `${qCount} DUE`;
+
+    document.getElementById("briefingSetTitle").innerText = `${activeSubject} Error Rehabilitation Node`;
+    document.getElementById("briefingDurationMeta").innerText = `⏱️ ${durationMins}m`;
+    document.getElementById("briefingQuestionsMeta").innerText = `📄 ${qCount} Questions`;
+    document.getElementById("briefingScoreMeta").innerText = `4-Stage Spaced Repetition Loop`;
   } else {
+    // 📁 REGULAR CATALOG QUESTION SET
     const setCat = catalogData.find(c => String(c.test_id) === String(testId));
     if (!setCat) return;
 
@@ -1245,6 +1293,8 @@ window.closeMissionBriefingModal = function() {
   if (modal) {
     modal.style.setProperty("display", "none", "important");
     modal.style.pointerEvents = "none";
+    // 🚀 Reset custom styling when closed
+    modal.querySelector(".mission-briefing-sheet")?.classList.remove("theme-mistake-briefing");
   }
   activeBriefingTestId = null;
 };
@@ -1256,6 +1306,8 @@ window.executeBriefingMode = function(mode) {
   
   if (tId === -1) {
     launchBoosterMode(mode);
+  } else if (tId === -3) {
+    launchSubjectMistakeMode(mode);
   } else {
     if (mode === 'exam') {
       launchAssessment(tId);
@@ -2506,15 +2558,16 @@ window.returnToSubjectHub = function(fromPopState = false) {
   if (!fromPopState) history.replaceState({ page: 'main-tab', view: 'viewLibrary', subView: 'hub' }, "", "#viewLibrary");
 };
 
-// 🚀 HIGH-EFFICIENCY ONE-TIME DOM BUILDER
+// 🚀 HIGH-EFFICIENCY ONE-TIME DOM BUILDER (WITH 2-COLUMN BENTO MISTAKE VAULT)
 function renderTopicSets() {
   const container = document.getElementById("topicsContainer"); 
   if (!container) return; 
   container.innerHTML = "";
   
   updateStagingDockUI();
-  // ⚠️ RENDER DEDICATED SUBJECT MISTAKE BANK BANNER
-  const mbContainer = document.getElementById("subjectMistakeBankContainer");
+
+  // 🎯 CYBER-VAULT ACCORDION (100% WIDTH STRIP + BALANCED 2-COLUMN BENTO ON PC)
+  const mbContainer = document.getElementById("subjectMistakeTileContainer") || document.getElementById("subjectMistakeBankContainer");
   if (mbContainer) {
     if (librarySelectionMode) {
       mbContainer.innerHTML = "";
@@ -2526,28 +2579,132 @@ function renderTopicSets() {
         (q.mastery_streak || 0) < 4
       );
       
-      const now = new Date();
-      const dueCount = subjectWeak.filter(q => !q.next_review_at || new Date(q.next_review_at) <= now).length;
       const totalCount = subjectWeak.length;
+      const loopCount = subjectWeak.filter(q => (q.mastery_streak || 0) > 0).length;
+      const freshCount = totalCount - loopCount;
+
+      // 🎯 Calculate Mastered/Cleared Questions (Streak >= 4)
+      const clearedCount = (userWeakQuestions || []).filter(q => 
+        (q.subject || "").trim().toLowerCase() === activeClean &&
+        (q.mastery_streak || 0) >= 4
+      ).length;
+
+      const hasSubjectAttempts = userAttemptHistory.some(a => {
+        if (Number(a.test_id) <= 0) return false;
+        const c = catalogData.find(x => String(x.test_id) === String(a.test_id));
+        return (c?.subject || "").trim().toLowerCase() === activeClean;
+      });
 
       if (totalCount > 0) {
+        const durationMins = Math.max(3, Math.ceil(totalCount * 0.6));
         mbContainer.innerHTML = `
-          <div class="subject-mistake-banner">
-            <div class="subject-mistake-left">
-              <div class="subject-mistake-icon">⚠️</div>
-              <div class="subject-mistake-text">
-                <span class="subject-mistake-title">${activeSubject} Mistake Bank</span>
-                <span class="subject-mistake-sub">${dueCount > 0 ? `${dueCount} Due for Spaced Review` : `${totalCount} Mistakes Tracked (Streak 1–3)`}</span>
+          <div class="mistake-vault-card" id="subjectMistakeVault" data-status="unattempted">
+            <!-- 1. TACTILE SLIM STRIP (~48px) -->
+            <div class="vault-header" onclick="this.parentElement.classList.toggle('open')">
+              <div class="vault-header-left">
+                <div class="vault-glyph-box">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                  </svg>
+                </div>
+                <div class="vault-title-group">
+                  <span class="vault-title-text">${activeSubject} Mistake Vault</span>
+                  <span class="vault-tag-pill">QUARANTINE</span>
+                </div>
+              </div>
+              <div class="vault-header-right">
+                <div class="vault-telemetry-pill">
+                  <span class="vault-radar-dot"></span>
+                  <span>${totalCount} DUE</span>
+                </div>
+                <div class="vault-chevron-bubble">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                </div>
               </div>
             </div>
-            <button type="button" class="btn-launch-mistakes" onclick="launchMistakeBank('quiz', ${dueCount === 0})" title="Practice ${activeSubject} Mistakes">
-              <span>Drill Mistakes</span>
-              <span>➔</span>
-            </button>
+
+            <!-- 2. EXPANDED INTERIOR (NATURAL IDENTICAL SIZE TILES) -->
+            <div class="vault-body">
+              <div class="vault-natural-grid">
+                <!-- TILE 1: ACTIONABLE SET TILE (MAX 270px) -->
+                <div class="set-tile vault-set-tile" data-status="unattempted">
+                  <div class="set-tile-header">
+                    <div class="set-tile-title-group">
+                      <div class="set-tile-title">Comprehensive Mistake Drill</div>
+                    </div>
+                    <div class="set-status-badge status-progress" style="background:var(--danger-bg-subtle); color:var(--danger-dark); border:1px solid var(--danger-border);">
+                      ${totalCount} Due
+                    </div>
+                  </div>
+                  <div class="set-tile-meta">
+                    <span>${clockSvg} ${durationMins}m</span>
+                    <span>${docSvg} ${totalCount} Qs</span>
+                    <span style="font-size:10px; color:var(--danger-dark); font-weight:700;">(4-Stage Loop)</span>
+                  </div>
+                  <div class="set-score-info">
+                    <span style="color:var(--danger-dark); font-weight:600;">⚠️ ${freshCount} Fresh • ${loopCount} In Review</span>
+                  </div>
+                  <div class="set-action-footer">
+                    <button type="button" class="btn-launch-set" onclick="openMissionBriefingModal(-3)">
+                      <span>▶</span> <span>Launch Session</span>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- TILE 2: COMPACT RETENTION HUD (EXACTLY 270px - NO STRETCH) -->
+                <div class="vault-status-hud">
+                  <div class="hud-header">
+                    <span class="hud-title">Retention Loops</span>
+                    <span style="font-size:9.5px; font-weight:700; color:var(--text-muted); font-family:var(--font-mono);">LEITNER</span>
+                  </div>
+                  <div class="hud-grid">
+                    <div class="hud-cell cell-fresh">
+                      <div class="hud-label">Streak 0</div>
+                      <div class="hud-val" style="color:var(--danger-dark);">${freshCount}</div>
+                    </div>
+                    <div class="hud-cell cell-loop">
+                      <div class="hud-label">Streak 1–3</div>
+                      <div class="hud-val" style="color:var(--warning-dark);">${loopCount}</div>
+                    </div>
+                    <div class="hud-cell cell-cleared">
+                      <div class="hud-label">Mastered</div>
+                      <div class="hud-val" style="color:var(--success-dark);">${clearedCount}</div>
+                    </div>
+                  </div>
+                  <div class="hud-note">
+                    🛡️ Clear 4 consecutive spaced intervals to permanently master weak questions into long-term recall.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      } else if (hasSubjectAttempts) {
+        // STATE B: Clean Slate Slim Confirmation
+        mbContainer.innerHTML = `
+          <div class="mistake-vault-card state-clean" id="subjectMistakeVault" data-status="mastered">
+            <div class="vault-header" style="cursor: default;">
+              <div class="vault-header-left">
+                <div class="vault-glyph-box">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                    <polyline points="9 12 11 14 15 10"></polyline>
+                  </svg>
+                </div>
+                <div class="vault-title-group">
+                  <span class="vault-title-text" style="color: var(--success-dark);">${activeSubject} Mistake Vault</span>
+                  <span class="clean-slate-pill">0 Leaks • Cleared</span>
+                </div>
+              </div>
+            </div>
           </div>
         `;
       } else {
-        mbContainer.innerHTML = ""; // Agar subject me 0 mistakes hain toh screen clean rahegi
+        mbContainer.innerHTML = "";
       }
     }
   }
@@ -2778,64 +2935,88 @@ async function syncMistakeBank(payloads) {
   }
 }
 
-window.launchMistakeBank = function(mode, forceAll = false) {
-  const now = new Date();
+// 🎯 LAUNCH SUBJECT MISTAKE BANK IN ANY MODE (EXAM, QUIZ, FLASHCARDS, READ)
+window.launchSubjectMistakeMode = function(mode = 'quiz') {
   const activeClean = (activeSubject || "").trim().toLowerCase();
-  
-  const due = userWeakQuestions.filter(q => 
+  const mistakes = (userWeakQuestions || []).filter(q => 
     (q.subject || "").trim().toLowerCase() === activeClean && 
-    q.times_wrong > 0 && 
-    (q.mastery_streak || 0) < 4 && 
-    (!q.next_review_at || new Date(q.next_review_at) <= now)
-  );
-  
-  const allW = userWeakQuestions.filter(q => 
-    (q.subject || "").trim().toLowerCase() === activeClean && 
-    q.times_wrong > 0 && 
+    (q.times_wrong || 0) > 0 && 
     (q.mastery_streak || 0) < 4
   );
-  
-  if (!allW.length) {
-    return showAppNoticeModal("Mistake Bank Mastered", "All Weak Areas Cleared! 🎉", `You have zero active mistakes in ${activeSubject}.`, "🏆", "Explore Library", () => { 
-      switchView("viewLibrary"); 
-      returnToSubjectHub(true); 
-    });
+
+  if (!mistakes.length) {
+    return showAppNoticeModal("Mistake Bank Cleared", "Zero Active Leaks! 🎉", `All flagged questions for ${activeSubject} have been mastered.`, "🏆", "Explore Sets");
   }
 
-  // 🚀 Record active context for one-way exam switcher routing
-  currentPracticeContext = { type: 'mistake_bank', forceAll };
-
-  const targetList = (forceAll || !due.length) ? allW : due;
-  practiceQuestions = targetList.map((item, i) => {
-    const qData = item.question_data || {}; 
+  let qList = mistakes.map((item, i) => {
+    const qData = item.question_data || {};
     let opts = [];
     try { opts = typeof qData.options === 'string' ? JSON.parse(qData.options) : (qData.options || []); } catch(e) { opts = []; }
-    return { 
-      qNum: i + 1, 
-      id: item.question_id || qData.id, 
-      content: qData.content, 
-      options: opts, 
-      correctAnswer: getNormalizedCorrectAnswerId(qData.correct_answer || qData.correctAnswer, opts), 
-      explanation: qData.explanation, 
-      masteryStreak: item.mastery_streak || 0 
+    return {
+      qNum: i + 1,
+      id: item.question_id || qData.id,
+      content: qData.content,
+      options: opts,
+      correctAnswer: getNormalizedCorrectAnswerId(qData.correct_answer || qData.correctAnswer, opts),
+      explanation: qData.explanation,
+      masteryStreak: item.mastery_streak || 0
     };
-  }).sort(() => 0.5 - Math.random()).slice(0, 100);
+  });
 
-  const tEl = document.getElementById("practiceSetTitle"); 
-  const subEl = document.getElementById("practiceMetaSub");
-  const mbTitle = `${activeSubject} Mistake Bank`;
-
-  if (tEl) {
-    tEl.innerText = mbTitle;
-    tEl.title = mbTitle;
-  }
-  if (subEl) {
-    subEl.innerText = `${activeSubject} • ${practiceQuestions.length} Questions`;
+  if (isShuffleEnabled) {
+    qList = shuffleArray(qList);
+    qList.forEach((q, idx) => { q.qNum = idx + 1; });
   }
 
-  switchView("viewPractice"); 
-  if (mode === "quiz") renderInteractiveQuizMode(); 
-  else { flashcardIndex = 0; renderFlashcardMode(); }
+  const qCount = qList.length;
+
+  if (mode === 'exam') {
+    isExamFinished = false;
+    switchView("viewExam", true);
+
+    activeTest = {
+      id: -3,
+      title: `${activeSubject} Mistake Exam`,
+      total_duration_minutes: Math.max(3, Math.ceil(qCount * 0.6))
+    };
+
+    document.getElementById("examTitle").innerText = activeTest.title;
+    document.getElementById("subjectLabelBreadcrumb").innerText = activeSubject;
+    const mTitle = document.getElementById("mobileExamTitle");
+    if (mTitle) mTitle.innerText = activeTest.title;
+
+    document.getElementById("sectionTabs").innerHTML = `<button type="button" class="section-tab">Section 1: Weak Area Clearance (${qCount} Qs)</button>`;
+    timeRemaining = activeTest.total_duration_minutes * 60;
+
+    testQuestions = qList;
+    userResponses = {};
+    testQuestions.forEach((q, idx) => {
+      userResponses[idx] = { selected: null, status: idx === 0 ? 1 : 0, timeSpent: 0 };
+    });
+
+    renderQuestion(0);
+    startExamTimer();
+  } else {
+    currentPracticeContext = { type: 'mistake_bank', forceAll: true };
+    practiceQuestions = qList;
+
+    const tEl = document.getElementById("practiceSetTitle");
+    const subEl = document.getElementById("practiceMetaSub");
+    const mbTitle = `${activeSubject} Mistake Bank`;
+
+    if (tEl) {
+      tEl.innerText = mbTitle;
+      tEl.title = mbTitle;
+    }
+    if (subEl) {
+      subEl.innerText = `${activeSubject} • ${qCount} Questions`;
+    }
+
+    switchView("viewPractice", true);
+    if (mode === "read") renderReadMode();
+    else if (mode === "quiz") renderInteractiveQuizMode();
+    else { flashcardIndex = 0; renderFlashcardMode(); }
+  }
 };
 
 window.launchDailyMix = async function() {
