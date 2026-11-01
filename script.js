@@ -3250,14 +3250,16 @@ function renderPaletteGrid() {
 }
 
 // ==========================================================================
-// 10. PERFORMANCE ANALYTICS & SMART HEATMAP BOUNDARY CLAMPING
+// 10. REFACTORED PERFORMANCE ANALYTICS & TELEMETRY ENGINE
 // ==========================================================================
 function drawSparkline(id, data, color) {
   const el = document.getElementById(id); 
   if (!el) return; 
   if (!data?.length) return el.innerHTML = '';
-  const max = Math.max(...data, 1), len = Math.max(data.length - 1, 1), pts = data.map((v, i) => `${(i / len) * 60},${30 - ((v / max) * 25)}`).join(" ");
-  el.innerHTML = `<svg width="100%" height="100%" viewBox="0 0 60 30" preserveAspectRatio="none"><polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  const max = Math.max(...data, 1), min = Math.min(...data, 0), range = Math.max(max - min, 1);
+  const len = Math.max(data.length - 1, 1);
+  const pts = data.map((v, i) => `${(i / len) * 60},${28 - (((v - min) / range) * 22)}`).join(" ");
+  el.innerHTML = `<svg width="100%" height="100%" viewBox="0 0 60 30" preserveAspectRatio="none"><polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 }
 
 let _isFetchingStats = false;
@@ -3266,35 +3268,73 @@ window.fetchStudentAnalytics = async function(isSilent = false) {
   _isFetchingStats = true;
   try {
     const todayStr = getLocalDateString();
-    const { data: atts } = await supabaseClient.from("test_attempts").select("test_id, score, total_correct, total_incorrect, attempt_date, time_spent_seconds").eq("student_roll", currentCandidate.roll_number).order("attempt_date", { ascending: true });
-    const { data: attnd } = await supabaseClient.from("daily_attendance").select("study_date, total_minutes_spent").eq("student_roll", currentCandidate.roll_number);
+    const { data: atts } = await supabaseClient
+      .from("test_attempts")
+      .select("test_id, score, total_correct, total_incorrect, attempt_date, time_spent_seconds")
+      .eq("student_roll", currentCandidate.roll_number)
+      .order("attempt_date", { ascending: true });
+
+    const { data: attnd } = await supabaseClient
+      .from("daily_attendance")
+      .select("study_date, total_minutes_spent")
+      .eq("student_roll", currentCandidate.roll_number);
 
     const bestMap = {}; 
     let totalSecs = 0, nCorr = 0, nIncorr = 0;
+    const speedTrends = [];
+    const accTrends = [];
+
     (atts || []).forEach(a => {
       totalSecs += (a.time_spent_seconds || 0); 
       nCorr += (a.total_correct || 0); 
       nIncorr += (a.total_incorrect || 0);
+
+      const qInAttempt = (a.total_correct || 0) + (a.total_incorrect || 0);
+      if (qInAttempt > 0) {
+        // 🚀 Real Per-Attempt Speed & Accuracy Trends
+        speedTrends.push(Math.round((a.time_spent_seconds || 0) / qInAttempt));
+        const attPct = Math.max(0, Math.round(((a.total_correct || 0) / qInAttempt) * 100));
+        accTrends.push(attPct);
+      }
+
       const tid = String(a.test_id); 
-      if (!bestMap[tid] || parseFloat(a.score) > parseFloat(bestMap[tid].score)) bestMap[tid] = a;
+      if (!bestMap[tid] || parseFloat(a.score) > parseFloat(bestMap[tid].score)) {
+        bestMap[tid] = a;
+      }
     });
 
-    const subStats = {}, masteredTests = new Set(), accTrends = [];
+    const subStats = {};
+    const masteredTests = new Set();
+    const attemptedTests = new Set();
+
     Object.values(bestMap).forEach(a => {
-      const cat = catalogData.find(item => String(item.test_id) === String(a.test_id)), tQs = cat ? (cat.total_questions || (a.total_correct + a.total_incorrect)) : (a.total_correct + a.total_incorrect);
-      const maxM = tQs * 2, pct = maxM > 0 ? Math.max(0, (a.score / maxM) * 100) : 0;
+      // 🚀 बूस्टर या अनाम टेस्ट्स (-1) को डोमेन ब्रेकडाउन से बाहर रखें
+      if (Number(a.test_id) <= 0) return;
+
+      const cat = catalogData.find(item => String(item.test_id) === String(a.test_id));
+      if (!cat || !cat.subject) return; // अगर कैटलॉग में सब्जेक्ट मौजूद नहीं है तो इग्नोर करें
+
+      const tQs = cat.total_questions || 10;
+      const maxM = tQs * 2;
+      const pct = maxM > 0 ? Math.max(0, (a.score / maxM) * 100) : 0;
+
+      attemptedTests.add(String(a.test_id));
       if (pct >= 100) masteredTests.add(String(a.test_id));
-      accTrends.push(Math.round(pct));
-      const subj = cat ? (cat.subject || "General") : "General";
-      if (!subStats[subj]) subStats[subj] = { earned: 0, max: 0, correct: 0, incorrect: 0, sets: 0 };
-      subStats[subj].earned += parseFloat(a.score); 
+
+      const subj = cat.subject.trim();
+      if (!subStats[subj]) {
+        subStats[subj] = { earned: 0, max: 0, correct: 0, incorrect: 0, sets: 0 };
+      }
+      subStats[subj].earned += parseFloat(a.score || 0); 
       subStats[subj].max += maxM; 
       subStats[subj].correct += (a.total_correct || 0); 
       subStats[subj].incorrect += (a.total_incorrect || 0); 
       subStats[subj].sets += 1;
     });
 
-    const totalQ = nCorr + nIncorr, accVal = totalQ > 0 ? ((nCorr / totalQ) * 100).toFixed(1) : "0.0", avgSpd = totalQ > 0 ? Math.round(totalSecs / totalQ) : 0;
+    const totalQ = nCorr + nIncorr;
+    const accVal = totalQ > 0 ? ((nCorr / totalQ) * 100).toFixed(1) : "0.0";
+    const avgSpd = totalQ > 0 ? Math.round(totalSecs / totalQ) : 0;
     if (currentCandidate?.roll_number) localStorage.setItem("cache_accuracy_" + currentCandidate.roll_number, accVal);
     
     let todayMins = 0, last7Mins = 0, attMap = {}, past7 = [];
@@ -3325,6 +3365,7 @@ window.fetchStudentAnalytics = async function(isSilent = false) {
       return; 
     }
 
+    // Top Stat Cards
     const eAcc = document.getElementById("statAccuracy"); 
     if (eAcc) eAcc.innerHTML = `<div style="display:flex; align-items:baseline; gap:6px;"><span>${accVal}%</span><span style="font-size:10px; font-weight:700; color:var(--success-dark); font-family:var(--font-family);">+${nCorr}</span><span style="font-size:10px; font-weight:700; color:var(--danger-dark); font-family:var(--font-family);">-${nIncorr}</span></div>`;
     const eStr = document.getElementById("statStreak"); 
@@ -3332,10 +3373,12 @@ window.fetchStudentAnalytics = async function(isSilent = false) {
     const eSpd = document.getElementById("statSpeed"); 
     if (eSpd) eSpd.innerHTML = `<div style="display:flex; align-items:baseline; gap:6px;"><span>${avgSpd}s</span><span style="font-size:10px; font-weight:700; color:var(--tcs-blue-accent); font-family:var(--font-family); text-transform:uppercase;">${avgSpd <= 15 ? 'Rapid' : (avgSpd > 35 ? 'Thorough' : 'Balanced')}</span></div>`;
 
+    // 🚀 1. Real Dynamic Sparklines (No Flat Lines!)
     drawSparkline("sparkAccuracy", accTrends.slice(-10), "var(--tcs-blue-accent)");
     drawSparkline("sparkStreak", Object.keys(attMap).sort((a,b) => new Date(a) - new Date(b)).slice(-10).map(d => attMap[d] || 0), "var(--warning)");
-    drawSparkline("sparkSpeed", accTrends.slice(-10).map(() => avgSpd), "var(--success)");
+    drawSparkline("sparkSpeed", speedTrends.slice(-10), "var(--success)");
 
+    // Extra Operational Summary
     const extra = document.getElementById("extraAnalyticsSummary");
     if (extra) {
       const dots = past7.slice().reverse().map(d => {
@@ -3373,32 +3416,61 @@ window.fetchStudentAnalytics = async function(isSilent = false) {
       `;
     }
 
-    const sylPct = Math.min(100, Math.round((masteredTests.size / (catalogData.length || 1)) * 100));
-    const eSyl = document.getElementById("syllabusPercentTxt"); if (eSyl) eSyl.innerText = sylPct + "%";
-    const lFill = document.getElementById("syllabusLinearFill"); if (lFill) lFill.style.width = sylPct + "%";
+    // 🚀 2. Dual-Track Syllabus Progress (Covered vs Mastered)
+    const totalCatalogCount = catalogData.length || 1;
+    const coveredPct = Math.min(100, Math.round((attemptedTests.size / totalCatalogCount) * 100));
+    const masteredPct = Math.min(100, Math.round((masteredTests.size / totalCatalogCount) * 100));
 
+    const eSyl = document.getElementById("syllabusPercentTxt");
+    if (eSyl) eSyl.innerText = `${coveredPct}% Covered • ${masteredPct}% Mastered`;
+    const attFill = document.getElementById("syllabusAttemptedFill");
+    if (attFill) attFill.style.width = coveredPct + "%";
+    const masFill = document.getElementById("syllabusLinearFill");
+    if (masFill) masFill.style.width = masteredPct + "%";
+
+    const sAttCount = document.getElementById("sylAttemptedCount");
+    if (sAttCount) sAttCount.innerText = `${attemptedTests.size}/${totalCatalogCount}`;
+    const sMasCount = document.getElementById("sylMasteredCount");
+    if (sMasCount) sMasCount.innerText = `${masteredTests.size}/${totalCatalogCount}`;
+
+    // 🚀 3. Accurate Negative Marking & Domain Insights
     let bestSub = null, worstSub = null;
     Object.entries(subStats).forEach(([name, data]) => {
-      const acc = data.max > 0 ? (data.earned / data.max) * 100 : 0, info = { name, acc, ...data };
+      const acc = data.max > 0 ? (data.earned / data.max) * 100 : 0;
+      const info = { name, acc, ...data };
       if (!bestSub || info.acc > bestSub.acc) bestSub = info; 
       if (!worstSub || info.acc < worstSub.acc) worstSub = info;
     });
 
     const iS = document.getElementById("insightStrong"); 
-    if (iS) iS.innerHTML = bestSub?.sets > 0 ? `<div style="display:flex; justify-content:space-between; align-items:center;"><strong>🔥 Strongest Domain: ${bestSub.name}</strong><span style="font-weight:800; font-family:var(--font-mono); color:var(--success-dark);">${Math.round(bestSub.acc)}%</span></div><div style="font-size:11.5px; color:var(--text-muted); margin-top:4px;">High strike-rate across ${bestSub.sets} completed sets (${bestSub.correct} correct answers).</div>` : `<strong>🔥 Strongest:</strong> Complete sets to identify your core strength.`;
+    if (iS) iS.innerHTML = bestSub?.sets > 0 
+      ? `<div style="display:flex; justify-content:space-between; align-items:center;"><strong>🔥 Strongest Domain: ${bestSub.name}</strong><span style="font-weight:800; font-family:var(--font-mono); color:var(--success-dark);">${Math.round(bestSub.acc)}%</span></div><div style="font-size:11.5px; color:var(--text-muted); margin-top:4px;">High strike-rate across ${bestSub.sets} unique sets (${bestSub.correct} correct answers).</div>` 
+      : `<strong>🔥 Strongest:</strong> Complete sets to identify your core strength.`;
+    
     const iW = document.getElementById("insightWeak"); 
-    if (iW) iW.innerHTML = worstSub?.sets > 0 ? `<div style="display:flex; justify-content:space-between; align-items:center;"><strong>⚠️ Priority Focus: ${worstSub.name}</strong><span style="font-weight:800; font-family:var(--font-mono); color:var(--danger-dark);">${Math.round(worstSub.acc)}%</span></div><div style="font-size:11.5px; color:var(--text-muted); margin-top:4px;">Negative marking penalty: <strong style="color:var(--danger-dark);">-${(worstSub.incorrect * 0.5).toFixed(1)} Marks</strong> (${worstSub.incorrect} wrong). Curtail random guesses.</div>` : `<strong>⚠️ Priority Focus:</strong> Attempt diagnostic assessments to flag weaker domains.`;
+    if (iW) iW.innerHTML = worstSub?.sets > 0 
+      ? `<div style="display:flex; justify-content:space-between; align-items:center;"><strong>⚠️ Priority Focus: ${worstSub.name}</strong><span style="font-weight:800; font-family:var(--font-mono); color:var(--danger-dark);">${Math.round(worstSub.acc)}%</span></div><div style="font-size:11.5px; color:var(--text-muted); margin-top:4px;">Negative penalty bleed: <strong style="color:var(--danger-dark);">-${(worstSub.incorrect * 0.5).toFixed(1)} Marks</strong> (${worstSub.incorrect} wrong in best attempts). Curtail guesswork here.</div>` 
+      : `<strong>⚠️ Priority Focus:</strong> Attempt diagnostic assessments to flag weaker domains.`;
 
-    const subList = Array.from(new Set(catalogData.map(c => c.subject || "General Studies"))).map(s => {
-      const st = subStats[s] || { earned: 0, max: 0, sets: 0 }; 
+    // 🚀 4. Mobile-Smart View Toggle (Default to Cards on Mobile)
+    const isMobileViewport = window.innerWidth <= 768;
+    const subList = Array.from(new Set(catalogData.map(c => (c.subject || "").trim()).filter(Boolean))).map(s => {
+    const st = subStats[s] || { earned: 0, max: 0, sets: 0 }; 
       return { subject: s, pct: st.max > 0 ? Math.max(0, Math.round((st.earned / st.max) * 100)) : 0 };
     });
+
     const gView = document.getElementById("gridViewport");
     if (gView) { 
       gView.innerHTML = ""; 
       subList.forEach(item => { 
         gView.innerHTML += `<div class="micro-domain-chip"><div class="micro-chip-top"><span class="micro-chip-title" title="${item.subject}">${item.subject}</span><span class="micro-chip-val">${item.pct}%</span></div><div class="micro-chip-bar"><div class="micro-chip-fill" style="width: ${item.pct}%;"></div></div></div>`; 
       }); 
+    }
+
+    if (isMobileViewport) {
+      switchMasteryView('grid');
+    } else {
+      switchMasteryView('radar');
     }
 
     const rCanvas = document.getElementById("subjectRadarChart");
@@ -3438,7 +3510,89 @@ window.fetchStudentAnalytics = async function(isSilent = false) {
         }
       });
     }
+    // 🚀 5. MISTAKE REHABILITATION FUNNEL ENGINE
+    const allMistakes = (userWeakQuestions || []).filter(q => (q.times_wrong || 0) > 0);
+    const totalMistakes = allMistakes.length;
+    const masteredMistakes = allMistakes.filter(q => (q.mastery_streak || 0) >= 4).length;
+    const loopMistakes = allMistakes.filter(q => (q.mastery_streak || 0) >= 1 && (q.mastery_streak || 0) < 4).length;
+    const unaddressedMistakes = allMistakes.filter(q => (q.mastery_streak || 0) === 0).length;
+
+    const recoveryRate = totalMistakes > 0 ? Math.round((masteredMistakes / totalMistakes) * 100) : 0;
+    const activePipelineRate = totalMistakes > 0 ? Math.min(100, Math.round(((masteredMistakes + loopMistakes) / totalMistakes) * 100)) : 0;
+
+    const fBadge = document.getElementById("funnelRateBadge");
+    if (fBadge) fBadge.innerText = `${recoveryRate}% RECOVERED`;
+
+    const fActiveFill = document.getElementById("funnelActiveFill");
+    if (fActiveFill) fActiveFill.style.width = `${activePipelineRate}%`;
+
+    const fMasteredFill = document.getElementById("funnelMasteredFill");
+    if (fMasteredFill) fMasteredFill.style.width = `${recoveryRate}%`;
+
+    const fUnaddressed = document.getElementById("funnelUnaddressedVal");
+    if (fUnaddressed) fUnaddressed.innerText = unaddressedMistakes;
+
+    const fLoop = document.getElementById("funnelLoopVal");
+    if (fLoop) fLoop.innerText = loopMistakes;
+
+    const fCleared = document.getElementById("funnelClearedVal");
+    if (fCleared) fCleared.innerText = masteredMistakes;
+
+    const fNote = document.getElementById("funnelFooterNote");
+    if (fNote) {
+      if (totalMistakes === 0) {
+        fNote.innerHTML = `🛡️ <strong style="color:var(--success-dark);">Clean Slate:</strong> No mistakes logged. All attempted questions answered accurately!`;
+      } else if (recoveryRate >= 75) {
+        fNote.innerHTML = `🏆 <strong style="color:var(--success-dark);">Exceptional Retention:</strong> ${masteredMistakes} of ${totalMistakes} mistakes permanently mastered. Spaced repetition loop is operating at peak efficiency.`;
+      } else if (loopMistakes > 0) {
+        fNote.innerHTML = `⚡ <strong style="color:var(--tcs-blue-accent);">${loopMistakes} questions</strong> currently advancing through the review cycle. Clear upcoming Mastery Booster sets to lock them into Streak 4.`;
+      } else {
+        fNote.innerHTML = `⚠️ <strong style="color:var(--warning-dark);">${unaddressedMistakes} fresh errors</strong> awaiting first review. Launch Mistake Bank or Daily Booster to start the recovery cycle.`;
+      }
+    }
+
+    // 🚀 6. NEGATIVE BLEED & GUESSWORK AUDITOR ENGINE
+    const grossEarned = nCorr * 2.00;
+    const penaltyBleed = nIncorr * 0.50;
+    const netRealized = Math.max(0, grossEarned - penaltyBleed);
+    const scoreEfficiency = grossEarned > 0 ? Math.max(0, Math.min(100, Math.round((netRealized / grossEarned) * 100))) : 0;
+    const bleedPercentage = grossEarned > 0 ? ((penaltyBleed / grossEarned) * 100).toFixed(1) : "0.0";
+
+    const bBadge = document.getElementById("bleedRatioBadge");
+    if (bBadge) bBadge.innerText = `-${penaltyBleed.toFixed(2)} MARKS LOST`;
+
+    const bGrossVal = document.getElementById("bleedGrossVal");
+    if (bGrossVal) bGrossVal.innerText = `+${grossEarned.toFixed(2)}`;
+    const bGrossSub = document.getElementById("bleedGrossSub");
+    if (bGrossSub) bGrossSub.innerText = `${nCorr} Correct (+2.00)`;
+
+    const bPenVal = document.getElementById("bleedPenaltyVal");
+    if (bPenVal) bPenVal.innerText = `-${penaltyBleed.toFixed(2)}`;
+    const bPenSub = document.getElementById("bleedPenaltySub");
+    if (bPenSub) bPenSub.innerText = `${nIncorr} Wrong (-0.50)`;
+
+    const bNetVal = document.getElementById("bleedNetVal");
+    if (bNetVal) bNetVal.innerText = `${netRealized.toFixed(2)}`;
+    const bNetSub = document.getElementById("bleedNetSub");
+    if (bNetSub) bNetSub.innerText = `${scoreEfficiency}% Retained`;
+
+    const bNote = document.getElementById("bleedFooterNote");
+    if (bNote) {
+      if (totalQ === 0) {
+        bNote.innerHTML = `🛡️ <strong>Zero Telemetry:</strong> Attempt mock sets to evaluate guesswork penalties and score retention.`;
+      } else if (penaltyBleed === 0) {
+        bNote.innerHTML = `🎯 <strong style="color:var(--success-dark);">Sniper Precision (100% Efficiency):</strong> Zero negative marking deductions. Every question attempted was correct!`;
+      } else if (parseFloat(bleedPercentage) > 20) {
+        bNote.innerHTML = `⚠️ <strong style="color:var(--danger-dark);">${bleedPercentage}% Score Bleed:</strong> You forfeited <strong style="color:var(--danger-dark);">${penaltyBleed.toFixed(2)} marks</strong> to incorrect attempts (${nIncorr} wrong). Avoiding wild guesses will immediately lift your net cutoff.`;
+      } else if (parseFloat(bleedPercentage) > 10) {
+        bNote.innerHTML = `⚡ <strong style="color:var(--warning-dark);">${bleedPercentage}% Controlled Bleed:</strong> Moderately disciplined testing with <strong style="color:var(--warning-dark);">${penaltyBleed.toFixed(2)} marks</strong> lost. Practice skipping 50/50 doubts when unconfident.`;
+      } else {
+        bNote.innerHTML = `🏆 <strong style="color:var(--success-dark);">${scoreEfficiency}% High Efficiency:</strong> Outstanding exam discipline. Minimal guesswork penalty (<strong style="color:var(--success-dark);">${bleedPercentage}% bleed</strong>). Examination-ready accuracy.`;
+      }
+    }
+    // 🚀 7. Heatmap with Monthly Telemetry Summary Strip
     renderHeatmap(attMap);
+
   } catch (err) { 
     console.error("Analytics Error:", err); 
   } finally { 
@@ -3457,8 +3611,31 @@ function renderHeatmap(attMap) {
     tooltip.className = "custom-heatmap-tooltip"; 
     document.body.appendChild(tooltip); 
   }
+
+  let totalMinsMonth = 0;
+  let activeDaysMonth = 0;
   const today = new Date();
-  for (let i = 29; i >= 0; i--) {
+
+  for (let i = 29; i >= 0; i--) { 
+    let d = new Date(today); 
+    d.setDate(d.getDate() - i);
+    const dateStr = getLocalDateString(d);
+    const mins = attMap[dateStr] || 0;
+    if (mins > 0) {
+      totalMinsMonth += mins;
+      activeDaysMonth++;
+    }
+  }
+
+  // Update Monthly Stats Header Strip
+  const statsStrip = document.getElementById("heatmapStatsStrip");
+  if (statsStrip) {
+    const h = Math.floor(totalMinsMonth / 60);
+    const m = totalMinsMonth % 60;
+    statsStrip.innerText = `${h}h ${m}m Active • ${activeDaysMonth}/30 Days Logged`;
+  }
+
+  for (let i = 29; i >= 0; i--) { 
     let d = new Date(today); 
     d.setDate(d.getDate() - i);
     const dateStr = getLocalDateString(d), 
@@ -3475,7 +3652,7 @@ function renderHeatmap(attMap) {
       const h = Math.floor(mins / 60), rm = mins % 60;
       tooltip.innerHTML = `
         <div style="font-weight:700; color:var(--text-muted); font-size:10px; margin-bottom:2px; letter-spacing:0.3px;">${displayDate}</div>
-        <div style="font-size:12.5px; font-family:var(--font-mono); font-weight:800; color:${mins > 45 ? 'var(--success)' : (mins > 0 ? 'var(--tcs-blue-accent)' : 'var(--text-muted)')};">⏱️ ${mins === 0 ? 'No activity' : (h > 0 ? `${h}h${rm}m` : `${rm} mins`)}</div>
+        <div style="font-size:12.5px; font-family:var(--font-mono); font-weight:800; color:${mins > 45 ? 'var(--success)' : (mins > 0 ? 'var(--tcs-blue-accent)' : 'var(--text-muted)')};">⏱️ ${mins === 0 ? 'No activity' : (h > 0 ? `${h}h ${rm}m` : `${rm} mins`)}</div>
       `;
       tooltip.classList.add("show"); 
       
@@ -3485,16 +3662,11 @@ function renderHeatmap(attMap) {
       const halfTip = tipWidth / 2;
       
       let idealLeft = r.left + (r.width / 2);
-      if (idealLeft - halfTip < 14) {
-        idealLeft = halfTip + 14;
-      } else if (idealLeft + halfTip > window.innerWidth - 14) {
-        idealLeft = window.innerWidth - halfTip - 14;
-      }
+      if (idealLeft - halfTip < 14) idealLeft = halfTip + 14;
+      else if (idealLeft + halfTip > window.innerWidth - 14) idealLeft = window.innerWidth - halfTip - 14;
       
       let idealTop = r.top - tipHeight - 8;
-      if (idealTop < 8) {
-        idealTop = r.bottom + 8;
-      }
+      if (idealTop < 8) idealTop = r.bottom + 8;
       
       tooltip.style.left = `${idealLeft}px`; 
       tooltip.style.top = `${idealTop}px`; 
@@ -3504,7 +3676,6 @@ function renderHeatmap(attMap) {
     container.appendChild(cell);
   }
 }
-
 // ==========================================================================
 // 11. MULTI-MODE PRACTICE (READ/FLASHCARD/QUIZ - REFINED TOP BARS)
 // ==========================================================================
