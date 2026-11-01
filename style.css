@@ -801,8 +801,10 @@ body.dark-theme .box-fc { color: #c084fc; }
 .mastery-view-toggle { display: flex; gap: 4px; background: var(--bg-surface-elevated); padding: 3px; border-radius: 6px; border: 1px solid var(--border-color); }
 .view-pill { border: none; background: transparent; padding: 4px 10px; font-size: 11px; font-weight: 700; color: var(--text-muted); border-radius: 4px; cursor: pointer; transition: all 0.2s ease; }
 .view-pill.active { background: var(--bg-panel); color: var(--tcs-blue-accent); box-shadow: var(--shadow-sm); }
+/* 🚀 SMOOTH MATRIX VIEW SWITCHING (SECTION 11 MEIN .radar-viewport-wrap KE BAAD) */
 .radar-viewport-wrap { position: relative; width: 100%; height: 290px; display: flex; align-items: center; justify-content: center; }
 .micro-mastery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(135px, 1fr)); gap: 8px; max-height: 290px; overflow-y: auto; padding-right: 4px; }
+#radarViewport, #gridViewport { animation: fadeInDeck 0.2s cubic-bezier(0.16, 1, 0.3, 1); }
 .micro-domain-chip { background: var(--bg-surface-elevated) !important; border: 1px solid var(--border-color) !important; border-radius: 6px; padding: 8px 10px; display: flex; flex-direction: column; justify-content: space-between; gap: 6px; }
 .micro-chip-top { display: flex; justify-content: space-between; align-items: flex-start; }
 .micro-chip-title { font-size: 11.5px; font-weight: 700; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 90px; }
@@ -867,6 +869,25 @@ body.dark-theme .box-fc { color: #c084fc; }
   .bleed-metric-box { padding: 6px 4px !important; }
   .bleed-label { font-size: 9px !important; min-height: 20px !important; }
   .bleed-val { font-size: 13.5px !important; }
+}
+
+/* 🚀 MOBILE SEGMENTED PILL SWITCHER */
+.analytics-mobile-switcher { display: none; }
+
+@media screen and (max-width: 768px) {
+  .analytics-mobile-switcher { display: flex !important; background: var(--bg-surface-elevated); padding: 4px; border-radius: 10px; border: 1px solid var(--border-color); gap: 4px; margin-bottom: 14px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08); }
+  .analytics-seg-btn { flex: 1; height: 36px; border: none; background: transparent; color: var(--text-muted); font-size: 11.5px; font-weight: 700; border-radius: 7px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1); outline: none; padding: 0 4px; -webkit-tap-highlight-color: transparent; }
+  .analytics-seg-btn.active { background: var(--bg-panel); color: var(--tcs-blue-accent); font-weight: 800; border: 1px solid var(--border-color); box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12); }
+
+  /* 📱 Deck Toggling Logic */
+  .advanced-analytics-grid.show-domains .deck-audit { display: none !important; }
+  .advanced-analytics-grid.show-audit .deck-domains { display: none !important; }
+  .advanced-analytics-grid .deck-domains, .advanced-analytics-grid .deck-audit { animation: fadeInDeck 0.25s cubic-bezier(0.16, 1, 0.3, 1); }
+}
+
+@keyframes fadeInDeck {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 

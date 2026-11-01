@@ -473,18 +473,32 @@ window.toggleProfileDrawer = function() {
   switchView('viewProfile'); 
 };
 
+// 🚀 ROBUST SUBJECT MASTERY VIEW SWITCHER (FIXED TOGGLE & CHART RESIZE)
 window.switchMasteryView = function(viewType) {
-  const rWrap = document.getElementById("radarViewport"), gWrap = document.getElementById("gridViewport"), bRadar = document.getElementById("btnToggleRadar"), bGrid = document.getElementById("btnToggleGrid");
+  const rWrap = document.getElementById("radarViewport");
+  const gWrap = document.getElementById("gridViewport");
+  const bRadar = document.getElementById("btnToggleRadar");
+  const bGrid = document.getElementById("btnToggleGrid");
+
   if (viewType === 'radar') { 
     if (rWrap) rWrap.style.display = "flex"; 
     if (gWrap) gWrap.style.display = "none"; 
     bRadar?.classList.add("active"); 
     bGrid?.classList.remove("active"); 
+
+    // 🎯 Canvas dimensions restore karein taaki chart blank/freeze na ho
+    if (subjectRadarChartInstance) {
+      requestAnimationFrame(() => {
+        try {
+          subjectRadarChartInstance.resize();
+        } catch (e) {}
+      });
+    }
   } else { 
     if (rWrap) rWrap.style.display = "none"; 
     if (gWrap) gWrap.style.display = "grid"; 
     bGrid?.classList.add("active"); 
-    bGrid?.classList.remove("active"); 
+    bRadar?.classList.remove("active"); 
   }
 };
 
@@ -3291,7 +3305,6 @@ window.fetchStudentAnalytics = async function(isSilent = false) {
 
       const qInAttempt = (a.total_correct || 0) + (a.total_incorrect || 0);
       if (qInAttempt > 0) {
-        // 🚀 Real Per-Attempt Speed & Accuracy Trends
         speedTrends.push(Math.round((a.time_spent_seconds || 0) / qInAttempt));
         const attPct = Math.max(0, Math.round(((a.total_correct || 0) / qInAttempt) * 100));
         accTrends.push(attPct);
@@ -3308,11 +3321,10 @@ window.fetchStudentAnalytics = async function(isSilent = false) {
     const attemptedTests = new Set();
 
     Object.values(bestMap).forEach(a => {
-      // 🚀 बूस्टर या अनाम टेस्ट्स (-1) को डोमेन ब्रेकडाउन से बाहर रखें
       if (Number(a.test_id) <= 0) return;
 
       const cat = catalogData.find(item => String(item.test_id) === String(a.test_id));
-      if (!cat || !cat.subject) return; // अगर कैटलॉग में सब्जेक्ट मौजूद नहीं है तो इग्नोर करें
+      if (!cat || !cat.subject) return;
 
       const tQs = cat.total_questions || 10;
       const maxM = tQs * 2;
@@ -3330,6 +3342,21 @@ window.fetchStudentAnalytics = async function(isSilent = false) {
       subStats[subj].correct += (a.total_correct || 0); 
       subStats[subj].incorrect += (a.total_incorrect || 0); 
       subStats[subj].sets += 1;
+    });
+
+    // 🚀 TODAY'S MASTERED SETS FILTER (CRITICAL FIX: PREVENTS LIFETIME SETS BLEEDING INTO TODAY)
+    const todayMasteredTests = new Set();
+    (atts || []).forEach(a => {
+      const attDate = (a.attempt_date || "").split("T")[0];
+      if (attDate === todayStr && Number(a.test_id) > 0) {
+        const cat = catalogData.find(item => String(item.test_id) === String(a.test_id));
+        const tQs = cat ? (cat.total_questions || 10) : ((a.total_correct || 0) + (a.total_incorrect || 0) || 10);
+        const maxM = tQs * 2;
+        const pct = maxM > 0 ? (parseFloat(a.score || 0) / maxM) * 100 : 0;
+        if (pct >= 100) {
+          todayMasteredTests.add(String(a.test_id));
+        }
+      }
     });
 
     const totalQ = nCorr + nIncorr;
@@ -3373,12 +3400,12 @@ window.fetchStudentAnalytics = async function(isSilent = false) {
     const eSpd = document.getElementById("statSpeed"); 
     if (eSpd) eSpd.innerHTML = `<div style="display:flex; align-items:baseline; gap:6px;"><span>${avgSpd}s</span><span style="font-size:10px; font-weight:700; color:var(--tcs-blue-accent); font-family:var(--font-family); text-transform:uppercase;">${avgSpd <= 15 ? 'Rapid' : (avgSpd > 35 ? 'Thorough' : 'Balanced')}</span></div>`;
 
-    // 🚀 1. Real Dynamic Sparklines (No Flat Lines!)
+    // Dynamic Sparklines
     drawSparkline("sparkAccuracy", accTrends.slice(-10), "var(--tcs-blue-accent)");
     drawSparkline("sparkStreak", Object.keys(attMap).sort((a,b) => new Date(a) - new Date(b)).slice(-10).map(d => attMap[d] || 0), "var(--warning)");
     drawSparkline("sparkSpeed", speedTrends.slice(-10), "var(--success)");
 
-    // Extra Operational Summary
+    // Operational Summary
     const extra = document.getElementById("extraAnalyticsSummary");
     if (extra) {
       const dots = past7.slice().reverse().map(d => {
@@ -3397,8 +3424,8 @@ window.fetchStudentAnalytics = async function(isSilent = false) {
               <strong style="font-size:16px; color:var(--success-dark); font-family:var(--font-mono);">${Math.floor(todayMins / 60)}h ${todayMins % 60}m</strong>
             </div>
             <div style="background:var(--bg-primary); padding:10px; border-radius:6px; border:1px solid var(--border-color);">
-              <span style="font-size:11px; color:var(--text-muted); font-weight:600; display:block;">Sets Mastered (100%)</span>
-              <strong style="font-size:16px; color:var(--success-dark); font-family:var(--font-mono);">${masteredTests.size} Sets</strong>
+              <span style="font-size:11px; color:var(--text-muted); font-weight:600; display:block;">Mastered Today (100%)</span>
+              <strong style="font-size:16px; color:var(--success-dark); font-family:var(--font-mono);">${todayMasteredTests.size} Sets</strong>
             </div>
           </div>
         </div>
@@ -3416,7 +3443,7 @@ window.fetchStudentAnalytics = async function(isSilent = false) {
       `;
     }
 
-    // 🚀 2. Dual-Track Syllabus Progress (Covered vs Mastered)
+    // Dual-Track Syllabus Progress
     const totalCatalogCount = catalogData.length || 1;
     const coveredPct = Math.min(100, Math.round((attemptedTests.size / totalCatalogCount) * 100));
     const masteredPct = Math.min(100, Math.round((masteredTests.size / totalCatalogCount) * 100));
@@ -3433,7 +3460,7 @@ window.fetchStudentAnalytics = async function(isSilent = false) {
     const sMasCount = document.getElementById("sylMasteredCount");
     if (sMasCount) sMasCount.innerText = `${masteredTests.size}/${totalCatalogCount}`;
 
-    // 🚀 3. Accurate Negative Marking & Domain Insights
+    // Domain Insights
     let bestSub = null, worstSub = null;
     Object.entries(subStats).forEach(([name, data]) => {
       const acc = data.max > 0 ? (data.earned / data.max) * 100 : 0;
@@ -3449,13 +3476,13 @@ window.fetchStudentAnalytics = async function(isSilent = false) {
     
     const iW = document.getElementById("insightWeak"); 
     if (iW) iW.innerHTML = worstSub?.sets > 0 
-      ? `<div style="display:flex; justify-content:space-between; align-items:center;"><strong>⚠️ Priority Focus: ${worstSub.name}</strong><span style="font-weight:800; font-family:var(--font-mono); color:var(--danger-dark);">${Math.round(worstSub.acc)}%</span></div><div style="font-size:11.5px; color:var(--text-muted); margin-top:4px;">Negative penalty bleed: <strong style="color:var(--danger-dark);">-${(worstSub.incorrect * 0.5).toFixed(1)} Marks</strong> (${worstSub.incorrect} wrong in best attempts). Curtail guesswork here.</div>` 
+      ? `<div style="display:flex; justify-content:space-between; align-items:center;"><strong>⚠️ Priority Focus: ${worstSub.name}</strong><span style="font-weight:800; font-family:var(--font-mono); color:var(--danger-dark);">${Math.round(worstSub.acc)}%</span></div><div style="font-size:11.5px; color:var(--text-muted); margin-top:4px;">Negative penalty bleed: <strong style="color:var(--danger-dark);">-${(worstSub.incorrect * 0.50).toFixed(1)} Marks</strong> (${worstSub.incorrect} wrong in best attempts). Curtail guesswork here.</div>` 
       : `<strong>⚠️ Priority Focus:</strong> Attempt diagnostic assessments to flag weaker domains.`;
 
-    // 🚀 4. Mobile-Smart View Toggle (Default to Cards on Mobile)
+    // Viewport Default Logic
     const isMobileViewport = window.innerWidth <= 768;
     const subList = Array.from(new Set(catalogData.map(c => (c.subject || "").trim()).filter(Boolean))).map(s => {
-    const st = subStats[s] || { earned: 0, max: 0, sets: 0 }; 
+      const st = subStats[s] || { earned: 0, max: 0, sets: 0 }; 
       return { subject: s, pct: st.max > 0 ? Math.max(0, Math.round((st.earned / st.max) * 100)) : 0 };
     });
 
@@ -3510,7 +3537,8 @@ window.fetchStudentAnalytics = async function(isSilent = false) {
         }
       });
     }
-    // 🚀 5. MISTAKE REHABILITATION FUNNEL ENGINE
+
+    // Mistake Funnel Engine
     const allMistakes = (userWeakQuestions || []).filter(q => (q.times_wrong || 0) > 0);
     const totalMistakes = allMistakes.length;
     const masteredMistakes = allMistakes.filter(q => (q.mastery_streak || 0) >= 4).length;
@@ -3551,7 +3579,7 @@ window.fetchStudentAnalytics = async function(isSilent = false) {
       }
     }
 
-    // 🚀 6. NEGATIVE BLEED & GUESSWORK AUDITOR ENGINE
+    // Negative Bleed Auditor Engine
     const grossEarned = nCorr * 2.00;
     const penaltyBleed = nIncorr * 0.50;
     const netRealized = Math.max(0, grossEarned - penaltyBleed);
@@ -3590,7 +3618,8 @@ window.fetchStudentAnalytics = async function(isSilent = false) {
         bNote.innerHTML = `🏆 <strong style="color:var(--success-dark);">${scoreEfficiency}% High Efficiency:</strong> Outstanding exam discipline. Minimal guesswork penalty (<strong style="color:var(--success-dark);">${bleedPercentage}% bleed</strong>). Examination-ready accuracy.`;
       }
     }
-    // 🚀 7. Heatmap with Monthly Telemetry Summary Strip
+
+    // Heatmap with Monthly Telemetry Summary Strip
     renderHeatmap(attMap);
 
   } catch (err) { 
@@ -3676,6 +3705,27 @@ function renderHeatmap(attMap) {
     container.appendChild(cell);
   }
 }
+
+// 🚀 MOBILE ANALYTICS SEGMENTED CONTROLLER
+window.switchAnalyticsTab = function(tabKey) {
+  const grid = document.querySelector(".advanced-analytics-grid");
+  const btnDomains = document.getElementById("btnAnalyticsTabDomains");
+  const btnAudit = document.getElementById("btnAnalyticsTabAudit");
+
+  if (!grid) return;
+
+  if (tabKey === 'audit') {
+    grid.classList.remove("show-domains");
+    grid.classList.add("show-audit");
+    btnDomains?.classList.remove("active");
+    btnAudit?.classList.add("active");
+  } else {
+    grid.classList.remove("show-audit");
+    grid.classList.add("show-domains");
+    btnAudit?.classList.remove("active");
+    btnDomains?.classList.add("active");
+  }
+};
 // ==========================================================================
 // 11. MULTI-MODE PRACTICE (READ/FLASHCARD/QUIZ - REFINED TOP BARS)
 // ==========================================================================
