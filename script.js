@@ -2513,6 +2513,44 @@ function renderTopicSets() {
   container.innerHTML = "";
   
   updateStagingDockUI();
+  // ⚠️ RENDER DEDICATED SUBJECT MISTAKE BANK BANNER
+  const mbContainer = document.getElementById("subjectMistakeBankContainer");
+  if (mbContainer) {
+    if (librarySelectionMode) {
+      mbContainer.innerHTML = "";
+    } else {
+      const activeClean = (activeSubject || "").trim().toLowerCase();
+      const subjectWeak = (userWeakQuestions || []).filter(q => 
+        (q.subject || "").trim().toLowerCase() === activeClean &&
+        (q.times_wrong || 0) > 0 && 
+        (q.mastery_streak || 0) < 4
+      );
+      
+      const now = new Date();
+      const dueCount = subjectWeak.filter(q => !q.next_review_at || new Date(q.next_review_at) <= now).length;
+      const totalCount = subjectWeak.length;
+
+      if (totalCount > 0) {
+        mbContainer.innerHTML = `
+          <div class="subject-mistake-banner">
+            <div class="subject-mistake-left">
+              <div class="subject-mistake-icon">⚠️</div>
+              <div class="subject-mistake-text">
+                <span class="subject-mistake-title">${activeSubject} Mistake Bank</span>
+                <span class="subject-mistake-sub">${dueCount > 0 ? `${dueCount} Due for Spaced Review` : `${totalCount} Mistakes Tracked (Streak 1–3)`}</span>
+              </div>
+            </div>
+            <button type="button" class="btn-launch-mistakes" onclick="launchMistakeBank('quiz', ${dueCount === 0})" title="Practice ${activeSubject} Mistakes">
+              <span>Drill Mistakes</span>
+              <span>➔</span>
+            </button>
+          </div>
+        `;
+      } else {
+        mbContainer.innerHTML = ""; // Agar subject me 0 mistakes hain toh screen clean rahegi
+      }
+    }
+  }
 
   const filtered = catalogData.filter(r => (r.subject || "General Studies").trim().toLowerCase() === (activeSubject || "").trim().toLowerCase());
   let totalSets = filtered.length, unattempted = 0, revise = 0, mastered = 0;
@@ -2741,12 +2779,24 @@ async function syncMistakeBank(payloads) {
 }
 
 window.launchMistakeBank = function(mode, forceAll = false) {
-  const now = new Date(), 
-        due = userWeakQuestions.filter(q => q.subject === activeSubject && q.times_wrong > 0 && (q.mastery_streak || 0) < 4 && (!q.next_review_at || new Date(q.next_review_at) <= now)),
-        allW = userWeakQuestions.filter(q => q.subject === activeSubject && q.times_wrong > 0 && (q.mastery_streak || 0) < 4);
+  const now = new Date();
+  const activeClean = (activeSubject || "").trim().toLowerCase();
+  
+  const due = userWeakQuestions.filter(q => 
+    (q.subject || "").trim().toLowerCase() === activeClean && 
+    q.times_wrong > 0 && 
+    (q.mastery_streak || 0) < 4 && 
+    (!q.next_review_at || new Date(q.next_review_at) <= now)
+  );
+  
+  const allW = userWeakQuestions.filter(q => 
+    (q.subject || "").trim().toLowerCase() === activeClean && 
+    q.times_wrong > 0 && 
+    (q.mastery_streak || 0) < 4
+  );
   
   if (!allW.length) {
-    return showAppNoticeModal("Mistake Bank Mastered", "All Weak Areas Cleared! 🎉", "You have mastered all flagged questions for this domain.", "🏆", "Explore Library", () => { 
+    return showAppNoticeModal("Mistake Bank Mastered", "All Weak Areas Cleared! 🎉", `You have zero active mistakes in ${activeSubject}.`, "🏆", "Explore Library", () => { 
       switchView("viewLibrary"); 
       returnToSubjectHub(true); 
     });
@@ -2773,14 +2823,14 @@ window.launchMistakeBank = function(mode, forceAll = false) {
 
   const tEl = document.getElementById("practiceSetTitle"); 
   const subEl = document.getElementById("practiceMetaSub");
-  const mbTitle = forceAll ? "Mega Mistake Bank" : "Mistake Bank";
+  const mbTitle = `${activeSubject} Mistake Bank`;
 
   if (tEl) {
     tEl.innerText = mbTitle;
     tEl.title = mbTitle;
   }
   if (subEl) {
-    subEl.innerText = `${activeSubject || "General Studies"} • ${practiceQuestions.length} Questions`;
+    subEl.innerText = `${activeSubject} • ${practiceQuestions.length} Questions`;
   }
 
   switchView("viewPractice"); 
