@@ -133,12 +133,13 @@ body.portal-body { font-family: var(--font-family); background-color: var(--bg-p
 
 .mission-deck-container.balanced-split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; align-items: start; width: 100%; }
 .mission-column-primary, .mission-column-secondary { display: flex; flex-direction: column; gap: 14px; min-width: 0; width: 100%; }
-.mission-playlist-card { background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 12px; overflow: hidden; box-shadow: var(--shadow-sm); transition: border-color 0.2s ease, box-shadow 0.2s ease; width: 100%; }
+.mission-playlist-card { background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 12px; overflow: hidden; box-shadow: var(--shadow-sm); transition: border-color 0.2s ease, box-shadow 0.2s ease; width: 100%; position: relative; }
 .mission-playlist-card:hover { border-color: var(--border-hover); }
 .today-payload-card { border-color: var(--tcs-blue-border-subtle); box-shadow: var(--shadow-md); }
 .today-payload-card:hover { border-color: var(--tcs-blue-accent); }
-.playlist-header { padding: 13px 18px; display: flex; justify-content: space-between; align-items: center; background: var(--bg-surface-elevated); cursor: pointer; user-select: none; transition: background 0.15s ease; gap: 10px; color: var(--text-main); }
+.playlist-header { padding: 13px 18px; display: flex; justify-content: space-between; align-items: center; background: var(--bg-surface-elevated); cursor: pointer; user-select: none; border-bottom: 1px solid transparent; transition: background 0.15s ease, border-color 0.2s ease; gap: 10px; color: var(--text-main); }
 .playlist-header:hover { background: var(--bg-surface-hover); }
+.mission-playlist-card.expanded .playlist-header { border-bottom-color: var(--border-color); }
 .playlist-header-left { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1; }
 .playlist-header-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .playlist-accent-indicator { width: 4px; height: 16px; background: var(--tcs-blue-accent); border-radius: 2px; flex-shrink: 0; }
@@ -146,9 +147,11 @@ body.portal-body { font-family: var(--font-family); background-color: var(--bg-p
 .playlist-status-tag { font-size: 9.5px; font-weight: 800; color: var(--success-dark); background: var(--success-bg-subtle); border: 1px solid var(--success-border); padding: 2px 7px; border-radius: 12px; letter-spacing: 0.4px; white-space: nowrap; }
 .playlist-count-pill { font-size: 11px; font-weight: 700; font-family: var(--font-mono); color: var(--text-muted); background: var(--bg-surface-elevated); padding: 3px 9px; border-radius: 12px; border: 1px solid var(--border-color); white-space: nowrap; }
 .mission-playlist-card.expanded > .playlist-header .playlist-count-pill { color: var(--tcs-blue-accent); border-color: var(--tcs-blue-accent); }
-.playlist-body { padding: 14px 16px; background: var(--bg-panel); }
-.mission-playlist-card.collapsed > .playlist-body { display: none !important; }
-.mission-playlist-card.expanded > .playlist-body { display: block !important; border-top: 1px solid var(--border-color); }
+.playlist-body { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.20s cubic-bezier(0.4, 0, 0.2, 1), padding 0.20s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.16s ease; padding: 0 16px; opacity: 0; overflow: hidden; background: var(--bg-panel); }
+.mission-playlist-card.expanded > .playlist-body { grid-template-rows: 1fr; padding: 14px 16px; opacity: 1; transition: grid-template-rows 0.30s cubic-bezier(0.16, 1, 0.3, 1), padding 0.30s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease; }
+.mission-playlist-card.collapsed > .playlist-body,
+.mission-playlist-card:not(.expanded) > .playlist-body { grid-template-rows: 0fr !important; padding-top: 0 !important; padding-bottom: 0 !important; opacity: 0 !important; }
+.playlist-body > .playlist-sets-stream { min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; padding: 0 4px 0 0; scrollbar-width: thin; scrollbar-color: var(--border-color) transparent; }
 .btn-playlist-dots { background: transparent; border: none; font-size: 18px; color: var(--text-muted); cursor: pointer; padding: 4px 6px; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; transition: all 0.2s ease; line-height: 1; flex-shrink: 0; }
 .btn-playlist-dots:hover { background: var(--bg-surface-elevated); color: var(--tcs-blue-accent); }
 
@@ -165,7 +168,7 @@ body.portal-body { font-family: var(--font-family); background-color: var(--bg-p
    🚀 DESKTOP PLAYLIST GRID CAPACITY LOCK (TODAY: 6 SETS | OTHERS: 4 SETS)
    ========================================================================== */
 @media (min-width: 769px) {
-  .mission-playlist-card .playlist-sets-stream.sets-card-grid { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 12px !important; overflow-y: auto !important; overscroll-behavior: contain; padding: 4px 6px 6px 0; scrollbar-width: thin; scrollbar-color: var(--border-color) transparent; }
+  .mission-playlist-card .playlist-sets-stream.sets-card-grid { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 12px !important; overflow-y: auto !important; overscroll-behavior: contain; scrollbar-gutter: stable; padding: 0 4px 0 0; scrollbar-width: thin; scrollbar-color: var(--border-color) transparent; }
   .mission-playlist-card .playlist-sets-stream.sets-card-grid::-webkit-scrollbar { width: 5px; }
   .mission-playlist-card .playlist-sets-stream.sets-card-grid::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
   .mission-playlist-card .playlist-sets-stream.sets-card-grid::-webkit-scrollbar-thumb:hover { background: var(--border-hover); }
@@ -242,8 +245,9 @@ body.portal-body { font-family: var(--font-family); background-color: var(--bg-p
 .topics-grid { display: flex; flex-direction: column; gap: 10px; margin-bottom: 85px; }
 
 .topic-accordion-card { background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 6px; box-shadow: var(--shadow-sm); overflow: hidden; transition: border-color 0.2s ease; position: relative; }
-.topic-accordion-header { background: var(--bg-surface-elevated); padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; position: relative; top: 0; z-index: 15; backdrop-filter: blur(8px); transition: background 0.15s ease; color: var(--text-main); border-radius: 6px 6px 0 0; }
+.topic-accordion-header { background: var(--bg-surface-elevated); padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; position: relative; top: 0; z-index: 15; backdrop-filter: blur(8px); border-bottom: 1px solid transparent; transition: background 0.15s ease, border-color 0.2s ease; color: var(--text-main); border-radius: 6px 6px 0 0; }
 .topic-accordion-header:hover { background: var(--bg-surface-hover); }
+.topic-accordion-card.open .topic-accordion-header { border-bottom-color: var(--border-color); box-shadow: var(--shadow-sm); }
 .acc-progress-track { position: absolute; bottom: 0; left: 0; height: 3px; background: var(--bg-surface-hover); width: 100%; overflow: hidden; }
 .acc-progress-fill { height: 100%; background: var(--tcs-blue-accent); transition: width 0.5s ease; }
 .header-left, .topic-title { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; color: inherit; }
@@ -251,23 +255,20 @@ body.portal-body { font-family: var(--font-family); background-color: var(--bg-p
 .subtopic-tag { font-size: 11px !important; font-weight: 700 !important; font-family: var(--font-mono) !important; color: var(--tcs-blue-accent) !important; background: var(--tcs-blue-bg-subtle) !important; border: 1px solid var(--tcs-blue-border-subtle) !important; padding: 3px 8px !important; border-radius: 12px !important; white-space: nowrap !important; }
 .toggle-icon { color: var(--text-muted) !important; transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important; display: flex; align-items: center; justify-content: center; flex-shrink: 0; opacity: 0.85; }
 .topic-accordion-card.open .toggle-icon { transform: rotate(180deg) !important; color: var(--tcs-blue-accent) !important; opacity: 1; }
-.topic-accordion-card.open .topic-accordion-header { border-bottom: 1px solid var(--border-color); box-shadow: var(--shadow-sm); }
 
-/* 🚀 BUTTER-SMOOTH ACCORDION TRANSITIONS (0fr -> 1fr CSS GRID EXPANSION) */
-.topic-accordion-body { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.32s cubic-bezier(0.16, 1, 0.3, 1), padding 0.32s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease; padding: 0 16px; opacity: 0; overflow: hidden; background: var(--bg-panel); color: var(--text-main); border-radius: 0 0 6px 6px; }
-.topic-accordion-card.open .topic-accordion-body { grid-template-rows: 1fr; padding: 14px 16px; opacity: 1; }
+.topic-accordion-body { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.20s cubic-bezier(0.4, 0, 0.2, 1), padding 0.20s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.16s ease; padding: 0 16px; opacity: 0; overflow: hidden; background: var(--bg-panel); color: var(--text-main); border-radius: 0 0 6px 6px; }
+.topic-accordion-card.open .topic-accordion-body { grid-template-rows: 1fr; padding: 14px 16px; opacity: 1; transition: grid-template-rows 0.30s cubic-bezier(0.16, 1, 0.3, 1), padding 0.30s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease; }
 .topic-accordion-card:not(.open) .topic-accordion-body { grid-template-rows: 0fr !important; padding-top: 0 !important; padding-bottom: 0 !important; opacity: 0 !important; }
-.topic-accordion-body > .sets-card-grid { min-height: 0; }
+.topic-accordion-body > .sets-card-grid { min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; scrollbar-width: thin; scrollbar-color: var(--border-color) transparent; }
 .sets-card-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
 
 /* 💻 PC VIEW: EXACT 3 ROWS (12 SETS) SCROLL LOCK */
 @media (min-width: 769px) {
-  .topic-accordion-card.open .topic-accordion-body > .sets-card-grid { max-height: 520px; overflow-y: auto; overscroll-behavior: contain; padding-right: 6px; scrollbar-width: thin; scrollbar-color: var(--border-color) transparent; }
-  .topic-accordion-card.open .topic-accordion-body > .sets-card-grid::-webkit-scrollbar { width: 5px; }
-  .topic-accordion-card.open .topic-accordion-body > .sets-card-grid::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
-  .topic-accordion-card.open .topic-accordion-body > .sets-card-grid::-webkit-scrollbar-thumb:hover { background: var(--border-hover); }
+  .topic-accordion-body > .sets-card-grid { max-height: 520px; padding-right: 4px; }
+  .topic-accordion-body > .sets-card-grid::-webkit-scrollbar { width: 5px; }
+  .topic-accordion-body > .sets-card-grid::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
+  .topic-accordion-body > .sets-card-grid::-webkit-scrollbar-thumb:hover { background: var(--border-hover); }
 }
-
 /* ==========================================================================
    🚀 CYBER-VAULT ACCORDION & NATURAL TILES (VISIBLE AMBIENT LIGHT & DARK)
    ========================================================================== */
@@ -1044,9 +1045,9 @@ body.dark-theme .box-fc { color: #c084fc; }
   .playlist-header-right { gap: 6px !important; }
   .playlist-status-tag { display: none !important; }
   .playlist-count-pill { font-size: 10px !important; padding: 2px 7px !important; }
-  .playlist-body { padding: 10px !important; }
+  .mission-playlist-card.expanded > .playlist-body { padding: 10px !important; }
   
-  .playlist-sets-stream { max-height: 315px !important; overflow-y: auto !important; overscroll-behavior: contain; padding: 5px 4px 5px 2px !important; scrollbar-width: thin; scrollbar-color: var(--border-color) transparent; }
+  .playlist-sets-stream { max-height: 315px !important; overflow-y: auto !important; overscroll-behavior: contain; scrollbar-gutter: stable; padding: 0 4px 0 0 !important; scrollbar-width: thin; scrollbar-color: var(--border-color) transparent; }
   .playlist-sets-stream::-webkit-scrollbar { width: 4px; }
   .playlist-sets-stream::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
   .playlist-sets-stream.sets-card-grid, .today-payload-card .sets-card-grid, .today-payload-grid, .sets-card-grid { display: grid !important; grid-template-columns: 1fr !important; gap: 10px !important; }
@@ -1056,7 +1057,7 @@ body.dark-theme .box-fc { color: #c084fc; }
   /* 📱 MOBILE LIBRARY TOPIC BODY: EXACT 3 VERTICAL SETS (~440px) + SMOOTH TOUCH SCROLL */
   .topic-accordion-body { max-height: none !important; overflow: hidden !important; }
   .topic-accordion-card.open .topic-accordion-body { padding: 12px 10px !important; }
-  .topic-accordion-card.open .topic-accordion-body > .sets-card-grid { display: grid !important; grid-template-columns: 1fr !important; gap: 10px !important; max-height: 440px !important; overflow-y: auto !important; -webkit-overflow-scrolling: touch !important; overscroll-behavior: contain; padding: 4px 4px 8px 2px !important; scrollbar-width: thin; scrollbar-color: var(--border-color) transparent; }
+  .topic-accordion-body > .sets-card-grid { display: grid !important; grid-template-columns: 1fr !important; gap: 10px !important; max-height: 440px !important; overflow-y: auto !important; -webkit-overflow-scrolling: touch !important; overscroll-behavior: contain; scrollbar-gutter: stable; padding: 0 4px 0 0 !important; scrollbar-width: thin; scrollbar-color: var(--border-color) transparent; }
   .topic-accordion-card.open .topic-accordion-body > .sets-card-grid::-webkit-scrollbar { width: 4px; }
   .topic-accordion-card.open .topic-accordion-body > .sets-card-grid::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
 
@@ -1173,3 +1174,15 @@ body.dark-theme .box-fc { color: #c084fc; }
 @keyframes quantumSpinReverse { 0% { transform: rotate(360deg); } 100% { transform: rotate(0deg); } }
 @keyframes coreBreathe { 0% { transform: scale(0.8); opacity: 0.7; } 100% { transform: scale(1.25); opacity: 1; } }
 @keyframes progressSweep { 0% { transform: translateX(-100%); } 100% { transform: translateX(250%); } }
+
+
+/* अगर सेट्स कंटेनर खाली है, तो बॉडी को 0px पर लॉक रखें */
+.mission-playlist-card:has(.playlist-sets-stream:empty) .playlist-body {
+  grid-template-rows: 0fr !important;
+  padding: 0 !important;
+  opacity: 0 !important;
+}
+
+.mission-playlist-card:has(.playlist-sets-stream:empty) .playlist-header {
+  border-bottom-color: transparent !important;
+}
