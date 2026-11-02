@@ -1382,7 +1382,6 @@ window.executeBriefingMode = function(mode) {
 // ==========================================================================
 // 8. HOME DECK & PLAYLIST ENGINE (QUANTUM CORE BOOSTER & ANTI-DRIFT ROLLOVER)
 // ==========================================================================
-// 🚀 0ms CACHE-FIRST & PARALLEL HYDRATION DASHBOARD
 async function mountDashboard(isInitialLoad = false) {
   const cName = document.getElementById("dashCandidateName"); 
   if (cName) cName.innerText = currentCandidate?.full_name || "Candidate";
@@ -1420,18 +1419,48 @@ async function mountDashboard(isInitialLoad = false) {
   if (cTitle) cTitle.innerText = isSun ? "Sunday Revision Target" : "Daily Milestone";
   if (cSub) cSub.innerText = isSun ? "Weekly Backlog & Mastery Crucible" : "100-Question Target & Mastery Barometer";
 
-  // 🚀 0ms Anti-Flicker Badge Initialization
+  // 🚀 0ms Anti-Flicker Badge & Hyperdrive Beam Initialization
   if (cMeter) {
-    if (dailyPerf?.is_century_hit) {
-      cMeter.innerText = isSun 
-        ? `${dailyPerf.total_questions_attempted || 0} Qs 👑 (Crucible Conquered)` 
-        : `${dailyPerf.total_questions_attempted || 0} / 100 Qs 🔥 (Century Secured)`;
-    } else if ((dailyPerf?.total_questions_attempted || 0) > 0) {
-      cMeter.innerText = isSun 
-        ? `${dailyPerf.total_questions_attempted} Qs ⚔️ (Crucible Target)` 
-        : `${dailyPerf.total_questions_attempted} / 100 Qs 🎯`;
+    const cachedCount = dailyPerf?.total_questions_attempted || 0;
+    const isOverdriveInit = !isSun && cachedCount > 100;
+    const attFillInit = document.getElementById("centuryAttemptedFill");
+    const capFillInit = document.getElementById("centuryCapacityFill");
+    const trackInit = attFillInit?.parentElement || document.querySelector(".multi-tier-track") || document.querySelector(".century-progress-track");
+
+    // Decouple Staging fill permanently
+    if (capFillInit) capFillInit.style.display = "none";
+
+    // Hyperdrive dynamic physical beam mounting on track
+    if (trackInit) {
+      trackInit.classList.toggle("hyperdrive-active-track", isOverdriveInit);
+      const existingBeam = trackInit.querySelector(".hyperdrive-physical-beam");
+      if (isOverdriveInit) {
+        if (!existingBeam) {
+          const beamLayer = document.createElement("div");
+          beamLayer.className = "hyperdrive-physical-beam";
+          beamLayer.innerHTML = `<div class="hyperdrive-flare-head"></div>`;
+          trackInit.appendChild(beamLayer);
+        }
+      } else if (existingBeam) {
+        existingBeam.remove();
+      }
+    }
+
+    if (isSun) {
+      cMeter.innerText = dailyPerf?.is_century_hit ? `${cachedCount} Qs 👑 (Crucible Conquered)` : `${cachedCount} Qs ⚔️ (Crucible Target)`;
+    } else if (isOverdriveInit) {
+      cMeter.innerHTML = `
+        <div class="honest-satellite-cluster">
+          <span class="honest-pill-mastered">✓ ${dailyPerf?.total_correct || 0} MASTERED</span>
+          <span class="honest-pill-overdrive"><span class="honest-pip-amber"></span>${cachedCount} / 100 Qs (+${cachedCount - 100})</span>
+        </div>
+      `;
+    } else if (dailyPerf?.is_century_hit || cachedCount === 100) {
+      cMeter.innerText = `100 / 100 Qs 🔥 (Century Secured)`;
+    } else if (cachedCount > 0) {
+      cMeter.innerText = `${cachedCount} / 100 Qs 🎯`;
     } else {
-      cMeter.innerText = isSun ? "0 Qs ⚔️ (Crucible Target)" : "0 / 100 Qs";
+      cMeter.innerText = "0 / 100 Qs";
     }
   }
 
@@ -1444,7 +1473,7 @@ async function mountDashboard(isInitialLoad = false) {
     renderHomePlaylists();
   }
 
- if (!history.state || history.state.page !== 'dashboard') {
+  if (!history.state || history.state.page !== 'dashboard') {
     history.pushState({ page: 'dashboard', view: 'viewDashboard' }, '', '#viewDashboard');
   }
 
@@ -1524,10 +1553,22 @@ async function fetchPlaylistsAndCheckRollover() {
       .select("test_id, total_correct, total_incorrect, attempt_date")
       .eq("student_roll", roll);
 
-    const actualExamAttemptedToday = (todayAttRows || [])
-      .filter(a => (a.attempt_date || "").split("T")[0] === todayStr && (Number(a.test_id) > 0 || (Number(a.test_id) === -1 && isSunday())))
-      .reduce((sum, a) => sum + (a.total_correct || 0) + (a.total_incorrect || 0), 0);
+    // 🚀 DEDUPLICATED UNIQUE QUESTIONS LOGIC (Ek test_id din me ek hi baar count hoga)
+    const uniqueSetsAttemptedToday = new Map();
+    (todayAttRows || []).forEach(a => {
+      const attDate = (a.attempt_date || "").split("T")[0];
+      const tid = Number(a.test_id);
+      if (attDate === todayStr && (tid > 0 || (tid === -1 && isSunday()))) {
+        const attemptedInRun = (a.total_correct || 0) + (a.total_incorrect || 0);
+        // Agar ek hi set dobara attempt hua hai, toh highest unique attempt pick karein
+        const prevAttempted = uniqueSetsAttemptedToday.get(tid) || 0;
+        if (attemptedInRun > prevAttempted) {
+          uniqueSetsAttemptedToday.set(tid, attemptedInRun);
+        }
+      }
+    });
 
+    const actualExamAttemptedToday = Array.from(uniqueSetsAttemptedToday.values()).reduce((sum, q) => sum + q, 0);
     const crucibleAttempted = (todayAttRows || []).some(a => Number(a.test_id) === -1 && (a.attempt_date || "").split("T")[0] === todayStr);
 
     let { data: dpData } = await supabaseClient
@@ -2064,48 +2105,87 @@ async function renderHomePlaylists() {
       customContainer.innerHTML = customHtml;
     }
 
+    // 🎯 3. DECOUPLED CENTURY BAROMETER TELEMETRY (PURE UNIQUE ATTEMPTS & HONEST MASTERY)
     const targetQ = 100;
+    const actualAttemptedCount = dailyPerf.total_questions_attempted || 0;
     const todayAttempts = userAttemptHistory.filter(a => (a.attempt_date || "").split("T")[0] === todayStr && (Number(a.test_id) > 0 || (Number(a.test_id) === -1 && isSunday())));
-    let todayMasteredQ = 0;
+    
+    // 🚀 Unique test_id ke hisab se best mastered count calculate karein (No Double Counting)
+    const uniqueMasteredSets = new Map();
     todayAttempts.forEach(a => { 
+      const tid = Number(a.test_id);
       let qc = 10;
-      if (Number(a.test_id) > 0) {
-        const c = catalogData.find(x => String(x.test_id) === String(a.test_id));
+      if (tid > 0) {
+        const c = catalogData.find(x => String(x.test_id) === String(tid));
         qc = c ? (c.total_questions || 10) : 10;
       } else {
         qc = (a.total_correct || 0) + (a.total_incorrect || 0) || 100;
       }
-      if (parseFloat(a.score) >= (qc * 2)) todayMasteredQ += qc; 
-      else if (a.total_correct) todayMasteredQ += a.total_correct; 
+
+      let masteredThisRun = 0;
+      if (parseFloat(a.score) >= (qc * 2)) masteredThisRun = qc; 
+      else if (a.total_correct) masteredThisRun = a.total_correct;
+
+      const prevMastered = uniqueMasteredSets.get(tid) || 0;
+      if (masteredThisRun > prevMastered) {
+        uniqueMasteredSets.set(tid, masteredThisRun);
+      }
     });
 
+    const todayMasteredQ = Array.from(uniqueMasteredSets.values()).reduce((sum, q) => sum + q, 0);
+
     const isSunHit = isSun && dailyPerf.is_century_hit;
-    const capPct = isSun ? 100 : Math.min(100, Math.round((todayLoad / targetQ) * 100)), 
-          attPct = isSunHit ? 100 : Math.min(100, Math.round(((dailyPerf.total_questions_attempted || 0) / targetQ) * 100)), 
-          masPct = isSunHit ? 100 : Math.min(attPct, Math.min(100, Math.round((todayMasteredQ / targetQ) * 100)));
+    const attPct = isSunHit ? 100 : Math.min(100, Math.round((actualAttemptedCount / targetQ) * 100));
+    const masPct = isSunHit ? 100 : Math.min(attPct, Math.min(100, Math.round((todayMasteredQ / targetQ) * 100)));
 
     const capFill = document.getElementById("centuryCapacityFill"), 
           attFill = document.getElementById("centuryAttemptedFill"), 
           masFill = document.getElementById("centuryMasteredFill"), 
           meterText = document.getElementById("centuryLoadText");
+    const trackElement = attFill?.parentElement || document.querySelector(".multi-tier-track") || document.querySelector(".century-progress-track");
 
-    if (capFill) capFill.style.width = capPct + "%"; 
+    // 1. Staging Fill Decoupled
+    if (capFill) capFill.style.display = "none";
     if (attFill) attFill.style.width = attPct + "%"; 
     if (masFill) masFill.style.width = masPct + "%";
 
-    if (meterText) {
-      if (isSun) {
-        if (dailyPerf.is_century_hit) {
-          meterText.innerText = `${dailyPerf.total_questions_attempted} Qs 👑 (Crucible Conquered)`;
-        } else {
-          meterText.innerText = `${dailyPerf.total_questions_attempted || 0} Qs ⚔️ (Crucible Target)`;
+    // 2. 🚀 Hyperdrive Physical Beam Activation (> 100 Qs)
+    const isOverdrive = !isSun && actualAttemptedCount > 100;
+    if (trackElement) {
+      trackElement.classList.toggle("hyperdrive-active-track", isOverdrive);
+      const existingBeam = trackElement.querySelector(".hyperdrive-physical-beam");
+      if (isOverdrive) {
+        if (!existingBeam) {
+          const beamLayer = document.createElement("div");
+          beamLayer.className = "hyperdrive-physical-beam";
+          beamLayer.innerHTML = `<div class="hyperdrive-flare-head"></div>`;
+          trackElement.appendChild(beamLayer);
         }
-      } else {
-        if ((dailyPerf.total_questions_attempted || 0) >= 100) meterText.innerText = `${dailyPerf.total_questions_attempted} / 100 Qs 🔥 (Century Secured)`;
-        else if (todayLoad < 100) meterText.innerText = `${dailyPerf.total_questions_attempted || 0} / 100 Qs ⚠️ (Queue: ${todayLoad} Qs)`;
-        else meterText.innerText = `${dailyPerf.total_questions_attempted || 0} / 100 Qs 🎯 (${todayLoad} Staged)`;
+      } else if (existingBeam) {
+        existingBeam.remove();
       }
     }
+
+    // 3. 🛰️ Honest Satellite Telemetry Updates
+    if (meterText) {
+      if (isSun) {
+        meterText.innerText = dailyPerf.is_century_hit 
+          ? `${actualAttemptedCount} Qs 👑 (Crucible Conquered)` 
+          : `${actualAttemptedCount} Qs ⚔️ (Crucible Target)`;
+      } else if (isOverdrive) {
+        meterText.innerHTML = `
+          <div class="honest-satellite-cluster">
+            <span class="honest-pill-mastered">✓ ${todayMasteredQ} MASTERED</span>
+            <span class="honest-pill-overdrive"><span class="honest-pip-amber"></span>${actualAttemptedCount} / 100 Qs (+${actualAttemptedCount - 100})</span>
+          </div>
+        `;
+      } else if (actualAttemptedCount === 100) {
+        meterText.innerText = `100 / 100 Qs 🔥 (Century Secured)`;
+      } else {
+        meterText.innerText = `${actualAttemptedCount} / 100 Qs 🎯`;
+      }
+    }
+
     localStorage.setItem("tomorrow_load_" + currentCandidate.roll_number, tomorrowLoad);
   } finally {
     isRenderingPlaylists = false;
@@ -2115,71 +2195,6 @@ async function renderHomePlaylists() {
     }
   }
 }
-
-// 🚀 FAST 1-TAP STAR TOGGLE CONTROLLER (ZERO JITTER & ZERO SCROLL-RESET)
-window.toggleStarSet = async function(event, testId) {
-  if (event) {
-    event.preventDefault();
-    event.stopPropagation();
-  }
-  if (!currentCandidate) return;
-  const roll = currentCandidate.roll_number;
-
-  let starredList = userPlaylists.find(p => p.playlist_name === 'Starred Sets');
-  if (!starredList) {
-    const { data: newP } = await supabaseClient.from("playlists").insert({
-      student_roll: roll,
-      playlist_name: 'Starred Sets',
-      is_system_playlist: true,
-      display_order: 4
-    }).select().single();
-    if (newP) {
-      userPlaylists.push(newP);
-      starredList = newP;
-    } else return;
-  }
-
-  const pId = starredList.id;
-  const isStarred = userPlaylistItems.some(pi => pi.playlist_id === pId && String(pi.test_id) === String(testId));
-
-  // 1. Instant 0ms Local Memory Toggle
-  if (isStarred) {
-    userPlaylistItems = userPlaylistItems.filter(pi => !(pi.playlist_id === pId && String(pi.test_id) === String(testId)));
-  } else {
-    userPlaylistItems.push({ playlist_id: pId, test_id: testId, student_roll: roll });
-  }
-
-  // 2. Instant UI Flip across all matching buttons in view (In-place, no layout shift)
-  document.querySelectorAll(`.btn-star-set[data-test-id="${testId}"]`).forEach(btn => {
-    btn.classList.toggle("starred", !isStarred);
-    btn.title = !isStarred ? "Unstar set" : "Star set";
-  });
-
-  // 3. 🚀 SURGICAL UPDATE: Re-render ONLY Starred Sets playlist (Today Payload stays 100% frozen)
-  renderStarredPlaylistOnly();
-  showSelectionToast(!isStarred ? "⭐ Added to Starred Sets" : "Removed from Starred Sets");
-
-  // 4. Background Cloud Sync
-  try {
-    if (isStarred) {
-      await supabaseClient.from("playlist_items").delete().eq("playlist_id", pId).eq("test_id", testId).eq("student_roll", roll);
-    } else {
-      await supabaseClient.from("playlist_items").insert({ playlist_id: pId, test_id: testId, student_roll: roll });
-    }
-  } catch (err) {
-    console.error("Star sync failed, reverting:", err);
-    if (isStarred) {
-      userPlaylistItems.push({ playlist_id: pId, test_id: testId, student_roll: roll });
-    } else {
-      userPlaylistItems = userPlaylistItems.filter(pi => !(pi.playlist_id === pId && String(pi.test_id) === String(testId)));
-    }
-    document.querySelectorAll(`.btn-star-set[data-test-id="${testId}"]`).forEach(btn => {
-      btn.classList.toggle("starred", isStarred);
-    });
-    renderStarredPlaylistOnly();
-    showSelectionToast("Network sync failed. Changes reverted.");
-  }
-};
 
 // ==========================================================================
 // 🚀 REFINED SELECTION MODE: FAST DOMAIN SCROLLER & FLOATING DOCK ENGINE
@@ -3418,7 +3433,7 @@ window.confirmAndFinishExam = function() {
   renderScorecard(); 
 };
 
-// 🚀 CRITICAL FIX: INSTANT IN-MEMORY TELEMETRY RECORDING & ZERO-LAG ATTEMPT SYNC
+// 🚀 CRITICAL FIX: INSTANT IN-MEMORY TELEMETRY RECORDING & ZERO-LAG UNIQUE ATTEMPT SYNC
 function renderScorecard() {
   let correct = 0, incorrect = 0, unattempted = 0, statsPayload = [];
   testQuestions.forEach((q, idx) => {
@@ -3450,6 +3465,49 @@ function renderScorecard() {
   };
   userAttemptHistory.unshift(localAttemptRecord);
 
+  // 🚀 0ms SYNCHRONOUS UNIQUE TELEMETRY UPDATE (Immediate Barometer Jump & No Duplicate Bloat)
+  if (activeTest.id > 0 || (activeTest.id === -1 && isSunday())) {
+    const todayStr = getLocalDateString();
+    
+    // Check karein kya yeh set aaj pehle bhi attempt ho chuka hai (index 0 is current run, slice(1) are past runs)
+    const prevAttemptsOfThisSetToday = userAttemptHistory.filter(a => 
+      String(a.test_id) === String(activeTest.id) && 
+      (a.attempt_date || "").split("T")[0] === todayStr
+    );
+    const isRetakeToday = prevAttemptsOfThisSetToday.length > 1;
+
+    let incrementalAttempted = actuallyAttemptedThisExam;
+    let incrementalCorrect = correct;
+
+    if (isRetakeToday) {
+      const prevBestAttempted = Math.max(...prevAttemptsOfThisSetToday.slice(1).map(a => (a.total_correct || 0) + (a.total_incorrect || 0)), 0);
+      const prevBestCorrect = Math.max(...prevAttemptsOfThisSetToday.slice(1).map(a => (a.total_correct || 0)), 0);
+
+      incrementalAttempted = Math.max(0, actuallyAttemptedThisExam - prevBestAttempted);
+      incrementalCorrect = Math.max(0, correct - prevBestCorrect);
+    }
+
+    dailyPerf.total_questions_attempted = (dailyPerf.total_questions_attempted || 0) + incrementalAttempted;
+    dailyPerf.total_correct = (dailyPerf.total_correct || 0) + incrementalCorrect;
+    
+    const hit = isSunday() ? true : (dailyPerf.total_questions_attempted >= 100);
+    if (hit && !dailyPerf.is_century_hit) {
+      dailyPerf.streak_count = (dailyPerf.streak_count || 0) + 1;
+      dailyPerf.is_century_hit = true;
+    }
+
+    // Today's list se solved set turant local memory se clean karein
+    const tList = userPlaylists.find(p => p.playlist_name === 'Today');
+    if (tList) {
+      userPlaylistItems = userPlaylistItems.filter(pi => !(pi.playlist_id === tList.id && String(pi.test_id) === String(activeTest.id)));
+    }
+
+    try {
+      localStorage.setItem("cache_daily_perf_" + currentCandidate.roll_number, JSON.stringify(dailyPerf));
+      localStorage.setItem("cache_playlist_items_" + currentCandidate.roll_number, JSON.stringify(userPlaylistItems));
+    } catch(e) {}
+  }
+
   cachedBoosterPool = null;
   lastBoosterFetchTime = 0;
 
@@ -3472,7 +3530,7 @@ function renderScorecard() {
         <table class="modal-summary-table">
           <tbody>
             <tr><td>Correct Answers</td><td style="color:var(--success-dark); font-weight:bold;">${correct} (+${(correct * 2).toFixed(2)})</td></tr>
-            <tr><td>Incorrect Answers</td><td style="color:var(--danger-dark); font-weight:bold;">${incorrect} (-${(incorrect * 0.5).toFixed(2)})</td></tr>
+            <tr><td>Incorrect Answers</td><td style="color:var(--danger-dark); font-weight:bold;">${incorrect} (-${(incorrect * 0.50).toFixed(2)})</td></tr>
             <tr><td>Unattempted</td><td>${unattempted}</td></tr>
             <tr><td>Accuracy</td><td>${actuallyAttemptedThisExam > 0 ? (((correct / actuallyAttemptedThisExam) * 100).toFixed(1)) : 0}%</td></tr>
           </tbody>
@@ -3504,9 +3562,6 @@ function renderScorecard() {
       }
 
       if (activeTest.id > 0 || (activeTest.id === -1 && isSunday())) {
-        dailyPerf.total_questions_attempted = (dailyPerf.total_questions_attempted || 0) + actuallyAttemptedThisExam;
-        
-        // 🚀 APPROACH A: संडे को क्रूसीबल सबमिट होते ही टारगेट हिट माना जाएगा (भले सवाल < 100 हों)
         const hit = isSunday() ? true : (dailyPerf.total_questions_attempted >= 100);
         let nStreak = dailyPerf.streak_count || 0;
         
