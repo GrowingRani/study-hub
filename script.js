@@ -3728,57 +3728,21 @@ window.openSolutionsView = function() {
   document.getElementById("solExamTitle").innerText = activeTest?.title || "Assessment";
   switchView("viewSolutions", false);
   history.replaceState({ view: 'viewSolutions' }, "", "#viewSolutions");
+  
   const container = document.getElementById("solutionsContainer");
   if (!container) return;
   container.innerHTML = "";
 
+  // 🚀 Construct mock state compatible with Universal Builder
+  const mockReviewState = {
+    answers: userResponses, // Connect exam responses
+    starred: new Set(),     
+    isFinished: true 
+  };
+
   testQuestions.forEach((q, idx) => {
-    const uAns = userResponses[idx].selected;
-    const isUserCorrect = uAns && isOptionMatching(uAns, q.correctAnswer);
-    
-    // 🚀 SHORT & CRISP STATUS LABELS
-    let sText = "Skipped", sClass = "sol-status-unattempted";
-    if (uAns) {
-      if (isUserCorrect) { sText = "Right"; sClass = "sol-status-correct"; }
-      else { sText = "Wrong"; sClass = "sol-status-incorrect"; }
-    }
-    const expText = formatExplanation(q.explanation);
-
-    const oHtml = (q.options || []).map(opt => {
-      const oid = String(opt.id);
-      let oCls = "sol-option";
-      let bubbleCls = "sol-radio-bubble bubble-neutral";
-      let bubbleIcon = "";
-
-      if (isOptionMatching(oid, q.correctAnswer)) {
-        oCls += " sol-opt-correct";
-        bubbleCls = "sol-radio-bubble bubble-correct";
-        bubbleIcon = checkIconSvg;
-      } else if (uAns && isOptionMatching(oid, uAns) && !isUserCorrect) {
-        oCls += " sol-opt-wrong";
-        bubbleCls = "sol-radio-bubble bubble-wrong";
-        bubbleIcon = crossIconSvg;
-      }
-
-      return `
-        <div class="${oCls}">
-          <span class="${bubbleCls}">${bubbleIcon}</span>
-          <span class="sol-option-text">${getLocalizedText({ en: opt.en || opt.text, hi: opt.hi })}</span>
-        </div>
-      `;
-    }).join("");
-
-    const card = document.createElement("div");
-    card.className = "solution-card";
-    card.innerHTML = `
-      <div class="sol-q-header">
-        <span class="sol-q-title">Question ${q.qNum}</span>
-        <span class="sol-status-badge ${sClass}">${sText}</span>
-      </div>
-      <div class="sol-content">${getLocalizedText(q.content)}</div>
-      <div style="margin-bottom:16px;">${oHtml}</div>
-      <div class="sol-explanation"><strong>Explanation:</strong><br/>${expText}</div>
-    `;
+    // 🚀 USE UNIVERSAL CARD BUILDER in 'review' mode
+    const card = buildQuestionCardDOM(q, idx, 'review', mockReviewState, false);
     container.appendChild(card);
   });
 };
@@ -4481,36 +4445,11 @@ function renderReadUI() {
 
   let renderedCount = 0;
   practiceQuestions.forEach((q, idx) => {
-    const isSt = localReadState.starred.has(idx);
-    if (localReadState.filter === 'starred' && !isSt) return;
+    if (localReadState.filter === 'starred' && !localReadState.starred.has(idx)) return;
     renderedCount++;
 
-    const oHtml = (q.options || []).map(opt => {
-      const isCorrect = isOptionMatching(opt.id, q.correctAnswer);
-      return `
-        <div class="sol-option ${isCorrect ? 'sol-opt-correct' : ''}">
-          <span class="opt-index-badge">${opt.id}</span>
-          <span class="opt-text-label">${getLocalizedText({ en: opt.en || opt.text, hi: opt.hi })}</span>
-          ${isCorrect ? `<span class="opt-feedback-indicator badge-correct" title="Correct Answer">${checkIconSvg}</span>` : ''}
-        </div>
-      `;
-    }).join("");
-
-    const card = document.createElement("div");
-    card.className = `solution-card ${isSt ? 'card-starred' : ''}`;
-    card.id = `readCard_${idx}`;
-    card.style.marginBottom = "16px";
-    card.innerHTML = `
-      <div class="sol-q-header">
-        <div style="display:flex; align-items:center; gap:10px;">
-          <span class="sol-q-title">Question ${q.qNum}</span>
-        </div>
-        <button type="button" class="btn-star-q ${isSt ? 'starred' : ''}" onclick="toggleReadStar(${idx})" title="${isSt ? 'Remove Star' : 'Star for Revision'}">${starIconSvg}</button>
-      </div>
-      <div class="sol-content">${getLocalizedText(q.content)}</div>
-      <div>${oHtml}</div>
-      <div class="sol-explanation"><strong>Explanation:</strong><br/>${formatExplanation(q.explanation)}</div>
-    `;
+    // 🚀 USE UNIVERSAL CARD BUILDER
+    const card = buildQuestionCardDOM(q, idx, 'read', localReadState, false);
     container.appendChild(card);
   });
 
@@ -4533,44 +4472,12 @@ function renderReadUI() {
   container.appendChild(foot);
 }
 
-window.toggleReadStar = function(idx) { 
-  const isStarred = localReadState.starred.has(idx);
-  if (isStarred) {
-    localReadState.starred.delete(idx);
-  } else {
-    localReadState.starred.add(idx);
-  }
-  const nowStarred = localReadState.starred.has(idx);
 
-  const card = document.getElementById(`readCard_${idx}`);
-  if (card) {
-    card.classList.toggle("card-starred", nowStarred);
-    const btn = card.querySelector(".btn-star-q");
-    if (btn) {
-      btn.classList.toggle("starred", nowStarred);
-      btn.title = nowStarred ? "Unstar Question" : "Star for Revision";
-      btn.blur(); // 🚀 Mobile tap focus turant clear karega (prevents sticky highlight)
-    }
-  }
-
-  // Instant zero-lag badge counter update
-  const starBadge = document.getElementById("readStarredBadge");
-  if (starBadge) starBadge.innerText = `${localReadState.starred.size}`;
-
-  // 🔕 Toast notification removed for distraction-free study
-
-  if (localReadState.filter === 'starred' && !nowStarred && card) {
-    card.style.display = "none";
-  } else if (localReadState.filter === 'starred' && nowStarred && card) {
-    card.style.display = "block";
-  }
-};
 
 window.filterReadMode = function(t) { 
   localReadState.filter = t; 
   renderReadUI(); 
 };
-
 
 
 function renderQuizUI() {
@@ -4607,7 +4514,6 @@ function renderQuizUI() {
         <h4 class="quiz-score-header-title">📊 Session Scorecard</h4>
         <div style="display:flex; align-items:center; gap:8px;">
           <span class="quiz-score-badge">${attCount} / ${totalQ} SOLVED</span>
-          <!-- 🚀 SLEEK MICRO-GLYPH RETAKE BUTTON (SPEEDBUMP PROTECTED) -->
           <button type="button" class="btn-retake-glyph" onclick="triggerQuizRetake()" title="Retake Quiz from Question 1">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="1 4 1 10 7 10"></polyline>
@@ -4683,122 +4589,19 @@ function renderQuizUI() {
     const isAns = localQuizState.answers[idx] !== undefined;
     const isWr = isAns && !localQuizState.answers[idx].isCorrect;
     const isSt = localQuizState.starred.has(idx);
-    const sAns = localQuizState.answers[idx];
-    const isReview = localQuizState.isFinished;
     const isUnatt = !isAns;
 
-    if (isReview) {
+    if (localQuizState.isFinished) {
       if (localQuizState.filter === 'wrong' && !isWr) return;
       if (localQuizState.filter === 'starred' && !isSt) return;
       if (localQuizState.filter === 'priority' && !(isWr || isSt || isUnatt)) return;
     }
 
-    const card = document.createElement("div");
-    card.className = `solution-card ${isSt ? 'card-starred' : ''}`;
-    card.id = `quizCard_${idx}`;
-    card.style.marginBottom = "20px";
-
-    let badgeHtml = `<span id="quizBadge_${idx}" class="sol-status-badge" style="display:none;"></span>`;
-    if (sAns) {
-      badgeHtml = `<span id="quizBadge_${idx}" class="sol-status-badge ${sAns.isCorrect ? 'sol-status-correct' : 'sol-status-incorrect'}">${sAns.isCorrect ? 'Right' : 'Wrong'}</span>`;
-    } else if (isReview) {
-      badgeHtml = `<span id="quizBadge_${idx}" class="sol-status-badge sol-status-unattempted">Skipped</span>`;
-    }
-
-    const oHtml = (q.options || []).map(opt => {
-      const oid = String(opt.id);
-      let oCls = "option-row";
-      let feedbackSymbol = "";
-
-      if (sAns) {
-        if (isOptionMatching(oid, q.correctAnswer)) {
-          oCls += " sol-opt-correct";
-          feedbackSymbol = `<span class="opt-feedback-indicator badge-correct">${checkIconSvg}</span>`;
-        } else if (isOptionMatching(oid, sAns.selected) && !sAns.isCorrect) {
-          oCls += " sol-opt-wrong";
-          feedbackSymbol = `<span class="opt-feedback-indicator badge-wrong">${crossIconSvg}</span>`;
-        }
-      } else if (isReview) {
-        if (isOptionMatching(oid, q.correctAnswer)) {
-          oCls += " sol-opt-correct";
-          feedbackSymbol = `<span class="opt-feedback-indicator badge-correct">${checkIconSvg}</span>`;
-        }
-      }
-
-      const isClickable = !sAns && !isReview;
-
-      return `
-        <div class="${oCls} quiz-opt-${idx}" data-opt-id="${opt.id}" style="${isClickable ? 'cursor:pointer;' : 'pointer-events:none;'}">
-          <span class="opt-index-badge">${opt.id}</span>
-          <span class="opt-text-label">${getLocalizedText({ en: opt.en || opt.text, hi: opt.hi })}</span>
-          ${feedbackSymbol}
-        </div>
-      `;
-    }).join("");
-
-    const showExp = Boolean(sAns) || isReview;
-
-    card.innerHTML = `
-      <div class="sol-q-header">
-        <div style="display:flex; align-items:center; gap:10px;">
-          <span class="sol-q-title">Question ${q.qNum}</span>
-          ${badgeHtml}
-        </div>
-        <button type="button" class="btn-star-q ${isSt ? 'starred' : ''}" onclick="toggleQuizStar(${idx})" title="${isSt ? 'Remove Star' : 'Star for Revision'}">${starIconSvg}</button>
-      </div>
-      <div class="sol-content">${getLocalizedText(q.content)}</div>
-      <div id="quizOpts_${idx}">${oHtml}</div>
-      <div id="quizExp_${idx}" class="sol-explanation" style="display:${showExp ? 'block' : 'none'};"><strong>Explanation:</strong><br/>${formatExplanation(q.explanation)}</div>
-    `;
+    // 🚀 USE UNIVERSAL CARD BUILDER
+    const card = buildQuestionCardDOM(q, idx, 'quiz', localQuizState, isMB);
     container.appendChild(card);
-
-    if (!sAns && !isReview) {
-      card.querySelectorAll(`.quiz-opt-${idx}`).forEach(row => {
-        row.onclick = async () => {
-          const selId = row.getAttribute("data-opt-id");
-          const isC = isOptionMatching(selId, q.correctAnswer);
-          localQuizState.answers[idx] = { selected: selId, isCorrect: isC };
-
-          const badge = document.getElementById(`quizBadge_${idx}`);
-          if (badge) {
-            badge.style.display = "inline-flex";
-            badge.className = `sol-status-badge ${isC ? 'sol-status-correct' : 'sol-status-incorrect'}`;
-            badge.innerText = isC ? 'Right' : 'Wrong';
-          }
-
-          card.querySelectorAll(`.quiz-opt-${idx}`).forEach(el => {
-            el.style.pointerEvents = "none";
-            const optVal = el.getAttribute("data-opt-id");
-            if (isOptionMatching(optVal, q.correctAnswer)) {
-              el.classList.remove("sol-opt-wrong");
-              el.classList.add("sol-opt-correct");
-              if (!el.querySelector(".opt-feedback-indicator")) {
-                const ind = document.createElement("span");
-                ind.className = "opt-feedback-indicator badge-correct";
-                ind.innerHTML = checkIconSvg;
-                el.appendChild(ind);
-              }
-            } else if (isOptionMatching(optVal, selId) && !isC) {
-              el.classList.add("sol-opt-wrong");
-              if (!el.querySelector(".opt-feedback-indicator")) {
-                const ind = document.createElement("span");
-                ind.className = "opt-feedback-indicator badge-wrong";
-                ind.innerHTML = crossIconSvg;
-                el.appendChild(ind);
-              }
-            }
-          });
-
-          const exp = document.getElementById(`quizExp_${idx}`);
-          if (exp) exp.style.display = "block";
-
-          if (isMB) await syncMistakeBank([{ student_roll: currentCandidate.roll_number, subject: activeSubject || "General", question_id: q.id, question_data: q, isCorrect: isC }]);
-        };
-      });
-    }
   });
 
-  // 🚀 FLOATING DOCK: Only shown during live attempt; completely removed in review mode to prevent accidental resets
   if (!localQuizState.isFinished) {
     const f = document.createElement("div");
     f.className = "quiz-footer-actions";
@@ -4815,51 +4618,81 @@ function renderQuizUI() {
   }
 }
 
-window.toggleQuizStar = function(idx) { 
-  const isStarred = localQuizState.starred.has(idx);
-  if (isStarred) {
-    localQuizState.starred.delete(idx);
+// 🚀 UNIFIED QUESTION STAR CONTROLLER (READ & QUIZ MODES - ZERO LOGIC LOSS)
+window.toggleQuestionStar = function(mode, idx) {
+  const isRead = mode === 'read';
+  const stateObj = isRead ? localReadState : localQuizState;
+  
+  // 1. Common Memory State Toggle
+  if (stateObj.starred.has(idx)) {
+    stateObj.starred.delete(idx);
   } else {
-    localQuizState.starred.add(idx);
+    stateObj.starred.add(idx);
   }
-  const nowStarred = localQuizState.starred.has(idx);
+  const nowStarred = stateObj.starred.has(idx);
 
-  const card = document.getElementById(`quizCard_${idx}`);
+  // 2. Common DOM Sync (Card & Star Button)
+  const card = document.getElementById(`${mode}Card_${idx}`);
   if (card) {
     card.classList.toggle("card-starred", nowStarred);
     const btn = card.querySelector(".btn-star-q");
     if (btn) {
       btn.classList.toggle("starred", nowStarred);
       btn.title = nowStarred ? "Unstar Question" : "Star for Revision";
-      btn.blur(); // 🚀 मोबाइल फोकस को तुरंत हटाएगा ताकि विजुअल ग्लिच न बने
+      btn.blur(); // 📱 Mobile tap focus turant clear karega (prevents sticky highlight)
     }
   }
 
-  if (localQuizState.isFinished) {
-    const starStat = document.querySelector(".quiz-score-item.stat-item-starred .value");
-    if (starStat) starStat.innerText = `${localQuizState.starred.size} ⭐`;
+  // 3. Mode-Specific Counter & Telemetry Updates
+  if (isRead) {
+    // 📖 Read Mode: Instant zero-lag badge counter update (Hamesha active)
+    const starBadge = document.getElementById("readStarredBadge");
+    if (starBadge) starBadge.innerText = `${stateObj.starred.size}`;
 
-    let priorityCount = 0;
-    practiceQuestions.forEach((q, i) => {
-      const isAns = localQuizState.answers[i] !== undefined;
-      const isWr = isAns && !localQuizState.answers[i].isCorrect;
-      const isSt = localQuizState.starred.has(i);
-      const isUnatt = !isAns;
-      if (isWr || isSt || isUnatt) priorityCount++;
-    });
+    // Read Mode Live Filter Visibility
+    if (stateObj.filter === 'starred' && card) {
+      card.style.display = nowStarred ? "block" : "none";
+    }
+  } else {
+    // 🎯 Quiz Mode: Sirf tab update hoga jab session finish ho chuka ho
+    if (stateObj.isFinished) {
+      // (A) Scorecard Star Stat Update
+      const starStat = document.querySelector(".quiz-score-item.stat-item-starred .value");
+      if (starStat) starStat.innerText = `${stateObj.starred.size} ⭐`;
 
-    const prioBtn = document.querySelector(".quiz-chip-btn.chip-priority");
-    if (prioBtn) prioBtn.innerHTML = `<span>⚡</span> Priority (${priorityCount})`;
-    const starBtn = document.querySelector(".quiz-chip-btn.chip-starred");
-    if (starBtn) starBtn.innerHTML = `<span>⭐</span> Starred (${localQuizState.starred.size})`;
+      // (B) Dynamic Priority Count Recalculation (Mistakes + Starred + Unattempted)
+      let priorityCount = 0;
+      practiceQuestions.forEach((q, i) => {
+        const isAns = stateObj.answers[i] !== undefined;
+        const isWr = isAns && !stateObj.answers[i].isCorrect;
+        const isSt = stateObj.starred.has(i);
+        const isUnatt = !isAns;
+        if (isWr || isSt || isUnatt) priorityCount++;
+      });
 
-    if (localQuizState.filter === 'starred' && !nowStarred && card) {
-      card.style.display = "none";
-    } else if (localQuizState.filter === 'starred' && nowStarred && card) {
-      card.style.display = "block";
+      // (C) Filter Chips Update
+      const prioBtn = document.querySelector(".quiz-chip-btn.chip-priority");
+      if (prioBtn) prioBtn.innerHTML = `<span>⚡</span> Priority (${priorityCount})`;
+      const starBtn = document.querySelector(".quiz-chip-btn.chip-starred");
+      if (starBtn) starBtn.innerHTML = `<span>⭐</span> Starred (${stateObj.starred.size})`;
+
+      // (D) Quiz Mode Live Filter Visibility
+      if (stateObj.filter === 'starred' && card) {
+        card.style.display = nowStarred ? "block" : "none";
+      }
     }
   }
 };
+
+// 🔒 100% Backward-Compatible Wrappers (Taaki HTML ya Card Builder ka koi bhi onclick na toote)
+window.toggleReadStar = function(idx) {
+  window.toggleQuestionStar('read', idx);
+};
+
+window.toggleQuizStar = function(idx) {
+  window.toggleQuestionStar('quiz', idx);
+};
+
 
 window.finishQuizSession = function(btnElement) {
   if (localQuizState.isFinished) return;
@@ -5268,6 +5101,176 @@ window.switchActivePracticeMode = function(targetMode) {
 
   scrollToTopOfPractice();
 };
+
+// 🚀 UNIVERSAL QUESTION CARD BUILDER (ZERO-REDUNDANCY ENGINE)
+function buildQuestionCardDOM(q, idx, mode, stateObj, isMB = false) {
+  const isSt = stateObj.starred.has(idx);
+  let badgeHtml = '';
+  let oHtml = '';
+  let showExp = false;
+  
+  // Define Mode Specifics
+  const isReview = mode === 'review';
+  const isQuiz = mode === 'quiz';
+  const isRead = mode === 'read';
+  
+  // Answer State Check (Quiz/Review specific)
+  let sAns = null;
+  if (isQuiz || isReview) {
+    sAns = stateObj.answers && stateObj.answers[idx] !== undefined ? stateObj.answers[idx] : null;
+  }
+
+  // 1. Header Badge Logic
+  if (isRead) {
+     // Read mode has no default status badge in header
+  } else if (isReview) {
+     const uAns = sAns ? sAns.selected : null;
+     const isUserCorrect = uAns && isOptionMatching(uAns, q.correctAnswer);
+     const sText = uAns ? (isUserCorrect ? "Right" : "Wrong") : "Skipped";
+     const sClass = uAns ? (isUserCorrect ? "sol-status-correct" : "sol-status-incorrect") : "sol-status-unattempted";
+     badgeHtml = `<span class="sol-status-badge ${sClass}">${sText}</span>`;
+     showExp = true; // Review always shows explanation
+  } else if (isQuiz) {
+     if (sAns) {
+        badgeHtml = `<span id="quizBadge_${idx}" class="sol-status-badge ${sAns.isCorrect ? 'sol-status-correct' : 'sol-status-incorrect'}">${sAns.isCorrect ? 'Right' : 'Wrong'}</span>`;
+        showExp = true; 
+     } else if (stateObj.isFinished) {
+        badgeHtml = `<span id="quizBadge_${idx}" class="sol-status-badge sol-status-unattempted">Skipped</span>`;
+        showExp = true;
+     } else {
+        badgeHtml = `<span id="quizBadge_${idx}" class="sol-status-badge" style="display:none;"></span>`;
+     }
+  }
+
+  // 2. Options Iteration Logic
+  oHtml = (q.options || []).map(opt => {
+    const oid = String(opt.id);
+    let oCls = isRead ? "sol-option" : "option-row";
+    let feedbackSymbol = "";
+    let bubbleHtml = "";
+
+    const isActualCorrect = isOptionMatching(oid, q.correctAnswer);
+    const uAnsStr = sAns ? sAns.selected : null;
+
+    if (isRead) {
+      if (isActualCorrect) {
+        oCls += " sol-opt-correct";
+        feedbackSymbol = `<span class="opt-feedback-indicator badge-correct" title="Correct Answer">${checkIconSvg}</span>`;
+      }
+    } 
+    else if (isReview) {
+      let bubbleCls = "sol-radio-bubble bubble-neutral";
+      let bubbleIcon = "";
+      if (isActualCorrect) {
+        oCls += " sol-opt-correct";
+        bubbleCls = "sol-radio-bubble bubble-correct";
+        bubbleIcon = checkIconSvg;
+      } else if (uAnsStr && isOptionMatching(oid, uAnsStr) && !sAns.isCorrect) {
+        oCls += " sol-opt-wrong";
+        bubbleCls = "sol-radio-bubble bubble-wrong";
+        bubbleIcon = crossIconSvg;
+      }
+      bubbleHtml = `<span class="${bubbleCls}">${bubbleIcon}</span>`;
+    } 
+    else if (isQuiz) {
+      if (sAns) {
+        if (isActualCorrect) {
+          oCls += " sol-opt-correct";
+          feedbackSymbol = `<span class="opt-feedback-indicator badge-correct">${checkIconSvg}</span>`;
+        } else if (isOptionMatching(oid, uAnsStr) && !sAns.isCorrect) {
+          oCls += " sol-opt-wrong";
+          feedbackSymbol = `<span class="opt-feedback-indicator badge-wrong">${crossIconSvg}</span>`;
+        }
+      } else if (stateObj.isFinished && isActualCorrect) {
+        oCls += " sol-opt-correct";
+        feedbackSymbol = `<span class="opt-feedback-indicator badge-correct">${checkIconSvg}</span>`;
+      }
+      // Add identifying class for quiz click handlers
+      oCls += ` quiz-opt-${idx}`;
+    }
+
+    const isClickable = isQuiz && !sAns && !stateObj.isFinished;
+    const styleStr = isClickable ? 'cursor:pointer;' : 'pointer-events:none;';
+    const dataAttr = isQuiz ? `data-opt-id="${opt.id}"` : "";
+
+    return `
+      <div class="${oCls}" ${dataAttr} style="${styleStr}">
+        ${isReview ? bubbleHtml : `<span class="opt-index-badge">${opt.id}</span>`}
+        <span class="${isReview ? 'sol-option-text' : 'opt-text-label'}">${getLocalizedText({ en: opt.en || opt.text, hi: opt.hi })}</span>
+        ${feedbackSymbol}
+      </div>
+    `;
+  }).join("");
+
+  // 3. Assemble Card HTML
+  const card = document.createElement("div");
+  card.className = `solution-card ${isSt ? 'card-starred' : ''}`;
+  card.id = `${mode}Card_${idx}`;
+  card.style.marginBottom = isRead ? "16px" : "20px";
+
+  const toggleFunc = isRead ? 'toggleReadStar' : 'toggleQuizStar';
+
+  card.innerHTML = `
+    <div class="sol-q-header">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span class="sol-q-title">Question ${q.qNum}</span>
+        ${badgeHtml}
+      </div>
+      <button type="button" class="btn-star-q ${isSt ? 'starred' : ''}" onclick="${toggleFunc}(${idx})" title="${isSt ? 'Remove Star' : 'Star for Revision'}">${starIconSvg}</button>
+    </div>
+    <div class="sol-content">${getLocalizedText(q.content)}</div>
+    <div id="${mode}Opts_${idx}">${oHtml}</div>
+    <div id="${mode}Exp_${idx}" class="sol-explanation" style="display:${(isRead || showExp) ? 'block' : 'none'};"><strong>Explanation:</strong><br/>${formatExplanation(q.explanation)}</div>
+  `;
+
+  // 4. Attach Click Handlers for Live Quiz
+  if (isQuiz && !sAns && !stateObj.isFinished) {
+    card.querySelectorAll(`.quiz-opt-${idx}`).forEach(row => {
+      row.onclick = async () => {
+        const selId = row.getAttribute("data-opt-id");
+        const isC = isOptionMatching(selId, q.correctAnswer);
+        stateObj.answers[idx] = { selected: selId, isCorrect: isC };
+
+        const badge = document.getElementById(`quizBadge_${idx}`);
+        if (badge) {
+          badge.style.display = "inline-flex";
+          badge.className = `sol-status-badge ${isC ? 'sol-status-correct' : 'sol-status-incorrect'}`;
+          badge.innerText = isC ? 'Right' : 'Wrong';
+        }
+
+        card.querySelectorAll(`.quiz-opt-${idx}`).forEach(el => {
+          el.style.pointerEvents = "none";
+          const optVal = el.getAttribute("data-opt-id");
+          if (isOptionMatching(optVal, q.correctAnswer)) {
+            el.classList.remove("sol-opt-wrong");
+            el.classList.add("sol-opt-correct");
+            if (!el.querySelector(".opt-feedback-indicator")) {
+              const ind = document.createElement("span");
+              ind.className = "opt-feedback-indicator badge-correct";
+              ind.innerHTML = checkIconSvg;
+              el.appendChild(ind);
+            }
+          } else if (isOptionMatching(optVal, selId) && !isC) {
+            el.classList.add("sol-opt-wrong");
+            if (!el.querySelector(".opt-feedback-indicator")) {
+              const ind = document.createElement("span");
+              ind.className = "opt-feedback-indicator badge-wrong";
+              ind.innerHTML = crossIconSvg;
+              el.appendChild(ind);
+            }
+          }
+        });
+
+        const exp = document.getElementById(`quizExp_${idx}`);
+        if (exp) exp.style.display = "block";
+
+        if (isMB && currentCandidate) await syncMistakeBank([{ student_roll: currentCandidate.roll_number, subject: activeSubject || "General", question_id: q.id, question_data: q, isCorrect: isC }]);
+      };
+    });
+  }
+
+  return card;
+}
 
 // 🚀 EXECUTE ONE-WAY EXAM LAUNCH
 function executeExamLaunchFromPractice() {
