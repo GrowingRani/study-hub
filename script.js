@@ -3812,10 +3812,51 @@ window.fetchStudentAnalytics = async function(isSilent = false) {
     // Operational Summary
     const extra = document.getElementById("extraAnalyticsSummary");
     if (extra) {
+      // 🚀 Daily Question Volume Map for 4-Tier Assessment
+      const dailyQuestionsMap = {};
+      (atts || []).forEach(a => {
+        const dStr = (a.attempt_date || "").split("T")[0];
+        if (dStr && (Number(a.test_id) > 0 || Number(a.test_id) === -1)) {
+          const attempted = (a.total_correct || 0) + (a.total_incorrect || 0);
+          dailyQuestionsMap[dStr] = (dailyQuestionsMap[dStr] || 0) + attempted;
+        }
+      });
+
       const dots = past7.slice().reverse().map(d => {
-        const act = (attMap[d] || 0) > 0, lbl = new Date(d).toLocaleDateString('en-US', { weekday: 'narrow' });
-        return `<div style="display:flex; flex-direction:column; align-items:center; gap:3px;"><span style="font-size:9px; color:var(--text-muted); font-weight:700;">${lbl}</span><span style="width:18px; height:18px; border-radius:50%; background:${act ? 'var(--tcs-blue-accent)' : 'var(--border-color)'}; color:${act ? '#fff' : 'var(--text-muted)'}; display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:800;">${act ? '✓' : '•'}</span></div>`;
+        const mins = attMap[d] || 0;
+        const qCount = dailyQuestionsMap[d] || 0;
+        const dayLabel = new Date(d).toLocaleDateString('en-US', { weekday: 'narrow' });
+        const dateFormatted = new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+        let nodeClass = "node-tier-inactive";
+        let nodeIcon = "•";
+        let hoverTitle = `${dateFormatted}: Rest / Inactive`;
+
+        if (qCount > 100) {
+          // Tier 4: Overdrive Target Conquered (>100 Qs)
+          nodeClass = "node-tier-overdrive";
+          nodeIcon = "★";
+          hoverTitle = `${dateFormatted}: Overdrive Century Conquered (${qCount} Qs • ${Math.floor(mins / 60)}h ${mins % 60}m)`;
+        } else if (qCount === 100) {
+          // Tier 3: Century Milestone Reached (Exactly 100 Qs)
+          nodeClass = "node-tier-century";
+          nodeIcon = "✓";
+          hoverTitle = `${dateFormatted}: Daily Milestone Met (100 Qs • ${Math.floor(mins / 60)}h ${mins % 60}m)`;
+        } else if (mins > 0 || qCount > 0) {
+          // Tier 2: Study / Revision Active (<100 Qs)
+          nodeClass = "node-tier-presence";
+          nodeIcon = "✓";
+          hoverTitle = `${dateFormatted}: Session Logged (${qCount} Qs • ${mins}m)`;
+        }
+
+        return `
+          <div class="weekly-node-col">
+            <span class="weekly-node-day">${dayLabel}</span>
+            <span class="weekly-track-node ${nodeClass}" title="${hoverTitle}">${nodeIcon}</span>
+          </div>
+        `;
       }).join("");
+
       extra.innerHTML = `
         <div class="profile-section-card" style="padding:16px; border-left:4px solid var(--success);">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
@@ -3838,7 +3879,7 @@ window.fetchStudentAnalytics = async function(isSilent = false) {
             <h4 style="font-size:13.5px; font-weight:700; color:var(--tcs-blue-header); margin:0;">📊 Weekly Consistency Track</h4>
             <span style="font-size:11px; font-weight:700; color:var(--tcs-blue-accent); font-family:var(--font-mono);">${Object.keys(attMap).filter(d => past7.includes(d)).length} / 7 Days Active</span>
           </div>
-          <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 6px; margin:8px 0; background:var(--bg-primary); border-radius:6px; border:1px solid var(--border-color);">${dots}</div>
+          <div class="weekly-track-container">${dots}</div>
           <div style="display:flex; justify-content:space-between; font-size:11.5px; color:var(--text-muted); margin-top:4px;">
             <span>Total: <strong style="color:var(--tcs-blue-accent); font-family:var(--font-mono);">${Math.floor(last7Mins / 60)}h ${last7Mins % 60}m</strong></span>
             <span>Daily Pace: <strong style="color:var(--tcs-blue-accent); font-family:var(--font-mono);">${Math.round(last7Mins / 7)}m / day</strong></span>
