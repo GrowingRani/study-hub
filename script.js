@@ -1394,6 +1394,13 @@ async function mountDashboard(isInitialLoad = false) {
   ]);
 
   await renderHomePlaylists();
+
+  const todayCard = document.getElementById("todayPayloadCard");
+  if (todayCard) {
+    todayCard.classList.remove("collapsed");
+    todayCard.classList.add("expanded");
+  }
+
   fetchStudentAnalytics(true);
   start5PMEngine();
 }
@@ -2470,12 +2477,13 @@ async function fetchTestCatalog() {
     const id = String(r.test_id); 
     if (!seen.has(id)) { 
       seen.add(id); 
-      r.subject = (r.subject || "General Studies").trim();
-      r.topic = (r.topic || "Core Practice").trim();
+      r.subject = (r.subject || "General Studies").trim(); 
+      r.topic = (r.topic || "Core Practice").trim(); 
       unique.push(r); 
     } 
   });
   catalogData = unique;
+  try { localStorage.setItem("cache_catalog_data", JSON.stringify(catalogData)); } catch (e) {}
 
   const { data: hist } = await supabaseClient.from("test_attempts").select("test_id, score, total_correct, total_incorrect, attempt_date, time_spent_seconds").eq("student_roll", currentCandidate.roll_number).order("attempt_date", { ascending: false });
   userAttemptHistory = hist || []; 

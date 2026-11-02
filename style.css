@@ -151,8 +151,7 @@ body.portal-body { font-family: var(--font-family); background-color: var(--bg-p
 .mission-playlist-card.expanded > .playlist-body { grid-template-rows: 1fr; padding: 14px 16px; opacity: 1; transition: grid-template-rows 0.30s cubic-bezier(0.16, 1, 0.3, 1), padding 0.30s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease; }
 .mission-playlist-card.collapsed > .playlist-body,
 .mission-playlist-card:not(.expanded) > .playlist-body { grid-template-rows: 0fr !important; padding-top: 0 !important; padding-bottom: 0 !important; opacity: 0 !important; }
-.playlist-body > .playlist-sets-stream { min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; padding: 0 4px 0 0; scrollbar-width: thin; scrollbar-color: var(--border-color) transparent; }
-.btn-playlist-dots { background: transparent; border: none; font-size: 18px; color: var(--text-muted); cursor: pointer; padding: 4px 6px; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; transition: all 0.2s ease; line-height: 1; flex-shrink: 0; }
+.playlist-body > .playlist-sets-stream { min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; padding: 0 4px 0 0; scrollbar-width: thin; scrollbar-color: var(--border-color) transparent; }.btn-playlist-dots { background: transparent; border: none; font-size: 18px; color: var(--text-muted); cursor: pointer; padding: 4px 6px; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; transition: all 0.2s ease; line-height: 1; flex-shrink: 0; }
 .btn-playlist-dots:hover { background: var(--bg-surface-elevated); color: var(--tcs-blue-accent); }
 
 #dynamicRevisionTileContainer { display: contents; }
@@ -1176,13 +1175,3 @@ body.dark-theme .box-fc { color: #c084fc; }
 @keyframes progressSweep { 0% { transform: translateX(-100%); } 100% { transform: translateX(250%); } }
 
 
-/* अगर सेट्स कंटेनर खाली है, तो बॉडी को 0px पर लॉक रखें */
-.mission-playlist-card:has(.playlist-sets-stream:empty) .playlist-body {
-  grid-template-rows: 0fr !important;
-  padding: 0 !important;
-  opacity: 0 !important;
-}
-
-.mission-playlist-card:has(.playlist-sets-stream:empty) .playlist-header {
-  border-bottom-color: transparent !important;
-}
