@@ -248,14 +248,8 @@
             </div>
 
             <div class="playlist-body">
-              <!-- 🚀 UNIFIED GRID: Booster Tile occupies Card #1; sets follow seamlessly to the right -->
-              <div class="playlist-sets-stream sets-card-grid today-payload-grid">
-                <!-- 🚀 Pinned Bonus / Adaptive Revision Set Container (Immune to Clear All Sets) -->
-                <div id="dynamicRevisionTileContainer" style="display: contents;"></div>
-
-                <!-- Loaded Sets for Today (Web Grid & Mobile List) -->
-                <div id="todayPlaylistContainer" style="display: contents;"></div>
-              </div>
+              <!-- 🚀 UNIFIED GRID: Single Container (Fixes WebKit Mobile Overlap) -->
+              <div id="todayPlaylistContainer" class="playlist-sets-stream sets-card-grid today-payload-grid"></div>
             </div>
           </div>
         </div>

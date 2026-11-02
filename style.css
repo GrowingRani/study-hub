@@ -372,6 +372,10 @@ body.dark-theme .theme-mistake-briefing #briefingStatusBadge { background: rgba(
 .dynamic-revision-tile.state-clean .set-tile-title { color: var(--success-dark); font-weight: 800; }
 .dynamic-revision-tile.state-clean .clean-slate-pill { font-size: 9px; font-weight: 800; color: var(--success-dark); font-family: var(--font-mono); background: var(--success-bg-subtle); padding: 3px 8px; border-radius: 4px; border: 1px solid var(--success-border); white-space: nowrap; text-transform: uppercase; }
 .dynamic-revision-tile.state-clean .btn-launch-set { background: var(--success-bg-subtle) !important; color: var(--success-dark) !important; border: 1px solid var(--success-border) !important; cursor: default; }
+.dynamic-revision-tile.state-clean .btn-launch-set.btn-booster-review { background: linear-gradient(135deg, #15803d, #16a34a) !important; color: #ffffff !important; border: none !important; cursor: pointer !important; box-shadow: 0 2px 8px rgba(22, 163, 74, 0.25) !important; }
+.dynamic-revision-tile.state-clean .btn-launch-set.btn-booster-review:hover,
+.dynamic-revision-tile.state-clean .btn-launch-set.btn-booster-review:active { background: linear-gradient(135deg, #166534, #15803d) !important; color: #ffffff !important; transform: translateY(-1px); }
+.dynamic-revision-tile .set-score-info { white-space: normal !important; line-height: 1.35 !important; }
 
 /* 👑 SUNDAY CRUCIBLE EXAM TILE */
 .set-tile.sunday-crucible-tile { border: 1.5px solid rgba(245, 158, 11, 0.45) !important; border-left: 5px solid var(--warning) !important; background: linear-gradient(135deg, rgba(245, 158, 11, 0.18) 0%, var(--bg-panel) 60%, rgba(245, 158, 11, 0.08) 100%) !important; box-shadow: 0 4px 20px rgba(245, 158, 11, 0.18) !important; }
@@ -1047,6 +1051,15 @@ body.dark-theme .box-fc { color: #c084fc; }
   .mission-playlist-card.expanded > .playlist-body { padding: 10px !important; }
   
   .playlist-sets-stream { max-height: 315px !important; overflow-y: auto !important; overscroll-behavior: contain; scrollbar-gutter: stable; padding: 0 4px 0 0 !important; scrollbar-width: thin; scrollbar-color: var(--border-color) transparent; }
+  .today-payload-card .playlist-sets-stream { max-height: 440px !important; }
+  .dynamic-revision-tile .set-score-info {
+  display: block !important;
+  overflow: visible !important;
+  white-space: normal !important;
+  line-height: 1.5 !important;
+  padding-top: 4px !important;
+  margin-bottom: 12px !important;
+}
   .playlist-sets-stream::-webkit-scrollbar { width: 4px; }
   .playlist-sets-stream::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
   .playlist-sets-stream.sets-card-grid, .today-payload-card .sets-card-grid, .today-payload-grid, .sets-card-grid { display: grid !important; grid-template-columns: 1fr !important; gap: 10px !important; }

@@ -1197,8 +1197,10 @@ window.openMissionBriefingModal = async function(testId, bypassSundayCheck = fal
 
   if (testId === -1) {
     // 🚀 TODAY'S PAYLOAD BOOSTER / SUNDAY CRUCIBLE EXAM
+    const todayStr = getLocalDateString();
+    const isBoosterAttempted = userAttemptHistory.some(a => Number(a.test_id) === -1 && (a.attempt_date || "").split("T")[0] === todayStr);
     const poolLimit = isSun ? 100 : 25;
-    const boosterQuestions = await compileMasteryBoosterPool(poolLimit);
+    const boosterQuestions = await compileMasteryBoosterPool(poolLimit, false, isBoosterAttempted);
     const qCount = boosterQuestions.length;
 
     if (qCount === 0) {
@@ -1219,36 +1221,87 @@ window.openMissionBriefingModal = async function(testId, bypassSundayCheck = fal
     
     document.getElementById("briefingSubjectBadge").innerText = isSun ? "SUNDAY CRUCIBLE EXAM" : "BONUS MASTERY BOOSTER";
     const statusBadge = document.getElementById("briefingStatusBadge");
-    statusBadge.className = "briefing-status-tag status-progress";
-    statusBadge.innerText = `${qCount} DUE`;
+    const examCard = modal.querySelector(".briefing-mode-card.mode-exam");
+
+    if (isBoosterAttempted) {
+      statusBadge.className = "briefing-status-tag status-mastered";
+      statusBadge.innerText = isSun ? "CRUCIBLE CONQUERED" : "COMPLETED TODAY";
+      document.getElementById("briefingScoreMeta").innerText = "Today's quota completed • Practice modes active";
+      if (examCard) {
+        examCard.style.opacity = "0.45";
+        examCard.style.pointerEvents = "none";
+        examCard.setAttribute("title", "Exam Mode is locked: Completed for today.");
+        const tag = examCard.querySelector(".briefing-mode-tag");
+        if (tag) tag.innerText = "LOCKED (COMPLETED)";
+      }
+    } else {
+      statusBadge.className = "briefing-status-tag status-progress";
+      statusBadge.innerText = `${qCount} DUE`;
+      document.getElementById("briefingScoreMeta").innerText = `${mistakeCount} Mistakes • ${recallCount} Recall`;
+      if (examCard) {
+        examCard.style.opacity = "1";
+        examCard.style.pointerEvents = "auto";
+        examCard.removeAttribute("title");
+        const tag = examCard.querySelector(".briefing-mode-tag");
+        if (tag) tag.innerText = "TCS SIMULATION";
+      }
+    }
     
     document.getElementById("briefingSetTitle").innerText = isSun ? "Weekly Backlog & Mastery Crucible" : "Mistakes & Active Retention Booster";
     document.getElementById("briefingDurationMeta").innerText = `⏱️ ${durationMins}m`;
     document.getElementById("briefingQuestionsMeta").innerText = `📄 ${qCount} Questions`;
-    document.getElementById("briefingScoreMeta").innerText = `${mistakeCount} Mistakes • ${recallCount} Recall`;
   } else if (testId === -3) {
     // 🎯 DEDICATED SUBJECT MISTAKE BANK PRE-FLIGHT BRIEFING
     const activeClean = (activeSubject || "").trim().toLowerCase();
-    const mistakes = (userWeakQuestions || []).filter(q => 
+    const now = new Date();
+    const allMistakes = (userWeakQuestions || []).filter(q => 
       (q.subject || "").trim().toLowerCase() === activeClean && 
       (q.times_wrong || 0) > 0 && 
       (q.mastery_streak || 0) < 4
     );
-    const qCount = mistakes.length;
-    if (qCount === 0) {
+    const dueMistakes = allMistakes.filter(q => !q.next_review_at || new Date(q.next_review_at) <= now);
+    const dueCount = dueMistakes.length;
+    const inReviewCount = allMistakes.length;
+
+    if (inReviewCount === 0) {
       return showAppNoticeModal("Notice", "Zero Leaks", `No active mistakes found in ${activeSubject}.`, "🛡️", "Dismiss");
     }
-    const durationMins = Math.max(3, Math.ceil(qCount * 0.6));
+    const durationMins = Math.max(3, Math.ceil((dueCount || inReviewCount) * 0.6));
 
     document.getElementById("briefingSubjectBadge").innerText = `${activeSubject.toUpperCase()} MISTAKE VAULT`;
     const statusBadge = document.getElementById("briefingStatusBadge");
-    statusBadge.className = "briefing-status-tag status-progress";
-    statusBadge.innerText = `${qCount} DUE`;
+
+    const examCard = modal.querySelector(".briefing-mode-card.mode-exam");
+
+    if (dueCount > 0) {
+      statusBadge.className = "briefing-status-tag status-progress";
+      statusBadge.innerText = `${dueCount} DUE`;
+      document.getElementById("briefingQuestionsMeta").innerText = `📄 ${dueCount} Due (${inReviewCount} In Pipeline)`;
+      document.getElementById("briefingScoreMeta").innerText = `4-Stage Spaced Repetition Loop`;
+      if (examCard) {
+        examCard.style.opacity = "1";
+        examCard.style.pointerEvents = "auto";
+        examCard.removeAttribute("title");
+        const tag = examCard.querySelector(".briefing-mode-tag");
+        if (tag) tag.innerText = "TCS SIMULATION";
+      }
+    } else {
+      // 🚀 EXAM MODE FREEZE (ONLY WHEN 0 DUE TODAY)
+      statusBadge.className = "briefing-status-tag status-mastered";
+      statusBadge.innerText = `0 DUE TODAY`;
+      document.getElementById("briefingQuestionsMeta").innerText = `📄 0 Due (${inReviewCount} In Pipeline)`;
+      document.getElementById("briefingScoreMeta").innerText = `Today's quota completed • Practice modes active`;
+      if (examCard) {
+        examCard.style.opacity = "0.45";
+        examCard.style.pointerEvents = "none";
+        examCard.setAttribute("title", "Exam Mode is locked: 0 questions due today.");
+        const tag = examCard.querySelector(".briefing-mode-tag");
+        if (tag) tag.innerText = "LOCKED (0 DUE)";
+      }
+    }
 
     document.getElementById("briefingSetTitle").innerText = `${activeSubject} Error Rehabilitation Node`;
     document.getElementById("briefingDurationMeta").innerText = `⏱️ ${durationMins}m`;
-    document.getElementById("briefingQuestionsMeta").innerText = `📄 ${qCount} Questions`;
-    document.getElementById("briefingScoreMeta").innerText = `4-Stage Spaced Repetition Loop`;
   } else {
     // 📁 REGULAR CATALOG QUESTION SET
     const setCat = catalogData.find(c => String(c.test_id) === String(testId));
@@ -1293,8 +1346,17 @@ window.closeMissionBriefingModal = function() {
   if (modal) {
     modal.style.setProperty("display", "none", "important");
     modal.style.pointerEvents = "none";
-    // 🚀 Reset custom styling when closed
     modal.querySelector(".mission-briefing-sheet")?.classList.remove("theme-mistake-briefing");
+    
+    // 🚀 Restore Exam card for other sets
+    const examCard = modal.querySelector(".briefing-mode-card.mode-exam");
+    if (examCard) {
+      examCard.style.opacity = "1";
+      examCard.style.pointerEvents = "auto";
+      examCard.removeAttribute("title");
+      const tag = examCard.querySelector(".briefing-mode-tag");
+      if (tag) tag.innerText = "TCS SIMULATION";
+    }
   }
   activeBriefingTestId = null;
 };
@@ -1534,7 +1596,7 @@ async function fetchPlaylistsAndCheckRollover() {
 }
 
 // 🚀 REVISION & MISTAKE POOL COMPILER
-async function compileMasteryBoosterPool(maxLimit = 25, forceRefresh = false) {
+async function compileMasteryBoosterPool(maxLimit = 25, forceRefresh = false, allowAllWeak = false) {
   if (!forceRefresh && cachedBoosterPool && (Date.now() - lastBoosterFetchTime < 15000)) {
     return cachedBoosterPool;
   }
@@ -1546,7 +1608,7 @@ async function compileMasteryBoosterPool(maxLimit = 25, forceRefresh = false) {
   const mistakePool = userWeakQuestions.filter(q => 
     q.times_wrong > 0 && 
     (q.mastery_streak || 0) < 4 && 
-    (!q.next_review_at || new Date(q.next_review_at) <= now)
+    (allowAllWeak || !q.next_review_at || new Date(q.next_review_at) <= now)
   );
 
   mistakePool.sort((a, b) => (b.times_wrong || 0) - (a.times_wrong || 0)).slice(0, maxLimit).forEach(item => {
@@ -1608,7 +1670,20 @@ async function compileMasteryBoosterPool(maxLimit = 25, forceRefresh = false) {
 
 window.launchBoosterMode = async function(mode = 'exam') {
   const isSun = isSunday();
-  let boosterQuestions = await compileMasteryBoosterPool(isSun ? 100 : 25, true);
+  const todayStr = getLocalDateString();
+  const isBoosterAttempted = userAttemptHistory.some(a => Number(a.test_id) === -1 && (a.attempt_date || "").split("T")[0] === todayStr);
+
+  if (mode === 'exam' && isBoosterAttempted) {
+    return showAppNoticeModal(
+      "Exam Mode Locked",
+      "Completed for Today",
+      "You have already completed today's official Booster Exam session. You can continue practicing in Quiz, Flashcard, or Read mode!",
+      "🛡️",
+      "Dismiss"
+    );
+  }
+
+  let boosterQuestions = await compileMasteryBoosterPool(isSun ? 100 : 25, true, isBoosterAttempted);
   if (!boosterQuestions.length) {
     return showAppNoticeModal("Notice", "No Pending Reviews", "You have no pending mistakes or review questions right now.", "⚪", "Dismiss");
   }
@@ -1769,7 +1844,7 @@ function renderStarredPlaylistOnly() {
   if (starredHeader) starredHeader.onclick = () => window.toggleSecondaryPlaylist(starredHeader);
 }
 
-// 🚀 MUTEX-LOCKED & ATOMIC ASSIGNMENT RENDERER (WITH SCROLL PRESERVATION)
+// 🚀 MUTEX-LOCKED & ATOMIC ASSIGNMENT RENDERER (WITH SCROLL PRESERVATION & ZERO-OVERLAP)
 async function renderHomePlaylists() {
   if (isRenderingPlaylists) {
     pendingPlaylistRender = true;
@@ -1788,87 +1863,121 @@ async function renderHomePlaylists() {
     if (!todayContainer || !tomorrowContainer || !weekContainer) return;
 
     // 🚀 CACHE SCROLL POSITIONS BEFORE WIPING TO PREVENT JUMPING
+    const todayScrollParent = todayContainer.closest('.playlist-sets-stream') || todayContainer;
     const scrollMap = {
-      today: todayContainer.scrollTop,
+      today: todayScrollParent.scrollTop,
       tomorrow: tomorrowContainer.scrollTop,
       week: weekContainer.scrollTop,
       starred: starredContainer ? starredContainer.scrollTop : 0
     };
 
+    if (revContainer) revContainer.innerHTML = "";
     todayContainer.innerHTML = ""; 
     tomorrowContainer.innerHTML = ""; 
     weekContainer.innerHTML = ""; 
     if (starredContainer) starredContainer.innerHTML = "";
 
-    // RENDER QUANTUM CORE BOOSTER / SUNDAY CRUCIBLE EXAM
-    if (revContainer) {
-      const isSun = isSunday();
-      const boosterLimit = isSun ? 100 : 25;
-      const boosterQuestions = await compileMasteryBoosterPool(boosterLimit);
-      const qCount = boosterQuestions.length;
-      const tileTitle = isSun ? "Sunday Crucible Exam" : "Bonus Mastery Booster";
-      const tileThemeClass = isSun ? "sunday-crucible-tile" : "";
+    // 🚀 1. COMPILE BOOSTER TILE HTML (Unified Grid Item #1)
+    let boosterTileHtml = "";
+    const isSun = isSunday();
+    const todayStr = getLocalDateString();
+    const boosterAttemptedToday = userAttemptHistory.some(a => Number(a.test_id) === -1 && (a.attempt_date || "").split("T")[0] === todayStr);
+    const boosterLimit = isSun ? 100 : 25;
+    const boosterQuestions = await compileMasteryBoosterPool(boosterLimit, false, boosterAttemptedToday);
+    const qCount = boosterQuestions.length;
+    const tileTitle = isSun ? "Sunday Crucible Exam" : "Bonus Mastery Booster";
+    const tileThemeClass = isSun ? "sunday-crucible-tile" : "";
 
-      if (qCount === 0) {
-        revContainer.innerHTML = `
-          <div class="set-tile dynamic-revision-tile ${tileThemeClass} state-clean">
-            <div class="set-tile-header">
-              <div class="set-tile-title-group">
-                <div class="set-tile-title">${tileTitle}</div>
-              </div>
-              <div style="display:flex; gap: 6px; align-items: center; flex-shrink: 0;">
-                <span class="clean-slate-pill">0 Due • All Clear</span>
-              </div>
+    if (boosterAttemptedToday) {
+      boosterTileHtml = `
+        <div class="set-tile dynamic-revision-tile ${tileThemeClass} state-clean">
+          <div class="set-tile-header">
+            <div class="set-tile-title-group">
+              <div class="set-tile-title">${tileTitle}</div>
             </div>
-            <div class="set-tile-meta">
-              <span>${clockSvg} 0m</span>
-              <span>${docSvg} 0 Qs</span>
-              <span style="font-size:10px; color:var(--success-dark); font-weight:700;">(100% Spaced Review Sync)</span>
-            </div>
-            <div class="set-score-info"><span style="color:var(--success-dark); font-weight:600;">✓ Mistake Bank Cleared • Zero Reviews Due</span></div>
-            <div class="set-action-footer">
-              <button type="button" class="btn-launch-set" disabled title="All reviews optimal. Attempt new questions from Library.">
-                <span>🛡️</span> <span>System Optimal</span>
-              </button>
+            <div style="display:flex; gap: 6px; align-items: center; flex-shrink: 0;">
+              <span class="set-status-badge status-mastered" style="background:var(--success-bg-subtle); color:var(--success-dark); border:1px solid var(--success-border); font-weight:800;">${isSun ? 'Crucible Done 👑' : 'Quota Met ✓'}</span>
             </div>
           </div>
-        `;
-      } else {
-        const durationMins = Math.max(3, Math.ceil(qCount * 0.6));
-        const mistakeCount = boosterQuestions.filter(q => q.isMistake).length;
-        const recallCount = qCount - mistakeCount;
-        const poolDetail = mistakeCount > 0 && recallCount > 0 
-          ? `${mistakeCount} Mistakes • ${recallCount} Active Recall` 
-          : (mistakeCount > 0 ? `${mistakeCount} Mistakes for Review` : `${recallCount} Active Recall Questions`);
-
-        revContainer.innerHTML = `
-          <div class="set-tile dynamic-revision-tile ${tileThemeClass} state-active">
-            <div class="set-tile-header">
-              <div class="set-tile-title-group">
-                <div class="set-tile-title">${tileTitle}</div>
-              </div>
-              <div style="display:flex; gap: 6px; align-items: center; flex-shrink: 0;">
-                <div class="set-status-badge status-progress" style="background:var(--warning-bg-subtle); color:var(--warning-dark); border:1px solid var(--warning-border);">
-                  ${qCount} Due
-                </div>
-              </div>
+          <div class="set-tile-meta">
+            <span>${clockSvg} Done</span>
+            <span>${docSvg} ${qCount} Qs</span>
+            <span style="font-size:10px; color:var(--success); font-weight:700;">(Spaced Recall)</span>
+          </div>
+          <div class="set-score-info" style="display: block !important; overflow: visible !important; white-space: normal !important; line-height: 1.55 !important; padding-top: 4px !important; margin-bottom: 12px !important; min-height: auto !important;">
+            <span style="color:var(--success); font-weight:600; display: inline-block;">✓ Today's quota completed!</span>
+          </div>
+          <div class="set-action-footer">
+            <button type="button" class="btn-launch-set btn-booster-review" style="background: linear-gradient(135deg, #15803d, #16a34a) !important; color: #ffffff !important; box-shadow: 0 2px 8px rgba(22, 163, 74, 0.3) !important;" onclick="openMissionBriefingModal(-1)">
+              <span>📖</span> <span style="color:#ffffff !important; font-weight:700;">Review & Practice</span>
+            </button>
+          </div>
+        </div>
+      `;
+    } else if (qCount === 0) {
+      boosterTileHtml = `
+        <div class="set-tile dynamic-revision-tile ${tileThemeClass} state-clean">
+          <div class="set-tile-header">
+            <div class="set-tile-title-group">
+              <div class="set-tile-title">${tileTitle}</div>
             </div>
-            <div class="set-tile-meta">
-              <span>${clockSvg} ${durationMins}m</span>
-              <span>${docSvg} ${qCount} Qs</span>
-              <span style="font-size:10px; color:var(--warning); font-weight:700;">(${isSun ? 'Weekly Backlog Clearance' : 'Bonus • Excluded from 100-Q Target'})</span>
-            </div>
-            <div class="set-score-info"><span style="color:var(--warning-dark); font-weight:700;">⚡ ${poolDetail}</span></div>
-            <div class="set-action-footer">
-              <button type="button" class="btn-launch-set" onclick="openMissionBriefingModal(-1)">
-                <span>${isSun ? '⚔️' : '▶'}</span> <span>${isSun ? 'Launch Sunday Crucible' : 'Start Booster Session'}</span>
-              </button>
+            <div style="display:flex; gap: 6px; align-items: center; flex-shrink: 0;">
+              <span class="clean-slate-pill">0 Due • All Clear</span>
             </div>
           </div>
-        `;
-      }
+          <div class="set-tile-meta">
+            <span>${clockSvg} 0m</span>
+            <span>${docSvg} 0 Qs</span>
+            <span style="font-size:10px; color:var(--success-dark); font-weight:700;">(100% Spaced Review Sync)</span>
+          </div>
+          <div class="set-score-info" style="display: block !important; overflow: visible !important; white-space: normal !important; line-height: 1.55 !important; padding-top: 4px !important; margin-bottom: 12px !important;">
+            <span style="color:var(--success-dark); font-weight:600; display: inline-block;">✓ Mistake Bank Cleared • Zero Reviews Due</span>
+          </div>
+          <div class="set-action-footer">
+            <button type="button" class="btn-launch-set" disabled title="All reviews optimal. Attempt new questions from Library.">
+              <span>🛡️</span> <span>System Optimal</span>
+            </button>
+          </div>
+        </div>
+      `;
+    } else {
+      const durationMins = Math.max(3, Math.ceil(qCount * 0.6));
+      const mistakeCount = boosterQuestions.filter(q => q.isMistake).length;
+      const recallCount = qCount - mistakeCount;
+      const poolDetail = mistakeCount > 0 && recallCount > 0 
+        ? `${mistakeCount} Mistakes • ${recallCount} Active Recall` 
+        : (mistakeCount > 0 ? `${mistakeCount} Mistakes for Review` : `${recallCount} Active Recall Questions`);
+
+      boosterTileHtml = `
+        <div class="set-tile dynamic-revision-tile ${tileThemeClass} state-active">
+          <div class="set-tile-header">
+            <div class="set-tile-title-group">
+              <div class="set-tile-title">${tileTitle}</div>
+            </div>
+            <div style="display:flex; gap: 6px; align-items: center; flex-shrink: 0;">
+              <div class="set-status-badge status-progress" style="background:var(--warning-bg-subtle); color:var(--warning-dark); border:1px solid var(--warning-border);">
+                ${qCount} Due
+              </div>
+            </div>
+          </div>
+          <div class="set-tile-meta">
+            <span>${clockSvg} ${durationMins}m</span>
+            <span>${docSvg} ${qCount} Qs</span>
+            <span style="font-size:10px; color:var(--warning); font-weight:700;">(${isSun ? 'Weekly Backlog Clearance' : 'Bonus • Excluded from 100-Q Target'})</span>
+          </div>
+          <div class="set-score-info" style="display: block !important; overflow: visible !important; white-space: normal !important; line-height: 1.55 !important; padding-top: 4px !important; margin-bottom: 12px !important;">
+            <span style="color:var(--warning-dark); font-weight:700; display: inline-block;">⚡ ${poolDetail}</span>
+          </div>
+          <div class="set-action-footer">
+            <button type="button" class="btn-launch-set" onclick="openMissionBriefingModal(-1)">
+              <span>${isSun ? '⚔️' : '▶'}</span> <span>${isSun ? 'Launch Sunday Crucible' : 'Start Booster Session'}</span>
+            </button>
+          </div>
+        </div>
+      `;
     }
 
+    // 🚀 2. RENDER TODAY'S PAYLOAD DIRECTLY (Booster + Queue Sets into One Unified Flow)
     let todayLoad = 0, tomorrowLoad = 0;
     const todayList = userPlaylists.find(p => p.playlist_name === 'Today'), 
           tomorrowList = userPlaylists.find(p => p.playlist_name === 'Tomorrow'), 
@@ -1881,9 +1990,15 @@ async function renderHomePlaylists() {
         const c = catalogData.find(x => String(x.test_id) === String(i.test_id));
         todayLoad += c ? (c.total_questions || 10) : 10;
       });
-      todayContainer.innerHTML = (items.length > 0 ? items.map(i => renderPlaylistSetTileHtml(i, 'Today')).join("") : `<div style="text-align:center; padding:18px; color:var(--text-muted); font-size:12.5px; font-weight:600; grid-column:1 / -1;">No sets queued for today yet.</div>`) + getPlaylistAddBtnHtml(todayList.id, 'Today');
-      todayContainer.scrollTop = scrollMap.today;
-      const pill = document.getElementById("todayCountPill"); if (pill) pill.innerText = `${items.length} Sets ▼`;
+      
+      const setsHtml = items.length > 0 
+        ? items.map(i => renderPlaylistSetTileHtml(i, 'Today')).join("") 
+        : `<div style="text-align:center; padding:18px; color:var(--text-muted); font-size:12.5px; font-weight:600; grid-column:1 / -1;">No sets queued for today yet.</div>`;
+      
+      todayContainer.innerHTML = boosterTileHtml + setsHtml + getPlaylistAddBtnHtml(todayList.id, 'Today');
+      todayScrollParent.scrollTop = scrollMap.today;
+      const pill = document.getElementById("todayCountPill"); 
+      if (pill) pill.innerText = `${items.length} Sets ▼`;
     }
 
     if (tomorrowList) {
@@ -1894,7 +2009,8 @@ async function renderHomePlaylists() {
       });
       tomorrowContainer.innerHTML = (items.length > 0 ? items.map(i => renderPlaylistSetTileHtml(i, 'Tomorrow')).join("") : `<div style="text-align:center; padding:18px; color:var(--text-muted); font-size:12.5px; font-weight:600; grid-column:1 / -1;">Queue is empty.</div>`) + getPlaylistAddBtnHtml(tomorrowList.id, 'Tomorrow');
       tomorrowContainer.scrollTop = scrollMap.tomorrow;
-      const badge = document.getElementById("tomorrowCountPill"); if (badge) badge.innerText = `${items.length} Sets ▼`;
+      const badge = document.getElementById("tomorrowCountPill"); 
+      if (badge) badge.innerText = `${items.length} Sets ▼`;
       
       const tomHeader = document.querySelector("#tomorrowPlaylistCard .playlist-header");
       if (tomHeader) tomHeader.onclick = () => window.toggleSecondaryPlaylist(tomHeader);
@@ -1904,7 +2020,8 @@ async function renderHomePlaylists() {
       const items = userPlaylistItems.filter(pi => pi.playlist_id === weekList.id);
       weekContainer.innerHTML = (items.length > 0 ? items.map(i => renderPlaylistSetTileHtml(i, 'This Week')).join("") : `<div style="text-align:center; padding:18px; color:var(--text-muted); font-size:12.5px; font-weight:600; grid-column:1 / -1;">Backlog is empty.</div>`) + getPlaylistAddBtnHtml(weekList.id, 'This Week');
       weekContainer.scrollTop = scrollMap.week;
-      const badge = document.getElementById("weekCountPill"); if (badge) badge.innerText = `${items.length} Sets ▼`;
+      const badge = document.getElementById("weekCountPill"); 
+      if (badge) badge.innerText = `${items.length} Sets ▼`;
 
       const weekHeader = document.querySelector("#weekPlaylistCard .playlist-header");
       if (weekHeader) weekHeader.onclick = () => window.toggleSecondaryPlaylist(weekHeader);
@@ -1915,7 +2032,8 @@ async function renderHomePlaylists() {
       const items = userPlaylistItems.filter(pi => pi.playlist_id === starredList.id);
       starredContainer.innerHTML = (items.length > 0 ? items.map(i => renderPlaylistSetTileHtml(i, 'Starred Sets')).join("") : `<div style="text-align:center; padding:18px; color:var(--text-muted); font-size:12.5px; font-weight:600; grid-column:1 / -1;">No starred sets yet. Click ☆ on any set to save here.</div>`) + getPlaylistAddBtnHtml(starredList.id, 'Starred Sets');
       starredContainer.scrollTop = scrollMap.starred;
-      const badge = document.getElementById("starredCountPill"); if (badge) badge.innerText = `${items.length} Sets ▼`;
+      const badge = document.getElementById("starredCountPill"); 
+      if (badge) badge.innerText = `${items.length} Sets ▼`;
 
       const starredHeader = document.querySelector("#starredPlaylistCard .playlist-header");
       if (starredHeader) starredHeader.onclick = () => window.toggleSecondaryPlaylist(starredHeader);
@@ -1946,7 +2064,7 @@ async function renderHomePlaylists() {
       customContainer.innerHTML = customHtml;
     }
 
-    const targetQ = 100, todayStr = getLocalDateString();
+    const targetQ = 100;
     const todayAttempts = userAttemptHistory.filter(a => (a.attempt_date || "").split("T")[0] === todayStr && (Number(a.test_id) > 0 || (Number(a.test_id) === -1 && isSunday())));
     let todayMasteredQ = 0;
     todayAttempts.forEach(a => { 
@@ -1961,9 +2079,7 @@ async function renderHomePlaylists() {
       else if (a.total_correct) todayMasteredQ += a.total_correct; 
     });
 
-    const isSun = isSunday();
     const isSunHit = isSun && dailyPerf.is_century_hit;
-
     const capPct = isSun ? 100 : Math.min(100, Math.round((todayLoad / targetQ) * 100)), 
           attPct = isSunHit ? 100 : Math.min(100, Math.round(((dailyPerf.total_questions_attempted || 0) / targetQ) * 100)), 
           masPct = isSunHit ? 100 : Math.min(attPct, Math.min(100, Math.round((todayMasteredQ / targetQ) * 100)));
@@ -2586,7 +2702,6 @@ window.returnToSubjectHub = function(fromPopState = false) {
   if (!fromPopState) history.replaceState({ page: 'main-tab', view: 'viewLibrary', subView: 'hub' }, "", "#viewLibrary");
 };
 
-// 🚀 HIGH-EFFICIENCY ONE-TIME DOM BUILDER (WITH COMPACT SCORE CHIPS & 2-COLUMN BENTO MISTAKE VAULT)
 function renderTopicSets() {
   const container = document.getElementById("topicsContainer"); 
   if (!container) return; 
@@ -2601,15 +2716,20 @@ function renderTopicSets() {
       mbContainer.innerHTML = "";
     } else {
       const activeClean = (activeSubject || "").trim().toLowerCase();
+      const now = new Date();
+
+      // Active mistakes (Streak < 4)
       const subjectWeak = (userWeakQuestions || []).filter(q => 
         (q.subject || "").trim().toLowerCase() === activeClean &&
         (q.times_wrong || 0) > 0 && 
         (q.mastery_streak || 0) < 4
       );
       
-      const totalCount = subjectWeak.length;
+      const dueQuestions = subjectWeak.filter(q => !q.next_review_at || new Date(q.next_review_at) <= now);
+      const dueCount = dueQuestions.length;
+      const inReviewCount = subjectWeak.length;
       const loopCount = subjectWeak.filter(q => (q.mastery_streak || 0) > 0).length;
-      const freshCount = totalCount - loopCount;
+      const freshCount = subjectWeak.filter(q => (q.mastery_streak || 0) === 0).length;
 
       const clearedCount = (userWeakQuestions || []).filter(q => 
         (q.subject || "").trim().toLowerCase() === activeClean &&
@@ -2622,29 +2742,31 @@ function renderTopicSets() {
         return (c?.subject || "").trim().toLowerCase() === activeClean;
       });
 
-      if (totalCount > 0) {
-        const durationMins = Math.max(3, Math.ceil(totalCount * 0.6));
+      // 🚀 VAULT ALWAYS EXPANDS IF MISTAKES EXIST OR WERE CLEARED
+      if (inReviewCount > 0 || clearedCount > 0) {
+        const isCaughtUp = (dueCount === 0);
+        const durationMins = Math.max(3, Math.ceil((dueCount || inReviewCount) * 0.6));
+
         mbContainer.innerHTML = `
-          <div class="mistake-vault-card" id="subjectMistakeVault" data-status="unattempted">
-            <!-- 1. TACTILE SLIM STRIP (~48px) -->
+          <div class="mistake-vault-card ${isCaughtUp ? 'state-clean' : ''}" id="subjectMistakeVault" data-status="${isCaughtUp ? 'mastered' : 'unattempted'}">
+            <!-- 1. TACTILE SLIM STRIP (~48px) - ALWAYS EXPANDS ON CLICK -->
             <div class="vault-header" onclick="this.parentElement.classList.toggle('open')">
               <div class="vault-header-left">
-                <div class="vault-glyph-box">
+                <div class="vault-glyph-box" style="${isCaughtUp ? 'background: var(--success-bg-subtle); border-color: var(--success-border); color: var(--success-dark); box-shadow: none;' : ''}">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-                    <line x1="12" y1="8" x2="12" y2="12"></line>
-                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                    ${isCaughtUp ? '<polyline points="9 12 11 14 15 10"></polyline>' : '<line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line>'}
                   </svg>
                 </div>
                 <div class="vault-title-group">
                   <span class="vault-title-text">${activeSubject} Mistake Vault</span>
-                  <span class="vault-tag-pill">QUARANTINE</span>
+                  <span class="vault-tag-pill" style="${isCaughtUp ? 'background: var(--success-bg-subtle); color: var(--success-dark); border-color: var(--success-border);' : ''}">${isCaughtUp ? 'ALL CAUGHT UP' : 'QUARANTINE'}</span>
                 </div>
               </div>
               <div class="vault-header-right">
-                <div class="vault-telemetry-pill">
-                  <span class="vault-radar-dot"></span>
-                  <span>${totalCount} DUE</span>
+                <div class="vault-telemetry-pill" style="${isCaughtUp ? 'border-color: var(--success-border); color: var(--success-dark);' : ''}">
+                  <span class="vault-radar-dot" style="${isCaughtUp ? 'background: var(--success); box-shadow: 0 0 8px var(--success);' : ''}"></span>
+                  <span>${dueCount > 0 ? `${dueCount} DUE` : `0 DUE (${inReviewCount} In Review)`}</span>
                 </div>
                 <div class="vault-chevron-bubble">
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
@@ -2657,19 +2779,46 @@ function renderTopicSets() {
             <!-- 2. EXPANDED INTERIOR (NATURAL IDENTICAL SIZE TILES) -->
             <div class="vault-body">
               <div class="vault-natural-grid">
-                <!-- TILE 1: ACTIONABLE SET TILE (MAX 270px) -->
+                
+                ${isCaughtUp ? `
+                <!-- TILE 1: COMPLETED / CAUGHT-UP DRILL TILE -->
+                <div class="set-tile vault-set-tile" data-status="mastered" style="border-left-color: var(--success) !important; background: linear-gradient(135deg, rgba(34, 197, 94, 0.08) 0%, var(--bg-surface-elevated) 100%) !important;">
+                  <div class="set-tile-header">
+                    <div class="set-tile-title-group">
+                      <div class="set-tile-title">Comprehensive Mistake Drill</div>
+                    </div>
+                    <div class="set-status-badge status-mastered" style="background:var(--success-bg-subtle); color:var(--success-dark); border:1px solid var(--success-border);">
+                      0 Due • Done
+                    </div>
+                  </div>
+                  <div class="set-tile-meta">
+                    <span>${clockSvg} Done Today</span>
+                    <span>${docSvg} ${inReviewCount} In Pipeline</span>
+                    <span style="font-size:10px; color:var(--success-dark); font-weight:700;">(4-Stage Loop)</span>
+                  </div>
+                  <div class="set-score-info">
+                    <span style="color:var(--success-dark); font-weight:600;">✓ Today's quota attempted! (${inReviewCount} in review)</span>
+                  </div>
+                  <div class="set-action-footer">
+                    <button type="button" class="btn-launch-set" style="background: linear-gradient(135deg, #15803d, #16a34a) !important; box-shadow: 0 2px 8px var(--success-bg-subtle);" onclick="openMissionBriefingModal(-3)">
+                      <span>📖</span> <span>Review & Practice</span>
+                    </button>
+                  </div>
+                </div>
+                ` : `
+                <!-- TILE 1: ACTIVE DUE MISTAKE DRILL TILE -->
                 <div class="set-tile vault-set-tile" data-status="unattempted">
                   <div class="set-tile-header">
                     <div class="set-tile-title-group">
                       <div class="set-tile-title">Comprehensive Mistake Drill</div>
                     </div>
                     <div class="set-status-badge status-progress" style="background:var(--danger-bg-subtle); color:var(--danger-dark); border:1px solid var(--danger-border);">
-                      ${totalCount} Due
+                      ${dueCount} Due
                     </div>
                   </div>
                   <div class="set-tile-meta">
                     <span>${clockSvg} ${durationMins}m</span>
-                    <span>${docSvg} ${totalCount} Qs</span>
+                    <span>${docSvg} ${dueCount} Qs</span>
                     <span style="font-size:10px; color:var(--danger-dark); font-weight:700;">(4-Stage Loop)</span>
                   </div>
                   <div class="set-score-info">
@@ -2681,8 +2830,9 @@ function renderTopicSets() {
                     </button>
                   </div>
                 </div>
+                `}
 
-                <!-- TILE 2: COMPACT RETENTION HUD (EXACTLY 270px - NO STRETCH) -->
+                <!-- TILE 2: COMPACT RETENTION HUD (ALWAYS VISIBLE WITH DATA) -->
                 <div class="vault-status-hud">
                   <div class="hud-header">
                     <span class="hud-title">Retention Loops</span>
@@ -2706,25 +2856,7 @@ function renderTopicSets() {
                     🛡️ Clear 4 consecutive spaced intervals to permanently master weak questions into long-term recall.
                   </div>
                 </div>
-              </div>
-            </div>
-          </div>
-        `;
-      } else if (hasSubjectAttempts) {
-        mbContainer.innerHTML = `
-          <div class="mistake-vault-card state-clean" id="subjectMistakeVault" data-status="mastered">
-            <div class="vault-header" style="cursor: default;">
-              <div class="vault-header-left">
-                <div class="vault-glyph-box">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-                    <polyline points="9 12 11 14 15 10"></polyline>
-                  </svg>
-                </div>
-                <div class="vault-title-group">
-                  <span class="vault-title-text" style="color: var(--success-dark);">${activeSubject} Mistake Vault</span>
-                  <span class="clean-slate-pill">0 Leaks • Cleared</span>
-                </div>
+
               </div>
             </div>
           </div>
@@ -2823,7 +2955,6 @@ function renderTopicSets() {
       let historyHtml = '<span style="color:var(--text-muted);">Not attempted yet</span>';
 
       if (isAtt && attempts.length > 0) {
-        // 1. TOP-RIGHT COMPACT BADGE: LATEST ATTEMPT SCORE
         const latestScore = parseFloat(attempts[0].score);
         const latestPct = maxMarks > 0 ? (latestScore / maxMarks) * 100 : 0;
         const formattedLatest = Number.isInteger(latestScore) ? latestScore : latestScore.toFixed(1);
@@ -2836,7 +2967,6 @@ function renderTopicSets() {
         }
         badgeHtml = `<div class="set-status-badge" style="${latestStyle}">${formattedLatest}/${maxMarks}</div>`;
 
-        // 2. META STRIP BELOW: LIFETIME BEST SCORE
         const formattedBest = Number.isInteger(best) ? best : best.toFixed(1);
         let bestColor = 'var(--warning-dark)';
         if (pct >= 100) bestColor = 'var(--success-dark)';
@@ -2900,8 +3030,8 @@ function renderTopicSets() {
     
     header.onclick = () => {
       const isOpen = groupCard.classList.contains("open");
-      container.querySelectorAll(".topic-accordion-card").forEach(c => { 
-        if (c !== groupCard) c.classList.remove("open"); 
+      container.querySelectorAll(".topic-accordion-card").forEach(c => {
+        if (c !== groupCard) c.classList.remove("open");
       });
       groupCard.classList.toggle("open", !isOpen);
     };
@@ -2970,20 +3100,28 @@ async function syncMistakeBank(payloads) {
   }
 }
 
-// 🎯 LAUNCH SUBJECT MISTAKE BANK IN ANY MODE (EXAM, QUIZ, FLASHCARDS, READ)
 window.launchSubjectMistakeMode = function(mode = 'quiz') {
   const activeClean = (activeSubject || "").trim().toLowerCase();
-  const mistakes = (userWeakQuestions || []).filter(q => 
+  const now = new Date();
+  const allMistakes = (userWeakQuestions || []).filter(q => 
     (q.subject || "").trim().toLowerCase() === activeClean && 
     (q.times_wrong || 0) > 0 && 
     (q.mastery_streak || 0) < 4
   );
+  const dueMistakes = allMistakes.filter(q => !q.next_review_at || new Date(q.next_review_at) <= now);
 
-  if (!mistakes.length) {
+  if (!allMistakes.length) {
     return showAppNoticeModal("Mistake Bank Cleared", "Zero Active Leaks! 🎉", `All flagged questions for ${activeSubject} have been mastered.`, "🏆", "Explore Sets");
   }
 
-  let qList = mistakes.map((item, i) => {
+  if (mode === 'exam' && !dueMistakes.length) {
+    return showAppNoticeModal("Exam Mode Locked", "0 Due Today", "All due mistakes for today have already been attempted. You can use Flashcard, Quiz, or Read mode to practice anytime!", "🛡️", "Dismiss");
+  }
+
+  // 🚀 Exam drills only due questions. Practice/Quiz/Read/Flashcards allow drilling all pipeline questions anytime!
+  const targetList = (mode === 'exam') ? dueMistakes : allMistakes;
+
+  let qList = targetList.map((item, i) => {
     const qData = item.question_data || {};
     let opts = [];
     try { opts = typeof qData.options === 'string' ? JSON.parse(qData.options) : (qData.options || []); } catch(e) { opts = []; }
@@ -4960,7 +5098,7 @@ function executeExamLaunchFromPractice() {
   } else if (currentPracticeContext.type === 'booster') {
     launchBoosterMode('exam');
   } else if (currentPracticeContext.type === 'mistake_bank') {
-    launchBoosterMode('exam');
+    launchSubjectMistakeMode('exam');
   }
 }
 
@@ -4987,11 +5125,3 @@ function handleNativeExitTrigger() {
   // नेटिव स्टाइल टोस्ट दिखाएं
   showSelectionToast("Press back again to exit");
 }
-
-// यदि कहीं पुराने मोडल फंक्शन्स का कॉल बचा हो तो सेफ्टी के लिए:
-window.showExitConfirmModal = function() { handleNativeExitTrigger(); };
-window.closeExitConfirmModal = function() { lastExitSwipeTime = 0; };
-window.confirmExitApp = function() {
-  isExitingApp = true;
-  history.go(-2);
-};
