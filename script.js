@@ -2377,13 +2377,9 @@ window.switchStagingSubject = function(subName) {
   const tEl = document.getElementById("explorerSubjectTitle");
   if (tEl) tEl.innerText = activeSubject;
   const sEl = document.getElementById("explorerSubjectStats");
-  const subSets = catalogData.filter(r => (r.subject || "General Studies").trim().toLowerCase() === activeSubject.toLowerCase());
-  let mastered = 0; 
-  subSets.forEach(s => { 
-    const atts = userAttemptHistory.filter(a => String(a.test_id) === String(s.test_id)); 
-    if (atts.length > 0 && Math.max(...atts.map(a => parseFloat(a.score))) >= ((s.total_questions || 10) * 2)) mastered++; 
-  });
-  if (sEl) sEl.innerText = `${subSets.length} Sets • ${mastered} Mastered`;
+  
+  const stats = getSubjectMasteryStats(activeSubject);
+  if (sEl) sEl.innerText = `${stats.totalSets} Sets • ${stats.masteredCount} Mastered`;
 
   renderStagingDomainScroller();
   renderTopicSets();
@@ -2746,46 +2742,57 @@ async function fetchTestCatalog() {
   renderSubjectHubGrid();
 }
 
+// 🚀 SUBJECT MASTERY STATS HELPER (DRY COMPILER)
+function getSubjectMasteryStats(subName) {
+  const clean = (subName || "General Studies").trim().toLowerCase();
+  const subSets = catalogData.filter(r => (r.subject || "General Studies").trim().toLowerCase() === clean);
+  let masteredCount = 0;
+  let totalAtt = 0;
+  let sumPct = 0;
+  let attemptedSets = 0;
+
+  subSets.forEach(setItem => {
+    const meta = getSetScoreMeta(setItem.test_id);
+    if (meta.isAtt) {
+      totalAtt += meta.attempts.length;
+      attemptedSets++;
+      sumPct += meta.bestPct;
+      if (meta.status === 'mastered') masteredCount++;
+    }
+  });
+
+  const totalSets = subSets.length;
+  const remaining = totalSets - masteredCount;
+  const progPct = totalSets > 0 ? Math.round((masteredCount / totalSets) * 100) : 0;
+  const avgAcc = attemptedSets > 0 ? Math.round(sumPct / attemptedSets) : 0;
+
+  return { subSets, totalSets, masteredCount, remaining, progPct, avgAcc, totalAtt };
+}
+
 function renderSubjectHubGrid() {
   const container = document.getElementById("subjectHubContainer"); 
   if (!container) return; 
   container.innerHTML = "";
-  const map = {}; 
-  catalogData.forEach(r => { 
-    const s = (r.subject || "General Studies").trim(); 
-    if (!map[s]) map[s] = { sets: [] }; 
-    map[s].sets.push(r); 
-  });
-
-  Object.entries(map).sort((a, b) => a[0].localeCompare(b[0], undefined, { numeric: true, sensitivity: 'base' })).forEach(([subName, data]) => {
-    const totalSets = data.sets.length; 
-    let completedSets = 0, totalAtt = 0, sumPct = 0, attemptedSets = 0;
-    data.sets.forEach(setItem => {
-      const atts = userAttemptHistory.filter(a => String(a.test_id) === String(setItem.test_id));
-      if (atts.length > 0) { 
-        totalAtt += atts.length; 
-        attemptedSets++; 
-        const best = Math.max(...atts.map(a => parseFloat(a.score))), maxM = (setItem.total_questions || 10) * 2, pct = maxM > 0 ? (best / maxM) * 100 : 0; 
-        sumPct += pct; 
-        if (pct >= 100) completedSets++; 
-      }
-    });
-    const remaining = totalSets - completedSets, progPct = totalSets > 0 ? Math.round((completedSets / totalSets) * 100) : 0, avgAcc = attemptedSets > 0 ? Math.round(sumPct / attemptedSets) : 0;
+  
+  const subjects = Array.from(new Set(catalogData.map(r => (r.subject || "General Studies").trim())));
+  subjects.sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })).forEach(subName => {
+    const stats = getSubjectMasteryStats(subName);
+    
     let sClass = "pill-untested", sText = "Untested";
-    if (completedSets === totalSets && totalSets > 0) { sClass = "pill-mastered"; sText = "Mastered"; }
-    else if (attemptedSets > 0) { sClass = "pill-progress"; sText = `${progPct}% Complete`; }
+    if (stats.masteredCount === stats.totalSets && stats.totalSets > 0) { sClass = "pill-mastered"; sText = "Mastered"; }
+    else if (stats.totalAtt > 0) { sClass = "pill-progress"; sText = `${stats.progPct}% Complete`; }
 
     const tile = document.createElement("div"); 
     tile.className = "subject-mastery-tile";
     tile.innerHTML = `
       <div class="tile-top-row"><span class="tile-subject-title">${subName}</span><span class="tile-status-pill ${sClass}">${sText}</span></div>
-      <div class="tile-progress-container"><div class="tile-progress-labels"><span>Mastery Progress</span><span>${progPct}%</span></div><div class="tile-progress-track"><div class="tile-progress-fill" style="width: ${progPct}%;"></div></div></div>
+      <div class="tile-progress-container"><div class="tile-progress-labels"><span>Mastery Progress</span><span>${stats.progPct}%</span></div><div class="tile-progress-track"><div class="tile-progress-fill" style="width: ${stats.progPct}%;"></div></div></div>
       <div class="tile-metrics-grid">
-        <div class="tile-metric-item"><span class="tile-metric-label">Mastered</span><span class="tile-metric-value" style="color:var(--success-dark);">${completedSets} <small style="font-size:10px; color:var(--text-muted);">/${totalSets}</small></span></div>
-        <div class="tile-metric-item"><span class="tile-metric-label">Remaining</span><span class="tile-metric-value" style="color:var(--warning-dark);">${remaining} Sets</span></div>
-        <div class="tile-metric-item"><span class="tile-metric-label">Avg Accuracy</span><span class="tile-metric-value">${avgAcc > 0 ? avgAcc + '%' : '--'}</span></div>
+        <div class="tile-metric-item"><span class="tile-metric-label">Mastered</span><span class="tile-metric-value" style="color:var(--success-dark);">${stats.masteredCount} <small style="font-size:10px; color:var(--text-muted);">/${stats.totalSets}</small></span></div>
+        <div class="tile-metric-item"><span class="tile-metric-label">Remaining</span><span class="tile-metric-value" style="color:var(--warning-dark);">${stats.remaining} Sets</span></div>
+        <div class="tile-metric-item"><span class="tile-metric-label">Avg Accuracy</span><span class="tile-metric-value">${stats.avgAcc > 0 ? stats.avgAcc + '%' : '--'}</span></div>
       </div>
-      <div class="tile-action-footer"><span style="color:var(--text-muted); font-size:11px; font-weight:600;">${totalAtt} Attempts Logged</span><span>Explore Sets ➔</span></div>
+      <div class="tile-action-footer"><span style="color:var(--text-muted); font-size:11px; font-weight:600;">${stats.totalAtt} Attempts Logged</span><span>Explore Sets ➔</span></div>
     `;
     tile.onclick = () => drillDownToSubject(subName); 
     container.appendChild(tile);
@@ -2807,14 +2814,11 @@ window.toggleMastheadSearch = function(isOpen) {
 window.drillDownToSubject = function(subName, pushHistory = true) {
   activeSubject = (subName || "General Studies").trim(); 
   const hub = document.getElementById("subjectHubStage"), exp = document.getElementById("setsExplorerStage"), tEl = document.getElementById("explorerSubjectTitle"), sEl = document.getElementById("explorerSubjectStats");
-  const subSets = catalogData.filter(r => (r.subject || "General Studies").trim().toLowerCase() === activeSubject.toLowerCase());
-  let mastered = 0; 
-  subSets.forEach(s => { 
-    const atts = userAttemptHistory.filter(a => String(a.test_id) === String(s.test_id)); 
-    if (atts.length > 0 && Math.max(...atts.map(a => parseFloat(a.score))) >= ((s.total_questions || 10) * 2)) mastered++; 
-  });
+  
+  const stats = getSubjectMasteryStats(activeSubject);
   if (tEl) tEl.innerText = activeSubject; 
-  if (sEl) sEl.innerText = `${subSets.length} Sets • ${mastered} Mastered`;
+  if (sEl) sEl.innerText = `${stats.totalSets} Sets • ${stats.masteredCount} Mastered`;
+
   toggleMastheadSearch(false); 
   if (hub) hub.style.display = "none"; 
   if (exp) exp.style.display = "block";
@@ -5053,50 +5057,46 @@ window.switchActivePracticeMode = function(targetMode) {
   scrollToTopOfPractice();
 };
 
-// 🚀 UNIVERSAL QUESTION CARD BUILDER (ZERO-REDUNDANCY ENGINE)
+// 🚀 UNIVERSAL QUESTION CARD BUILDER (ZERO-REDUNDANCY & REVIEW-SAFE)
 function buildQuestionCardDOM(q, idx, mode, stateObj, isMB = false) {
-  const isSt = stateObj.starred.has(idx);
+  const isSt = stateObj.starred ? stateObj.starred.has(idx) : false;
   let badgeHtml = '';
   let oHtml = '';
   let showExp = false;
   
-  // Define Mode Specifics
   const isReview = mode === 'review';
   const isQuiz = mode === 'quiz';
   const isRead = mode === 'read';
   
-  // Answer State Check (Quiz/Review specific)
   let sAns = null;
   if (isQuiz || isReview) {
     sAns = stateObj.answers && stateObj.answers[idx] !== undefined ? stateObj.answers[idx] : null;
   }
 
   // 1. Header Badge Logic
-  if (isRead) {
-     // Read mode has no default status badge in header
-  } else if (isReview) {
-     const uAns = sAns ? sAns.selected : null;
-     const isUserCorrect = uAns && isOptionMatching(uAns, q.correctAnswer);
-     const sText = uAns ? (isUserCorrect ? "Right" : "Wrong") : "Skipped";
-     const sClass = uAns ? (isUserCorrect ? "sol-status-correct" : "sol-status-incorrect") : "sol-status-unattempted";
-     badgeHtml = `<span class="sol-status-badge ${sClass}">${sText}</span>`;
-     showExp = true; // Review always shows explanation
+  if (isReview) {
+    const uAns = sAns ? sAns.selected : null;
+    const isUserCorrect = uAns && isOptionMatching(uAns, q.correctAnswer);
+    const sText = uAns ? (isUserCorrect ? "Right" : "Wrong") : "Skipped";
+    const sClass = uAns ? (isUserCorrect ? "sol-status-correct" : "sol-status-incorrect") : "sol-status-unattempted";
+    badgeHtml = `<span class="sol-status-badge ${sClass}">${sText}</span>`;
+    showExp = true;
   } else if (isQuiz) {
-     if (sAns) {
-        badgeHtml = `<span id="quizBadge_${idx}" class="sol-status-badge ${sAns.isCorrect ? 'sol-status-correct' : 'sol-status-incorrect'}">${sAns.isCorrect ? 'Right' : 'Wrong'}</span>`;
-        showExp = true; 
-     } else if (stateObj.isFinished) {
-        badgeHtml = `<span id="quizBadge_${idx}" class="sol-status-badge sol-status-unattempted">Skipped</span>`;
-        showExp = true;
-     } else {
-        badgeHtml = `<span id="quizBadge_${idx}" class="sol-status-badge" style="display:none;"></span>`;
-     }
+    if (sAns) {
+      badgeHtml = `<span id="quizBadge_${idx}" class="sol-status-badge ${sAns.isCorrect ? 'sol-status-correct' : 'sol-status-incorrect'}">${sAns.isCorrect ? 'Right' : 'Wrong'}</span>`;
+      showExp = true; 
+    } else if (stateObj.isFinished) {
+      badgeHtml = `<span id="quizBadge_${idx}" class="sol-status-badge sol-status-unattempted">Skipped</span>`;
+      showExp = true;
+    } else {
+      badgeHtml = `<span id="quizBadge_${idx}" class="sol-status-badge" style="display:none;"></span>`;
+    }
   }
 
   // 2. Options Iteration Logic
   oHtml = (q.options || []).map(opt => {
     const oid = String(opt.id);
-    let oCls = isRead ? "sol-option" : "option-row";
+    let oCls = (isRead || isReview) ? "sol-option" : "option-row";
     let feedbackSymbol = "";
     let bubbleHtml = "";
 
@@ -5116,7 +5116,7 @@ function buildQuestionCardDOM(q, idx, mode, stateObj, isMB = false) {
         oCls += " sol-opt-correct";
         bubbleCls = "sol-radio-bubble bubble-correct";
         bubbleIcon = checkIconSvg;
-      } else if (uAnsStr && isOptionMatching(oid, uAnsStr) && !sAns.isCorrect) {
+      } else if (uAnsStr && isOptionMatching(oid, uAnsStr)) {
         oCls += " sol-opt-wrong";
         bubbleCls = "sol-radio-bubble bubble-wrong";
         bubbleIcon = crossIconSvg;
@@ -5136,7 +5136,6 @@ function buildQuestionCardDOM(q, idx, mode, stateObj, isMB = false) {
         oCls += " sol-opt-correct";
         feedbackSymbol = `<span class="opt-feedback-indicator badge-correct">${checkIconSvg}</span>`;
       }
-      // Add identifying class for quiz click handlers
       oCls += ` quiz-opt-${idx}`;
     }
 
@@ -5153,13 +5152,17 @@ function buildQuestionCardDOM(q, idx, mode, stateObj, isMB = false) {
     `;
   }).join("");
 
-  // 3. Assemble Card HTML
+  // 3. Assemble Card HTML (Review Mode me Star Button Hide Rahega)
   const card = document.createElement("div");
   card.className = `solution-card ${isSt ? 'card-starred' : ''}`;
   card.id = `${mode}Card_${idx}`;
   card.style.marginBottom = isRead ? "16px" : "20px";
 
-  const toggleFunc = isRead ? 'toggleReadStar' : 'toggleQuizStar';
+  const starBtnHtml = isReview ? '' : `
+    <button type="button" class="btn-star-q ${isSt ? 'starred' : ''}" onclick="${isRead ? 'toggleReadStar' : 'toggleQuizStar'}(${idx})" title="${isSt ? 'Remove Star' : 'Star for Revision'}">
+      ${starIconSvg}
+    </button>
+  `;
 
   card.innerHTML = `
     <div class="sol-q-header">
@@ -5167,7 +5170,7 @@ function buildQuestionCardDOM(q, idx, mode, stateObj, isMB = false) {
         <span class="sol-q-title">Question ${q.qNum}</span>
         ${badgeHtml}
       </div>
-      <button type="button" class="btn-star-q ${isSt ? 'starred' : ''}" onclick="${toggleFunc}(${idx})" title="${isSt ? 'Remove Star' : 'Star for Revision'}">${starIconSvg}</button>
+      ${starBtnHtml}
     </div>
     <div class="sol-content">${getLocalizedText(q.content)}</div>
     <div id="${mode}Opts_${idx}">${oHtml}</div>
