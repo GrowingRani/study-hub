@@ -230,6 +230,21 @@ function updateHeaderBadges() {
   });
 }
 
+// 🚀 UNIVERSAL MODAL DOM TOGGLE HELPER
+function toggleModalDOM(modalId, isOpen, displayType = "flex") {
+  const el = document.getElementById(modalId);
+  if (!el) return false;
+  if (isOpen) {
+    el.style.setProperty("display", displayType, "important");
+    el.style.pointerEvents = "auto";
+  } else {
+    el.style.setProperty("display", "none", "important");
+    el.style.pointerEvents = "none";
+  }
+  return true;
+}
+
+// 🚀 UNIFIED & LOOP-BASED OVERLAY DISMISSAL (ZERO REDUNDANCY)
 function closeAllOverlaysAndPopups() {
   let closedSomething = false;
 
@@ -239,25 +254,35 @@ function closeAllOverlaysAndPopups() {
     return el.style.display === 'flex' || el.style.display === 'block' || el.classList.contains('open');
   };
 
-  if (isVisible('threeDotsMenuOverlay')) { closeThreeDotsMenu(); closedSomething = true; }
-  if (isVisible('playlistActionMenuOverlay')) { closePlaylistActionMenu(); closedSomething = true; }
-  if (isVisible('playlistBottomSheetOverlay')) { closePlaylistBottomSheet(); closedSomething = true; }
-  if (isVisible('missionBriefingModal')) { closeMissionBriefingModal(); closedSomething = true; }
-  if (isVisible('appNoticeModal')) { closeAppNoticeModal(); closedSomething = true; }
-  if (isVisible('createPlaylistModal')) { closeCreatePlaylistModal(); closedSomething = true; }
-  if (isVisible('editPlaylistModal')) { closeEditPlaylistModal(); closedSomething = true; }
-  if (isVisible('deletePlaylistConfirmModal')) { closeDeletePlaylistModal(); closedSomething = true; }
-  if (isVisible('abortExamModal')) { closeAbortExamModal(); closedSomething = true; }
-  if (isVisible('practiceModeSwitcherSheet')) { closePracticeModeSwitcher(); closedSomething = true; }
-  
+  // Declarative Overlay Registry
+  const OVERLAYS = [
+    { id: 'threeDotsMenuOverlay', action: closeThreeDotsMenu },
+    { id: 'playlistActionMenuOverlay', action: closePlaylistActionMenu },
+    { id: 'playlistBottomSheetOverlay', action: closePlaylistBottomSheet },
+    { id: 'missionBriefingModal', action: closeMissionBriefingModal },
+    { id: 'appNoticeModal', action: closeAppNoticeModal },
+    { id: 'createPlaylistModal', action: closeCreatePlaylistModal },
+    { id: 'editPlaylistModal', action: closeEditPlaylistModal },
+    { id: 'deletePlaylistConfirmModal', action: closeDeletePlaylistModal },
+    { id: 'abortExamModal', action: closeAbortExamModal },
+    { id: 'practiceModeSwitcherSheet', action: closePracticeModeSwitcher }
+  ];
+
+  for (const item of OVERLAYS) {
+    if (isVisible(item.id)) {
+      item.action();
+      closedSomething = true;
+    }
+  }
+
   const submitModal = document.getElementById('submitModalContainer');
-  if (submitModal && submitModal.style.display === 'flex' && submitModal.innerHTML !== "") { 
+  if (submitModal && isVisible('submitModalContainer') && submitModal.innerHTML !== "") { 
     closeExamModal(); 
     closedSomething = true; 
   }
 
   const exitModal = document.getElementById('exitConfirmModal');
-  if (exitModal && exitModal.style.display === 'flex') {
+  if (exitModal && isVisible('exitConfirmModal')) {
     exitModal.style.display = 'none';
   }
 
@@ -913,6 +938,21 @@ function start5PMEngine() {
 // ==========================================================================
 // 6. CUSTOM IN-APP MODALS (ALERT, CREATE, EDIT & DELETE PLAYLIST)
 // ==========================================================================
+
+// 🚀 REUSABLE MODAL DOM TOGGLE HELPER
+function toggleModalDOM(modalId, isOpen, displayType = "flex") {
+  const el = document.getElementById(modalId);
+  if (!el) return false;
+  if (isOpen) {
+    el.style.setProperty("display", displayType, "important");
+    el.style.pointerEvents = "auto";
+  } else {
+    el.style.setProperty("display", "none", "important");
+    el.style.pointerEvents = "none";
+  }
+  return true;
+}
+
 window.showAppNoticeModal = function(title, heading, message, icon = '🎯', actionText = 'Explore Library', actionCallback = null, secText = 'Dismiss', secCallback = null) {
   const modal = document.getElementById("appNoticeModal"); 
   if (!modal) return alert(message);
@@ -941,14 +981,10 @@ window.showAppNoticeModal = function(title, heading, message, icon = '🎯', act
     };
   }
 
-  modal.style.display = "flex"; 
-  modal.style.pointerEvents = "auto";
+  toggleModalDOM("appNoticeModal", true);
 };
 
-window.closeAppNoticeModal = function() { 
-  const m = document.getElementById("appNoticeModal"); 
-  if (m) { m.style.display = "none"; m.style.pointerEvents = "none"; } 
-};
+window.closeAppNoticeModal = () => toggleModalDOM("appNoticeModal", false);
 
 window.handleNoticeAction = function() { 
   closeAppNoticeModal(); 
@@ -958,16 +994,13 @@ window.handleNoticeAction = function() {
 
 window.openCreatePlaylistModal = function(fromSpecificTest = false) { 
   if (!fromSpecificTest) selectedTestForPlaylist = null;
-  const m = document.getElementById("createPlaylistModal"), inp = document.getElementById("inputNewPlaylistName"); 
+  const inp = document.getElementById("inputNewPlaylistName"); 
   if (inp) inp.value = ""; 
-  if (m) { m.style.display = "flex"; m.style.pointerEvents = "auto"; } 
+  toggleModalDOM("createPlaylistModal", true);
   setTimeout(() => inp?.focus(), 60); 
 };
 
-window.closeCreatePlaylistModal = function() { 
-  const m = document.getElementById("createPlaylistModal"); 
-  if (m) { m.style.display = "none"; m.style.pointerEvents = "none"; } 
-};
+window.closeCreatePlaylistModal = () => toggleModalDOM("createPlaylistModal", false);
 
 window.handleCreatePlaylistSubmit = async function(e) {
   e.preventDefault(); 
@@ -1080,17 +1113,15 @@ window.triggerDeletePlaylistFromMenu = function() {
 };
 
 window.openEditPlaylistModal = function(pId, pName) {
-  const m = document.getElementById("editPlaylistModal"), idIn = document.getElementById("editPlaylistId"), nameIn = document.getElementById("inputEditPlaylistName");
+  const idIn = document.getElementById("editPlaylistId");
+  const nameIn = document.getElementById("inputEditPlaylistName");
   if (idIn) idIn.value = pId; 
   if (nameIn) nameIn.value = pName;
-  if (m) { m.style.display = "flex"; m.style.pointerEvents = "auto"; }
+  toggleModalDOM("editPlaylistModal", true);
   setTimeout(() => nameIn?.focus(), 60); 
 };
 
-window.closeEditPlaylistModal = function() { 
-  const m = document.getElementById("editPlaylistModal"); 
-  if (m) { m.style.display = "none"; m.style.pointerEvents = "none"; } 
-};
+window.closeEditPlaylistModal = () => toggleModalDOM("editPlaylistModal", false);
 
 window.handleEditPlaylistSubmit = async function(e) {
   e.preventDefault(); 
@@ -1113,11 +1144,11 @@ window.handleEditPlaylistSubmit = async function(e) {
 
 window.openDeletePlaylistModal = function(pId, pName, isClearOnly) {
   pendingDeleteTarget = { id: pId, name: pName, isClearOnly };
-  const m = document.getElementById("deletePlaylistConfirmModal"), 
-        tEl = document.getElementById("deleteModalTitle"), 
-        hEl = document.getElementById("deleteModalHeading"), 
-        msgEl = document.getElementById("deleteModalMessage"), 
-        btn = document.getElementById("btnConfirmDeletePlaylist");
+  const tEl = document.getElementById("deleteModalTitle"); 
+  const hEl = document.getElementById("deleteModalHeading"); 
+  const msgEl = document.getElementById("deleteModalMessage"); 
+  const btn = document.getElementById("btnConfirmDeletePlaylist");
+
   if (isClearOnly) {
     if (tEl) tEl.innerText = `Clear ${pName}`; 
     if (hEl) hEl.innerText = `Clear all sets from ${pName}?`;
@@ -1129,12 +1160,11 @@ window.openDeletePlaylistModal = function(pId, pName, isClearOnly) {
     if (msgEl) msgEl.innerText = `This playlist and all its queued items will be permanently deleted.`;
     if (btn) { btn.innerText = "Yes, Delete"; btn.onclick = confirmDeletePlaylist; }
   }
-  if (m) { m.style.display = "flex"; m.style.pointerEvents = "auto"; }
+  toggleModalDOM("deletePlaylistConfirmModal", true);
 };
 
 window.closeDeletePlaylistModal = function() { 
-  const m = document.getElementById("deletePlaylistConfirmModal"); 
-  if (m) { m.style.display = "none"; m.style.pointerEvents = "none"; } 
+  toggleModalDOM("deletePlaylistConfirmModal", false);
   pendingDeleteTarget = null; 
 };
 
@@ -3332,21 +3362,8 @@ window.launchAssessment = async function(testId) {
   }
 };
 
-window.abortExamSession = function() {
-  const modal = document.getElementById("abortExamModal");
-  if (modal) {
-    modal.style.setProperty("display", "flex", "important");
-    modal.style.pointerEvents = "auto";
-  }
-};
-
-window.closeAbortExamModal = function() {
-  const modal = document.getElementById("abortExamModal");
-  if (modal) {
-    modal.style.setProperty("display", "none", "important");
-    modal.style.pointerEvents = "none";
-  }
-};
+window.abortExamSession = () => toggleModalDOM("abortExamModal", true);
+window.closeAbortExamModal = () => toggleModalDOM("abortExamModal", false);
 
 window.executeAbortExam = function() { 
   closeAbortExamModal(); 
