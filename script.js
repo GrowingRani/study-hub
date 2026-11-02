@@ -1664,42 +1664,62 @@ window.launchBoosterMode = async function(mode = 'exam') {
   }
 };
 
-// 🚀 REUSABLE ATOMIC SET TILE BUILDER
+// 🚀 REUSABLE ATOMIC SET TILE BUILDER (COMPACT LATEST SCORE PILL + BEST SCORE INFO)
 function renderPlaylistSetTileHtml(item, pName) {
   const setCat = catalogData.find(c => String(c.test_id) === String(item.test_id)); 
   if (!setCat) return "";
   const qCount = setCat.total_questions || 10;
-  
+  const maxMarks = qCount * 2;
   const isRoll = item.is_rollover ? `<span class="set-rollover-tag">⚠️ ROLLOVER</span>` : '';
   
-  const attempts = userAttemptHistory.filter(a => String(a.test_id) === String(setCat.test_id)), isAtt = attempts.length > 0;
-  const bestScore = isAtt ? Math.max(...attempts.map(a => parseFloat(a.score))) : 0, maxMarks = qCount * 2, pct = (maxMarks > 0 && isAtt) ? (bestScore / maxMarks) * 100 : 0;
-  let badgeClass = '', badgeText = '', historyHtml = '<span style="color:var(--text-muted);">Not attempted yet</span>';
+  const attempts = userAttemptHistory.filter(a => String(a.test_id) === String(setCat.test_id));
+  const isAtt = attempts.length > 0;
+  
+  let badgeHtml = '';
+  let historyHtml = '<span style="color:var(--text-muted);">Not attempted yet</span>';
+
   if (isAtt) {
-    if (pct >= 100) { 
-      badgeClass = 'status-mastered'; 
-      badgeText = `MASTERED ${bestScore}/${maxMarks}`; 
-      historyHtml = `<span style="color:var(--success-dark);">★ Best: ${bestScore} (${Math.round(pct)}%) | Att: ${attempts.length}</span>`; 
-    } else { 
-      badgeClass = 'status-progress'; 
-      badgeText = `IN PROGRESS`; 
-      historyHtml = `<span style="color:var(--warning-dark);">Review: ${bestScore}/${maxMarks} | Att: ${attempts.length}</span>`; 
+    // 1. TOP-RIGHT COMPACT BADGE: LATEST ATTEMPT SCORE
+    const latestScore = parseFloat(attempts[0].score);
+    const latestPct = maxMarks > 0 ? (latestScore / maxMarks) * 100 : 0;
+    const formattedLatest = Number.isInteger(latestScore) ? latestScore : latestScore.toFixed(1);
+
+    let latestStyle = "background:var(--warning-bg-subtle); color:var(--warning-dark); border:1px solid var(--warning-border);";
+    if (latestPct >= 100) {
+      latestStyle = "background:var(--success-bg-subtle); color:var(--success-dark); border:1px solid var(--success-border);";
+    } else if (latestPct < 50) {
+      latestStyle = "background:var(--danger-bg-subtle); color:var(--danger-dark); border:1px solid var(--danger-border);";
     }
+    badgeHtml = `<div class="set-status-badge" style="${latestStyle}">${formattedLatest}/${maxMarks}</div>`;
+
+    // 2. META STRIP BELOW: LIFETIME BEST SCORE
+    const bestScore = Math.max(...attempts.map(a => parseFloat(a.score)));
+    const bestPct = maxMarks > 0 ? (bestScore / maxMarks) * 100 : 0;
+    const formattedBest = Number.isInteger(bestScore) ? bestScore : bestScore.toFixed(1);
+
+    let bestColor = 'var(--warning-dark)';
+    if (bestPct >= 100) bestColor = 'var(--success-dark)';
+    else if (bestPct < 50) bestColor = 'var(--danger-dark)';
+
+    historyHtml = `<span style="color:${bestColor}; font-weight:700;">★ Best: ${formattedBest}/${maxMarks} (${Math.round(bestPct)}%) | Att: ${attempts.length}</span>`;
   }
 
-  // ⭐ Check if this set is in Starred Sets
+  const bestScoreForStatus = isAtt ? Math.max(...attempts.map(a => parseFloat(a.score))) : 0;
+  const bestPctForStatus = (maxMarks > 0 && isAtt) ? (bestScoreForStatus / maxMarks) * 100 : 0;
+  const statusAttr = isAtt ? (bestPctForStatus >= 100 ? 'mastered' : 'revise') : 'unattempted';
+
   const starredPl = userPlaylists.find(p => p.playlist_name === 'Starred Sets');
   const isStarred = starredPl && userPlaylistItems.some(pi => pi.playlist_id === starredPl.id && String(pi.test_id) === String(setCat.test_id));
 
   return `
-    <div class="set-tile" data-status="${isAtt ? (pct >= 100 ? 'mastered' : 'revise') : 'unattempted'}">
+    <div class="set-tile" data-status="${statusAttr}">
       <div class="set-tile-header">
         <div class="set-tile-title-group">
           ${isRoll}
           <div class="set-tile-title">${setCat.test_title}</div>
         </div>
         <div style="display:flex; gap: 6px; align-items: center; flex-shrink: 0;">
-           ${badgeText ? `<div class="set-status-badge ${badgeClass}">${badgeText}</div>` : ''}
+           ${badgeHtml}
            <button type="button" class="btn-star-set ${isStarred ? 'starred' : ''}" data-test-id="${setCat.test_id}" onclick="toggleStarSet(event, ${setCat.test_id})" title="${isStarred ? 'Unstar set' : 'Star set'}">
              ${starIconSvg}
            </button>
@@ -2558,7 +2578,7 @@ window.returnToSubjectHub = function(fromPopState = false) {
   if (!fromPopState) history.replaceState({ page: 'main-tab', view: 'viewLibrary', subView: 'hub' }, "", "#viewLibrary");
 };
 
-// 🚀 HIGH-EFFICIENCY ONE-TIME DOM BUILDER (WITH 2-COLUMN BENTO MISTAKE VAULT)
+// 🚀 HIGH-EFFICIENCY ONE-TIME DOM BUILDER (WITH COMPACT SCORE CHIPS & 2-COLUMN BENTO MISTAKE VAULT)
 function renderTopicSets() {
   const container = document.getElementById("topicsContainer"); 
   if (!container) return; 
@@ -2583,7 +2603,6 @@ function renderTopicSets() {
       const loopCount = subjectWeak.filter(q => (q.mastery_streak || 0) > 0).length;
       const freshCount = totalCount - loopCount;
 
-      // 🎯 Calculate Mastered/Cleared Questions (Streak >= 4)
       const clearedCount = (userWeakQuestions || []).filter(q => 
         (q.subject || "").trim().toLowerCase() === activeClean &&
         (q.mastery_streak || 0) >= 4
@@ -2684,7 +2703,6 @@ function renderTopicSets() {
           </div>
         `;
       } else if (hasSubjectAttempts) {
-        // STATE B: Clean Slate Slim Confirmation
         mbContainer.innerHTML = `
           <div class="mistake-vault-card state-clean" id="subjectMistakeVault" data-status="mastered">
             <div class="vault-header" style="cursor: default;">
@@ -2749,14 +2767,17 @@ function renderTopicSets() {
     });
 
     uniqueSets.forEach(setItem => {
-      const attempts = userAttemptHistory.filter(a => String(a.test_id) === String(setItem.test_id)), isAtt = attempts.length > 0;
-      const best = isAtt ? Math.max(...attempts.map(a => parseFloat(a.score))) : 0, maxMarks = (setItem.total_questions || 10) * 2, pct = (maxMarks > 0 && isAtt) ? (best / maxMarks) * 100 : 0;
+      const attempts = userAttemptHistory.filter(a => String(a.test_id) === String(setItem.test_id));
+      const isAtt = attempts.length > 0;
+      const maxMarks = (setItem.total_questions || 10) * 2;
+      const best = isAtt ? Math.max(...attempts.map(a => parseFloat(a.score))) : 0;
+      const pct = (maxMarks > 0 && isAtt) ? (best / maxMarks) * 100 : 0;
       let status = 'unattempted';
       if (isAtt) { 
         if (pct >= 100) { status = 'mastered'; topicMastered++; } 
         else status = 'revise'; 
       }
-      processed.push({ setItem, status, isAtt, best, maxMarks, pct, count: attempts.length });
+      processed.push({ setItem, status, isAtt, best, maxMarks, pct, attempts });
     });
 
     if (processed.length === 0) return;
@@ -2781,30 +2802,41 @@ function renderTopicSets() {
 
     const body = document.createElement("div"); 
     body.className = "topic-accordion-body"; 
-    body.style.display = "none";
     const setsGrid = document.createElement("div"); 
     setsGrid.className = "sets-card-grid";
 
-    processed.forEach(({ setItem, status, isAtt, best, maxMarks, pct, count }) => {
+    processed.forEach(({ setItem, status, isAtt, best, maxMarks, pct, attempts }) => {
       const tile = document.createElement("div"); 
       tile.className = "set-tile";
       tile.setAttribute("data-test-id", setItem.test_id);
       tile.setAttribute("data-status", status);
 
-      let badgeClass = '', badgeText = '', historyHtml = '<span style="color:var(--text-muted);">Not attempted yet</span>';
-      if (isAtt) {
-        if (pct >= 100) { 
-          badgeClass = 'status-mastered'; 
-          badgeText = `MASTERED ${best}/${maxMarks}`; 
-          historyHtml = `<span style="color:var(--success-dark);">★ Best: ${best} (${Math.round(pct)}%) | Att: ${count}</span>`; 
-        } else { 
-          badgeClass = 'status-progress'; 
-          badgeText = `IN PROGRESS`; 
-          historyHtml = `<span style="color:var(--warning-dark);">Review: ${best}/${maxMarks} | Att: ${count}</span>`; 
+      let badgeHtml = '';
+      let historyHtml = '<span style="color:var(--text-muted);">Not attempted yet</span>';
+
+      if (isAtt && attempts.length > 0) {
+        // 1. TOP-RIGHT COMPACT BADGE: LATEST ATTEMPT SCORE
+        const latestScore = parseFloat(attempts[0].score);
+        const latestPct = maxMarks > 0 ? (latestScore / maxMarks) * 100 : 0;
+        const formattedLatest = Number.isInteger(latestScore) ? latestScore : latestScore.toFixed(1);
+
+        let latestStyle = "background:var(--warning-bg-subtle); color:var(--warning-dark); border:1px solid var(--warning-border);";
+        if (latestPct >= 100) {
+          latestStyle = "background:var(--success-bg-subtle); color:var(--success-dark); border:1px solid var(--success-border);";
+        } else if (latestPct < 50) {
+          latestStyle = "background:var(--danger-bg-subtle); color:var(--danger-dark); border:1px solid var(--danger-border);";
         }
+        badgeHtml = `<div class="set-status-badge" style="${latestStyle}">${formattedLatest}/${maxMarks}</div>`;
+
+        // 2. META STRIP BELOW: LIFETIME BEST SCORE
+        const formattedBest = Number.isInteger(best) ? best : best.toFixed(1);
+        let bestColor = 'var(--warning-dark)';
+        if (pct >= 100) bestColor = 'var(--success-dark)';
+        else if (pct < 50) bestColor = 'var(--danger-dark)';
+
+        historyHtml = `<span style="color:${bestColor}; font-weight:700;">★ Best: ${formattedBest}/${maxMarks} (${Math.round(pct)}%) | Att: ${attempts.length}</span>`;
       }
 
-      // ⭐ Check if this set is in Starred Sets
       const starredPl = userPlaylists.find(p => p.playlist_name === 'Starred Sets');
       const isStarred = starredPl && userPlaylistItems.some(pi => pi.playlist_id === starredPl.id && String(pi.test_id) === String(setItem.test_id));
 
@@ -2817,7 +2849,7 @@ function renderTopicSets() {
               <div class="set-tile-title">${setItem.test_title}</div>
             </div>
             <div style="display:flex; gap: 6px; align-items: center; flex-shrink: 0;">
-               ${badgeText ? `<div class="set-status-badge ${badgeClass}">${badgeText}</div>` : ''}
+               ${badgeHtml}
             </div>
           </div>
           <div class="set-tile-meta"><span>${clockSvg} ${setItem.total_duration_minutes}m</span><span>${docSvg} ${setItem.total_questions} Qs</span></div>
@@ -2834,7 +2866,7 @@ function renderTopicSets() {
               <div class="set-tile-title">${setItem.test_title}</div>
             </div>
             <div style="display:flex; gap: 6px; align-items: center; flex-shrink: 0;">
-               ${badgeText ? `<div class="set-status-badge ${badgeClass}">${badgeText}</div>` : ''}
+               ${badgeHtml}
                <button type="button" class="btn-star-set ${isStarred ? 'starred' : ''}" data-test-id="${setItem.test_id}" onclick="toggleStarSet(event, ${setItem.test_id})" title="${isStarred ? 'Unstar set' : 'Star set'}">
                  ${starIconSvg}
                </button>
@@ -2861,14 +2893,9 @@ function renderTopicSets() {
     header.onclick = () => {
       const isOpen = groupCard.classList.contains("open");
       container.querySelectorAll(".topic-accordion-card").forEach(c => { 
-        if (c !== groupCard) { 
-          c.classList.remove("open"); 
-          const b = c.querySelector(".topic-accordion-body"); 
-          if (b) b.style.display = "none"; 
-        } 
+        if (c !== groupCard) c.classList.remove("open"); 
       });
-      groupCard.classList.toggle("open", !isOpen); 
-      body.style.display = !isOpen ? "block" : "none";
+      groupCard.classList.toggle("open", !isOpen);
     };
   });
 

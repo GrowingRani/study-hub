@@ -70,7 +70,7 @@ body.portal-body { font-family: var(--font-family); background-color: var(--bg-p
 .btn-ghost.active { background: var(--bg-surface-elevated) !important; color: var(--tcs-blue-accent); }
 .icon-btn { padding: 0; width: 32px; font-size: 15px; }
 .theme-toggle-btn { background: transparent !important; border: 1px solid transparent !important; color: inherit !important; border-radius: 8px !important; box-shadow: none !important; }
-.theme-toggle-btn:hover { background: var(--tcs-blue-bg-subtle) !important; color: var(--tcs-blue-accent) !important; }
+.theme-toggle-btn:hover { background: var(--tcs-blue-bg-subtle) !important; color: var(--tcs-blue-accent); }
 
 /* ==========================================================================
    4. AUTHENTICATION & LOGIN GATEWAY
@@ -249,11 +249,24 @@ body.portal-body { font-family: var(--font-family); background-color: var(--bg-p
 .header-left, .topic-title { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; color: inherit; }
 .header-right { display: flex !important; align-items: center !important; gap: 10px !important; }
 .subtopic-tag { font-size: 11px !important; font-weight: 700 !important; font-family: var(--font-mono) !important; color: var(--tcs-blue-accent) !important; background: var(--tcs-blue-bg-subtle) !important; border: 1px solid var(--tcs-blue-border-subtle) !important; padding: 3px 8px !important; border-radius: 12px !important; white-space: nowrap !important; }
-.toggle-icon { color: var(--text-muted) !important; transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important; display: flex; align-items: center; justify-content: center; flex-shrink: 0; opacity: 0.85; }
+.toggle-icon { color: var(--text-muted) !important; transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important; display: flex; align-items: center; justify-content: center; flex-shrink: 0; opacity: 0.85; }
 .topic-accordion-card.open .toggle-icon { transform: rotate(180deg) !important; color: var(--tcs-blue-accent) !important; opacity: 1; }
 .topic-accordion-card.open .topic-accordion-header { border-bottom: 1px solid var(--border-color); box-shadow: var(--shadow-sm); }
-.topic-accordion-body { display: none; padding: 14px 16px; background: var(--bg-panel); color: var(--text-main); border-radius: 0 0 6px 6px; }
-.sets-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+
+/* 🚀 BUTTER-SMOOTH ACCORDION TRANSITIONS (0fr -> 1fr CSS GRID EXPANSION) */
+.topic-accordion-body { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.32s cubic-bezier(0.16, 1, 0.3, 1), padding 0.32s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease; padding: 0 16px; opacity: 0; overflow: hidden; background: var(--bg-panel); color: var(--text-main); border-radius: 0 0 6px 6px; }
+.topic-accordion-card.open .topic-accordion-body { grid-template-rows: 1fr; padding: 14px 16px; opacity: 1; }
+.topic-accordion-card:not(.open) .topic-accordion-body { grid-template-rows: 0fr !important; padding-top: 0 !important; padding-bottom: 0 !important; opacity: 0 !important; }
+.topic-accordion-body > .sets-card-grid { min-height: 0; }
+.sets-card-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+
+/* 💻 PC VIEW: EXACT 3 ROWS (12 SETS) SCROLL LOCK */
+@media (min-width: 769px) {
+  .topic-accordion-card.open .topic-accordion-body > .sets-card-grid { max-height: 520px; overflow-y: auto; overscroll-behavior: contain; padding-right: 6px; scrollbar-width: thin; scrollbar-color: var(--border-color) transparent; }
+  .topic-accordion-card.open .topic-accordion-body > .sets-card-grid::-webkit-scrollbar { width: 5px; }
+  .topic-accordion-card.open .topic-accordion-body > .sets-card-grid::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
+  .topic-accordion-card.open .topic-accordion-body > .sets-card-grid::-webkit-scrollbar-thumb:hover { background: var(--border-hover); }
+}
 
 /* ==========================================================================
    🚀 CYBER-VAULT ACCORDION & NATURAL TILES (VISIBLE AMBIENT LIGHT & DARK)
@@ -294,12 +307,13 @@ body.dark-theme .vault-radar-dot { background: #f43f5e; box-shadow: 0 0 10px #f4
 body.dark-theme .vault-chevron-bubble { background: var(--bg-panel); border-color: var(--border-color); }
 body.dark-theme .mistake-vault-card.open .vault-chevron-bubble { color: #fda4af; }
 
-/* 2. EXPANDED INTERIOR (NATURAL 270px LOCKED TILES) */
-.vault-body { display: none; padding: 14px 16px; background: var(--bg-panel); border-top: 1px solid var(--border-color); animation: fadeInDeck 0.2s cubic-bezier(0.16, 1, 0.3, 1); }
-.mistake-vault-card.open .vault-body { display: block; }
+/* 2. EXPANDED INTERIOR (SMOOTH 0fr -> 1fr TRANSITION & 270px LOCKED TILES) */
+.vault-body { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.32s cubic-bezier(0.16, 1, 0.3, 1), padding 0.32s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease, border-color 0.25s ease; padding: 0 16px; opacity: 0; overflow: hidden; background: var(--bg-panel); border-top: 1px solid transparent; }
+.mistake-vault-card.open .vault-body { grid-template-rows: 1fr; padding: 14px 16px; opacity: 1; border-top-color: var(--border-color); }
+.mistake-vault-card:not(.open) .vault-body { grid-template-rows: 0fr !important; padding-top: 0 !important; padding-bottom: 0 !important; opacity: 0 !important; border-top-color: transparent !important; }
+.vault-body > .vault-natural-grid { min-height: 0; overflow: hidden; }
 .vault-natural-grid { display: flex; flex-wrap: wrap; gap: 12px; align-items: stretch; }
-.vault-natural-grid .set-tile.vault-set-tile, .vault-natural-grid .vault-status-hud { width: 100%; max-width: 270px; box-sizing: border-box; }
-
+.vault-natural-grid .set-tile.vault-set-tile, .vault-natural-grid .vault-status-hud { width: 100%; max-width: 310px; box-sizing: border-box; }
 /* Action Set Tile */
 .set-tile.vault-set-tile { border-left-width: 4.5px !important; border-left-color: var(--danger-dark) !important; background: var(--bg-surface-elevated) !important; display: flex; flex-direction: column; justify-content: space-between; }
 .set-tile.vault-set-tile:hover { border-color: var(--danger-border) !important; border-left-color: var(--danger-dark) !important; }
@@ -338,7 +352,9 @@ body.dark-theme .theme-mistake-briefing #briefingStatusBadge { background: rgba(
   .vault-title-text { font-size: 13px !important; max-width: none !important; white-space: nowrap !important; }
   .vault-telemetry-pill { font-size: 10px !important; padding: 2.5px 7px !important; }
   .vault-natural-grid .set-tile.vault-set-tile, .vault-natural-grid .vault-status-hud { max-width: 100% !important; }
+  .topic-accordion-card.open .topic-accordion-body { padding: 12px 10px !important; }
 }
+
 /* ==========================================================================
    7. RICH SET TILE CARD & ACTION FOOTER (🚨 ROOT CASCADE PROTECTED)
    ========================================================================== */
@@ -421,6 +437,7 @@ body.dark-theme .theme-mistake-briefing #briefingStatusBadge { background: rgba(
 
 .playlist-bottom-sheet { position: fixed; bottom: -500px; left: 0; width: 100%; background: var(--bg-panel); border-radius: 20px 20px 0 0; z-index: 3001; transition: bottom 0.3s cubic-bezier(0.16, 1, 0.3, 1); box-shadow: var(--shadow-lg); padding-bottom: calc(var(--safe-bottom) + 8px); border-top: 1px solid var(--border-color); display: flex; flex-direction: column; }
 @media (min-width: 769px) { .playlist-bottom-sheet { max-width: 480px; left: 50%; transform: translateX(-50%); border-radius: 16px 16px 0 0; } }
+
 .bottom-sheet-drag-handle { width: 42px; height: 4px; background: var(--text-muted); border-radius: 4px; margin: 10px auto 4px auto; cursor: grab; }
 .bottom-sheet-header { padding: 14px 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
 .bottom-sheet-title-group { display: flex; flex-direction: column; }
@@ -661,7 +678,6 @@ body.dark-theme .theme-mistake-briefing #briefingStatusBadge { background: rgba(
 .palette-btn.ans-review::after { content: ""; position: absolute; bottom: 2px; right: 2px; width: 9px; height: 9px; background-color: var(--success); border-radius: 50%; border: 1.5px solid #ffffff; }
 .palette-btn.active-q { outline: 3px solid var(--tcs-blue-accent) !important; outline-offset: 1px; }
 
-
 /* Solutions & Practice Views */
 #viewSolutions, #viewPractice { height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden !important; width: 100vw; max-width: 100vw; }
 .practice-mode-tag { font-size: 13.5px !important; font-weight: 800 !important; color: var(--tcs-blue-header) !important; line-height: 1.25 !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; letter-spacing: 0.3px !important; }
@@ -784,7 +800,7 @@ body.dark-theme .box-fc { color: #c084fc; }
 
 .quiz-header-actions { display: flex; align-items: center; gap: 8px; }
 /* ⭐ SLEEK INDUSTRIAL QUESTION STAR BUTTON & HEADER */
-.sol-q-title { font-size: 14.5px; font-weight: 800; color: var(--tcs-blue-header); letter-spacing: -0.2px; display: inline-flex; align-items: center; gap: 8px; }
+.sol-q-title { font-size: 14.5px; font-weight: 800; color: var(--text-blue-header); letter-spacing: -0.2px; display: inline-flex; align-items: center; gap: 8px; }
 .btn-star-q { background: transparent; border: none; cursor: pointer; width: 34px; height: 34px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; color: var(--text-muted); transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1); padding: 0; flex-shrink: 0; }
 .btn-star-q svg { width: 19px; height: 19px; stroke: var(--text-muted); stroke-width: 2; fill: transparent; transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), fill 0.2s ease, stroke 0.2s ease; }
 .btn-star-q:hover { background: var(--warning-bg-subtle); }
@@ -938,9 +954,7 @@ body.dark-theme .box-fc { color: #c084fc; }
 .bleed-metric-box.box-penalty { border-bottom: 2.5px solid var(--danger-dark); }
 .bleed-metric-box.box-net { border-bottom: 2.5px solid var(--tcs-blue-accent); }
 
-/* 🔧 Fix: 'white-space: normal' aur 'min-height: 24px' lagaya hai taaki labels (GROSS EARNED, PENALTY BLEED, NET REALIZED) bina kate 2-lines me nicely center ho sakein */
 .bleed-label { font-size: 10px !important; font-weight: 800 !important; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.2px; white-space: normal !important; line-height: 1.2 !important; min-height: 24px; display: flex; align-items: center; justify-content: center; }
-
 .bleed-val { font-size: 15.5px !important; font-weight: 800; font-family: var(--font-mono); line-height: 1.1; margin: 2px 0; }
 .box-gross .bleed-val { color: var(--success-dark); }
 .box-penalty .bleed-val { color: var(--danger-dark); }
@@ -963,7 +977,6 @@ body.dark-theme .box-fc { color: #c084fc; }
   .analytics-seg-btn { flex: 1; height: 36px; border: none; background: transparent; color: var(--text-muted); font-size: 11.5px; font-weight: 700; border-radius: 7px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1); outline: none; padding: 0 4px; -webkit-tap-highlight-color: transparent; }
   .analytics-seg-btn.active { background: var(--bg-panel); color: var(--tcs-blue-accent); font-weight: 800; border: 1px solid var(--border-color); box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12); }
 
-  /* 📱 Deck Toggling Logic */
   .advanced-analytics-grid.show-domains .deck-audit { display: none !important; }
   .advanced-analytics-grid.show-audit .deck-domains { display: none !important; }
   .advanced-analytics-grid .deck-domains, .advanced-analytics-grid .deck-audit { animation: fadeInDeck 0.25s cubic-bezier(0.16, 1, 0.3, 1); }
@@ -973,7 +986,6 @@ body.dark-theme .box-fc { color: #c084fc; }
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
 }
-
 
 /* ==========================================================================
    12. PROFILE VIEW & DISTINCT SIGN OUT BUTTON
@@ -1034,7 +1046,6 @@ body.dark-theme .box-fc { color: #c084fc; }
   .playlist-count-pill { font-size: 10px !important; padding: 2px 7px !important; }
   .playlist-body { padding: 10px !important; }
   
-  /* 🚀 MOBILE PLAYLIST SETS: 5px VERTICAL PADDING STOPS OVERFLOW CLIPPING OF TOP BORDER */
   .playlist-sets-stream { max-height: 315px !important; overflow-y: auto !important; overscroll-behavior: contain; padding: 5px 4px 5px 2px !important; scrollbar-width: thin; scrollbar-color: var(--border-color) transparent; }
   .playlist-sets-stream::-webkit-scrollbar { width: 4px; }
   .playlist-sets-stream::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
@@ -1042,12 +1053,13 @@ body.dark-theme .box-fc { color: #c084fc; }
   .subject-hub-grid { grid-template-columns: 1fr !important; gap: 12px !important; margin-bottom: 85px !important; }
   .catalog-viewport { padding: 12px 10px 85px 10px !important; width: 100% !important; box-sizing: border-box !important; }
   
-  /* 🚀 MOBILE LIBRARY TOPIC BODY: SHOW MAXIMUM 3 SETS, SCROLL REMAINDER */
-  .topic-accordion-body { max-height: 410px !important; overflow-y: auto !important; overscroll-behavior: contain; padding: 12px 10px !important; scrollbar-width: thin; scrollbar-color: var(--border-color) transparent; }
-  .topic-accordion-body::-webkit-scrollbar { width: 4px; }
-  .topic-accordion-body::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
-  
-  /* 🚀 FIX: PREVENT UNWANTED JUMPING ON TAP/TOUCH (LOCK BOUNDARY PERFECTLY) */
+  /* 📱 MOBILE LIBRARY TOPIC BODY: EXACT 3 VERTICAL SETS (~440px) + SMOOTH TOUCH SCROLL */
+  .topic-accordion-body { max-height: none !important; overflow: hidden !important; }
+  .topic-accordion-card.open .topic-accordion-body { padding: 12px 10px !important; }
+  .topic-accordion-card.open .topic-accordion-body > .sets-card-grid { display: grid !important; grid-template-columns: 1fr !important; gap: 10px !important; max-height: 440px !important; overflow-y: auto !important; -webkit-overflow-scrolling: touch !important; overscroll-behavior: contain; padding: 4px 4px 8px 2px !important; scrollbar-width: thin; scrollbar-color: var(--border-color) transparent; }
+  .topic-accordion-card.open .topic-accordion-body > .sets-card-grid::-webkit-scrollbar { width: 4px; }
+  .topic-accordion-card.open .topic-accordion-body > .sets-card-grid::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
+
   .set-tile { padding: 12px !important; width: 100% !important; box-sizing: border-box !important; -webkit-tap-highlight-color: transparent !important; outline: none !important; }
   .set-tile:hover, .set-tile:active, .set-tile:focus,
   .set-tile.sunday-crucible-tile:hover, .set-tile.sunday-crucible-tile:active, .set-tile.sunday-crucible-tile:focus,
@@ -1077,7 +1089,6 @@ body.dark-theme .box-fc { color: #c084fc; }
   .nav-item.active { color: var(--tcs-blue-accent); }
   .main-app-view { padding-bottom: 60px; }
 
-  /* 🚀 CLEAN BOTTOM-NAV VISIBILITY RULES (NO GLOBAL MISFIRES ON HOME) */
   body:has(#viewExam[style*="display: flex"]) #mobileBottomNav, body:has(#viewPractice[style*="display: flex"]) #mobileBottomNav, body:has(#viewSolutions[style*="display: flex"]) #mobileBottomNav, body:has(#viewLogin[style*="display: flex"]) #mobileBottomNav, body:has(#viewLogin.active-view) #mobileBottomNav, body.staging-active #mobileBottomNav, body.staging-active .mobile-bottom-nav, .mobile-bottom-nav.nav-hidden { display: none !important; }
   body.staging-active .main-app-view { padding-bottom: 0 !important; }
   body.staging-active .topics-grid, body.staging-active .subject-hub-grid { margin-bottom: 16px !important; }
@@ -1096,7 +1107,6 @@ body.dark-theme .box-fc { color: #c084fc; }
   .m-timer { font-family: var(--font-mono); font-weight: 800; color: var(--danger-dark); font-size: 12px; background: var(--danger-bg); padding: 3px 7px; border-radius: 4px; border: 1px solid var(--danger-border); }
   .btn-mobile-palette { background: var(--tcs-blue-header); color: #ffffff; border: none; padding: 4px 10px; font-size: 11.5px; font-weight: 700; border-radius: 4px; cursor: pointer; }
   
-  /* 🚀 ZERO-OVERLAP: EXPANDED BOTTOM PADDING ENSURES NO QUESTIONS HIDE BEHIND 4-BUTTON FIXED FOOTER */
   .q-scroll-area { flex: 1; padding: 15px; overflow-y: auto; padding-bottom: calc(var(--safe-bottom) + 140px) !important; }
   
   .tcs-footer-bar { position: fixed; bottom: 0; left: 0; right: 0; height: auto; flex-direction: column-reverse !important; gap: 8px !important; padding: 10px 12px; z-index: 10; background: var(--bg-panel); border-top: 1px solid var(--border-color); }
@@ -1111,7 +1121,6 @@ body.dark-theme .box-fc { color: #c084fc; }
   .profile-section-card, .stat-card { width: 100% !important; min-width: 0 !important; box-sizing: border-box !important; padding: 14px 12px !important; overflow: hidden !important; }
   .heatmap-grid { display: grid !important; grid-template-columns: repeat(15, 1fr) !important; gap: 4px !important; min-width: 440px !important; box-sizing: border-box !important; }
 
-  /* 🚀 PRE-FLIGHT MISSION BRIEFING MOBILE DRAWER */
   .briefing-modal-overlay { align-items: flex-end !important; justify-content: center !important; }
   .mission-briefing-sheet { position: fixed !important; bottom: 0 !important; left: 0 !important; right: 0 !important; width: 100% !important; max-width: 100vw !important; margin: 0 !important; border-radius: 20px 20px 0 0 !important; max-height: 85dvh !important; animation: briefingSheetSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards !important; padding-bottom: calc(var(--safe-bottom) + 12px) !important; border-bottom: none !important; }
   @keyframes briefingSheetSlideUp { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
@@ -1125,24 +1134,21 @@ body.dark-theme .box-fc { color: #c084fc; }
   .briefing-modes-grid { grid-template-columns: 1fr !important; gap: 10px !important; padding: 12px 16px !important; }
   .briefing-mode-card { padding: 12px 14px !important; }
 
-  /* Modal Responsive Compact Rules */
   .tcs-modal-box { width: 92vw !important; max-width: 92vw !important; margin: auto !important; }
   .modal-summary-table th, .modal-summary-table td { padding: 8px 10px !important; font-size: 12px !important; }
   .score-highlight-title { font-size: 20px !important; }
 
-  /* 🚀 STAGING MODE ON MOBILE: VIEWPORT PADDING & BOTTOM FLOATING DOCK */
   body.staging-active .catalog-viewport { padding-top: 12px !important; padding-bottom: calc(var(--safe-bottom) + 85px) !important; }
   body.staging-active .staging-floating-dock { position: fixed !important; top: auto !important; bottom: calc(var(--safe-bottom) + 16px) !important; left: 50% !important; transform: translateX(-50%) translateY(0) !important; width: calc(100% - 24px) !important; max-width: 480px !important; border-radius: 40px !important; z-index: 1200 !important; box-shadow: var(--shadow-lg) !important; animation: dockSlideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards !important; }
   body.staging-active .dock-content { border-radius: 40px !important; padding: 10px 16px !important; }
 
-  /* 🚀 TOAST NOTIFICATION: TOP HEADS-UP IN STAGING MODE (ZERO OVERLAP WITH DOCK) */
   .selection-toast { position: fixed !important; bottom: calc(var(--safe-bottom) + 78px) !important; top: auto !important; left: 50% !important; z-index: 3500 !important; }
   body.staging-active .selection-toast { top: 66px !important; bottom: auto !important; transform: translateX(-50%) translateY(-10px) !important; }
   body.staging-active .selection-toast.show { transform: translateX(-50%) translateY(0) !important; }
 
-  /* 🚀 MOBILE SINGLE-ROW HORIZONTAL SWIPE STRIP */
-.quiz-filter-strip { display: flex !important; flex-wrap: nowrap !important; overflow-x: auto !important; scrollbar-width: none !important; -webkit-overflow-scrolling: touch !important; padding-bottom: 2px !important; width: 100% !important; } .quiz-filter-strip::-webkit-scrollbar { display: none !important; } .quiz-chip-btn { flex-shrink: 0 !important; white-space: nowrap !important; }
-/* 📱 MOBILE: HIDE DUPLICATE SCORECARD RETAKE PILL (FLOATING DOCK IS HERO) */
+  .quiz-filter-strip { display: flex !important; flex-wrap: nowrap !important; overflow-x: auto !important; scrollbar-width: none !important; -webkit-overflow-scrolling: touch !important; padding-bottom: 2px !important; width: 100% !important; }
+  .quiz-filter-strip::-webkit-scrollbar { display: none !important; }
+  .quiz-chip-btn { flex-shrink: 0 !important; white-space: nowrap !important; }
   .btn-retake-micro { display: none !important; }
 }
 
