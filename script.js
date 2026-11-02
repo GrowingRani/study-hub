@@ -306,6 +306,11 @@ window.switchView = function(viewId, pushHistory = true) {
 
   renderViewDOM(viewId);
 
+  // 🚀 0ms LIVE ANALYTICS SYNC: Analytics टैब खुलते ही 7-Day Nodes और Stats तुरंत रेंडर होंगे
+  if (viewId === 'viewAnalytics') {
+    fetchStudentAnalytics(false);
+  }
+
   if (pushHistory) {
     if (viewId === 'viewDashboard') {
       history.pushState({ page: 'dashboard', view: 'viewDashboard' }, '', '#viewDashboard');
@@ -1560,7 +1565,6 @@ async function fetchPlaylistsAndCheckRollover() {
       const tid = Number(a.test_id);
       if (attDate === todayStr && (tid > 0 || (tid === -1 && isSunday()))) {
         const attemptedInRun = (a.total_correct || 0) + (a.total_incorrect || 0);
-        // Agar ek hi set dobara attempt hua hai, toh highest unique attempt pick karein
         const prevAttempted = uniqueSetsAttemptedToday.get(tid) || 0;
         if (attemptedInRun > prevAttempted) {
           uniqueSetsAttemptedToday.set(tid, attemptedInRun);
@@ -1604,7 +1608,7 @@ async function fetchPlaylistsAndCheckRollover() {
       if (insData) dailyPerf = insData;
     }
 
-    // 🚀 FIX: स्ट्रीक आते ही तुरंत हेडर को अपडेट करें (बिना Analytics टैब खोले)
+    // 🚀 FIX: स्ट्रीक आते ही तुरंत हेडर को अपडेट करें
     updateHeaderBadges();
 
     // 🚀 Fast Cache Save
@@ -1614,29 +1618,47 @@ async function fetchPlaylistsAndCheckRollover() {
       localStorage.setItem("cache_playlist_items_" + roll, JSON.stringify(userPlaylistItems));
     } catch (e) {}
 
-    // Multi-Device Rollover Check
+    // 🚀 REFINED MULTI-DEVICE CLEAN-SLATE ROLLOVER ENGINE
     const serverLastRollover = currentCandidate?.last_rollover_date;
     if (serverLastRollover !== todayStr && !isSunday()) {
       const todayList = userPlaylists.find(p => p.playlist_name === 'Today');
       const tomorrowList = userPlaylists.find(p => p.playlist_name === 'Tomorrow');
+      const weekList = userPlaylists.find(p => p.playlist_name === 'This Week');
 
       if (todayList && tomorrowList) {
-        await supabaseClient.from("playlist_items").update({ is_rollover: true }).eq("playlist_id", todayList.id).eq("student_roll", roll);
-        await supabaseClient.from("playlist_items").update({ playlist_id: todayList.id }).eq("playlist_id", tomorrowList.id).eq("student_roll", roll);
+        // 1. Today ke unattempted leftover sets ko 'This Week Backlog' me shift karein
+        if (weekList) {
+          await supabaseClient
+            .from("playlist_items")
+            .update({ playlist_id: weekList.id, is_rollover: true })
+            .eq("playlist_id", todayList.id)
+            .eq("student_roll", roll);
+        }
+
+        // 2. Tomorrow's Queue ko promote karke fresh 'Today' banayein
+        await supabaseClient
+          .from("playlist_items")
+          .update({ playlist_id: todayList.id })
+          .eq("playlist_id", tomorrowList.id)
+          .eq("student_roll", roll);
       }
 
       await supabaseClient.from("students").update({ last_rollover_date: todayStr }).eq("roll_number", roll);
       if (currentCandidate) currentCandidate.last_rollover_date = todayStr;
 
+      // Local RAM memory ko fresh database state se instantly re-sync karein
       const { data: piData2 } = await supabaseClient.from("playlist_items").select("*").eq("student_roll", roll);
       userPlaylistItems = piData2 || [];
+      try {
+        localStorage.setItem("cache_playlist_items_" + roll, JSON.stringify(userPlaylistItems));
+      } catch (e) {}
     }
   } catch (error) { 
     console.error("Playlist Init Error:", error); 
   }
 }
 
-// 🚀 REVISION & MISTAKE POOL COMPILER
+// 🚀 REVISION & MISTAKE POOL COMPILER (CLOSED-LOOP SPACED RECALL PRIORITY QUEUE)
 async function compileMasteryBoosterPool(maxLimit = 25, forceRefresh = false, allowAllWeak = false) {
   if (!forceRefresh && cachedBoosterPool && (Date.now() - lastBoosterFetchTime < 15000)) {
     return cachedBoosterPool;
@@ -1644,15 +1666,44 @@ async function compileMasteryBoosterPool(maxLimit = 25, forceRefresh = false, al
 
   let assembled = [];
   const seenIds = new Set();
-
   const now = new Date();
+
+  // 1. केवल वही गलतियाँ जो आज के लिए ड्यू (Due) हैं
   const mistakePool = userWeakQuestions.filter(q => 
     q.times_wrong > 0 && 
     (q.mastery_streak || 0) < 4 && 
     (allowAllWeak || !q.next_review_at || new Date(q.next_review_at) <= now)
   );
 
-  mistakePool.sort((a, b) => (b.times_wrong || 0) - (a.times_wrong || 0)).slice(0, maxLimit).forEach(item => {
+  // 🎯 INTELLIGENT SRS PRIORITY SORTING:
+  // Priority 1: ताज़ा गलतियाँ (Streak 0) सबसे पहले (Newest Errors First)
+  // Priority 2: पाइपलाइन रिव्यु (Streak 1-3) - छोटा स्ट्रीक पहले, फिर Overdue तारीख
+  // Priority 3: टाइम्स रॉन्ग टाई-ब्रेकर
+  mistakePool.sort((a, b) => {
+    const streakA = a.mastery_streak || 0;
+    const streakB = b.mastery_streak || 0;
+
+    // Fresh Mistakes (Streak 0) को सर्वोच्च प्राथमिकता
+    if (streakA === 0 && streakB !== 0) return -1;
+    if (streakB === 0 && streakA !== 0) return 1;
+
+    // दोनों Fresh हैं तो जो सबसे ताज़ा है वो पहले आएगा
+    if (streakA === 0 && streakB === 0) {
+      const dateA = new Date(a.last_attempt_date || 0);
+      const dateB = new Date(b.last_attempt_date || 0);
+      return dateB - dateA;
+    }
+
+    // दोनों पाइपलाइन में हैं: Streak 1 पहले, फिर Streak 2, फिर 3
+    if (streakA !== streakB) return streakA - streakB;
+    const revA = new Date(a.next_review_at || 0);
+    const revB = new Date(b.next_review_at || 0);
+    if (revA.getTime() !== revB.getTime()) return revA - revB;
+
+    return (b.times_wrong || 0) - (a.times_wrong || 0);
+  });
+
+  mistakePool.slice(0, maxLimit).forEach(item => {
     const qd = item.question_data || {};
     const qid = String(item.question_id || qd.id);
     if (!seenIds.has(qid)) {
@@ -1661,6 +1712,7 @@ async function compileMasteryBoosterPool(maxLimit = 25, forceRefresh = false, al
       try { opts = typeof qd.options === 'string' ? JSON.parse(qd.options) : (qd.options || []); } catch(e) { opts = []; }
       assembled.push({
         id: qid,
+        subject: item.subject || qd.subject || "General Studies",
         content: qd.content,
         options: opts,
         correctAnswer: getNormalizedCorrectAnswerId(qd.correct_answer || qd.correctAnswer, opts),
@@ -1670,6 +1722,7 @@ async function compileMasteryBoosterPool(maxLimit = 25, forceRefresh = false, al
     }
   });
 
+  // 2. यदि गलतियाँ 25 से कम हैं, तो बचे हुए स्लॉट एक्टिव रिकॉल से भरेंगे
   const remainingNeeded = maxLimit - assembled.length;
   if (remainingNeeded > 0 && currentCandidate?.roll_number) {
     try {
@@ -1689,6 +1742,7 @@ async function compileMasteryBoosterPool(maxLimit = 25, forceRefresh = false, al
             try { opts = typeof q.options === 'string' ? JSON.parse(q.options) : (q.options || []); } catch(e) { opts = []; }
             assembled.push({
               id: qid,
+              subject: q.subject || "General Studies",
               content: q.content,
               options: opts,
               correctAnswer: getNormalizedCorrectAnswerId(q.correct_answer, opts),
@@ -3055,7 +3109,7 @@ function renderTopicSets() {
   applyTopicFilter(currentFilter);
 }
 
-// 🚀 HIGH-SPEED BATCHED MISTAKE BANK SYNC
+// 🚀 HIGH-SPEED BATCHED MISTAKE BANK SYNC (WITH CLOSED-LOOP INTEGRITY)
 const REVIEW_INTERVALS_DAYS = [1, 3, 6, 15];
 async function syncMistakeBank(payloads) {
   if (!payloads?.length || !currentCandidate) return;
@@ -3070,6 +3124,7 @@ async function syncMistakeBank(payloads) {
     const exMap = new Map((existingRows || []).map(r => [String(r.question_id), r]));
     const updates = [];
     const inserts = [];
+    const nowIso = new Date().toISOString();
 
     for (const p of payloads) {
       const qId = p.question_id ? String(p.question_id) : String(Math.abs((p.question_data.content || "").length * 999));
@@ -3081,11 +3136,12 @@ async function syncMistakeBank(payloads) {
         else if (p.isCorrect) nRev.setFullYear(nRev.getFullYear() + 100);
         
         updates.push(supabaseClient.from("student_question_stats").update({ 
+          subject: p.subject, // सब्जेक्ट अगर पहले General रह गया था तो सही विषय से अपडेट हो जाएगा
           times_wrong: p.isCorrect ? ex.times_wrong : ex.times_wrong + 1, 
           times_correct: p.isCorrect ? ex.times_correct + 1 : ex.times_correct, 
           mastery_streak: nStreak, 
           next_review_at: nRev.toISOString(), 
-          last_attempt_date: new Date().toISOString(), 
+          last_attempt_date: nowIso, 
           question_data: p.question_data 
         }).eq("id", ex.id));
       } else {
@@ -3099,7 +3155,8 @@ async function syncMistakeBank(payloads) {
           times_wrong: p.isCorrect ? 0 : 1, 
           times_correct: p.isCorrect ? 1 : 0, 
           mastery_streak: p.isCorrect ? 1 : 0, 
-          next_review_at: nRev.toISOString() 
+          next_review_at: nRev.toISOString(),
+          last_attempt_date: nowIso // 🎯 पहली बार इंसर्ट पर भी टाइमस्टैम्प सुरक्षित रहेगा
         });
       }
     }
@@ -3222,11 +3279,15 @@ window.launchAssessment = async function(testId) {
   try { 
     const { data: tInfo, error: tErr } = await supabaseClient.from("tests").select("id, title, total_duration_minutes").eq("id", testId).maybeSingle(); 
     if (tErr || !tInfo) throw new Error("Test details missing.");
-    activeTest = tInfo; 
-    document.getElementById("examTitle").innerText = activeTest.title || "Assessment"; 
-    document.getElementById("subjectLabelBreadcrumb").innerText = activeSubject || "General";
     
-    // 🚀 Mobile Row 1 Set Title Populate
+    // 🎯 Catalog से सही सब्जेक्ट निकालें ताकि गलती 'General' में न जाए
+    const setCat = catalogData.find(c => String(c.test_id) === String(testId));
+    const testSubject = (setCat?.subject || activeSubject || "General Studies").trim();
+
+    activeTest = { ...tInfo, subject: testSubject }; 
+    document.getElementById("examTitle").innerText = activeTest.title || "Assessment"; 
+    document.getElementById("subjectLabelBreadcrumb").innerText = testSubject;
+    
     const mTitle = document.getElementById("mobileExamTitle");
     if (mTitle) mTitle.innerText = activeTest.title || "Assessment";
 
@@ -3247,6 +3308,7 @@ window.launchAssessment = async function(testId) {
       return { 
         qNum: item.question_number, 
         id: q.id, 
+        subject: testSubject,
         content: q.content, 
         options: opts, 
         correctAnswer: getNormalizedCorrectAnswerId(q.correct_answer, opts), 
@@ -3438,15 +3500,18 @@ function renderScorecard() {
   let correct = 0, incorrect = 0, unattempted = 0, statsPayload = [];
   testQuestions.forEach((q, idx) => {
     const uAns = userResponses[idx].selected, st = userResponses[idx].status;
+    // 🎯 Question का सटीक सब्जेक्ट भेजें ताकि सही Vault के Fresh Bucket में जाए
+    const qSubj = q.subject || activeTest?.subject || activeSubject || "General Studies";
+
     if (!uAns) { 
       unattempted++; 
-      statsPayload.push({ student_roll: currentCandidate.roll_number, subject: activeSubject || "General", question_id: q.id, question_data: q, isCorrect: false }); 
+      statsPayload.push({ student_roll: currentCandidate.roll_number, subject: qSubj, question_id: q.id, question_data: q, isCorrect: false }); 
     } else if (isOptionMatching(uAns, q.correctAnswer)) { 
       correct++; 
-      statsPayload.push({ student_roll: currentCandidate.roll_number, subject: activeSubject || "General", question_id: q.id, question_data: q, isCorrect: st !== 4 }); 
+      statsPayload.push({ student_roll: currentCandidate.roll_number, subject: qSubj, question_id: q.id, question_data: q, isCorrect: st !== 4 }); 
     } else { 
       incorrect++; 
-      statsPayload.push({ student_roll: currentCandidate.roll_number, subject: activeSubject || "General", question_id: q.id, question_data: q, isCorrect: false }); 
+      statsPayload.push({ student_roll: currentCandidate.roll_number, subject: qSubj, question_id: q.id, question_data: q, isCorrect: false }); 
     }
   });
 
@@ -3465,11 +3530,9 @@ function renderScorecard() {
   };
   userAttemptHistory.unshift(localAttemptRecord);
 
-  // 🚀 0ms SYNCHRONOUS UNIQUE TELEMETRY UPDATE (Immediate Barometer Jump & No Duplicate Bloat)
+  // 🚀 0ms SYNCHRONOUS UNIQUE TELEMETRY UPDATE
   if (activeTest.id > 0 || (activeTest.id === -1 && isSunday())) {
     const todayStr = getLocalDateString();
-    
-    // Check karein kya yeh set aaj pehle bhi attempt ho chuka hai (index 0 is current run, slice(1) are past runs)
     const prevAttemptsOfThisSetToday = userAttemptHistory.filter(a => 
       String(a.test_id) === String(activeTest.id) && 
       (a.attempt_date || "").split("T")[0] === todayStr
@@ -3496,7 +3559,6 @@ function renderScorecard() {
       dailyPerf.is_century_hit = true;
     }
 
-    // Today's list se solved set turant local memory se clean karein
     const tList = userPlaylists.find(p => p.playlist_name === 'Today');
     if (tList) {
       userPlaylistItems = userPlaylistItems.filter(pi => !(pi.playlist_id === tList.id && String(pi.test_id) === String(activeTest.id)));
@@ -3598,6 +3660,7 @@ function renderScorecard() {
       if (att) await supabaseClient.from("daily_attendance").update({ total_minutes_spent: att.total_minutes_spent + tMins }).eq("id", att.id);
       else await supabaseClient.from("daily_attendance").insert({ student_roll: currentCandidate.roll_number, study_date: today, total_minutes_spent: tMins });
 
+      // 🎯 Closed-Loop: मिस्टेक बैंक में सटीक सब्जेक्ट के साथ सिंक
       if (statsPayload.length) await syncMistakeBank(statsPayload);
     } catch (e) { 
       console.error("Score Sync Error:", e); 
@@ -3634,9 +3697,11 @@ window.closeExamAndReload = function() {
 
       await fetchPlaylistsAndCheckRollover();
       await renderHomePlaylists();
-      fetchStudentAnalytics(true);
-    } catch (e) {
-      console.error("Background sync after exam:", e);
+      
+      // 🚀 Background Sync: Analytics DOM को ताज़ा स्टेट के साथ तैयार रखें
+      fetchStudentAnalytics(false);
+    } catch (e) { 
+      console.error("Background sync after exam:", e); 
     }
   })();
 };
@@ -3846,11 +3911,6 @@ window.fetchStudentAnalytics = async function(isSilent = false) {
       if (el) el.innerText = accVal + "%"; 
     });
 
-    if (isSilent) { 
-      _isFetchingStats = false; 
-      return; 
-    }
-
     // Top Stat Cards
     const eAcc = document.getElementById("statAccuracy"); 
     if (eAcc) eAcc.innerHTML = `<div style="display:flex; align-items:baseline; gap:6px;"><span>${accVal}%</span><span style="font-size:10px; font-weight:700; color:var(--success-dark); font-family:var(--font-family);">+${nCorr}</span><span style="font-size:10px; font-weight:700; color:var(--danger-dark); font-family:var(--font-family);">-${nIncorr}</span></div>`;
@@ -3864,10 +3924,9 @@ window.fetchStudentAnalytics = async function(isSilent = false) {
     drawSparkline("sparkStreak", Object.keys(attMap).sort((a,b) => new Date(a) - new Date(b)).slice(-10).map(d => attMap[d] || 0), "var(--warning)");
     drawSparkline("sparkSpeed", speedTrends.slice(-10), "var(--success)");
 
-    // Operational Summary
+    // 🚀 4-TIER WEEKLY CONSISTENCY TRACK (SYNCHRONIZED WITH OVERDRIVE & LIVE METRICS)
     const extra = document.getElementById("extraAnalyticsSummary");
     if (extra) {
-      // 🚀 Daily Question Volume Map for 4-Tier Assessment
       const dailyQuestionsMap = {};
       (atts || []).forEach(a => {
         const dStr = (a.attempt_date || "").split("T")[0];
@@ -3876,6 +3935,9 @@ window.fetchStudentAnalytics = async function(isSilent = false) {
           dailyQuestionsMap[dStr] = (dailyQuestionsMap[dStr] || 0) + attempted;
         }
       });
+
+      // 🎯 Today Sync: आज के दिन का काउंट सीधे dailyPerf के साथ लॉक करें
+      dailyQuestionsMap[todayStr] = Math.max(dailyQuestionsMap[todayStr] || 0, dailyPerf?.total_questions_attempted || 0);
 
       const dots = past7.slice().reverse().map(d => {
         const mins = attMap[d] || 0;
@@ -3887,18 +3949,21 @@ window.fetchStudentAnalytics = async function(isSilent = false) {
         let nodeIcon = "•";
         let hoverTitle = `${dateFormatted}: Rest / Inactive`;
 
+        const isToday = (d === todayStr);
+        const isSundayCentury = isToday && isSunday() && dailyPerf?.is_century_hit;
+
         if (qCount > 100) {
-          // Tier 4: Overdrive Target Conquered (>100 Qs)
+          // Tier 3: Overdrive Target Conquered (>100 Qs)
           nodeClass = "node-tier-overdrive";
           nodeIcon = "★";
           hoverTitle = `${dateFormatted}: Overdrive Century Conquered (${qCount} Qs • ${Math.floor(mins / 60)}h ${mins % 60}m)`;
-        } else if (qCount === 100) {
-          // Tier 3: Century Milestone Reached (Exactly 100 Qs)
+        } else if (qCount === 100 || isSundayCentury) {
+          // Tier 2: Century Milestone Reached (Exactly 100 Qs / Sunday Crucible)
           nodeClass = "node-tier-century";
           nodeIcon = "✓";
-          hoverTitle = `${dateFormatted}: Daily Milestone Met (100 Qs • ${Math.floor(mins / 60)}h ${mins % 60}m)`;
+          hoverTitle = `${dateFormatted}: Daily Milestone Met (${qCount} Qs • ${Math.floor(mins / 60)}h ${mins % 60}m)`;
         } else if (mins > 0 || qCount > 0) {
-          // Tier 2: Study / Revision Active (<100 Qs)
+          // Tier 1: Study / Revision Active (<100 Qs)
           nodeClass = "node-tier-presence";
           nodeIcon = "✓";
           hoverTitle = `${dateFormatted}: Session Logged (${qCount} Qs • ${mins}m)`;
@@ -4000,8 +4065,10 @@ window.fetchStudentAnalytics = async function(isSilent = false) {
       switchMasteryView('radar');
     }
 
+    // 🚀 Canvas Radar Chart: Canvases must only draw when visible to avoid zero-dimension distortion
+    const isAnalyticsVisible = document.getElementById("viewAnalytics")?.style.display === "flex";
     const rCanvas = document.getElementById("subjectRadarChart");
-    if (rCanvas && window.Chart) {
+    if (rCanvas && window.Chart && isAnalyticsVisible) {
       const isDark = document.body.classList.contains("dark-theme"), 
             gColor = isDark ? "rgba(148, 163, 184, 0.15)" : "rgba(15, 23, 42, 0.08)", 
             aColor = isDark ? "#38bdf8" : "#2563eb";
