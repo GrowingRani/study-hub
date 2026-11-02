@@ -1871,24 +1871,38 @@ window.launchBoosterMode = async function(mode = 'exam') {
   }
 };
 
-// 🚀 REUSABLE ATOMIC SET TILE BUILDER (COMPACT LATEST SCORE PILL + BEST SCORE INFO)
-function renderPlaylistSetTileHtml(item, pName) {
-  const setCat = catalogData.find(c => String(c.test_id) === String(item.test_id)); 
-  if (!setCat) return "";
-  const qCount = setCat.total_questions || 10;
+// 🚀 1. PURE SET SCORE & TELEMETRY CALCULATOR (SINGLE SOURCE OF TRUTH)
+function getSetScoreMeta(testId, defaultQuestions = 10) {
+  const c = catalogData.find(x => String(x.test_id) === String(testId));
+  const qCount = c ? (c.total_questions || defaultQuestions) : defaultQuestions;
   const maxMarks = qCount * 2;
-  const isRoll = item.is_rollover ? `<span class="set-rollover-tag">⚠️ ROLLOVER</span>` : '';
-  
-  const attempts = userAttemptHistory.filter(a => String(a.test_id) === String(setCat.test_id));
+  const duration = c ? (c.total_duration_minutes || 15) : 15;
+  const title = c ? c.test_title : "Question Set";
+
+  const attempts = userAttemptHistory.filter(a => String(a.test_id) === String(testId));
   const isAtt = attempts.length > 0;
+  const bestScore = isAtt ? Math.max(...attempts.map(a => parseFloat(a.score))) : 0;
+  const bestPct = (maxMarks > 0 && isAtt) ? (bestScore / maxMarks) * 100 : 0;
+  const status = isAtt ? (bestPct >= 100 ? 'mastered' : 'revise') : 'unattempted';
+
+  return { setCat: c, testId, title, qCount, maxMarks, duration, attempts, isAtt, bestScore, bestPct, status };
+}
+
+// 🚀 2. UNIVERSAL ATOMIC SET TILE BUILDER (DASHBOARD & LIBRARY UNIFIED)
+function renderSetTileHtml(setOrItem, options = {}) {
+  const testId = setOrItem.test_id;
+  const meta = getSetScoreMeta(testId);
+  const setCat = meta.setCat || setOrItem;
+  if (!setCat) return "";
+
+  const isRoll = (setOrItem.is_rollover || options.isRollover) ? `<span class="set-rollover-tag">⚠️ ROLLOVER</span>` : '';
   
   let badgeHtml = '';
   let historyHtml = '<span style="color:var(--text-muted);">Not attempted yet</span>';
 
-  if (isAtt) {
-    // 1. TOP-RIGHT COMPACT BADGE: LATEST ATTEMPT SCORE
-    const latestScore = parseFloat(attempts[0].score);
-    const latestPct = maxMarks > 0 ? (latestScore / maxMarks) * 100 : 0;
+  if (meta.isAtt && meta.attempts.length > 0) {
+    const latestScore = parseFloat(meta.attempts[0].score);
+    const latestPct = meta.maxMarks > 0 ? (latestScore / meta.maxMarks) * 100 : 0;
     const formattedLatest = Number.isInteger(latestScore) ? latestScore : latestScore.toFixed(1);
 
     let latestStyle = "background:var(--warning-bg-subtle); color:var(--warning-dark); border:1px solid var(--warning-border);";
@@ -1897,52 +1911,79 @@ function renderPlaylistSetTileHtml(item, pName) {
     } else if (latestPct < 50) {
       latestStyle = "background:var(--danger-bg-subtle); color:var(--danger-dark); border:1px solid var(--danger-border);";
     }
-    badgeHtml = `<div class="set-status-badge" style="${latestStyle}">${formattedLatest}/${maxMarks}</div>`;
+    badgeHtml = `<div class="set-status-badge" style="${latestStyle}">${formattedLatest}/${meta.maxMarks}</div>`;
 
-    // 2. META STRIP BELOW: LIFETIME BEST SCORE
-    const bestScore = Math.max(...attempts.map(a => parseFloat(a.score)));
-    const bestPct = maxMarks > 0 ? (bestScore / maxMarks) * 100 : 0;
-    const formattedBest = Number.isInteger(bestScore) ? bestScore : bestScore.toFixed(1);
-
+    const formattedBest = Number.isInteger(meta.bestScore) ? meta.bestScore : meta.bestScore.toFixed(1);
     let bestColor = 'var(--warning-dark)';
-    if (bestPct >= 100) bestColor = 'var(--success-dark)';
-    else if (bestPct < 50) bestColor = 'var(--danger-dark)';
+    if (meta.bestPct >= 100) bestColor = 'var(--success-dark)';
+    else if (meta.bestPct < 50) bestColor = 'var(--danger-dark)';
 
-    historyHtml = `<span style="color:${bestColor}; font-weight:700;">★ Best: ${formattedBest}/${maxMarks} (${Math.round(bestPct)}%) | Att: ${attempts.length}</span>`;
+    historyHtml = `<span style="color:${bestColor}; font-weight:700;">★ Best: ${formattedBest}/${meta.maxMarks} (${Math.round(meta.bestPct)}%) | Att: ${meta.attempts.length}</span>`;
   }
 
-  const bestScoreForStatus = isAtt ? Math.max(...attempts.map(a => parseFloat(a.score))) : 0;
-  const bestPctForStatus = (maxMarks > 0 && isAtt) ? (bestScoreForStatus / maxMarks) * 100 : 0;
-  const statusAttr = isAtt ? (bestPctForStatus >= 100 ? 'mastered' : 'revise') : 'unattempted';
+  const isStagingMode = options.isLibrary && librarySelectionMode;
+  let headerActions = '';
+  let footerAction = '';
 
-  const starredPl = userPlaylists.find(p => p.playlist_name === 'Starred Sets');
-  const isStarred = starredPl && userPlaylistItems.some(pi => pi.playlist_id === starredPl.id && String(pi.test_id) === String(setCat.test_id));
+  if (isStagingMode) {
+    const inTarget = targetPlaylistForSelection && userPlaylistItems.some(pi => pi.playlist_id === targetPlaylistForSelection.id && String(pi.test_id) === String(testId));
+    headerActions = badgeHtml;
+    footerAction = `
+      <button type="button" class="btn-bookmark-stage ${inTarget ? 'saved' : ''}" id="btnStage_${testId}" onclick="toggleDirectStaging(${testId})">
+        ${inTarget ? bookmarkFilledSvg : bookmarkOutlineSvg}
+        <span class="stage-label">${inTarget ? 'Saved to playlist' : 'Save to playlist'}</span>
+      </button>
+    `;
+  } else {
+    const starredPl = userPlaylists.find(p => p.playlist_name === 'Starred Sets');
+    const isStarred = starredPl && userPlaylistItems.some(pi => pi.playlist_id === starredPl.id && String(pi.test_id) === String(testId));
+    headerActions = `
+      ${badgeHtml}
+      <button type="button" class="btn-star-set ${isStarred ? 'starred' : ''}" data-test-id="${testId}" onclick="toggleStarSet(event, ${testId})" title="${isStarred ? 'Unstar set' : 'Star set'}">
+        ${starIconSvg}
+      </button>
+      <button type="button" class="btn-three-dots" onclick="openThreeDotsMenu(event, ${testId})" title="Options">⋮</button>
+    `;
+    footerAction = `
+      <div class="set-action-footer">
+        <button type="button" class="btn-launch-set" onclick="openMissionBriefingModal(${testId})">
+          <span>▶</span> <span>${meta.isAtt ? 'Retake / Review' : 'Start Session'}</span>
+        </button>
+      </div>
+    `;
+  }
 
   return `
-    <div class="set-tile" data-status="${statusAttr}">
+    <div class="set-tile" data-test-id="${testId}" data-status="${meta.status}">
       <div class="set-tile-header">
         <div class="set-tile-title-group">
           ${isRoll}
-          <div class="set-tile-title">${setCat.test_title}</div>
+          <div class="set-tile-title">${meta.title}</div>
         </div>
         <div style="display:flex; gap: 6px; align-items: center; flex-shrink: 0;">
-           ${badgeHtml}
-           <button type="button" class="btn-star-set ${isStarred ? 'starred' : ''}" data-test-id="${setCat.test_id}" onclick="toggleStarSet(event, ${setCat.test_id})" title="${isStarred ? 'Unstar set' : 'Star set'}">
-             ${starIconSvg}
-           </button>
-           <button type="button" class="btn-three-dots" onclick="openThreeDotsMenu(event, ${setCat.test_id})" title="Options">⋮</button>
+          ${headerActions}
         </div>
       </div>
-      <div class="set-tile-meta"><span>${clockSvg} ${setCat.total_duration_minutes}m</span><span>${docSvg} ${qCount} Qs</span></div>
+      <div class="set-tile-meta"><span>${clockSvg} ${meta.duration}m</span><span>${docSvg} ${meta.qCount} Qs</span></div>
       <div class="set-score-info">${historyHtml}</div>
-      <div class="set-action-footer">
-        <button type="button" class="btn-launch-set" onclick="openMissionBriefingModal(${setCat.test_id})">
-          <span>▶</span> <span>${isAtt ? 'Retake / Review' : 'Start Session'}</span>
-        </button>
-      </div>
+      ${footerAction}
     </div>
   `;
 }
+
+// 🔒 100% Backward-Compatible Wrapper for Dashboard/Playlists
+function renderPlaylistSetTileHtml(item, pName) {
+  return renderSetTileHtml(item, { isRollover: item.is_rollover, isLibrary: false });
+}
+
+// ⭐ 1-TAP STAR SET CONTROLLER (Ensures Header Star Button Works)
+window.toggleStarSet = async function(event, testId) {
+  if (event) { event.preventDefault(); event.stopPropagation(); }
+  const starredList = userPlaylists.find(p => p.playlist_name === 'Starred Sets');
+  if (!starredList || !currentCandidate) return;
+  const inList = userPlaylistItems.some(pi => pi.playlist_id === starredList.id && String(pi.test_id) === String(testId));
+  await togglePlaylistMembership(starredList.id, testId, inList);
+};
 
 function getPlaylistAddBtnHtml(pId, pName) {
   return `<button type="button" class="btn-create-playlist-trigger" style="margin-top: 10px; grid-column: 1 / -1;" onclick="enableLibrarySelectionMode('${pId}', '${pName.replace(/'/g, "\\'")}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg><span>Add Sets to ${pName}</span></button>`;
@@ -2848,7 +2889,6 @@ function renderTopicSets() {
 
         mbContainer.innerHTML = `
           <div class="mistake-vault-card ${isCaughtUp ? 'state-clean' : ''}" id="subjectMistakeVault" data-status="${isCaughtUp ? 'mastered' : 'unattempted'}">
-            <!-- 1. TACTILE SLIM STRIP (~48px) - ALWAYS EXPANDS ON CLICK -->
             <div class="vault-header" onclick="this.parentElement.classList.toggle('open')">
               <div class="vault-header-left">
                 <div class="vault-glyph-box" style="${isCaughtUp ? 'background: var(--success-bg-subtle); border-color: var(--success-border); color: var(--success-dark); box-shadow: none;' : ''}">
@@ -2875,12 +2915,10 @@ function renderTopicSets() {
               </div>
             </div>
 
-            <!-- 2. EXPANDED INTERIOR (NATURAL IDENTICAL SIZE TILES) -->
             <div class="vault-body">
               <div class="vault-natural-grid">
                 
                 ${isCaughtUp ? `
-                <!-- TILE 1: COMPLETED / CAUGHT-UP DRILL TILE -->
                 <div class="set-tile vault-set-tile" data-status="mastered" style="border-left-color: var(--success) !important; background: linear-gradient(135deg, rgba(34, 197, 94, 0.08) 0%, var(--bg-surface-elevated) 100%) !important;">
                   <div class="set-tile-header">
                     <div class="set-tile-title-group">
@@ -2905,7 +2943,6 @@ function renderTopicSets() {
                   </div>
                 </div>
                 ` : `
-                <!-- TILE 1: ACTIVE DUE MISTAKE DRILL TILE -->
                 <div class="set-tile vault-set-tile" data-status="unattempted">
                   <div class="set-tile-header">
                     <div class="set-tile-title-group">
@@ -2931,7 +2968,6 @@ function renderTopicSets() {
                 </div>
                 `}
 
-                <!-- TILE 2: COMPACT RETENTION HUD (ALWAYS VISIBLE WITH DATA) -->
                 <div class="vault-status-hud">
                   <div class="hud-header">
                     <span class="hud-title">Retention Loops</span>
@@ -2969,12 +3005,10 @@ function renderTopicSets() {
   const filtered = catalogData.filter(r => (r.subject || "General Studies").trim().toLowerCase() === (activeSubject || "").trim().toLowerCase());
   let totalSets = filtered.length, unattempted = 0, revise = 0, mastered = 0;
   filtered.forEach(s => {
-    const atts = userAttemptHistory.filter(a => String(a.test_id) === String(s.test_id));
-    if (atts.length === 0) unattempted++;
-    else { 
-      const best = Math.max(...atts.map(a => parseFloat(a.score))), maxM = (s.total_questions || 10) * 2; 
-      if ((best / maxM) >= 1) mastered++; else revise++; 
-    }
+    const meta = getSetScoreMeta(s.test_id);
+    if (!meta.isAtt) unattempted++;
+    else if (meta.status === 'mastered') mastered++;
+    else revise++;
   });
 
   document.querySelectorAll('.filter-chip-btn').forEach(b => {
@@ -2994,7 +3028,6 @@ function renderTopicSets() {
 
   Object.entries(grouped).sort((a, b) => a[0].localeCompare(b[0], undefined, { numeric: true, sensitivity: 'base' })).forEach(([topicName, sets]) => {
     let topicMastered = 0; 
-    const processed = [];
     const uniqueSets = [], seenIds = new Set();
     
     sets.forEach(item => {
@@ -3005,25 +3038,18 @@ function renderTopicSets() {
       }
     });
 
+    const processed = [];
     uniqueSets.forEach(setItem => {
-      const attempts = userAttemptHistory.filter(a => String(a.test_id) === String(setItem.test_id));
-      const isAtt = attempts.length > 0;
-      const maxMarks = (setItem.total_questions || 10) * 2;
-      const best = isAtt ? Math.max(...attempts.map(a => parseFloat(a.score))) : 0;
-      const pct = (maxMarks > 0 && isAtt) ? (best / maxMarks) * 100 : 0;
-      let status = 'unattempted';
-      if (isAtt) { 
-        if (pct >= 100) { status = 'mastered'; topicMastered++; } 
-        else status = 'revise'; 
-      }
-      processed.push({ setItem, status, isAtt, best, maxMarks, pct, attempts });
+      const meta = getSetScoreMeta(setItem.test_id);
+      if (meta.status === 'mastered') topicMastered++;
+      processed.push(setItem);
     });
 
     if (processed.length === 0) return;
     
     processed.sort((a, b) => {
-      const titleA = String(a.setItem.test_title || "").trim();
-      const titleB = String(b.setItem.test_title || "").trim();
+      const titleA = String(a.test_title || "").trim();
+      const titleB = String(b.test_title || "").trim();
       return titleA.localeCompare(titleB, undefined, { numeric: true, sensitivity: 'base' });
     });
 
@@ -3044,83 +3070,8 @@ function renderTopicSets() {
     const setsGrid = document.createElement("div"); 
     setsGrid.className = "sets-card-grid";
 
-    processed.forEach(({ setItem, status, isAtt, best, maxMarks, pct, attempts }) => {
-      const tile = document.createElement("div"); 
-      tile.className = "set-tile";
-      tile.setAttribute("data-test-id", setItem.test_id);
-      tile.setAttribute("data-status", status);
-
-      let badgeHtml = '';
-      let historyHtml = '<span style="color:var(--text-muted);">Not attempted yet</span>';
-
-      if (isAtt && attempts.length > 0) {
-        const latestScore = parseFloat(attempts[0].score);
-        const latestPct = maxMarks > 0 ? (latestScore / maxMarks) * 100 : 0;
-        const formattedLatest = Number.isInteger(latestScore) ? latestScore : latestScore.toFixed(1);
-
-        let latestStyle = "background:var(--warning-bg-subtle); color:var(--warning-dark); border:1px solid var(--warning-border);";
-        if (latestPct >= 100) {
-          latestStyle = "background:var(--success-bg-subtle); color:var(--success-dark); border:1px solid var(--success-border);";
-        } else if (latestPct < 50) {
-          latestStyle = "background:var(--danger-bg-subtle); color:var(--danger-dark); border:1px solid var(--danger-border);";
-        }
-        badgeHtml = `<div class="set-status-badge" style="${latestStyle}">${formattedLatest}/${maxMarks}</div>`;
-
-        const formattedBest = Number.isInteger(best) ? best : best.toFixed(1);
-        let bestColor = 'var(--warning-dark)';
-        if (pct >= 100) bestColor = 'var(--success-dark)';
-        else if (pct < 50) bestColor = 'var(--danger-dark)';
-
-        historyHtml = `<span style="color:${bestColor}; font-weight:700;">★ Best: ${formattedBest}/${maxMarks} (${Math.round(pct)}%) | Att: ${attempts.length}</span>`;
-      }
-
-      const starredPl = userPlaylists.find(p => p.playlist_name === 'Starred Sets');
-      const isStarred = starredPl && userPlaylistItems.some(pi => pi.playlist_id === starredPl.id && String(pi.test_id) === String(setItem.test_id));
-
-      if (librarySelectionMode) {
-        const inTarget = targetPlaylistForSelection && userPlaylistItems.some(pi => pi.playlist_id === targetPlaylistForSelection.id && String(pi.test_id) === String(setItem.test_id));
-        
-        tile.innerHTML = `
-          <div class="set-tile-header">
-            <div class="set-tile-title-group">
-              <div class="set-tile-title">${setItem.test_title}</div>
-            </div>
-            <div style="display:flex; gap: 6px; align-items: center; flex-shrink: 0;">
-               ${badgeHtml}
-            </div>
-          </div>
-          <div class="set-tile-meta"><span>${clockSvg} ${setItem.total_duration_minutes}m</span><span>${docSvg} ${setItem.total_questions} Qs</span></div>
-          <div class="set-score-info">${historyHtml}</div>
-          <button type="button" class="btn-bookmark-stage ${inTarget ? 'saved' : ''}" id="btnStage_${setItem.test_id}" onclick="toggleDirectStaging(${setItem.test_id})">
-            ${inTarget ? bookmarkFilledSvg : bookmarkOutlineSvg}
-            <span class="stage-label">${inTarget ? 'Saved to playlist' : 'Save to playlist'}</span>
-          </button>
-        `;
-      } else {
-        tile.innerHTML = `
-          <div class="set-tile-header">
-            <div class="set-tile-title-group">
-              <div class="set-tile-title">${setItem.test_title}</div>
-            </div>
-            <div style="display:flex; gap: 6px; align-items: center; flex-shrink: 0;">
-               ${badgeHtml}
-               <button type="button" class="btn-star-set ${isStarred ? 'starred' : ''}" data-test-id="${setItem.test_id}" onclick="toggleStarSet(event, ${setItem.test_id})" title="${isStarred ? 'Unstar set' : 'Star set'}">
-                 ${starIconSvg}
-               </button>
-               <button type="button" class="btn-three-dots" onclick="openThreeDotsMenu(event, ${setItem.test_id})" title="Options">⋮</button>
-            </div>
-          </div>
-          <div class="set-tile-meta"><span>${clockSvg} ${setItem.total_duration_minutes}m</span><span>${docSvg} ${setItem.total_questions} Qs</span></div>
-          <div class="set-score-info">${historyHtml}</div>
-          <div class="set-action-footer">
-            <button type="button" class="btn-launch-set" onclick="openMissionBriefingModal(${setItem.test_id})">
-              <span>▶</span> <span>${isAtt ? 'Retake / Review' : 'Start Session'}</span>
-            </button>
-          </div>
-        `;
-      }
-      setsGrid.appendChild(tile);
-    });
+    // 🚀 UNIFIED STREAMLINED RENDER (ZERO REPETITIVE HTML)
+    setsGrid.innerHTML = processed.map(setItem => renderSetTileHtml(setItem, { isLibrary: true })).join("");
 
     body.appendChild(setsGrid); 
     groupCard.appendChild(header); 
