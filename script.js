@@ -1658,12 +1658,12 @@ async function fetchPlaylistsAndCheckRollover() {
 
     const todayStr = getLocalDateString();
     
+    // 🚀 Sirf aaj ke attempts query honge (Full history nahi)
     const { data: todayAttRows } = await supabaseClient
       .from("test_attempts")
       .select("test_id, total_correct, total_incorrect, attempt_date")
       .eq("student_roll", roll);
 
-    // 🚀 DEDUPLICATED UNIQUE QUESTIONS LOGIC (Ek test_id din me ek hi baar count hoga)
     const uniqueSetsAttemptedToday = new Map();
     (todayAttRows || []).forEach(a => {
       const attDate = (a.attempt_date || "").split("T")[0];
@@ -1678,7 +1678,6 @@ async function fetchPlaylistsAndCheckRollover() {
     });
 
     const actualExamAttemptedToday = Array.from(uniqueSetsAttemptedToday.values()).reduce((sum, q) => sum + q, 0);
-    const crucibleAttempted = (todayAttRows || []).some(a => Number(a.test_id) === -1 && (a.attempt_date || "").split("T")[0] === todayStr);
 
     let { data: dpData } = await supabaseClient
       .from("daily_performance")
@@ -1687,7 +1686,7 @@ async function fetchPlaylistsAndCheckRollover() {
       .eq("target_date", todayStr)
       .maybeSingle();
 
-    // 🚀 SUNDAY: Sirf Crucible (-1) 100% complete hone par | NORMAL DAYS: 100 Questions par
+    // 🎯 STRICT TARGET CHECK
     const isSun = isSunday();
     const crucibleCompleted = (todayAttRows || []).some(a => {
       const attDate = (a.attempt_date || "").split("T")[0];
@@ -1696,10 +1695,9 @@ async function fetchPlaylistsAndCheckRollover() {
       return tid === -1 && attDate === todayStr && totalAtt > 0;
     });
 
-    const targetHitToday = Boolean(
-      dpData?.is_century_hit || 
-      (isSun ? crucibleCompleted : actualExamAttemptedToday >= 100)
-    );
+    // Mon-Sat: Exact >= 100 Qs | Sunday: Crucible complete
+    const targetHitToday = isSun ? Boolean(crucibleCompleted) : (actualExamAttemptedToday >= 100);
+
     if (dpData) {
       if (dpData.total_questions_attempted !== actualExamAttemptedToday || dpData.is_century_hit !== targetHitToday) {
         dpData.total_questions_attempted = actualExamAttemptedToday;
@@ -1711,28 +1709,35 @@ async function fetchPlaylistsAndCheckRollover() {
       }
       dailyPerf = dpData;
     } else {
+      // Kal ka record check karein
       const yesterday = getLocalDateString(new Date(Date.now() - 86400000));
-      const { data: yData } = await supabaseClient.from("daily_performance").select("streak_count, is_century_hit").eq("student_roll", roll).eq("target_date", yesterday).maybeSingle();
-      const newStreak = (yData && yData.is_century_hit) ? yData.streak_count : 0;
+      const { data: yData } = await supabaseClient
+        .from("daily_performance")
+        .select("streak_count, is_century_hit")
+        .eq("student_roll", roll)
+        .eq("target_date", yesterday)
+        .maybeSingle();
+
+      const baseStreak = (yData && yData.is_century_hit) ? (yData.streak_count || 0) : 0;
+      const initialStreak = targetHitToday ? (baseStreak + 1) : baseStreak;
+
       const { data: insData } = await supabaseClient.from("daily_performance").insert({ 
         student_roll: roll, 
         target_date: todayStr, 
         total_questions_attempted: actualExamAttemptedToday, 
         is_century_hit: targetHitToday,
-        streak_count: newStreak 
+        streak_count: initialStreak 
       }).select().single();
       if (insData) dailyPerf = insData;
     }
 
-    // 🚀 FIX: स्ट्रीक आते ही तुरंत हेडर को अपडेट करें
     updateHeaderBadges();
 
-    // 🚀 Fast Cache Save
     appStorage.setJSON("cache_daily_perf_" + roll, dailyPerf);
     appStorage.setJSON("cache_playlists_" + roll, userPlaylists);
     appStorage.setJSON("cache_playlist_items_" + roll, userPlaylistItems);
 
-    // 🚀 REFINED MULTI-DEVICE CLEAN-SLATE ROLLOVER ENGINE
+    // Rollover Engine
     const serverLastRollover = currentCandidate?.last_rollover_date;
     if (serverLastRollover !== todayStr && !isSunday()) {
       const todayList = userPlaylists.find(p => p.playlist_name === 'Today');
@@ -1740,7 +1745,6 @@ async function fetchPlaylistsAndCheckRollover() {
       const weekList = userPlaylists.find(p => p.playlist_name === 'This Week');
 
       if (todayList && tomorrowList) {
-        // 1. Today ke unattempted leftover sets ko 'This Week Backlog' me shift karein
         if (weekList) {
           await supabaseClient
             .from("playlist_items")
@@ -1749,7 +1753,6 @@ async function fetchPlaylistsAndCheckRollover() {
             .eq("student_roll", roll);
         }
 
-        // 2. Tomorrow's Queue ko promote karke fresh 'Today' banayein
         await supabaseClient
           .from("playlist_items")
           .update({ playlist_id: todayList.id })
@@ -1760,7 +1763,6 @@ async function fetchPlaylistsAndCheckRollover() {
       await supabaseClient.from("students").update({ last_rollover_date: todayStr }).eq("roll_number", roll);
       if (currentCandidate) currentCandidate.last_rollover_date = todayStr;
 
-      // Local RAM memory ko fresh database state se instantly re-sync karein
       const { data: piData2 } = await supabaseClient.from("playlist_items").select("*").eq("student_roll", roll);
       userPlaylistItems = piData2 || [];
       appStorage.setJSON("cache_playlist_items_" + roll, userPlaylistItems);
