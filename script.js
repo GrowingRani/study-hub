@@ -2942,7 +2942,7 @@ function renderSubjectHubGrid() {
       setTimeout(() => {
         tile.classList.remove("tile-touch-active");
         drillDownToSubject(subName);
-      }, 90);
+      }, 35);
     };
 
     container.appendChild(tile);
