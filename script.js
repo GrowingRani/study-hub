@@ -1323,32 +1323,21 @@ window.openMissionBriefingModal = async function(testId, bypassSundayCheck = fal
     document.getElementById("briefingDurationMeta").innerText = `⏱️ ${durationMins}m`;
     document.getElementById("briefingQuestionsMeta").innerText = `📄 ${qCount} Questions`;
   } else if (testId === -3) {
-    // 🎯 DEDICATED SUBJECT MISTAKE BANK PRE-FLIGHT BRIEFING
-    const activeClean = (activeSubject || "").trim().toLowerCase();
-    const now = new Date();
-    const allMistakes = (userWeakQuestions || []).filter(q => 
-      (q.subject || "").trim().toLowerCase() === activeClean && 
-      (q.times_wrong || 0) > 0 && 
-      (q.mastery_streak || 0) < 4
-    );
-    const dueMistakes = allMistakes.filter(q => !q.next_review_at || new Date(q.next_review_at) <= now);
-    const dueCount = dueMistakes.length;
-    const inReviewCount = allMistakes.length;
+    // 🎯 DEDICATED SUBJECT MISTAKE BANK PRE-FLIGHT BRIEFING (POWERED BY TELEMETRY)
+    const telemetry = getSubjectMistakeTelemetry(activeSubject);
 
-    if (inReviewCount === 0) {
+    if (telemetry.inReviewCount === 0) {
       return showAppNoticeModal("Notice", "Zero Leaks", `No active mistakes found in ${activeSubject}.`, "🛡️", "Dismiss");
     }
-    const durationMins = Math.max(3, Math.ceil((dueCount || inReviewCount) * 0.6));
 
     document.getElementById("briefingSubjectBadge").innerText = `${activeSubject.toUpperCase()} MISTAKE VAULT`;
     const statusBadge = document.getElementById("briefingStatusBadge");
-
     const examCard = modal.querySelector(".briefing-mode-card.mode-exam");
 
-    if (dueCount > 0) {
+    if (telemetry.dueCount > 0) {
       statusBadge.className = "briefing-status-tag status-progress";
-      statusBadge.innerText = `${dueCount} DUE`;
-      document.getElementById("briefingQuestionsMeta").innerText = `📄 ${dueCount} Due (${inReviewCount} In Pipeline)`;
+      statusBadge.innerText = `${telemetry.dueCount} DUE`;
+      document.getElementById("briefingQuestionsMeta").innerText = `📄 ${telemetry.dueCount} Due (${telemetry.inReviewCount} In Pipeline)`;
       document.getElementById("briefingScoreMeta").innerText = `4-Stage Spaced Repetition Loop`;
       if (examCard) {
         examCard.style.opacity = "1";
@@ -1361,7 +1350,7 @@ window.openMissionBriefingModal = async function(testId, bypassSundayCheck = fal
       // 🚀 EXAM MODE FREEZE (ONLY WHEN 0 DUE TODAY)
       statusBadge.className = "briefing-status-tag status-mastered";
       statusBadge.innerText = `0 DUE TODAY`;
-      document.getElementById("briefingQuestionsMeta").innerText = `📄 0 Due (${inReviewCount} In Pipeline)`;
+      document.getElementById("briefingQuestionsMeta").innerText = `📄 0 Due (${telemetry.inReviewCount} In Pipeline)`;
       document.getElementById("briefingScoreMeta").innerText = `Today's quota completed • Practice modes active`;
       if (examCard) {
         examCard.style.opacity = "0.45";
@@ -1373,7 +1362,7 @@ window.openMissionBriefingModal = async function(testId, bypassSundayCheck = fal
     }
 
     document.getElementById("briefingSetTitle").innerText = `${activeSubject} Error Rehabilitation Node`;
-    document.getElementById("briefingDurationMeta").innerText = `⏱️ ${durationMins}m`;
+    document.getElementById("briefingDurationMeta").innerText = `⏱️ ${telemetry.durationMins}m`;
   } else {
     // 📁 REGULAR CATALOG QUESTION SET
     const setCat = catalogData.find(c => String(c.test_id) === String(testId));
@@ -1775,8 +1764,7 @@ async function compileMasteryBoosterPool(maxLimit = 25, forceRefresh = false, al
     const qid = String(item.question_id || qd.id);
     if (!seenIds.has(qid)) {
       seenIds.add(qid);
-      let opts = [];
-      try { opts = typeof qd.options === 'string' ? JSON.parse(qd.options) : (qd.options || []); } catch(e) { opts = []; }
+      const opts = parseQuestionOptions(qd.options);
       assembled.push({
         id: qid,
         subject: item.subject || qd.subject || "General Studies",
@@ -1805,8 +1793,7 @@ async function compileMasteryBoosterPool(maxLimit = 25, forceRefresh = false, al
           const qid = String(q.id);
           if (!seenIds.has(qid)) {
             seenIds.add(qid);
-            let opts = [];
-            try { opts = typeof q.options === 'string' ? JSON.parse(q.options) : (q.options || []); } catch(e) { opts = []; }
+            const opts = parseQuestionOptions(q.options);
             assembled.push({
               id: qid,
               subject: q.subject || "General Studies",
@@ -2891,37 +2878,11 @@ function renderTopicSets() {
     if (librarySelectionMode) {
       mbContainer.innerHTML = "";
     } else {
-      const activeClean = (activeSubject || "").trim().toLowerCase();
-      const now = new Date();
-
-      // Active mistakes (Streak < 4)
-      const subjectWeak = (userWeakQuestions || []).filter(q => 
-        (q.subject || "").trim().toLowerCase() === activeClean &&
-        (q.times_wrong || 0) > 0 && 
-        (q.mastery_streak || 0) < 4
-      );
-      
-      const dueQuestions = subjectWeak.filter(q => !q.next_review_at || new Date(q.next_review_at) <= now);
-      const dueCount = dueQuestions.length;
-      const inReviewCount = subjectWeak.length;
-      const loopCount = subjectWeak.filter(q => (q.mastery_streak || 0) > 0).length;
-      const freshCount = subjectWeak.filter(q => (q.mastery_streak || 0) === 0).length;
-
-      const clearedCount = (userWeakQuestions || []).filter(q => 
-        (q.subject || "").trim().toLowerCase() === activeClean &&
-        (q.mastery_streak || 0) >= 4
-      ).length;
-
-      const hasSubjectAttempts = userAttemptHistory.some(a => {
-        if (Number(a.test_id) <= 0) return false;
-        const c = catalogData.find(x => String(x.test_id) === String(a.test_id));
-        return (c?.subject || "").trim().toLowerCase() === activeClean;
-      });
+      const tel = getSubjectMistakeTelemetry(activeSubject);
 
       // 🚀 VAULT ALWAYS EXPANDS IF MISTAKES EXIST OR WERE CLEARED
-      if (inReviewCount > 0 || clearedCount > 0) {
-        const isCaughtUp = (dueCount === 0);
-        const durationMins = Math.max(3, Math.ceil((dueCount || inReviewCount) * 0.6));
+      if (tel.inReviewCount > 0 || tel.clearedCount > 0) {
+        const isCaughtUp = (tel.dueCount === 0);
 
         mbContainer.innerHTML = `
           <div class="mistake-vault-card ${isCaughtUp ? 'state-clean' : ''}" id="subjectMistakeVault" data-status="${isCaughtUp ? 'mastered' : 'unattempted'}">
@@ -2941,7 +2902,7 @@ function renderTopicSets() {
               <div class="vault-header-right">
                 <div class="vault-telemetry-pill" style="${isCaughtUp ? 'border-color: var(--success-border); color: var(--success-dark);' : ''}">
                   <span class="vault-radar-dot" style="${isCaughtUp ? 'background: var(--success); box-shadow: 0 0 8px var(--success);' : ''}"></span>
-                  <span>${dueCount > 0 ? `${dueCount} DUE` : `0 DUE (${inReviewCount} In Review)`}</span>
+                  <span>${tel.dueCount > 0 ? `${tel.dueCount} DUE` : `0 DUE (${tel.inReviewCount} In Review)`}</span>
                 </div>
                 <div class="vault-chevron-bubble">
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
@@ -2966,11 +2927,11 @@ function renderTopicSets() {
                   </div>
                   <div class="set-tile-meta">
                     <span>${clockSvg} Done Today</span>
-                    <span>${docSvg} ${inReviewCount} In Pipeline</span>
+                    <span>${docSvg} ${tel.inReviewCount} In Pipeline</span>
                     <span style="font-size:10px; color:var(--success-dark); font-weight:700;">(4-Stage Loop)</span>
                   </div>
                   <div class="set-score-info">
-                    <span style="color:var(--success-dark); font-weight:600;">✓ Today's quota attempted! (${inReviewCount} in review)</span>
+                    <span style="color:var(--success-dark); font-weight:600;">✓ Today's quota attempted! (${tel.inReviewCount} in review)</span>
                   </div>
                   <div class="set-action-footer">
                     <button type="button" class="btn-launch-set" style="background: linear-gradient(135deg, #15803d, #16a34a) !important; box-shadow: 0 2px 8px var(--success-bg-subtle);" onclick="openMissionBriefingModal(-3)">
@@ -2985,16 +2946,16 @@ function renderTopicSets() {
                       <div class="set-tile-title">Comprehensive Mistake Drill</div>
                     </div>
                     <div class="set-status-badge status-progress" style="background:var(--danger-bg-subtle); color:var(--danger-dark); border:1px solid var(--danger-border);">
-                      ${dueCount} Due
+                      ${tel.dueCount} Due
                     </div>
                   </div>
                   <div class="set-tile-meta">
-                    <span>${clockSvg} ${durationMins}m</span>
-                    <span>${docSvg} ${dueCount} Qs</span>
+                    <span>${clockSvg} ${tel.durationMins}m</span>
+                    <span>${docSvg} ${tel.dueCount} Qs</span>
                     <span style="font-size:10px; color:var(--danger-dark); font-weight:700;">(4-Stage Loop)</span>
                   </div>
                   <div class="set-score-info">
-                    <span style="color:var(--danger-dark); font-weight:600;">⚠️ ${freshCount} Fresh • ${loopCount} In Review</span>
+                    <span style="color:var(--danger-dark); font-weight:600;">⚠️ ${tel.freshCount} Fresh • ${tel.loopCount} In Review</span>
                   </div>
                   <div class="set-action-footer">
                     <button type="button" class="btn-launch-set" onclick="openMissionBriefingModal(-3)">
@@ -3012,15 +2973,15 @@ function renderTopicSets() {
                   <div class="hud-grid">
                     <div class="hud-cell cell-fresh">
                       <div class="hud-label">Streak 0</div>
-                      <div class="hud-val" style="color:var(--danger-dark);">${freshCount}</div>
+                      <div class="hud-val" style="color:var(--danger-dark);">${tel.freshCount}</div>
                     </div>
                     <div class="hud-cell cell-loop">
                       <div class="hud-label">Streak 1–3</div>
-                      <div class="hud-val" style="color:var(--warning-dark);">${loopCount}</div>
+                      <div class="hud-val" style="color:var(--warning-dark);">${tel.loopCount}</div>
                     </div>
                     <div class="hud-cell cell-cleared">
                       <div class="hud-label">Mastered</div>
-                      <div class="hud-val" style="color:var(--success-dark);">${clearedCount}</div>
+                      <div class="hud-val" style="color:var(--success-dark);">${tel.clearedCount}</div>
                     </div>
                   </div>
                   <div class="hud-note">
@@ -3205,8 +3166,7 @@ window.launchSubjectMistakeMode = function(mode = 'quiz') {
 
   let qList = targetList.map((item, i) => {
     const qData = item.question_data || {};
-    let opts = [];
-    try { opts = typeof qData.options === 'string' ? JSON.parse(qData.options) : (qData.options || []); } catch(e) { opts = []; }
+    const opts = parseQuestionOptions(qData.options);
     return {
       qNum: i + 1,
       id: item.question_id || qData.id,
@@ -3233,7 +3193,6 @@ window.launchSubjectMistakeMode = function(mode = 'quiz') {
       total_duration_minutes: Math.max(3, Math.ceil(qCount * 0.6))
     }, qList, 'Weak Area Clearance');
   } else {
-
     currentPracticeContext = { type: 'mistake_bank', forceAll: true };
     practiceQuestions = qList;
 
@@ -3725,6 +3684,8 @@ function renderPaletteGrid() {
 // ==========================================================================
 // 10. REFACTORED PERFORMANCE ANALYTICS & TELEMETRY ENGINE
 // ==========================================================================
+
+// 📈 DYNAMIC SPARKLINE SVG GENERATOR (SYNTAX FIXED)
 function drawSparkline(id, data, color) {
   const el = document.getElementById(id); 
   if (!el) return; 
@@ -3735,29 +3696,337 @@ function drawSparkline(id, data, color) {
   el.innerHTML = `<svg width="100%" height="100%" viewBox="0 0 60 30" preserveAspectRatio="none"><polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 }
 
+// 🚀 8.1: TOP STATS & SPARKLINES RENDERER
+function renderAnalyticsTopStats(telemetry) {
+  const { accVal, nCorr, nIncorr, streak, avgSpd, accTrends, speedTrends, attMap } = telemetry;
+
+  // 1. Header Badges Sync
+  ['headerStreakCount', 'headerStreakCount_lib', 'headerStreakCount_stats', 'headerStreakCount_prof'].forEach(id => { 
+    const el = document.getElementById(id); 
+    if (el) el.innerText = streak + (window.innerWidth <= 768 ? "" : " Days"); 
+  });
+  ['headerAccuracyCount', 'headerAccuracyCount_lib', 'headerAccuracyCount_stats', 'headerAccuracyCount_prof'].forEach(id => { 
+    const el = document.getElementById(id); 
+    if (el) el.innerText = accVal + "%"; 
+  });
+
+  // 2. Top Metric Cards
+  const eAcc = document.getElementById("statAccuracy"); 
+  if (eAcc) eAcc.innerHTML = `<div style="display:flex; align-items:baseline; gap:6px;"><span>${accVal}%</span><span style="font-size:10px; font-weight:700; color:var(--success-dark); font-family:var(--font-family);">+${nCorr}</span><span style="font-size:10px; font-weight:700; color:var(--danger-dark); font-family:var(--font-family);">-${nIncorr}</span></div>`;
+  
+  const eStr = document.getElementById("statStreak"); 
+  if (eStr) eStr.innerHTML = `<div style="display:flex; align-items:baseline; gap:6px;"><span>${streak} 🔥</span><span style="font-size:10px; font-weight:700; color:var(--tcs-blue-accent); font-family:var(--font-family); text-transform:uppercase;">${streak > 2 ? 'Consistent' : 'Starting'}</span></div>`;
+  
+  const eSpd = document.getElementById("statSpeed"); 
+  if (eSpd) eSpd.innerHTML = `<div style="display:flex; align-items:baseline; gap:6px;"><span>${avgSpd}s</span><span style="font-size:10px; font-weight:700; color:var(--tcs-blue-accent); font-family:var(--font-family); text-transform:uppercase;">${avgSpd <= 15 ? 'Rapid' : (avgSpd > 35 ? 'Thorough' : 'Balanced')}</span></div>`;
+
+  // 3. Dynamic Sparklines
+  drawSparkline("sparkAccuracy", accTrends.slice(-10), "var(--tcs-blue-accent)");
+  drawSparkline("sparkStreak", Object.keys(attMap).sort((a,b) => new Date(a) - new Date(b)).slice(-10).map(d => attMap[d] || 0), "var(--warning)");
+  drawSparkline("sparkSpeed", speedTrends.slice(-10), "var(--success)");
+}
+
+// 🚀 8.2: 4-TIER WEEKLY CONSISTENCY & FOCUS TRACK RENDERER
+function renderWeeklyConsistencyTrack(context) {
+  const { attMap, past7, todayStr, todayMins, todayMasteredCount, dailyQuestionsMap } = context;
+  const extra = document.getElementById("extraAnalyticsSummary");
+  if (!extra) return;
+
+  const dots = past7.slice().reverse().map(d => {
+    const mins = attMap[d] || 0;
+    const qCount = dailyQuestionsMap[d] || 0;
+    const dayLabel = new Date(d).toLocaleDateString('en-US', { weekday: 'narrow' });
+    const dateFormatted = new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+    let nodeClass = "node-tier-inactive";
+    let nodeIcon = "•";
+    let hoverTitle = `${dateFormatted}: Rest / Inactive`;
+
+    const isToday = (d === todayStr);
+    const isSundayCentury = isToday && isSunday() && dailyPerf?.is_century_hit;
+
+    if (qCount > 100) {
+      nodeClass = "node-tier-overdrive";
+      nodeIcon = "★";
+      hoverTitle = `${dateFormatted}: Overdrive Century Conquered (${qCount} Qs • ${Math.floor(mins / 60)}h ${mins % 60}m)`;
+    } else if (qCount === 100 || isSundayCentury) {
+      nodeClass = "node-tier-century";
+      nodeIcon = "✓";
+      hoverTitle = `${dateFormatted}: Daily Milestone Met (${qCount} Qs • ${Math.floor(mins / 60)}h ${mins % 60}m)`;
+    } else if (mins > 0 || qCount > 0) {
+      nodeClass = "node-tier-presence";
+      nodeIcon = "✓";
+      hoverTitle = `${dateFormatted}: Session Logged (${qCount} Qs • ${mins}m)`;
+    }
+
+    return `
+      <div class="weekly-node-col">
+        <span class="weekly-node-day">${dayLabel}</span>
+        <span class="weekly-track-node ${nodeClass}" title="${hoverTitle}">${nodeIcon}</span>
+      </div>
+    `;
+  }).join("");
+
+  let last7Mins = 0;
+  past7.forEach(d => { last7Mins += (attMap[d] || 0); });
+
+  extra.innerHTML = `
+    <div class="profile-section-card" style="padding:16px; border-left:4px solid var(--success);">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <h4 style="font-size:13.5px; font-weight:700; color:var(--tcs-blue-header); margin:0;">🎯 Today's Focus & Output</h4>
+        <span style="font-size:10px; font-weight:800; background:var(--success-bg-subtle); color:var(--success-dark); padding:2px 8px; border-radius:12px;">ACTIVE SESSION</span>
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px;">
+        <div style="background:var(--bg-primary); padding:10px; border-radius:6px; border:1px solid var(--border-color);">
+          <span style="font-size:11px; color:var(--text-muted); font-weight:600; display:block;">Time Invested</span>
+          <strong style="font-size:16px; color:var(--success-dark); font-family:var(--font-mono);">${Math.floor(todayMins / 60)}h ${todayMins % 60}m</strong>
+        </div>
+        <div style="background:var(--bg-primary); padding:10px; border-radius:6px; border:1px solid var(--border-color);">
+          <span style="font-size:11px; color:var(--text-muted); font-weight:600; display:block;">Mastered Today (100%)</span>
+          <strong style="font-size:16px; color:var(--success-dark); font-family:var(--font-mono);">${todayMasteredCount} Sets</strong>
+        </div>
+      </div>
+    </div>
+    <div class="profile-section-card" style="padding:16px; border-left:4px solid var(--tcs-blue-accent);">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <h4 style="font-size:13.5px; font-weight:700; color:var(--tcs-blue-header); margin:0;">📊 Weekly Consistency Track</h4>
+        <span style="font-size:11px; font-weight:700; color:var(--tcs-blue-accent); font-family:var(--font-mono);">${Object.keys(attMap).filter(d => past7.includes(d)).length} / 7 Days Active</span>
+      </div>
+      <div class="weekly-track-container">${dots}</div>
+      <div style="display:flex; justify-content:space-between; font-size:11.5px; color:var(--text-muted); margin-top:4px;">
+        <span>Total: <strong style="color:var(--tcs-blue-accent); font-family:var(--font-mono);">${Math.floor(last7Mins / 60)}h ${last7Mins % 60}m</strong></span>
+        <span>Daily Pace: <strong style="color:var(--tcs-blue-accent); font-family:var(--font-mono);">${Math.round(last7Mins / 7)}m / day</strong></span>
+      </div>
+    </div>
+  `;
+}
+
+// 🚀 8.3: SYLLABUS, DOMAIN INSIGHTS & RADAR VIEW RENDERER
+function renderDomainCompetencyMatrix(matrixData) {
+  const { subStats, attemptedTests, masteredTests } = matrixData;
+
+  // 1. Dual-Track Syllabus Progress
+  const totalCatalogCount = catalogData.length || 1;
+  const coveredPct = Math.min(100, Math.round((attemptedTests.size / totalCatalogCount) * 100));
+  const masteredPct = Math.min(100, Math.round((masteredTests.size / totalCatalogCount) * 100));
+
+  const eSyl = document.getElementById("syllabusPercentTxt");
+  if (eSyl) eSyl.innerText = `${coveredPct}% Covered • ${masteredPct}% Mastered`;
+  const attFill = document.getElementById("syllabusAttemptedFill");
+  if (attFill) attFill.style.width = coveredPct + "%";
+  const masFill = document.getElementById("syllabusLinearFill");
+  if (masFill) masFill.style.width = masteredPct + "%";
+
+  const sAttCount = document.getElementById("sylAttemptedCount");
+  if (sAttCount) sAttCount.innerText = `${attemptedTests.size}/${totalCatalogCount}`;
+  const sMasCount = document.getElementById("sylMasteredCount");
+  if (sMasCount) sMasCount.innerText = `${masteredTests.size}/${totalCatalogCount}`;
+
+  // 2. Strongest & Weakest Domain Insights
+  let bestSub = null, worstSub = null;
+  Object.entries(subStats).forEach(([name, data]) => {
+    const acc = data.max > 0 ? (data.earned / data.max) * 100 : 0;
+    const info = { name, acc, ...data };
+    if (!bestSub || info.acc > bestSub.acc) bestSub = info; 
+    if (!worstSub || info.acc < worstSub.acc) worstSub = info;
+  });
+
+  const iS = document.getElementById("insightStrong"); 
+  if (iS) iS.innerHTML = bestSub?.sets > 0 
+    ? `<div style="display:flex; justify-content:space-between; align-items:center;"><strong>🔥 Strongest Domain: ${bestSub.name}</strong><span style="font-weight:800; font-family:var(--font-mono); color:var(--success-dark);">${Math.round(bestSub.acc)}%</span></div><div style="font-size:11.5px; color:var(--text-muted); margin-top:4px;">High strike-rate across ${bestSub.sets} unique sets (${bestSub.correct} correct answers).</div>` 
+    : `<strong>🔥 Strongest:</strong> Complete sets to identify your core strength.`;
+  
+  const iW = document.getElementById("insightWeak"); 
+  if (iW) iW.innerHTML = worstSub?.sets > 0 
+    ? `<div style="display:flex; justify-content:space-between; align-items:center;"><strong>⚠️ Priority Focus: ${worstSub.name}</strong><span style="font-weight:800; font-family:var(--font-mono); color:var(--danger-dark);">${Math.round(worstSub.acc)}%</span></div><div style="font-size:11.5px; color:var(--text-muted); margin-top:4px;">Negative penalty bleed: <strong style="color:var(--danger-dark);">-${(worstSub.incorrect * 0.50).toFixed(1)} Marks</strong> (${worstSub.incorrect} wrong in best attempts). Curtail guesswork here.</div>` 
+    : `<strong>⚠️ Priority Focus:</strong> Attempt diagnostic assessments to flag weaker domains.`;
+
+  // 3. Grid Viewport (Batched DOM Build)
+  const isMobileViewport = window.innerWidth <= 768;
+  const subList = Array.from(new Set(catalogData.map(c => (c.subject || "").trim()).filter(Boolean))).map(s => {
+    const st = subStats[s] || { earned: 0, max: 0, sets: 0 }; 
+    return { subject: s, pct: st.max > 0 ? Math.max(0, Math.round((st.earned / st.max) * 100)) : 0 };
+  });
+
+  const gView = document.getElementById("gridViewport");
+  if (gView) { 
+    gView.innerHTML = subList.map(item => `
+      <div class="micro-domain-chip">
+        <div class="micro-chip-top">
+          <span class="micro-chip-title" title="${item.subject}">${item.subject}</span>
+          <span class="micro-chip-val">${item.pct}%</span>
+        </div>
+        <div class="micro-chip-bar">
+          <div class="micro-chip-fill" style="width: ${item.pct}%;"></div>
+        </div>
+      </div>
+    `).join("");
+  }
+
+  if (isMobileViewport) switchMasteryView('grid');
+  else switchMasteryView('radar');
+
+  // 4. Radar Canvas Drawing
+  const isAnalyticsVisible = document.getElementById("viewAnalytics")?.style.display === "flex";
+  const rCanvas = document.getElementById("subjectRadarChart");
+  if (rCanvas && window.Chart && isAnalyticsVisible) {
+    const isDark = document.body.classList.contains("dark-theme"), 
+          gColor = isDark ? "rgba(148, 163, 184, 0.15)" : "rgba(15, 23, 42, 0.08)", 
+          aColor = isDark ? "#38bdf8" : "#2563eb";
+
+    if (subjectRadarChartInstance) subjectRadarChartInstance.destroy();
+    subjectRadarChartInstance = new Chart(rCanvas, {
+      type: 'radar',
+      data: { 
+        labels: subList.map(s => s.subject.length > 12 ? s.subject.substring(0, 10) + ".." : s.subject), 
+        datasets: [{ 
+          label: 'Competency %', 
+          data: subList.map(s => s.pct), 
+          backgroundColor: isDark ? "rgba(56, 189, 248, 0.25)" : "rgba(37, 99, 235, 0.18)", 
+          borderColor: aColor, 
+          borderWidth: 2, 
+          pointBackgroundColor: aColor, 
+          pointRadius: 3 
+        }] 
+      },
+      options: { 
+        responsive: true, 
+        maintainAspectRatio: false, 
+        plugins: { legend: { display: false } }, 
+        scales: { 
+          r: { 
+            angleLines: { color: gColor }, 
+            grid: { color: gColor }, 
+            pointLabels: { color: isDark ? "#94a3b8" : "#475569", font: { size: 10, weight: '700' } }, 
+            suggestedMin: 0, 
+            suggestedMax: 100, 
+            ticks: { display: false, stepSize: 25 } 
+          } 
+        } 
+      }
+    });
+  }
+}
+
+// 🚀 8.4: MISTAKE FUNNEL & NEGATIVE BLEED AUDITOR RENDERER
+function renderAuditAndRetentionEngines(totals) {
+  const { nCorr, nIncorr, totalQ } = totals;
+
+  // 1. Mistake Funnel Engine
+  const allMistakes = (userWeakQuestions || []).filter(q => (q.times_wrong || 0) > 0);
+  const totalMistakes = allMistakes.length;
+  const masteredMistakes = allMistakes.filter(q => (q.mastery_streak || 0) >= 4).length;
+  const loopMistakes = allMistakes.filter(q => (q.mastery_streak || 0) >= 1 && (q.mastery_streak || 0) < 4).length;
+  const unaddressedMistakes = allMistakes.filter(q => (q.mastery_streak || 0) === 0).length;
+
+  const recoveryRate = totalMistakes > 0 ? Math.round((masteredMistakes / totalMistakes) * 100) : 0;
+  const activePipelineRate = totalMistakes > 0 ? Math.min(100, Math.round(((masteredMistakes + loopMistakes) / totalMistakes) * 100)) : 0;
+
+  const fBadge = document.getElementById("funnelRateBadge");
+  if (fBadge) fBadge.innerText = `${recoveryRate}% RECOVERED`;
+
+  const fActiveFill = document.getElementById("funnelActiveFill");
+  if (fActiveFill) fActiveFill.style.width = `${activePipelineRate}%`;
+
+  const fMasteredFill = document.getElementById("funnelMasteredFill");
+  if (fMasteredFill) fMasteredFill.style.width = `${recoveryRate}%`;
+
+  const fUnaddressed = document.getElementById("funnelUnaddressedVal");
+  if (fUnaddressed) fUnaddressed.innerText = unaddressedMistakes;
+
+  const fLoop = document.getElementById("funnelLoopVal");
+  if (fLoop) fLoop.innerText = loopMistakes;
+
+  const fCleared = document.getElementById("funnelClearedVal");
+  if (fCleared) fCleared.innerText = masteredMistakes;
+
+  const fNote = document.getElementById("funnelFooterNote");
+  if (fNote) {
+    if (totalMistakes === 0) {
+      fNote.innerHTML = `🛡️ <strong style="color:var(--success-dark);">Clean Slate:</strong> No mistakes logged. All attempted questions answered accurately!`;
+    } else if (recoveryRate >= 75) {
+      fNote.innerHTML = `🏆 <strong style="color:var(--success-dark);">Exceptional Retention:</strong> ${masteredMistakes} of ${totalMistakes} mistakes permanently mastered. Spaced repetition loop is operating at peak efficiency.`;
+    } else if (loopMistakes > 0) {
+      fNote.innerHTML = `⚡ <strong style="color:var(--tcs-blue-accent);">${loopMistakes} questions</strong> currently advancing through the review cycle. Clear upcoming Mastery Booster sets to lock them into Streak 4.`;
+    } else {
+      fNote.innerHTML = `⚠️ <strong style="color:var(--warning-dark);">${unaddressedMistakes} fresh errors</strong> awaiting first review. Launch Mistake Bank or Daily Booster to start the recovery cycle.`;
+    }
+  }
+
+  // 2. Negative Bleed Auditor Engine
+  const grossEarned = nCorr * 2.00;
+  const penaltyBleed = nIncorr * 0.50;
+  const netRealized = Math.max(0, grossEarned - penaltyBleed);
+  const scoreEfficiency = grossEarned > 0 ? Math.max(0, Math.min(100, Math.round((netRealized / grossEarned) * 100))) : 0;
+  const bleedPercentage = grossEarned > 0 ? ((penaltyBleed / grossEarned) * 100).toFixed(1) : "0.0";
+
+  const bBadge = document.getElementById("bleedRatioBadge");
+  if (bBadge) bBadge.innerText = `-${penaltyBleed.toFixed(2)} MARKS LOST`;
+
+  const bGrossVal = document.getElementById("bleedGrossVal");
+  if (bGrossVal) bGrossVal.innerText = `+${grossEarned.toFixed(2)}`;
+  const bGrossSub = document.getElementById("bleedGrossSub");
+  if (bGrossSub) bGrossSub.innerText = `${nCorr} Correct (+2.00)`;
+
+  const bPenVal = document.getElementById("bleedPenaltyVal");
+  if (bPenVal) bPenVal.innerText = `-${penaltyBleed.toFixed(2)}`;
+  const bPenSub = document.getElementById("bleedPenaltySub");
+  if (bPenSub) bPenSub.innerText = `${nIncorr} Wrong (-0.50)`;
+
+  const bNetVal = document.getElementById("bleedNetVal");
+  if (bNetVal) bNetVal.innerText = `${netRealized.toFixed(2)}`;
+  const bNetSub = document.getElementById("bleedNetSub");
+  if (bNetSub) bNetSub.innerText = `${scoreEfficiency}% Retained`;
+
+  const bNote = document.getElementById("bleedFooterNote");
+  if (bNote) {
+    if (totalQ === 0) {
+      bNote.innerHTML = `🛡️ <strong>Zero Telemetry:</strong> Attempt mock sets to evaluate guesswork penalties and score retention.`;
+    } else if (penaltyBleed === 0) {
+      bNote.innerHTML = `🎯 <strong style="color:var(--success-dark);">Sniper Precision (100% Efficiency):</strong> Zero negative marking deductions. Every question attempted was correct!`;
+    } else if (parseFloat(bleedPercentage) > 20) {
+      bNote.innerHTML = `⚠️ <strong style="color:var(--danger-dark);">${bleedPercentage}% Score Bleed:</strong> You forfeited <strong style="color:var(--danger-dark);">${penaltyBleed.toFixed(2)} marks</strong> to incorrect attempts (${nIncorr} wrong). Avoiding wild guesses will immediately lift your net cutoff.`;
+    } else if (parseFloat(bleedPercentage) > 10) {
+      bNote.innerHTML = `⚡ <strong style="color:var(--warning-dark);">${bleedPercentage}% Controlled Bleed:</strong> Moderately disciplined testing with <strong style="color:var(--warning-dark);">${penaltyBleed.toFixed(2)} marks</strong> lost. Practice skipping 50/50 doubts when unconfident.`;
+    } else {
+      bNote.innerHTML = `🏆 <strong style="color:var(--success-dark);">${scoreEfficiency}% High Efficiency:</strong> Outstanding exam discipline. Minimal guesswork penalty (<strong style="color:var(--success-dark);">${bleedPercentage}% bleed</strong>). Examination-ready accuracy.`;
+    }
+  }
+}
+
+// 🚀 LEAN ORCHESTRATOR: FETCH STUDENT ANALYTICS
 let _isFetchingStats = false;
 window.fetchStudentAnalytics = async function(isSilent = false) {
   if (_isFetchingStats) return; 
   _isFetchingStats = true;
+
   try {
     const todayStr = getLocalDateString();
-    const { data: atts } = await supabaseClient
-      .from("test_attempts")
-      .select("test_id, score, total_correct, total_incorrect, attempt_date, time_spent_seconds")
-      .eq("student_roll", currentCandidate.roll_number)
-      .order("attempt_date", { ascending: true });
 
-    const { data: attnd } = await supabaseClient
-      .from("daily_attendance")
-      .select("study_date, total_minutes_spent")
-      .eq("student_roll", currentCandidate.roll_number);
+    // 1. Parallel Database Retrieval (Waterfall Eliminated)
+    const [attemptsRes, attendanceRes] = await Promise.all([
+      supabaseClient
+        .from("test_attempts")
+        .select("test_id, score, total_correct, total_incorrect, attempt_date, time_spent_seconds")
+        .eq("student_roll", currentCandidate.roll_number)
+        .order("attempt_date", { ascending: true }),
+      supabaseClient
+        .from("daily_attendance")
+        .select("study_date, total_minutes_spent")
+        .eq("student_roll", currentCandidate.roll_number)
+    ]);
 
+    const atts = attemptsRes.data || [];
+    const attnd = attendanceRes.data || [];
+
+    // 2. Telemetry Aggregation
     const bestMap = {}; 
     let totalSecs = 0, nCorr = 0, nIncorr = 0;
     const speedTrends = [];
     const accTrends = [];
+    const dailyQuestionsMap = {};
 
-    (atts || []).forEach(a => {
+    atts.forEach(a => {
       totalSecs += (a.time_spent_seconds || 0); 
       nCorr += (a.total_correct || 0); 
       nIncorr += (a.total_incorrect || 0);
@@ -3765,8 +4034,12 @@ window.fetchStudentAnalytics = async function(isSilent = false) {
       const qInAttempt = (a.total_correct || 0) + (a.total_incorrect || 0);
       if (qInAttempt > 0) {
         speedTrends.push(Math.round((a.time_spent_seconds || 0) / qInAttempt));
-        const attPct = Math.max(0, Math.round(((a.total_correct || 0) / qInAttempt) * 100));
-        accTrends.push(attPct);
+        accTrends.push(Math.max(0, Math.round(((a.total_correct || 0) / qInAttempt) * 100)));
+      }
+
+      const dStr = (a.attempt_date || "").split("T")[0];
+      if (dStr && (Number(a.test_id) > 0 || Number(a.test_id) === -1)) {
+        dailyQuestionsMap[dStr] = (dailyQuestionsMap[dStr] || 0) + qInAttempt;
       }
 
       const tid = String(a.test_id); 
@@ -3775,6 +4048,9 @@ window.fetchStudentAnalytics = async function(isSilent = false) {
       }
     });
 
+    dailyQuestionsMap[todayStr] = Math.max(dailyQuestionsMap[todayStr] || 0, dailyPerf?.total_questions_attempted || 0);
+
+    // 3. Subject Competency Stats Compilation
     const subStats = {};
     const masteredTests = new Set();
     const attemptedTests = new Set();
@@ -3803,18 +4079,16 @@ window.fetchStudentAnalytics = async function(isSilent = false) {
       subStats[subj].sets += 1;
     });
 
-    // 🚀 TODAY'S MASTERED SETS FILTER (CRITICAL FIX: PREVENTS LIFETIME SETS BLEEDING INTO TODAY)
+    // 4. Today's Specific Filters
     const todayMasteredTests = new Set();
-    (atts || []).forEach(a => {
+    atts.forEach(a => {
       const attDate = (a.attempt_date || "").split("T")[0];
       if (attDate === todayStr && Number(a.test_id) > 0) {
         const cat = catalogData.find(item => String(item.test_id) === String(a.test_id));
         const tQs = cat ? (cat.total_questions || 10) : ((a.total_correct || 0) + (a.total_incorrect || 0) || 10);
         const maxM = tQs * 2;
         const pct = maxM > 0 ? (parseFloat(a.score || 0) / maxM) * 100 : 0;
-        if (pct >= 100) {
-          todayMasteredTests.add(String(a.test_id));
-        }
+        if (pct >= 100) todayMasteredTests.add(String(a.test_id));
       }
     });
 
@@ -3822,306 +4096,31 @@ window.fetchStudentAnalytics = async function(isSilent = false) {
     const accVal = totalQ > 0 ? ((nCorr / totalQ) * 100).toFixed(1) : "0.0";
     const avgSpd = totalQ > 0 ? Math.round(totalSecs / totalQ) : 0;
     if (currentCandidate?.roll_number) localStorage.setItem("cache_accuracy_" + currentCandidate.roll_number, accVal);
-    
-    let todayMins = 0, last7Mins = 0, attMap = {}, past7 = [];
+
+    // 5. Attendance & Past 7 Days Mapping
+    let todayMins = 0;
+    const attMap = {};
+    const past7 = [];
     for (let i = 0; i < 7; i++) { 
       let dt = new Date(); 
       dt.setDate(dt.getDate() - i); 
       past7.push(getLocalDateString(dt)); 
     }
-    (attnd || []).forEach(r => { 
+    attnd.forEach(r => { 
       const m = r.total_minutes_spent || 0; 
       attMap[r.study_date] = m; 
       if (r.study_date === todayStr) todayMins = m; 
-      if (past7.includes(r.study_date)) last7Mins += m; 
     });
 
-    const streak = dailyPerf.streak_count || 0;
-    ['headerStreakCount', 'headerStreakCount_lib', 'headerStreakCount_stats', 'headerStreakCount_prof'].forEach(id => { 
-      const el = document.getElementById(id); 
-      if (el) el.innerText = streak + (window.innerWidth <= 768 ? "" : " Days"); 
-    });
-    ['headerAccuracyCount', 'headerAccuracyCount_lib', 'headerAccuracyCount_stats', 'headerAccuracyCount_prof'].forEach(id => { 
-      const el = document.getElementById(id); 
-      if (el) el.innerText = accVal + "%"; 
-    });
+    const streak = dailyPerf?.streak_count || 0;
 
-    // Top Stat Cards
-    const eAcc = document.getElementById("statAccuracy"); 
-    if (eAcc) eAcc.innerHTML = `<div style="display:flex; align-items:baseline; gap:6px;"><span>${accVal}%</span><span style="font-size:10px; font-weight:700; color:var(--success-dark); font-family:var(--font-family);">+${nCorr}</span><span style="font-size:10px; font-weight:700; color:var(--danger-dark); font-family:var(--font-family);">-${nIncorr}</span></div>`;
-    const eStr = document.getElementById("statStreak"); 
-    if (eStr) eStr.innerHTML = `<div style="display:flex; align-items:baseline; gap:6px;"><span>${streak} 🔥</span><span style="font-size:10px; font-weight:700; color:var(--tcs-blue-accent); font-family:var(--font-family); text-transform:uppercase;">${streak > 2 ? 'Consistent' : 'Starting'}</span></div>`;
-    const eSpd = document.getElementById("statSpeed"); 
-    if (eSpd) eSpd.innerHTML = `<div style="display:flex; align-items:baseline; gap:6px;"><span>${avgSpd}s</span><span style="font-size:10px; font-weight:700; color:var(--tcs-blue-accent); font-family:var(--font-family); text-transform:uppercase;">${avgSpd <= 15 ? 'Rapid' : (avgSpd > 35 ? 'Thorough' : 'Balanced')}</span></div>`;
+    // 🎯 6. DISPATCH TO DEDICATED SUB-ENGINES
+    renderAnalyticsTopStats({ accVal, nCorr, nIncorr, streak, avgSpd, accTrends, speedTrends, attMap });
+    renderWeeklyConsistencyTrack({ attMap, past7, todayStr, todayMins, todayMasteredCount: todayMasteredTests.size, dailyQuestionsMap });
+    renderDomainCompetencyMatrix({ subStats, attemptedTests, masteredTests });
+    renderAuditAndRetentionEngines({ nCorr, nIncorr, totalQ });
 
-    // Dynamic Sparklines
-    drawSparkline("sparkAccuracy", accTrends.slice(-10), "var(--tcs-blue-accent)");
-    drawSparkline("sparkStreak", Object.keys(attMap).sort((a,b) => new Date(a) - new Date(b)).slice(-10).map(d => attMap[d] || 0), "var(--warning)");
-    drawSparkline("sparkSpeed", speedTrends.slice(-10), "var(--success)");
-
-    // 🚀 4-TIER WEEKLY CONSISTENCY TRACK (SYNCHRONIZED WITH OVERDRIVE & LIVE METRICS)
-    const extra = document.getElementById("extraAnalyticsSummary");
-    if (extra) {
-      const dailyQuestionsMap = {};
-      (atts || []).forEach(a => {
-        const dStr = (a.attempt_date || "").split("T")[0];
-        if (dStr && (Number(a.test_id) > 0 || Number(a.test_id) === -1)) {
-          const attempted = (a.total_correct || 0) + (a.total_incorrect || 0);
-          dailyQuestionsMap[dStr] = (dailyQuestionsMap[dStr] || 0) + attempted;
-        }
-      });
-
-      // 🎯 Today Sync: आज के दिन का काउंट सीधे dailyPerf के साथ लॉक करें
-      dailyQuestionsMap[todayStr] = Math.max(dailyQuestionsMap[todayStr] || 0, dailyPerf?.total_questions_attempted || 0);
-
-      const dots = past7.slice().reverse().map(d => {
-        const mins = attMap[d] || 0;
-        const qCount = dailyQuestionsMap[d] || 0;
-        const dayLabel = new Date(d).toLocaleDateString('en-US', { weekday: 'narrow' });
-        const dateFormatted = new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-
-        let nodeClass = "node-tier-inactive";
-        let nodeIcon = "•";
-        let hoverTitle = `${dateFormatted}: Rest / Inactive`;
-
-        const isToday = (d === todayStr);
-        const isSundayCentury = isToday && isSunday() && dailyPerf?.is_century_hit;
-
-        if (qCount > 100) {
-          // Tier 3: Overdrive Target Conquered (>100 Qs)
-          nodeClass = "node-tier-overdrive";
-          nodeIcon = "★";
-          hoverTitle = `${dateFormatted}: Overdrive Century Conquered (${qCount} Qs • ${Math.floor(mins / 60)}h ${mins % 60}m)`;
-        } else if (qCount === 100 || isSundayCentury) {
-          // Tier 2: Century Milestone Reached (Exactly 100 Qs / Sunday Crucible)
-          nodeClass = "node-tier-century";
-          nodeIcon = "✓";
-          hoverTitle = `${dateFormatted}: Daily Milestone Met (${qCount} Qs • ${Math.floor(mins / 60)}h ${mins % 60}m)`;
-        } else if (mins > 0 || qCount > 0) {
-          // Tier 1: Study / Revision Active (<100 Qs)
-          nodeClass = "node-tier-presence";
-          nodeIcon = "✓";
-          hoverTitle = `${dateFormatted}: Session Logged (${qCount} Qs • ${mins}m)`;
-        }
-
-        return `
-          <div class="weekly-node-col">
-            <span class="weekly-node-day">${dayLabel}</span>
-            <span class="weekly-track-node ${nodeClass}" title="${hoverTitle}">${nodeIcon}</span>
-          </div>
-        `;
-      }).join("");
-
-      extra.innerHTML = `
-        <div class="profile-section-card" style="padding:16px; border-left:4px solid var(--success);">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-            <h4 style="font-size:13.5px; font-weight:700; color:var(--tcs-blue-header); margin:0;">🎯 Today's Focus & Output</h4>
-            <span style="font-size:10px; font-weight:800; background:var(--success-bg-subtle); color:var(--success-dark); padding:2px 8px; border-radius:12px;">ACTIVE SESSION</span>
-          </div>
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px;">
-            <div style="background:var(--bg-primary); padding:10px; border-radius:6px; border:1px solid var(--border-color);">
-              <span style="font-size:11px; color:var(--text-muted); font-weight:600; display:block;">Time Invested</span>
-              <strong style="font-size:16px; color:var(--success-dark); font-family:var(--font-mono);">${Math.floor(todayMins / 60)}h ${todayMins % 60}m</strong>
-            </div>
-            <div style="background:var(--bg-primary); padding:10px; border-radius:6px; border:1px solid var(--border-color);">
-              <span style="font-size:11px; color:var(--text-muted); font-weight:600; display:block;">Mastered Today (100%)</span>
-              <strong style="font-size:16px; color:var(--success-dark); font-family:var(--font-mono);">${todayMasteredTests.size} Sets</strong>
-            </div>
-          </div>
-        </div>
-        <div class="profile-section-card" style="padding:16px; border-left:4px solid var(--tcs-blue-accent);">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-            <h4 style="font-size:13.5px; font-weight:700; color:var(--tcs-blue-header); margin:0;">📊 Weekly Consistency Track</h4>
-            <span style="font-size:11px; font-weight:700; color:var(--tcs-blue-accent); font-family:var(--font-mono);">${Object.keys(attMap).filter(d => past7.includes(d)).length} / 7 Days Active</span>
-          </div>
-          <div class="weekly-track-container">${dots}</div>
-          <div style="display:flex; justify-content:space-between; font-size:11.5px; color:var(--text-muted); margin-top:4px;">
-            <span>Total: <strong style="color:var(--tcs-blue-accent); font-family:var(--font-mono);">${Math.floor(last7Mins / 60)}h ${last7Mins % 60}m</strong></span>
-            <span>Daily Pace: <strong style="color:var(--tcs-blue-accent); font-family:var(--font-mono);">${Math.round(last7Mins / 7)}m / day</strong></span>
-          </div>
-        </div>
-      `;
-    }
-
-    // Dual-Track Syllabus Progress
-    const totalCatalogCount = catalogData.length || 1;
-    const coveredPct = Math.min(100, Math.round((attemptedTests.size / totalCatalogCount) * 100));
-    const masteredPct = Math.min(100, Math.round((masteredTests.size / totalCatalogCount) * 100));
-
-    const eSyl = document.getElementById("syllabusPercentTxt");
-    if (eSyl) eSyl.innerText = `${coveredPct}% Covered • ${masteredPct}% Mastered`;
-    const attFill = document.getElementById("syllabusAttemptedFill");
-    if (attFill) attFill.style.width = coveredPct + "%";
-    const masFill = document.getElementById("syllabusLinearFill");
-    if (masFill) masFill.style.width = masteredPct + "%";
-
-    const sAttCount = document.getElementById("sylAttemptedCount");
-    if (sAttCount) sAttCount.innerText = `${attemptedTests.size}/${totalCatalogCount}`;
-    const sMasCount = document.getElementById("sylMasteredCount");
-    if (sMasCount) sMasCount.innerText = `${masteredTests.size}/${totalCatalogCount}`;
-
-    // Domain Insights
-    let bestSub = null, worstSub = null;
-    Object.entries(subStats).forEach(([name, data]) => {
-      const acc = data.max > 0 ? (data.earned / data.max) * 100 : 0;
-      const info = { name, acc, ...data };
-      if (!bestSub || info.acc > bestSub.acc) bestSub = info; 
-      if (!worstSub || info.acc < worstSub.acc) worstSub = info;
-    });
-
-    const iS = document.getElementById("insightStrong"); 
-    if (iS) iS.innerHTML = bestSub?.sets > 0 
-      ? `<div style="display:flex; justify-content:space-between; align-items:center;"><strong>🔥 Strongest Domain: ${bestSub.name}</strong><span style="font-weight:800; font-family:var(--font-mono); color:var(--success-dark);">${Math.round(bestSub.acc)}%</span></div><div style="font-size:11.5px; color:var(--text-muted); margin-top:4px;">High strike-rate across ${bestSub.sets} unique sets (${bestSub.correct} correct answers).</div>` 
-      : `<strong>🔥 Strongest:</strong> Complete sets to identify your core strength.`;
-    
-    const iW = document.getElementById("insightWeak"); 
-    if (iW) iW.innerHTML = worstSub?.sets > 0 
-      ? `<div style="display:flex; justify-content:space-between; align-items:center;"><strong>⚠️ Priority Focus: ${worstSub.name}</strong><span style="font-weight:800; font-family:var(--font-mono); color:var(--danger-dark);">${Math.round(worstSub.acc)}%</span></div><div style="font-size:11.5px; color:var(--text-muted); margin-top:4px;">Negative penalty bleed: <strong style="color:var(--danger-dark);">-${(worstSub.incorrect * 0.50).toFixed(1)} Marks</strong> (${worstSub.incorrect} wrong in best attempts). Curtail guesswork here.</div>` 
-      : `<strong>⚠️ Priority Focus:</strong> Attempt diagnostic assessments to flag weaker domains.`;
-
-    // Viewport Default Logic
-    const isMobileViewport = window.innerWidth <= 768;
-    const subList = Array.from(new Set(catalogData.map(c => (c.subject || "").trim()).filter(Boolean))).map(s => {
-      const st = subStats[s] || { earned: 0, max: 0, sets: 0 }; 
-      return { subject: s, pct: st.max > 0 ? Math.max(0, Math.round((st.earned / st.max) * 100)) : 0 };
-    });
-
-    const gView = document.getElementById("gridViewport");
-    if (gView) { 
-      gView.innerHTML = ""; 
-      subList.forEach(item => { 
-        gView.innerHTML += `<div class="micro-domain-chip"><div class="micro-chip-top"><span class="micro-chip-title" title="${item.subject}">${item.subject}</span><span class="micro-chip-val">${item.pct}%</span></div><div class="micro-chip-bar"><div class="micro-chip-fill" style="width: ${item.pct}%;"></div></div></div>`; 
-      }); 
-    }
-
-    if (isMobileViewport) {
-      switchMasteryView('grid');
-    } else {
-      switchMasteryView('radar');
-    }
-
-    // 🚀 Canvas Radar Chart: Canvases must only draw when visible to avoid zero-dimension distortion
-    const isAnalyticsVisible = document.getElementById("viewAnalytics")?.style.display === "flex";
-    const rCanvas = document.getElementById("subjectRadarChart");
-    if (rCanvas && window.Chart && isAnalyticsVisible) {
-      const isDark = document.body.classList.contains("dark-theme"), 
-            gColor = isDark ? "rgba(148, 163, 184, 0.15)" : "rgba(15, 23, 42, 0.08)", 
-            aColor = isDark ? "#38bdf8" : "#2563eb";
-      if (subjectRadarChartInstance) subjectRadarChartInstance.destroy();
-      subjectRadarChartInstance = new Chart(rCanvas, {
-        type: 'radar',
-        data: { 
-          labels: subList.map(s => s.subject.length > 12 ? s.subject.substring(0, 10) + ".." : s.subject), 
-          datasets: [{ 
-            label: 'Competency %', 
-            data: subList.map(s => s.pct), 
-            backgroundColor: isDark ? "rgba(56, 189, 248, 0.25)" : "rgba(37, 99, 235, 0.18)", 
-            borderColor: aColor, 
-            borderWidth: 2, 
-            pointBackgroundColor: aColor, 
-            pointRadius: 3 
-          }] 
-        },
-        options: { 
-          responsive: true, 
-          maintainAspectRatio: false, 
-          plugins: { legend: { display: false } }, 
-          scales: { 
-            r: { 
-              angleLines: { color: gColor }, 
-              grid: { color: gColor }, 
-              pointLabels: { color: isDark ? "#94a3b8" : "#475569", font: { size: 10, weight: '700' } }, 
-              suggestedMin: 0, 
-              suggestedMax: 100, 
-              ticks: { display: false, stepSize: 25 } 
-            } 
-          } 
-        }
-      });
-    }
-
-    // Mistake Funnel Engine
-    const allMistakes = (userWeakQuestions || []).filter(q => (q.times_wrong || 0) > 0);
-    const totalMistakes = allMistakes.length;
-    const masteredMistakes = allMistakes.filter(q => (q.mastery_streak || 0) >= 4).length;
-    const loopMistakes = allMistakes.filter(q => (q.mastery_streak || 0) >= 1 && (q.mastery_streak || 0) < 4).length;
-    const unaddressedMistakes = allMistakes.filter(q => (q.mastery_streak || 0) === 0).length;
-
-    const recoveryRate = totalMistakes > 0 ? Math.round((masteredMistakes / totalMistakes) * 100) : 0;
-    const activePipelineRate = totalMistakes > 0 ? Math.min(100, Math.round(((masteredMistakes + loopMistakes) / totalMistakes) * 100)) : 0;
-
-    const fBadge = document.getElementById("funnelRateBadge");
-    if (fBadge) fBadge.innerText = `${recoveryRate}% RECOVERED`;
-
-    const fActiveFill = document.getElementById("funnelActiveFill");
-    if (fActiveFill) fActiveFill.style.width = `${activePipelineRate}%`;
-
-    const fMasteredFill = document.getElementById("funnelMasteredFill");
-    if (fMasteredFill) fMasteredFill.style.width = `${recoveryRate}%`;
-
-    const fUnaddressed = document.getElementById("funnelUnaddressedVal");
-    if (fUnaddressed) fUnaddressed.innerText = unaddressedMistakes;
-
-    const fLoop = document.getElementById("funnelLoopVal");
-    if (fLoop) fLoop.innerText = loopMistakes;
-
-    const fCleared = document.getElementById("funnelClearedVal");
-    if (fCleared) fCleared.innerText = masteredMistakes;
-
-    const fNote = document.getElementById("funnelFooterNote");
-    if (fNote) {
-      if (totalMistakes === 0) {
-        fNote.innerHTML = `🛡️ <strong style="color:var(--success-dark);">Clean Slate:</strong> No mistakes logged. All attempted questions answered accurately!`;
-      } else if (recoveryRate >= 75) {
-        fNote.innerHTML = `🏆 <strong style="color:var(--success-dark);">Exceptional Retention:</strong> ${masteredMistakes} of ${totalMistakes} mistakes permanently mastered. Spaced repetition loop is operating at peak efficiency.`;
-      } else if (loopMistakes > 0) {
-        fNote.innerHTML = `⚡ <strong style="color:var(--tcs-blue-accent);">${loopMistakes} questions</strong> currently advancing through the review cycle. Clear upcoming Mastery Booster sets to lock them into Streak 4.`;
-      } else {
-        fNote.innerHTML = `⚠️ <strong style="color:var(--warning-dark);">${unaddressedMistakes} fresh errors</strong> awaiting first review. Launch Mistake Bank or Daily Booster to start the recovery cycle.`;
-      }
-    }
-
-    // Negative Bleed Auditor Engine
-    const grossEarned = nCorr * 2.00;
-    const penaltyBleed = nIncorr * 0.50;
-    const netRealized = Math.max(0, grossEarned - penaltyBleed);
-    const scoreEfficiency = grossEarned > 0 ? Math.max(0, Math.min(100, Math.round((netRealized / grossEarned) * 100))) : 0;
-    const bleedPercentage = grossEarned > 0 ? ((penaltyBleed / grossEarned) * 100).toFixed(1) : "0.0";
-
-    const bBadge = document.getElementById("bleedRatioBadge");
-    if (bBadge) bBadge.innerText = `-${penaltyBleed.toFixed(2)} MARKS LOST`;
-
-    const bGrossVal = document.getElementById("bleedGrossVal");
-    if (bGrossVal) bGrossVal.innerText = `+${grossEarned.toFixed(2)}`;
-    const bGrossSub = document.getElementById("bleedGrossSub");
-    if (bGrossSub) bGrossSub.innerText = `${nCorr} Correct (+2.00)`;
-
-    const bPenVal = document.getElementById("bleedPenaltyVal");
-    if (bPenVal) bPenVal.innerText = `-${penaltyBleed.toFixed(2)}`;
-    const bPenSub = document.getElementById("bleedPenaltySub");
-    if (bPenSub) bPenSub.innerText = `${nIncorr} Wrong (-0.50)`;
-
-    const bNetVal = document.getElementById("bleedNetVal");
-    if (bNetVal) bNetVal.innerText = `${netRealized.toFixed(2)}`;
-    const bNetSub = document.getElementById("bleedNetSub");
-    if (bNetSub) bNetSub.innerText = `${scoreEfficiency}% Retained`;
-
-    const bNote = document.getElementById("bleedFooterNote");
-    if (bNote) {
-      if (totalQ === 0) {
-        bNote.innerHTML = `🛡️ <strong>Zero Telemetry:</strong> Attempt mock sets to evaluate guesswork penalties and score retention.`;
-      } else if (penaltyBleed === 0) {
-        bNote.innerHTML = `🎯 <strong style="color:var(--success-dark);">Sniper Precision (100% Efficiency):</strong> Zero negative marking deductions. Every question attempted was correct!`;
-      } else if (parseFloat(bleedPercentage) > 20) {
-        bNote.innerHTML = `⚠️ <strong style="color:var(--danger-dark);">${bleedPercentage}% Score Bleed:</strong> You forfeited <strong style="color:var(--danger-dark);">${penaltyBleed.toFixed(2)} marks</strong> to incorrect attempts (${nIncorr} wrong). Avoiding wild guesses will immediately lift your net cutoff.`;
-      } else if (parseFloat(bleedPercentage) > 10) {
-        bNote.innerHTML = `⚡ <strong style="color:var(--warning-dark);">${bleedPercentage}% Controlled Bleed:</strong> Moderately disciplined testing with <strong style="color:var(--warning-dark);">${penaltyBleed.toFixed(2)} marks</strong> lost. Practice skipping 50/50 doubts when unconfident.`;
-      } else {
-        bNote.innerHTML = `🏆 <strong style="color:var(--success-dark);">${scoreEfficiency}% High Efficiency:</strong> Outstanding exam discipline. Minimal guesswork penalty (<strong style="color:var(--success-dark);">${bleedPercentage}% bleed</strong>). Examination-ready accuracy.`;
-      }
-    }
-
-    // Heatmap with Monthly Telemetry Summary Strip
+    // 7. Heatmap
     renderHeatmap(attMap);
 
   } catch (err) { 
@@ -4131,6 +4130,7 @@ window.fetchStudentAnalytics = async function(isSilent = false) {
   }
 };
 
+// 🗓️ 30-DAY ATTENDANCE HEATMAP RENDERER (PRESERVED)
 function renderHeatmap(attMap) {
   const container = document.getElementById("heatmapContainer"); 
   if (!container) return; 
@@ -4158,7 +4158,7 @@ function renderHeatmap(attMap) {
     }
   }
 
-  // Update Monthly Stats Header Strip
+  // Monthly Stats Header Strip
   const statsStrip = document.getElementById("heatmapStatsStrip");
   if (statsStrip) {
     const h = Math.floor(totalMinsMonth / 60);
@@ -4208,7 +4208,7 @@ function renderHeatmap(attMap) {
   }
 }
 
-// 🚀 MOBILE ANALYTICS SEGMENTED CONTROLLER
+// 📱 MOBILE ANALYTICS SEGMENTED CONTROLLER (PRESERVED)
 window.switchAnalyticsTab = function(tabKey) {
   const grid = document.querySelector(".advanced-analytics-grid");
   const btnDomains = document.getElementById("btnAnalyticsTabDomains");
@@ -4322,8 +4322,7 @@ window.launchPracticeMode = async function(testId, mode) {
     practiceQuestions = qData.map(item => {
       const q = Array.isArray(item.questions) ? item.questions[0] : item.questions; 
       if (!q) return null;
-      let opts = []; 
-      try { opts = typeof q.options === 'string' ? JSON.parse(q.options) : (q.options || []); } catch(e) { opts = []; }
+      const opts = parseQuestionOptions(q.options);
       return { 
         qNum: item.question_number, 
         id: q.id, 
