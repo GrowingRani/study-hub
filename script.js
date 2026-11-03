@@ -44,6 +44,56 @@ function getNormalizedCorrectAnswerId(rawAnswer, optionsArray) {
   return matched ? String(matched.id) : (ca || String(rawAnswer));
 }
 
+// 🚀 UNIVERSAL OPTIONS JSON PARSER (ZERO-CRASH FALLBACK)
+function parseQuestionOptions(optionsRaw) {
+  if (Array.isArray(optionsRaw)) return optionsRaw;
+  if (!optionsRaw) return [];
+  try {
+    return typeof optionsRaw === 'string' ? JSON.parse(optionsRaw) : optionsRaw;
+  } catch (e) {
+    return [];
+  }
+}
+
+// 🚀 CENTRALIZED TCS iON EXAM CONSOLE MOUNT ENGINE (ATOMIC & DRIFT-FREE)
+function mountExamSession(testMeta, questionsList, sectionName = "General") {
+  isExamFinished = false;
+  switchView("viewExam", true);
+
+  activeTest = {
+    id: testMeta.id,
+    title: testMeta.title || "Assessment",
+    subject: testMeta.subject || activeSubject || "General Studies",
+    total_duration_minutes: testMeta.total_duration_minutes || 15
+  };
+
+  // DOM Header & Title Telemetry
+  const examTitleEl = document.getElementById("examTitle");
+  if (examTitleEl) examTitleEl.innerText = activeTest.title;
+
+  const breadcrumbEl = document.getElementById("subjectLabelBreadcrumb");
+  if (breadcrumbEl) breadcrumbEl.innerText = activeTest.subject;
+
+  const mobileTitleEl = document.getElementById("mobileExamTitle");
+  if (mobileTitleEl) mobileTitleEl.innerText = activeTest.title;
+
+  const sectionTabsEl = document.getElementById("sectionTabs");
+  if (sectionTabsEl) {
+    sectionTabsEl.innerHTML = `<button type="button" class="section-tab">Section 1: ${sectionName} (${questionsList.length} Qs)</button>`;
+  }
+
+  // Timer & State Teardown
+  timeRemaining = activeTest.total_duration_minutes * 60;
+  testQuestions = questionsList;
+  userResponses = {};
+
+  testQuestions.forEach((q, idx) => {
+    userResponses[idx] = { selected: null, status: idx === 0 ? 1 : 0, timeSpent: 0 };
+  });
+
+  renderQuestion(0);
+  startExamTimer();
+}
 // 🚀 SYNCHRONOUS LOCAL CALENDAR DATE HELPER (AVOIDS MIDNIGHT TIMEZONE DRIFT)
 function getLocalDateString(d = new Date()) {
   return new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split("T")[0];
@@ -1808,32 +1858,16 @@ window.launchBoosterMode = async function(mode = 'exam') {
   const qCount = boosterQuestions.length;
 
   if (mode === 'exam') {
-    isExamFinished = false;
-    switchView("viewExam", true);
-    
-    activeTest = {
+    const boosterDuration = isSun 
+      ? Math.min(60, Math.max(15, Math.ceil(qCount * 0.6))) 
+      : Math.max(3, Math.ceil(qCount * 0.6));
+
+    mountExamSession({
       id: -1,
       title: isSun ? "Sunday Crucible Exam" : "Bonus Mastery Booster",
-      total_duration_minutes: isSun ? Math.min(60, Math.max(15, Math.ceil(qCount * 0.6))) : Math.max(3, Math.ceil(qCount * 0.6))
-    };
-    document.getElementById("examTitle").innerText = activeTest.title;
-    document.getElementById("subjectLabelBreadcrumb").innerText = isSun ? "Sunday Crucible" : "Bonus Booster";
-    
-    // 🚀 Mobile Row 1 Set Title Populate
-    const mTitle = document.getElementById("mobileExamTitle");
-    if (mTitle) mTitle.innerText = activeTest.title;
-
-    document.getElementById("sectionTabs").innerHTML = `<button type="button" class="section-tab">Section 1: ${isSun ? 'Weekly Backlog Clearance' : 'Active Review'} (${qCount} Qs)</button>`;
-    timeRemaining = activeTest.total_duration_minutes * 60;
-
-    testQuestions = boosterQuestions;
-    userResponses = {};
-    testQuestions.forEach((q, idx) => {
-      userResponses[idx] = { selected: null, status: idx === 0 ? 1 : 0, timeSpent: 0 };
-    });
-
-    renderQuestion(0);
-    startExamTimer();
+      subject: isSun ? "Sunday Crucible" : "Bonus Booster",
+      total_duration_minutes: boosterDuration
+    }, boosterQuestions, isSun ? 'Weekly Backlog Clearance' : 'Active Review');
   } else {
     // 🚀 Record active context for one-way exam switcher routing
     currentPracticeContext = { type: 'booster' };
@@ -3192,32 +3226,14 @@ window.launchSubjectMistakeMode = function(mode = 'quiz') {
   const qCount = qList.length;
 
   if (mode === 'exam') {
-    isExamFinished = false;
-    switchView("viewExam", true);
-
-    activeTest = {
+    mountExamSession({
       id: -3,
       title: `${activeSubject} Mistake Exam`,
+      subject: activeSubject,
       total_duration_minutes: Math.max(3, Math.ceil(qCount * 0.6))
-    };
-
-    document.getElementById("examTitle").innerText = activeTest.title;
-    document.getElementById("subjectLabelBreadcrumb").innerText = activeSubject;
-    const mTitle = document.getElementById("mobileExamTitle");
-    if (mTitle) mTitle.innerText = activeTest.title;
-
-    document.getElementById("sectionTabs").innerHTML = `<button type="button" class="section-tab">Section 1: Weak Area Clearance (${qCount} Qs)</button>`;
-    timeRemaining = activeTest.total_duration_minutes * 60;
-
-    testQuestions = qList;
-    userResponses = {};
-    testQuestions.forEach((q, idx) => {
-      userResponses[idx] = { selected: null, status: idx === 0 ? 1 : 0, timeSpent: 0 };
-    });
-
-    renderQuestion(0);
-    startExamTimer();
+    }, qList, 'Weak Area Clearance');
   } else {
+
     currentPracticeContext = { type: 'mistake_bank', forceAll: true };
     practiceQuestions = qList;
 
@@ -3277,8 +3293,7 @@ window.launchAssessment = async function(testId) {
     testQuestions = qData.map(item => {
       const q = Array.isArray(item.questions) ? item.questions[0] : item.questions; 
       if (!q) return null;
-      let opts = []; 
-      try { opts = typeof q.options === 'string' ? JSON.parse(q.options) : (q.options || []); } catch(e) { opts = []; }
+      const opts = parseQuestionOptions(q.options);
       return { 
         qNum: item.question_number, 
         id: q.id, 
@@ -3295,12 +3310,7 @@ window.launchAssessment = async function(testId) {
       testQuestions.forEach((q, idx) => { q.qNum = idx + 1; });
     }
 
-    userResponses = {}; 
-    testQuestions.forEach((q, idx) => { 
-      userResponses[idx] = { selected: null, status: idx === 0 ? 1 : 0, timeSpent: 0 }; 
-    });
-    renderQuestion(0); 
-    startExamTimer();
+    mountExamSession(activeTest, testQuestions, sections[0].section_name || "General");
   } catch (err) { 
     showAppNoticeModal("Assessment Error", "Cannot Launch Exam", err.message, "⚠️", "Back to Home", () => switchView("viewDashboard")); 
   }
