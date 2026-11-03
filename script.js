@@ -55,6 +55,50 @@ function parseQuestionOptions(optionsRaw) {
   }
 }
 
+// 🚀 CRASH-PROOF CENTRALIZED STORAGE ENGINE (WITH IN-MEMORY FALLBACK)
+const appStorage = {
+  _mem: new Map(),
+  get(key, fallback = null) {
+    try {
+      const val = localStorage.getItem(key);
+      return val !== null ? val : fallback;
+    } catch (e) {
+      return this._mem.has(key) ? this._mem.get(key) : fallback;
+    }
+  },
+  set(key, val) {
+    try {
+      localStorage.setItem(key, String(val));
+    } catch (e) {
+      console.warn("Storage quota/access issue, fallback to memory:", key);
+      this._mem.set(key, String(val));
+    }
+  },
+  getJSON(key, fallback = null) {
+    try {
+      const raw = this.get(key);
+      if (!raw) return fallback;
+      return JSON.parse(raw);
+    } catch (e) {
+      return fallback;
+    }
+  },
+  setJSON(key, obj) {
+    try {
+      this.set(key, JSON.stringify(obj));
+    } catch (e) {
+      console.warn("JSON stringify/storage error for:", key, e);
+    }
+  },
+  remove(key) {
+    try {
+      localStorage.removeItem(key);
+    } catch (e) {
+      this._mem.delete(key);
+    }
+  }
+};
+
 // 🚀 CENTRALIZED TCS iON EXAM CONSOLE MOUNT ENGINE (ATOMIC & DRIFT-FREE)
 function mountExamSession(testMeta, questionsList, sectionName = "General") {
   isExamFinished = false;
@@ -172,44 +216,44 @@ if ("serviceWorker" in navigator) {
   }); 
 }
 
-function getLocalizedText(obj) {
-  if (obj === null || obj === undefined) return "";
-  let text = "";
-  if (typeof obj === "object") { 
-    text = (currentLang === "hi") ? (obj.hi ? obj.hi : (obj.en ? (obj.en + "\n\n*(यह सामग्री अभी हिंदी में उपलब्ध नहीं है)*") : "")) : (obj.en || obj.hi || ""); 
-  } else {
-    let str = String(obj).trim();
-    if (str.startsWith("{") && str.endsWith("}")) { 
-      try { 
-        let parsed = JSON.parse(str); 
-        text = (currentLang === "hi") ? (parsed.hi ? parsed.hi : (parsed.en ? (parsed.en + "\n\n*(यह सामग्री अभी हिंदी में उपलब्ध नहीं है)*") : "")) : (parsed.en || parsed.hi || ""); 
-      } catch (e) { 
-        text = str; 
-      } 
-    } else { 
-      text = str; 
+// 🚀 UNIVERSAL BILINGUAL RESOLVER & PARSER
+function resolveBilingualField(raw) {
+  if (raw === null || raw === undefined) return "";
+  if (typeof raw === "object") return raw;
+  const str = String(raw).trim();
+  if (str.startsWith("{") && str.endsWith("}")) {
+    try {
+      return JSON.parse(str);
+    } catch (e) {
+      return str;
     }
+  }
+  return str;
+}
+
+function getLocalizedText(obj) {
+  const parsed = resolveBilingualField(obj);
+  let text = "";
+  if (typeof parsed === "object" && parsed !== null) {
+    if (currentLang === "hi") {
+      text = parsed.hi ? parsed.hi : (parsed.en ? `${parsed.en}\n\n*(यह सामग्री अभी हिंदी में उपलब्ध नहीं है)*` : "");
+    } else {
+      text = parsed.en || parsed.hi || "";
+    }
+  } else {
+    text = String(parsed || "");
   }
   return typeof text === "string" ? text.replace(/\\n/g, "\n") : String(text || "");
 }
 
 function formatExplanation(exp) {
   if (!exp) return "Yet to add explanation";
+  const parsed = resolveBilingualField(exp);
   let text = "";
-  if (typeof exp === "object" && exp !== null) {
-    text = currentLang === "hi" ? (exp.hi || exp.en || "") : (exp.en || exp.hi || "");
+  if (typeof parsed === "object" && parsed !== null) {
+    text = currentLang === "hi" ? (parsed.hi || parsed.en || "") : (parsed.en || parsed.hi || "");
   } else {
-    let str = String(exp).trim();
-    if (str.startsWith("{") && str.endsWith("}")) { 
-      try { 
-        let parsed = JSON.parse(str); 
-        text = currentLang === "hi" ? (parsed.hi || parsed.en || "") : (parsed.en || parsed.hi || ""); 
-      } catch (e) { 
-        text = str; 
-      }
-    } else { 
-      text = str; 
-    }
+    text = String(parsed || "").trim();
   }
   text = String(text || "").trim();
   if (!text || text === '{"en":""}' || text === '{"hi":""}' || text === '{"en":"","hi":""}' || text === 'null' || text === 'undefined') {
@@ -273,7 +317,7 @@ function updateHeaderBadges() {
   });
 
   // 2. Accuracy Sync (0ms Cache)
-  const cachedAcc = roll ? localStorage.getItem("cache_accuracy_" + roll) : null;
+  const cachedAcc = roll ? appStorage.get("cache_accuracy_" + roll) : null;
   const accText = cachedAcc !== null ? cachedAcc + "%" : "--%";
   ['headerAccuracyCount', 'headerAccuracyCount_lib', 'headerAccuracyCount_stats', 'headerAccuracyCount_prof'].forEach(id => {
     const el = document.getElementById(id);
@@ -588,12 +632,6 @@ window.switchMasteryView = function(viewType) {
 // ==========================================================================
 let initHash = window.location.hash || window.location.href;
 if (initHash.includes("type=recovery")) sessionStorage.setItem("recovery_mode", "true");
-supabaseClient.auth.onAuthStateChange((event) => { 
-  if (event === "PASSWORD_RECOVERY") { 
-    sessionStorage.setItem("recovery_mode", "true"); 
-    if (document.getElementById("resetPasswordForm")) showPasswordResetUI(); 
-  } 
-});
 
 function initAuthSessionWatcher() {
   if (sessionStorage.getItem("recovery_mode") === "true") return showPasswordResetUI();
@@ -925,7 +963,7 @@ function setupAppEvents() {
   });
 
   const themeBtns = document.querySelectorAll(".theme-toggle-btn");
-  if (localStorage.getItem("theme") === "dark") { 
+  if (appStorage.get("theme") === "dark") { 
     document.body.classList.add("dark-theme"); 
     themeBtns.forEach(b => b.innerText = "☀️"); 
   }
@@ -933,7 +971,7 @@ function setupAppEvents() {
     btn.onclick = () => {
       document.body.classList.toggle("dark-theme"); 
       const isDark = document.body.classList.contains("dark-theme");
-      localStorage.setItem("theme", isDark ? "dark" : "light"); 
+      appStorage.set("theme", isDark ? "dark" : "light"); 
       themeBtns.forEach(b => b.innerText = isDark ? "☀️" : "🌙");
       if (document.getElementById('viewAnalytics')?.style.display === 'flex') fetchStudentAnalytics();
     };
@@ -976,12 +1014,12 @@ function start5PMEngine() {
   setInterval(() => {
     if (!currentCandidate) return; 
     const d = new Date(), dateStr = d.toDateString();
-    if (d.getHours() === 17 && !localStorage.getItem("5pm_alert_" + dateStr)) {
-      const tomLoad = parseInt(localStorage.getItem("tomorrow_load_" + currentCandidate.roll_number) || "0");
+    if (d.getHours() === 17 && !appStorage.get("5pm_alert_" + dateStr)) {
+      const tomLoad = parseInt(appStorage.get("tomorrow_load_" + currentCandidate.roll_number, "0"));
       if (tomLoad === 0) showAppNoticeModal("Tomorrow's Queue", "Target Queue Empty", "Tomorrow's Playlist has no sets staged. Add sets before you sleep to maintain your Century Streak!", "⏳", "Explore Library");
       else if (tomLoad < 100) showAppNoticeModal("Tomorrow's Queue", "Target Load Incomplete", `Tomorrow has only ${tomLoad} questions staged (Target is 100). Add more sets!`, "⚠️", "Add Sets");
       else showAppNoticeModal("Tomorrow's Queue", "Target Locked", `Tomorrow's payload is locked & ready (${tomLoad} Questions).`, "🎯", "Dismiss");
-      localStorage.setItem("5pm_alert_" + dateStr, "true");
+      appStorage.set("5pm_alert_" + dateStr, "true");
     }
   }, 60000);
 }
@@ -1452,14 +1490,25 @@ async function mountDashboard(isInitialLoad = false) {
   // 1. LocalStorage से 0ms Instant State Restore
   const roll = currentCandidate?.roll_number;
   if (roll) {
-    try {
-      const cachedPerf = localStorage.getItem("cache_daily_perf_" + roll);
-      if (cachedPerf) dailyPerf = JSON.parse(cachedPerf);
-      const cachedPlaylists = localStorage.getItem("cache_playlists_" + roll);
-      if (cachedPlaylists) userPlaylists = JSON.parse(cachedPlaylists);
-      const cachedItems = localStorage.getItem("cache_playlist_items_" + roll);
-      if (cachedItems) userPlaylistItems = JSON.parse(cachedItems);
-    } catch (e) { console.warn("Cache parse skipped", e); }
+    const todayStr = getLocalDateString();
+    const cachedPerf = appStorage.getJSON("cache_daily_perf_" + roll, null);
+    if (cachedPerf && cachedPerf.target_date === todayStr) {
+      dailyPerf = cachedPerf;
+    } else if (cachedPerf) {
+      // 🚀 Naya din shuru: Agar kal target hit tha toh streak barkarar rahegi, par aaj ka count 0 se shuru hoga
+      const streakCarry = cachedPerf.is_century_hit ? (cachedPerf.streak_count || 0) : 0;
+      dailyPerf = {
+        student_roll: roll,
+        target_date: todayStr,
+        total_questions_attempted: 0,
+        total_correct: 0,
+        is_century_hit: false,
+        streak_count: streakCarry,
+        id: null
+      };
+    }
+    userPlaylists = appStorage.getJSON("cache_playlists_" + roll, userPlaylists);
+    userPlaylistItems = appStorage.getJSON("cache_playlist_items_" + roll, userPlaylistItems);
   }
 
   // 👑 Sunday Golden UI & Header Sync (Immediate 0ms UI Swap)
@@ -1638,8 +1687,19 @@ async function fetchPlaylistsAndCheckRollover() {
       .eq("target_date", todayStr)
       .maybeSingle();
 
-    const targetHitToday = Boolean(dpData?.is_century_hit || (isSunday() && crucibleAttempted) || (actualExamAttemptedToday >= 100));
+    // 🚀 SUNDAY: Sirf Crucible (-1) 100% complete hone par | NORMAL DAYS: 100 Questions par
+    const isSun = isSunday();
+    const crucibleCompleted = (todayAttRows || []).some(a => {
+      const attDate = (a.attempt_date || "").split("T")[0];
+      const tid = Number(a.test_id);
+      const totalAtt = (a.total_correct || 0) + (a.total_incorrect || 0);
+      return tid === -1 && attDate === todayStr && totalAtt > 0;
+    });
 
+    const targetHitToday = Boolean(
+      dpData?.is_century_hit || 
+      (isSun ? crucibleCompleted : actualExamAttemptedToday >= 100)
+    );
     if (dpData) {
       if (dpData.total_questions_attempted !== actualExamAttemptedToday || dpData.is_century_hit !== targetHitToday) {
         dpData.total_questions_attempted = actualExamAttemptedToday;
@@ -1668,11 +1728,9 @@ async function fetchPlaylistsAndCheckRollover() {
     updateHeaderBadges();
 
     // 🚀 Fast Cache Save
-    try {
-      localStorage.setItem("cache_daily_perf_" + roll, JSON.stringify(dailyPerf));
-      localStorage.setItem("cache_playlists_" + roll, JSON.stringify(userPlaylists));
-      localStorage.setItem("cache_playlist_items_" + roll, JSON.stringify(userPlaylistItems));
-    } catch (e) {}
+    appStorage.setJSON("cache_daily_perf_" + roll, dailyPerf);
+    appStorage.setJSON("cache_playlists_" + roll, userPlaylists);
+    appStorage.setJSON("cache_playlist_items_" + roll, userPlaylistItems);
 
     // 🚀 REFINED MULTI-DEVICE CLEAN-SLATE ROLLOVER ENGINE
     const serverLastRollover = currentCandidate?.last_rollover_date;
@@ -1705,9 +1763,7 @@ async function fetchPlaylistsAndCheckRollover() {
       // Local RAM memory ko fresh database state se instantly re-sync karein
       const { data: piData2 } = await supabaseClient.from("playlist_items").select("*").eq("student_roll", roll);
       userPlaylistItems = piData2 || [];
-      try {
-        localStorage.setItem("cache_playlist_items_" + roll, JSON.stringify(userPlaylistItems));
-      } catch (e) {}
+      appStorage.setJSON("cache_playlist_items_" + roll, userPlaylistItems);
     }
   } catch (error) { 
     console.error("Playlist Init Error:", error); 
@@ -2303,7 +2359,7 @@ async function renderHomePlaylists() {
     }
 
     if (currentCandidate?.roll_number) {
-      localStorage.setItem("tomorrow_load_" + currentCandidate.roll_number, tomorrowLoad);
+      appStorage.set("tomorrow_load_" + currentCandidate.roll_number, tomorrowLoad);
     }
   } finally {
     isRenderingPlaylists = false;
@@ -2754,8 +2810,7 @@ async function fetchTestCatalog() {
     } 
   });
   catalogData = unique;
-  try { localStorage.setItem("cache_catalog_data", JSON.stringify(catalogData)); } catch (e) {}
-
+  appStorage.setJSON("cache_catalog_data", catalogData);
   const { data: hist } = await supabaseClient.from("test_attempts").select("test_id, score, total_correct, total_incorrect, attempt_date, time_spent_seconds").eq("student_roll", currentCandidate.roll_number).order("attempt_date", { ascending: false });
   userAttemptHistory = hist || []; 
   renderSubjectHubGrid();
@@ -3483,10 +3538,25 @@ function renderScorecard() {
     dailyPerf.total_questions_attempted = (dailyPerf.total_questions_attempted || 0) + incrementalAttempted;
     dailyPerf.total_correct = (dailyPerf.total_correct || 0) + incrementalCorrect;
     
-    const hit = isSunday() ? true : (dailyPerf.total_questions_attempted >= 100);
+    // 🎯 STRICT TARGET CHECK
+    const isSun = isSunday();
+    const isCrucible = (activeTest.id === -1);
+    const isRegular = (activeTest.id > 0);
+
+    let hit = false;
+    if (isSun) {
+      // 👑 Sunday: Sirf Sunday Crucible (-1) aur uske saare questions attempt hone par
+      hit = isCrucible && (actuallyAttemptedThisExam >= testQuestions.length) && (testQuestions.length > 0);
+    } else {
+      // 🎯 Mon-Sat: Sirf tab jab aaj ke din 100 questions poore attempt ho chuke hon
+      hit = isRegular && (dailyPerf.total_questions_attempted >= 100);
+    }
+
+    let shouldIncrementStreak = false;
     if (hit && !dailyPerf.is_century_hit) {
       dailyPerf.streak_count = (dailyPerf.streak_count || 0) + 1;
       dailyPerf.is_century_hit = true;
+      shouldIncrementStreak = true;
     }
 
     const tList = userPlaylists.find(p => p.playlist_name === 'Today');
@@ -3494,10 +3564,8 @@ function renderScorecard() {
       userPlaylistItems = userPlaylistItems.filter(pi => !(pi.playlist_id === tList.id && String(pi.test_id) === String(activeTest.id)));
     }
 
-    try {
-      localStorage.setItem("cache_daily_perf_" + currentCandidate.roll_number, JSON.stringify(dailyPerf));
-      localStorage.setItem("cache_playlist_items_" + currentCandidate.roll_number, JSON.stringify(userPlaylistItems));
-    } catch(e) {}
+    appStorage.setJSON("cache_daily_perf_" + currentCandidate.roll_number, dailyPerf);
+    appStorage.setJSON("cache_playlist_items_" + currentCandidate.roll_number, userPlaylistItems);
   }
 
   cachedBoosterPool = null;
@@ -3554,12 +3622,8 @@ function renderScorecard() {
       }
 
       if (activeTest.id > 0 || (activeTest.id === -1 && isSunday())) {
-        const hit = isSunday() ? true : (dailyPerf.total_questions_attempted >= 100);
-        let nStreak = dailyPerf.streak_count || 0;
-        
-        if (hit && !dailyPerf.is_century_hit) { 
-          nStreak += 1; 
-          if (isSunday()) {
+        if (shouldIncrementStreak) {
+          if (isSun) {
             showAppNoticeModal("Sunday Crucible", "Crucible Conquered! 👑", "Weekly Backlog & Mastery session completed! Streak +1 secured.", "🎉", "View Dashboard");
           } else {
             showAppNoticeModal("Daily Milestone", "Baseline Target Hit! 🔥", "You completed your 100-Question Target for today! Streak +1 secured.", "🎉", "Keep Going");
@@ -3568,12 +3632,9 @@ function renderScorecard() {
 
         await supabaseClient.from("daily_performance").update({ 
           total_questions_attempted: dailyPerf.total_questions_attempted, 
-          is_century_hit: hit, 
-          streak_count: nStreak 
+          is_century_hit: dailyPerf.is_century_hit, 
+          streak_count: dailyPerf.streak_count 
         }).eq("id", dailyPerf.id);
-        
-        dailyPerf.is_century_hit = hit; 
-        dailyPerf.streak_count = nStreak;
 
         const tList = userPlaylists.find(p => p.playlist_name === 'Today');
         if (tList) {
@@ -4095,7 +4156,7 @@ window.fetchStudentAnalytics = async function(isSilent = false) {
     const totalQ = nCorr + nIncorr;
     const accVal = totalQ > 0 ? ((nCorr / totalQ) * 100).toFixed(1) : "0.0";
     const avgSpd = totalQ > 0 ? Math.round(totalSecs / totalQ) : 0;
-    if (currentCandidate?.roll_number) localStorage.setItem("cache_accuracy_" + currentCandidate.roll_number, accVal);
+    if (currentCandidate?.roll_number) appStorage.set("cache_accuracy_" + currentCandidate.roll_number, accVal);
 
     // 5. Attendance & Past 7 Days Mapping
     let todayMins = 0;
@@ -4130,7 +4191,7 @@ window.fetchStudentAnalytics = async function(isSilent = false) {
   }
 };
 
-// 🗓️ 30-DAY ATTENDANCE HEATMAP RENDERER (PRESERVED)
+// 🗓️ 30-DAY ATTENDANCE HEATMAP RENDERER (SINGLE-PASS OPTIMIZED)
 function renderHeatmap(attMap) {
   const container = document.getElementById("heatmapContainer"); 
   if (!container) return; 
@@ -4147,31 +4208,20 @@ function renderHeatmap(attMap) {
   let activeDaysMonth = 0;
   const today = new Date();
 
+  // 🚀 Single-pass: Metrics calculate aur DOM cells ek hi loop me render honge
   for (let i = 29; i >= 0; i--) { 
     let d = new Date(today); 
     d.setDate(d.getDate() - i);
     const dateStr = getLocalDateString(d);
+    const displayDate = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     const mins = attMap[dateStr] || 0;
+
     if (mins > 0) {
       totalMinsMonth += mins;
       activeDaysMonth++;
     }
-  }
 
-  // Monthly Stats Header Strip
-  const statsStrip = document.getElementById("heatmapStatsStrip");
-  if (statsStrip) {
-    const h = Math.floor(totalMinsMonth / 60);
-    const m = totalMinsMonth % 60;
-    statsStrip.innerText = `${h}h ${m}m Active • ${activeDaysMonth}/30 Days Logged`;
-  }
-
-  for (let i = 29; i >= 0; i--) { 
-    let d = new Date(today); 
-    d.setDate(d.getDate() - i);
-    const dateStr = getLocalDateString(d), 
-          displayDate = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    const mins = attMap[dateStr] || 0, cell = document.createElement("div"); 
+    const cell = document.createElement("div"); 
     cell.className = "heatmap-cell";
     if (mins > 90) cell.classList.add("hm-lvl-4"); 
     else if (mins > 45) cell.classList.add("hm-lvl-3"); 
@@ -4205,6 +4255,14 @@ function renderHeatmap(attMap) {
     };
     cell.onmouseleave = () => tooltip.classList.remove("show");
     container.appendChild(cell);
+  }
+
+  // Monthly Stats Header Strip Update
+  const statsStrip = document.getElementById("heatmapStatsStrip");
+  if (statsStrip) {
+    const h = Math.floor(totalMinsMonth / 60);
+    const m = totalMinsMonth % 60;
+    statsStrip.innerText = `${h}h ${m}m Active • ${activeDaysMonth}/30 Days Logged`;
   }
 }
 
