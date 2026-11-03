@@ -2935,38 +2935,76 @@ window.toggleMastheadSearch = function(isOpen) {
 };
 
 window.drillDownToSubject = function(subName, pushHistory = true) {
+  // 📳 1. Mobile Native Haptic Tick (टच होते ही तुरंत भौतिक अहसास)
+  if (typeof navigator !== "undefined" && navigator.vibrate) {
+    try { navigator.vibrate(12); } catch (e) {}
+  }
+
   activeSubject = (subName || "General Studies").trim(); 
-  const hub = document.getElementById("subjectHubStage"), exp = document.getElementById("setsExplorerStage"), tEl = document.getElementById("explorerSubjectTitle"), sEl = document.getElementById("explorerSubjectStats");
-  
+  const hub = document.getElementById("subjectHubStage");
+  const exp = document.getElementById("setsExplorerStage");
+  const tEl = document.getElementById("explorerSubjectTitle");
+  const sEl = document.getElementById("explorerSubjectStats");
+
   const stats = getSubjectMasteryStats(activeSubject);
   if (tEl) tEl.innerText = activeSubject; 
   if (sEl) sEl.innerText = `${stats.totalSets} Sets • ${stats.masteredCount} Mastered`;
 
   toggleMastheadSearch(false); 
+
+  // 🚀 2. Smooth Stage Swap With Hardware-Accelerated Slide-In
   if (hub) hub.style.display = "none"; 
-  if (exp) exp.style.display = "block";
+  if (exp) {
+    exp.classList.remove("stage-enter-active");
+    void exp.offsetWidth; // Force Reflow taaki animation fresh trigger ho
+    exp.style.display = "block";
+    exp.classList.add("stage-enter-active");
+  }
+
   currentFilter = "all"; 
   document.querySelectorAll('.filter-chip-btn').forEach(b => b.classList.toggle('active', b.getAttribute('data-filter') === 'all'));
+  
   renderTopicSets(); 
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-  if (pushHistory) history.pushState({ page: 'sets-explorer', view: 'viewLibrary', subView: 'setsExplorer', subject: activeSubject }, "", "#subject_" + encodeURIComponent(activeSubject));
+  window.scrollTo({ top: 0, behavior: 'instant' });
+
+  if (pushHistory) {
+    history.pushState({ page: 'sets-explorer', view: 'viewLibrary', subView: 'setsExplorer', subject: activeSubject }, "", "#subject_" + encodeURIComponent(activeSubject));
+  }
 };
+
 
 window.returnToSubjectHub = function(fromPopState = false) {
   if (!fromPopState && history.state?.subView === 'setsExplorer') return history.back();
-  const hub = document.getElementById("subjectHubStage"), exp = document.getElementById("setsExplorerStage");
+  
+  // 📳 Mobile Haptic on Return
+  if (typeof navigator !== "undefined" && navigator.vibrate) {
+    try { navigator.vibrate(8); } catch (e) {}
+  }
+
+  const hub = document.getElementById("subjectHubStage");
+  const exp = document.getElementById("setsExplorerStage");
+  
   toggleMastheadSearch(false); 
   if (exp) exp.style.display = "none"; 
-  if (hub) hub.style.display = "block"; 
   
+  // 🚀 Smooth Scale & Fade-In on Hub Restore
+  if (hub) {
+    hub.classList.remove("stage-enter-active");
+    void hub.offsetWidth;
+    hub.style.display = "block"; 
+    hub.classList.add("stage-enter-active");
+  }
+
   const scroller = document.getElementById("stagingDomainScroller");
   if (scroller) scroller.style.display = librarySelectionMode ? "flex" : "none";
-  
+
   renderSubjectHubGrid(); 
   if (librarySelectionMode) updateStagingDockUI();
-  
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-  if (!fromPopState) history.replaceState({ page: 'main-tab', view: 'viewLibrary', subView: 'hub' }, "", "#viewLibrary");
+
+  window.scrollTo({ top: 0, behavior: 'instant' });
+  if (!fromPopState) {
+    history.replaceState({ page: 'main-tab', view: 'viewLibrary', subView: 'hub' }, "", "#viewLibrary");
+  }
 };
 
 function renderTopicSets() {
@@ -3769,29 +3807,112 @@ window.closeExamAndReload = function() {
   })();
 };
 
+// ==========================================================================
+// 🚀 EXAM SOLUTIONS VIEW WITH 3-WAY SMART FILTER (ALL, PRIORITY, MISTAKES)
+// ==========================================================================
+let currentSolutionsFilter = "all";
+
 window.openSolutionsView = function() {
   closeExamModal();
-  document.getElementById("solExamTitle").innerText = activeTest?.title || "Assessment";
+  const examTitleEl = document.getElementById("solExamTitle");
+  if (examTitleEl) examTitleEl.innerText = activeTest?.title || "Assessment";
+  
   switchView("viewSolutions", false);
   history.replaceState({ view: 'viewSolutions' }, "", "#viewSolutions");
   
+  currentSolutionsFilter = "all";
+  renderSolutionsUI();
+};
+
+window.filterSolutionsView = function(filterType) {
+  currentSolutionsFilter = filterType;
+  renderSolutionsUI();
+};
+
+function renderSolutionsUI() {
   const container = document.getElementById("solutionsContainer");
   if (!container) return;
   container.innerHTML = "";
 
-  // 🚀 Construct mock state compatible with Universal Builder
+  const totalCount = testQuestions.length;
+  let wrongCount = 0;
+  let skippedCount = 0;
+
+  // 1. Calculate Mistakes & Skipped Counts
+  testQuestions.forEach((q, idx) => {
+    const resp = userResponses[idx];
+    const uAns = resp ? resp.selected : null;
+    if (!uAns) {
+      skippedCount++;
+    } else if (!isOptionMatching(uAns, q.correctAnswer)) {
+      wrongCount++;
+    }
+  });
+
+  const priorityCount = wrongCount + skippedCount;
+
+  // 2. Render Balanced Floating Filter Dock
+  const filterToolbar = document.createElement("div");
+  filterToolbar.className = "solutions-filter-strip";
+  filterToolbar.innerHTML = `
+    <button type="button" class="sol-filter-btn btn-all ${currentSolutionsFilter === 'all' ? 'active' : ''}" onclick="filterSolutionsView('all')">
+      <span>All Questions</span>
+      <span class="filter-badge">${totalCount}</span>
+    </button>
+    <button type="button" class="sol-filter-btn btn-priority ${currentSolutionsFilter === 'priority' ? 'active' : ''}" onclick="filterSolutionsView('priority')" title="Mistakes & Skipped Questions">
+      <span>⚡ Priority</span>
+      <span class="filter-badge">${priorityCount}</span>
+    </button>
+    <button type="button" class="sol-filter-btn btn-wrong ${currentSolutionsFilter === 'wrong' ? 'active' : ''}" onclick="filterSolutionsView('wrong')" title="Incorrect Answers Only">
+      <span>❌ Mistakes</span>
+      <span class="filter-badge">${wrongCount}</span>
+    </button>
+  `;
+  container.appendChild(filterToolbar);
+
+  // 3. Mock State for Universal Card Builder
   const mockReviewState = {
-    answers: userResponses, // Connect exam responses
-    starred: new Set(),     
-    isFinished: true 
+    answers: userResponses,
+    starred: new Set(),
+    isFinished: true
   };
 
+  // 4. Render Filtered Question Cards
+  let visibleCount = 0;
   testQuestions.forEach((q, idx) => {
-    // 🚀 USE UNIVERSAL CARD BUILDER in 'review' mode
+    const resp = userResponses[idx];
+    const uAns = resp ? resp.selected : null;
+    const isWrong = Boolean(uAns && !isOptionMatching(uAns, q.correctAnswer));
+    const isSkipped = Boolean(!uAns);
+
+    if (currentSolutionsFilter === 'wrong' && !isWrong) return;
+    if (currentSolutionsFilter === 'priority' && !(isWrong || isSkipped)) return;
+
+    visibleCount++;
     const card = buildQuestionCardDOM(q, idx, 'review', mockReviewState, false);
     container.appendChild(card);
   });
-};
+
+  // 5. Clean Slate Empty Notice
+  if (visibleCount === 0) {
+    const emptyNotice = document.createElement("div");
+    emptyNotice.style.cssText = "text-align:center; padding:48px 16px; color:var(--text-muted); font-size:13.5px; font-weight:700;";
+    if (currentSolutionsFilter === 'wrong') {
+      emptyNotice.innerHTML = `
+        <div style="font-size:32px; margin-bottom:10px;">🎯</div>
+        <strong style="color:var(--success-dark); font-size:15px; display:block;">Zero Mistakes!</strong>
+        <p style="margin-top:4px; font-weight:500; font-size:12.5px;">You answered every attempted question correctly in this session.</p>
+      `;
+    } else if (currentSolutionsFilter === 'priority') {
+      emptyNotice.innerHTML = `
+        <div style="font-size:32px; margin-bottom:10px;">🏆</div>
+        <strong style="color:var(--success-dark); font-size:15px; display:block;">Flawless Execution!</strong>
+        <p style="margin-top:4px; font-weight:500; font-size:12.5px;">All questions were attempted accurately with zero skips and zero errors.</p>
+      `;
+    }
+    container.appendChild(emptyNotice);
+  }
+}
 
 function renderPaletteGrid() {
   const grid = document.getElementById("paletteGrid"); 

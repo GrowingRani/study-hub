@@ -375,6 +375,14 @@ body.dark-theme .theme-mistake-briefing #briefingStatusBadge { background: rgba(
   .topic-accordion-card.open .topic-accordion-body { padding: 12px 10px !important; }
 }
 
+/* 🚀 MOBILE TACTILE PRESS & STAGE SLIDE ENGINE */
+.subject-mastery-tile { -webkit-tap-highlight-color: transparent !important; transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease !important; }
+.subject-mastery-tile:active { transform: scale(0.97) !important; border-color: var(--tcs-blue-accent) !important; background-color: var(--bg-surface-hover) !important; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1) !important; }
+#setsExplorerStage.stage-enter-active { animation: libraryStageSlideIn 0.24s cubic-bezier(0.16, 1, 0.3, 1) forwards !important; will-change: transform, opacity; }
+#subjectHubStage.stage-enter-active { animation: libraryStageFadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards !important; will-change: transform, opacity; }
+@keyframes libraryStageSlideIn { from { opacity: 0; transform: translateX(18px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes libraryStageFadeIn { from { opacity: 0; transform: scale(0.985); } to { opacity: 1; transform: scale(1); } }
+
 /* ==========================================================================
    7. RICH SET TILE CARD & ACTION FOOTER (🚨 ROOT CASCADE PROTECTED)
    ========================================================================== */
@@ -720,6 +728,24 @@ body.dark-theme .theme-mistake-briefing #briefingStatusBadge { background: rgba(
 
 .sol-explanation { background: var(--bg-surface-elevated) !important; border-left: 4px solid var(--tcs-blue-accent) !important; padding: 16px; margin-top: 20px; font-size: 14px; color: var(--text-muted) !important; white-space: pre-line !important; line-height: 1.65; word-break: break-word; }
 .sol-explanation strong { color: var(--tcs-blue-accent) !important; display: block; margin-bottom: 6px; }
+
+/* 🚀 EXAM-SLEEK SOLUTIONS FLOATING FILTER DOCK & COLORED PILLS */
+.solutions-filter-strip { position: sticky !important; top: 0 !important; z-index: 25 !important; margin-top: -20px !important; margin-bottom: 18px !important; padding: 12px 14px !important; background: var(--bg-primary) !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; border-bottom: 1px solid var(--border-color) !important; border-radius: 0 0 12px 12px !important; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06) !important; display: flex !important; align-items: center !important; gap: 8px !important; width: 100% !important; box-sizing: border-box !important; overflow-x: auto !important; scrollbar-width: none !important; }
+.solutions-filter-strip::before { content: "" !important; position: absolute !important; top: -40px !important; left: -20px !important; right: -20px !important; height: 40px !important; background: var(--bg-primary) !important; pointer-events: none !important; z-index: 24 !important; }
+.solutions-filter-strip::-webkit-scrollbar { display: none !important; }
+.sol-filter-btn { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-panel); color: var(--text-muted); font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1); outline: none; font-family: var(--font-family); user-select: none; white-space: nowrap; flex-shrink: 0; }
+.sol-filter-btn:hover { background: var(--bg-surface-hover); color: var(--text-main); border-color: var(--border-hover); }
+.sol-filter-btn .filter-badge { font-family: var(--font-mono); font-size: 10px; font-weight: 800; padding: 1.5px 6px; border-radius: 10px; background: var(--bg-surface-hover); color: inherit; }
+.sol-filter-btn.active.btn-all { background: var(--tcs-blue-accent) !important; color: #ffffff !important; border-color: var(--tcs-blue-accent) !important; box-shadow: 0 2px 8px var(--tcs-blue-bg-subtle); }
+.sol-filter-btn.active.btn-all .filter-badge { background: rgba(255, 255, 255, 0.25); color: #ffffff; }
+.sol-filter-btn.active.btn-priority { background: linear-gradient(135deg, #d97706, #f59e0b) !important; color: #ffffff !important; border-color: #f59e0b !important; box-shadow: 0 2px 8px rgba(245, 158, 11, 0.25); }
+.sol-filter-btn.active.btn-priority .filter-badge { background: rgba(255, 255, 255, 0.25); color: #ffffff; }
+.sol-filter-btn.active.btn-wrong { background: linear-gradient(135deg, #dc2626, #ef4444) !important; color: #ffffff !important; border-color: #ef4444 !important; box-shadow: 0 2px 8px rgba(239, 68, 68, 0.25); }
+.sol-filter-btn.active.btn-wrong .filter-badge { background: rgba(255, 255, 255, 0.25); color: #ffffff; }
+
+@media screen and (max-width: 768px) {
+  .solutions-filter-strip { margin-top: -14px !important; padding: 10px 10px !important; }
+}
 
 /* 🚀 TWO-TIER COMPACT PRACTICE HEADER (HEIGHT: 50px) */
 .practice-top-bar { display: flex !important; align-items: center !important; justify-content: space-between !important; padding: 0 14px !important; min-height: 50px !important; height: 50px !important; flex-shrink: 0 !important; position: sticky !important; top: 0 !important; z-index: 100 !important; width: 100% !important; box-sizing: border-box !important; gap: 8px !important; }
