@@ -142,6 +142,22 @@ function mountExamSession(testMeta, questionsList, sectionName = "General") {
 function getLocalDateString(d = new Date()) {
   return new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split("T")[0];
 }
+// 🚀 SYNCHRONOUS LOCAL CALENDAR DATE HELPER (AVOIDS MIDNIGHT TIMEZONE DRIFT)
+function getLocalDateString(d = new Date()) {
+  return new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split("T")[0];
+}
+
+// 🎯 UNIVERSAL ATTEMPT DATE RESOLVER (CONVERTS UTC TO CANDIDATE LOCAL DATE)
+function getAttemptLocalDate(dateVal) {
+  if (!dateVal) return "";
+  try {
+    const d = new Date(dateVal);
+    if (isNaN(d.getTime())) return "";
+    return getLocalDateString(d);
+  } catch (e) {
+    return "";
+  }
+}
 
 // 🔀 FAST FISHER-YATES ARRAY SHUFFLER
 function shuffleArray(arr) {
@@ -1701,15 +1717,16 @@ async function fetchPlaylistsAndCheckRollover() {
 
     const todayStr = getLocalDateString();
     
-    // 🚀 Sirf aaj ke attempts query honge
+    // 🚀 Sirf candidate ke attempts query honge
     const { data: todayAttRows } = await supabaseClient
       .from("test_attempts")
       .select("test_id, total_correct, total_incorrect, attempt_date")
       .eq("student_roll", roll);
 
+    // 🚀 FIX: getAttemptLocalDate ensures local date match (No timezone drop)
     const uniqueSetsAttemptedToday = new Map();
     (todayAttRows || []).forEach(a => {
-      const attDate = (a.attempt_date || "").split("T")[0];
+      const attDate = getAttemptLocalDate(a.attempt_date);
       const tid = Number(a.test_id);
       if (attDate === todayStr && (tid > 0 || (tid === -1 && isSunday()))) {
         const attemptedInRun = (a.total_correct || 0) + (a.total_incorrect || 0);
@@ -1722,7 +1739,6 @@ async function fetchPlaylistsAndCheckRollover() {
 
     const actualExamAttemptedToday = Array.from(uniqueSetsAttemptedToday.values()).reduce((sum, q) => sum + q, 0);
 
-    // 🎯 Database State Read
     let { data: dpData } = await supabaseClient
       .from("daily_performance")
       .select("*")
@@ -1732,13 +1748,10 @@ async function fetchPlaylistsAndCheckRollover() {
 
     const isSun = isSunday();
 
-    // 🎯 Sunday: Agar scorecard ne is_century_hit true mark kiya tha tabhi true rahega
-    // Mon-Sat: actualExamAttemptedToday >= 100
     const targetHitToday = isSun 
       ? Boolean(dpData?.is_century_hit) 
       : (actualExamAttemptedToday >= 100);
 
-    // 🎯 Yesterday's true streak calculation (Safe outside if/else)
     const yesterday = getLocalDateString(new Date(Date.now() - 86400000));
     const { data: yData } = await supabaseClient
       .from("daily_performance")
@@ -1751,27 +1764,32 @@ async function fetchPlaylistsAndCheckRollover() {
     const correctStreakToday = targetHitToday ? (baseStreak + 1) : baseStreak;
 
     if (dpData) {
+      // 🚀 Never downgrade in-memory progress if local was already higher
+      const resolvedAttempted = Math.max(dpData.total_questions_attempted || 0, actualExamAttemptedToday, dailyPerf?.total_questions_attempted || 0);
+      const resolvedHit = dpData.is_century_hit || targetHitToday;
+
       if (
-        dpData.total_questions_attempted !== actualExamAttemptedToday || 
-        dpData.is_century_hit !== targetHitToday ||
+        dpData.total_questions_attempted !== resolvedAttempted || 
+        dpData.is_century_hit !== resolvedHit ||
         dpData.streak_count !== correctStreakToday
       ) {
-        dpData.total_questions_attempted = actualExamAttemptedToday;
-        dpData.is_century_hit = targetHitToday;
+        dpData.total_questions_attempted = resolvedAttempted;
+        dpData.is_century_hit = resolvedHit;
         dpData.streak_count = correctStreakToday;
 
         await supabaseClient.from("daily_performance").update({
-          total_questions_attempted: actualExamAttemptedToday,
-          is_century_hit: targetHitToday,
+          total_questions_attempted: resolvedAttempted,
+          is_century_hit: resolvedHit,
           streak_count: correctStreakToday
         }).eq("id", dpData.id);
       }
       dailyPerf = dpData;
     } else {
+      const initialAttempted = Math.max(actualExamAttemptedToday, dailyPerf?.total_questions_attempted || 0);
       const { data: insData } = await supabaseClient.from("daily_performance").insert({ 
         student_roll: roll, 
         target_date: todayStr, 
-        total_questions_attempted: actualExamAttemptedToday, 
+        total_questions_attempted: initialAttempted, 
         is_century_hit: targetHitToday,
         streak_count: correctStreakToday 
       }).select().single();
@@ -2329,8 +2347,8 @@ async function renderHomePlaylists() {
     // 🎯 6. DECOUPLED CENTURY BAROMETER TELEMETRY (PURE UNIQUE ATTEMPTS & HONEST MASTERY)
     const targetQ = 100;
     const actualAttemptedCount = dailyPerf.total_questions_attempted || 0;
-    const todayAttempts = userAttemptHistory.filter(a => (a.attempt_date || "").split("T")[0] === todayStr && (Number(a.test_id) > 0 || (Number(a.test_id) === -1 && isSunday())));
-    
+    const todayAttempts = userAttemptHistory.filter(a => getAttemptLocalDate(a.attempt_date) === todayStr && (Number(a.test_id) > 0 || (Number(a.test_id) === -1 && isSunday())));
+
     // Unique test_id ke hisab se best mastered count calculate karein (No Double Counting)
     const uniqueMasteredSets = new Map();
     todayAttempts.forEach(a => { 
@@ -2917,7 +2935,16 @@ function renderSubjectHubGrid() {
       </div>
       <div class="tile-action-footer"><span style="color:var(--text-muted); font-size:11px; font-weight:600;">${stats.totalAtt} Attempts Logged</span><span>Explore Sets ➔</span></div>
     `;
-    tile.onclick = () => drillDownToSubject(subName); 
+
+    // 🚀 TACTILE EVENT: टच करते ही पहले कार्ड दबेगा, फिर 90ms बाद नेविगेट होगा
+    tile.onclick = (e) => {
+      tile.classList.add("tile-touch-active");
+      setTimeout(() => {
+        tile.classList.remove("tile-touch-active");
+        drillDownToSubject(subName);
+      }, 90);
+    };
+
     container.appendChild(tile);
   });
 }
@@ -2935,11 +2962,6 @@ window.toggleMastheadSearch = function(isOpen) {
 };
 
 window.drillDownToSubject = function(subName, pushHistory = true) {
-  // 📳 1. Mobile Native Haptic Tick (टच होते ही तुरंत भौतिक अहसास)
-  if (typeof navigator !== "undefined" && navigator.vibrate) {
-    try { navigator.vibrate(12); } catch (e) {}
-  }
-
   activeSubject = (subName || "General Studies").trim(); 
   const hub = document.getElementById("subjectHubStage");
   const exp = document.getElementById("setsExplorerStage");
@@ -2952,11 +2974,10 @@ window.drillDownToSubject = function(subName, pushHistory = true) {
 
   toggleMastheadSearch(false); 
 
-  // 🚀 2. Smooth Stage Swap With Hardware-Accelerated Slide-In
   if (hub) hub.style.display = "none"; 
   if (exp) {
     exp.classList.remove("stage-enter-active");
-    void exp.offsetWidth; // Force Reflow taaki animation fresh trigger ho
+    void exp.offsetWidth; // Force Reflow
     exp.style.display = "block";
     exp.classList.add("stage-enter-active");
   }
@@ -2972,14 +2993,8 @@ window.drillDownToSubject = function(subName, pushHistory = true) {
   }
 };
 
-
 window.returnToSubjectHub = function(fromPopState = false) {
   if (!fromPopState && history.state?.subView === 'setsExplorer') return history.back();
-  
-  // 📳 Mobile Haptic on Return
-  if (typeof navigator !== "undefined" && navigator.vibrate) {
-    try { navigator.vibrate(8); } catch (e) {}
-  }
 
   const hub = document.getElementById("subjectHubStage");
   const exp = document.getElementById("setsExplorerStage");
@@ -2987,7 +3002,6 @@ window.returnToSubjectHub = function(fromPopState = false) {
   toggleMastheadSearch(false); 
   if (exp) exp.style.display = "none"; 
   
-  // 🚀 Smooth Scale & Fade-In on Hub Restore
   if (hub) {
     hub.classList.remove("stage-enter-active");
     void hub.offsetWidth;
@@ -3572,7 +3586,6 @@ function renderScorecard() {
   let correct = 0, incorrect = 0, unattempted = 0, statsPayload = [];
   testQuestions.forEach((q, idx) => {
     const uAns = userResponses[idx].selected, st = userResponses[idx].status;
-    // 🎯 Question का सटीक सब्जेक्ट भेजें ताकि सही Vault के Fresh Bucket में जाए
     const qSubj = q.subject || activeTest?.subject || activeSubject || "General Studies";
 
     if (!uAns) { 
@@ -3591,6 +3604,7 @@ function renderScorecard() {
   const score = (correct * 2.00) - (incorrect * 0.50);
   const tSecs = Math.max(0, ((activeTest.total_duration_minutes || 15) * 60) - timeRemaining);
   const tMins = Math.ceil(tSecs / 60);
+  const nowIso = new Date().toISOString();
 
   const localAttemptRecord = {
     test_id: activeTest.id,
@@ -3598,11 +3612,10 @@ function renderScorecard() {
     total_correct: correct,
     total_incorrect: incorrect,
     time_spent_seconds: tSecs,
-    attempt_date: new Date().toISOString()
+    attempt_date: nowIso
   };
   userAttemptHistory.unshift(localAttemptRecord);
 
-  // 🎯 STRICT TARGET VARIABLES (CLOSURE SAFE)
   const isSun = isSunday();
   const isCrucible = (activeTest.id === -1);
   const isRegular = (activeTest.id > 0);
@@ -3616,7 +3629,7 @@ function renderScorecard() {
     const todayStr = getLocalDateString();
     const prevAttemptsOfThisSetToday = userAttemptHistory.filter(a => 
       String(a.test_id) === String(activeTest.id) && 
-      (a.attempt_date || "").split("T")[0] === todayStr
+      getAttemptLocalDate(a.attempt_date) === todayStr
     );
     const isRetakeToday = prevAttemptsOfThisSetToday.length > 1;
 
@@ -3695,13 +3708,15 @@ function renderScorecard() {
 
   (async () => {
     try {
+      // 🚀 FIX: attempt_date explicitly passed to Supabase
       const { error: insErr } = await supabaseClient.from("test_attempts").insert({ 
         student_roll: currentCandidate.roll_number, 
         test_id: activeTest.id, 
         score, 
         total_correct: correct, 
         total_incorrect: incorrect, 
-        time_spent_seconds: tSecs 
+        time_spent_seconds: tSecs,
+        attempt_date: nowIso 
       });
       if (insErr) throw insErr;
 
@@ -3740,11 +3755,17 @@ function renderScorecard() {
           );
         }
 
-        await supabaseClient.from("daily_performance").update({ 
+        const todayStr = getLocalDateString();
+        // 🚀 FIX: Upsert by (student_roll, target_date) so it never fails even if id is null
+        const { data: upsertedPerf } = await supabaseClient.from("daily_performance").upsert({ 
+          student_roll: currentCandidate.roll_number,
+          target_date: todayStr,
           total_questions_attempted: dailyPerf.total_questions_attempted, 
           is_century_hit: dailyPerf.is_century_hit, 
           streak_count: dailyPerf.streak_count 
-        }).eq("id", dailyPerf.id);
+        }, { onConflict: "student_roll,target_date" }).select().single();
+        
+        if (upsertedPerf) dailyPerf = upsertedPerf;
 
         const tList = userPlaylists.find(p => p.playlist_name === 'Today');
         if (tList && hit) {
@@ -3761,7 +3782,6 @@ function renderScorecard() {
       if (att) await supabaseClient.from("daily_attendance").update({ total_minutes_spent: att.total_minutes_spent + tMins }).eq("id", att.id);
       else await supabaseClient.from("daily_attendance").insert({ student_roll: currentCandidate.roll_number, study_date: today, total_minutes_spent: tMins });
 
-      // 🎯 Closed-Loop: मिस्टेक बैंक में सटीक सब्जेक्ट के साथ सिंक
       if (statsPayload.length) await syncMistakeBank(statsPayload);
     } catch (e) { 
       console.error("Score Sync Error:", e); 
