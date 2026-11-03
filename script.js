@@ -803,14 +803,27 @@ window.toggleSecondaryPlaylist = function(headerElement) {
   if (!card) return;
   const wasExpanded = card.classList.contains('expanded');
 
-  document.querySelectorAll('.mission-column-secondary .playlist-accordion-card').forEach(c => {
-    c.classList.remove('expanded');
-    c.classList.add('collapsed');
+  // सभी सेकेंडरी और कस्टम प्लेलिस्ट को पहले कोलैप्स करें
+  document.querySelectorAll('.playlist-accordion-card').forEach(c => {
+    // Today's Payload कार्ड को छोड़कर बाकी सभी को बंद रखें
+    if (c.id !== 'todayPayloadCard') {
+      c.classList.remove('expanded');
+      c.classList.add('collapsed');
+      const pill = c.querySelector('.playlist-count-pill');
+      if (pill && !pill.innerText.includes('▼')) {
+        pill.innerText = pill.innerText.replace('▲', '▼');
+      }
+    }
   });
 
+  // अगर क्लिक किया गया कार्ड पहले से खुला नहीं था, तो उसे खोलें
   if (!wasExpanded) {
     card.classList.remove('collapsed');
     card.classList.add('expanded');
+    const pill = card.querySelector('.playlist-count-pill');
+    if (pill) {
+      pill.innerText = pill.innerText.replace('▼', '▲');
+    }
   }
 };
 
@@ -1083,19 +1096,25 @@ window.handleCreatePlaylistSubmit = async function(e) {
   if (!name) return;
   const btn = document.getElementById("btnSubmitNewPlaylist"); 
   if (btn) { btn.innerText = "Creating..."; btn.disabled = true; }
-  try {
+  try { 
     const existing = userPlaylists.find(p => p.playlist_name.trim().toLowerCase() === name.toLowerCase());
     if (existing) {
       closeCreatePlaylistModal();
       showSelectionToast(`Playlist "${name}" already exists`);
       return;
     }
-    const { error } = await supabaseClient.from("playlists").insert({ student_roll: currentCandidate.roll_number, playlist_name: name, is_system_playlist: false, display_order: 10 });
+    const { error } = await supabaseClient
+      .from("playlists")
+      .insert({ student_roll: currentCandidate.roll_number, playlist_name: name, is_system_playlist: false, display_order: 10 });
     if (error) throw error;
+    
     closeCreatePlaylistModal(); 
     await fetchPlaylistsAndCheckRollover(); 
     await renderHomePlaylists(); 
     
+    // 🚀 NEW: नई बनी प्लेलिस्ट को तुरंत साफ़-सुथरे तरीके से Expand (Open) करें
+    autoExpandPlaylistCard(name);
+
     if (selectedTestForPlaylist) {
       openPlaylistBottomSheet(selectedTestForPlaylist);
     }
@@ -1329,6 +1348,10 @@ window.openMissionBriefingModal = async function(testId, bypassSundayCheck = fal
     const mistakeCount = boosterQuestions.filter(q => q.isMistake).length;
     const recallCount = qCount - mistakeCount;
     
+    // 🎯 APPROACH 2: DYNAMIC 70% THRESHOLD (MAX 50 Qs)
+    const poolSize = qCount;
+    const requiredThreshold = Math.min(50, Math.ceil(poolSize * 0.70));
+
     document.getElementById("briefingSubjectBadge").innerText = isSun ? "SUNDAY CRUCIBLE EXAM" : "BONUS MASTERY BOOSTER";
     const statusBadge = document.getElementById("briefingStatusBadge");
     const examCard = modal.querySelector(".briefing-mode-card.mode-exam");
@@ -1347,7 +1370,14 @@ window.openMissionBriefingModal = async function(testId, bypassSundayCheck = fal
     } else {
       statusBadge.className = "briefing-status-tag status-progress";
       statusBadge.innerText = `${qCount} DUE`;
-      document.getElementById("briefingScoreMeta").innerText = `${mistakeCount} Mistakes • ${recallCount} Recall`;
+      
+      // 🎯 Display clear target in briefing modal
+      if (isSun) {
+        document.getElementById("briefingScoreMeta").innerText = `Target: Min ${requiredThreshold} of ${poolSize} Qs for Streak`;
+      } else {
+        document.getElementById("briefingScoreMeta").innerText = `${mistakeCount} Mistakes • ${recallCount} Recall`;
+      }
+
       if (examCard) {
         examCard.style.opacity = "1";
         examCard.style.pointerEvents = "auto";
@@ -1610,7 +1640,11 @@ async function fetchPlaylistsAndCheckRollover() {
   if (!currentCandidate) return; 
   const roll = currentCandidate.roll_number;
   try {
-    let { data: pData, error: pErr } = await supabaseClient.from("playlists").select("*").eq("student_roll", roll).order("display_order", { ascending: true });
+    let { data: pData, error: pErr } = await supabaseClient
+      .from("playlists")
+      .select("*")
+      .eq("student_roll", roll)
+      .order("display_order", { ascending: true });
     if (pErr) console.error("Playlists fetch error:", pErr);
     
     const required = [
@@ -1624,12 +1658,18 @@ async function fetchPlaylistsAndCheckRollover() {
       missing = required.map(r => ({ student_roll: roll, playlist_name: r.name, is_system_playlist: true, display_order: r.order }));
     } else {
       required.forEach(r => { 
-        if (!pData.some(p => p.playlist_name === r.name)) missing.push({ student_roll: roll, playlist_name: r.name, is_system_playlist: true, display_order: r.order }); 
+        if (!pData.some(p => p.playlist_name === r.name)) {
+          missing.push({ student_roll: roll, playlist_name: r.name, is_system_playlist: true, display_order: r.order }); 
+        }
       });
     }
     if (missing.length > 0) {
       await supabaseClient.from("playlists").insert(missing);
-      const { data: refData } = await supabaseClient.from("playlists").select("*").eq("student_roll", roll).order("display_order", { ascending: true });
+      const { data: refData } = await supabaseClient
+        .from("playlists")
+        .select("*")
+        .eq("student_roll", roll)
+        .order("display_order", { ascending: true });
       pData = refData || pData || [];
     }
 
@@ -1644,7 +1684,10 @@ async function fetchPlaylistsAndCheckRollover() {
     });
     userPlaylists = uniquePlaylists;
 
-    const { data: piData } = await supabaseClient.from("playlist_items").select("*").eq("student_roll", roll);
+    const { data: piData } = await supabaseClient
+      .from("playlist_items")
+      .select("*")
+      .eq("student_roll", roll);
     const uniqueItems = [];
     const seenItemKeys = new Set();
     (piData || []).forEach(item => {
@@ -1658,7 +1701,7 @@ async function fetchPlaylistsAndCheckRollover() {
 
     const todayStr = getLocalDateString();
     
-    // 🚀 Sirf aaj ke attempts query honge (Full history nahi)
+    // 🚀 Sirf aaj ke attempts query honge
     const { data: todayAttRows } = await supabaseClient
       .from("test_attempts")
       .select("test_id, total_correct, total_incorrect, attempt_date")
@@ -1679,6 +1722,7 @@ async function fetchPlaylistsAndCheckRollover() {
 
     const actualExamAttemptedToday = Array.from(uniqueSetsAttemptedToday.values()).reduce((sum, q) => sum + q, 0);
 
+    // 🎯 Database State Read
     let { data: dpData } = await supabaseClient
       .from("daily_performance")
       .select("*")
@@ -1686,47 +1730,50 @@ async function fetchPlaylistsAndCheckRollover() {
       .eq("target_date", todayStr)
       .maybeSingle();
 
-    // 🎯 STRICT TARGET CHECK
     const isSun = isSunday();
-    const crucibleCompleted = (todayAttRows || []).some(a => {
-      const attDate = (a.attempt_date || "").split("T")[0];
-      const tid = Number(a.test_id);
-      const totalAtt = (a.total_correct || 0) + (a.total_incorrect || 0);
-      return tid === -1 && attDate === todayStr && totalAtt > 0;
-    });
 
-    // Mon-Sat: Exact >= 100 Qs | Sunday: Crucible complete
-    const targetHitToday = isSun ? Boolean(crucibleCompleted) : (actualExamAttemptedToday >= 100);
+    // 🎯 Sunday: Agar scorecard ne is_century_hit true mark kiya tha tabhi true rahega
+    // Mon-Sat: actualExamAttemptedToday >= 100
+    const targetHitToday = isSun 
+      ? Boolean(dpData?.is_century_hit) 
+      : (actualExamAttemptedToday >= 100);
+
+    // 🎯 Yesterday's true streak calculation (Safe outside if/else)
+    const yesterday = getLocalDateString(new Date(Date.now() - 86400000));
+    const { data: yData } = await supabaseClient
+      .from("daily_performance")
+      .select("streak_count, is_century_hit")
+      .eq("student_roll", roll)
+      .eq("target_date", yesterday)
+      .maybeSingle();
+
+    const baseStreak = (yData && yData.is_century_hit) ? (yData.streak_count || 0) : 0;
+    const correctStreakToday = targetHitToday ? (baseStreak + 1) : baseStreak;
 
     if (dpData) {
-      if (dpData.total_questions_attempted !== actualExamAttemptedToday || dpData.is_century_hit !== targetHitToday) {
+      if (
+        dpData.total_questions_attempted !== actualExamAttemptedToday || 
+        dpData.is_century_hit !== targetHitToday ||
+        dpData.streak_count !== correctStreakToday
+      ) {
         dpData.total_questions_attempted = actualExamAttemptedToday;
         dpData.is_century_hit = targetHitToday;
+        dpData.streak_count = correctStreakToday;
+
         await supabaseClient.from("daily_performance").update({
           total_questions_attempted: actualExamAttemptedToday,
-          is_century_hit: targetHitToday
+          is_century_hit: targetHitToday,
+          streak_count: correctStreakToday
         }).eq("id", dpData.id);
       }
       dailyPerf = dpData;
     } else {
-      // Kal ka record check karein
-      const yesterday = getLocalDateString(new Date(Date.now() - 86400000));
-      const { data: yData } = await supabaseClient
-        .from("daily_performance")
-        .select("streak_count, is_century_hit")
-        .eq("student_roll", roll)
-        .eq("target_date", yesterday)
-        .maybeSingle();
-
-      const baseStreak = (yData && yData.is_century_hit) ? (yData.streak_count || 0) : 0;
-      const initialStreak = targetHitToday ? (baseStreak + 1) : baseStreak;
-
       const { data: insData } = await supabaseClient.from("daily_performance").insert({ 
         student_roll: roll, 
         target_date: todayStr, 
         total_questions_attempted: actualExamAttemptedToday, 
         is_century_hit: targetHitToday,
-        streak_count: initialStreak 
+        streak_count: correctStreakToday 
       }).select().single();
       if (insData) dailyPerf = insData;
     }
@@ -1737,7 +1784,7 @@ async function fetchPlaylistsAndCheckRollover() {
     appStorage.setJSON("cache_playlists_" + roll, userPlaylists);
     appStorage.setJSON("cache_playlist_items_" + roll, userPlaylistItems);
 
-    // Rollover Engine
+    // 🚀 Rollover Engine
     const serverLastRollover = currentCandidate?.last_rollover_date;
     if (serverLastRollover !== todayStr && !isSunday()) {
       const todayList = userPlaylists.find(p => p.playlist_name === 'Today');
@@ -3517,8 +3564,17 @@ function renderScorecard() {
   };
   userAttemptHistory.unshift(localAttemptRecord);
 
+  // 🎯 STRICT TARGET VARIABLES (CLOSURE SAFE)
+  const isSun = isSunday();
+  const isCrucible = (activeTest.id === -1);
+  const isRegular = (activeTest.id > 0);
+
+  let hit = false;
+  let shouldIncrementStreak = false;
+  let requiredSundayAttempts = 0;
+
   // 🚀 0ms SYNCHRONOUS UNIQUE TELEMETRY UPDATE
-  if (activeTest.id > 0 || (activeTest.id === -1 && isSunday())) {
+  if (activeTest.id > 0 || (activeTest.id === -1 && isSun)) {
     const todayStr = getLocalDateString();
     const prevAttemptsOfThisSetToday = userAttemptHistory.filter(a => 
       String(a.test_id) === String(activeTest.id) && 
@@ -3540,21 +3596,15 @@ function renderScorecard() {
     dailyPerf.total_questions_attempted = (dailyPerf.total_questions_attempted || 0) + incrementalAttempted;
     dailyPerf.total_correct = (dailyPerf.total_correct || 0) + incrementalCorrect;
     
-    // 🎯 STRICT TARGET CHECK
-    const isSun = isSunday();
-    const isCrucible = (activeTest.id === -1);
-    const isRegular = (activeTest.id > 0);
-
-    let hit = false;
+    // 🎯 APPROACH 2: 70% POOL THRESHOLD WITH 50-Q FATIGUE CAP
     if (isSun) {
-      // 👑 Sunday: Sirf Sunday Crucible (-1) aur uske saare questions attempt hone par
-      hit = isCrucible && (actuallyAttemptedThisExam >= testQuestions.length) && (testQuestions.length > 0);
+      const poolSize = testQuestions.length || 0;
+      requiredSundayAttempts = poolSize > 0 ? Math.min(50, Math.ceil(poolSize * 0.70)) : 0;
+      hit = isCrucible && (actuallyAttemptedThisExam >= requiredSundayAttempts) && (requiredSundayAttempts > 0);
     } else {
-      // 🎯 Mon-Sat: Sirf tab jab aaj ke din 100 questions poore attempt ho chuke hon
       hit = isRegular && (dailyPerf.total_questions_attempted >= 100);
     }
 
-    let shouldIncrementStreak = false;
     if (hit && !dailyPerf.is_century_hit) {
       dailyPerf.streak_count = (dailyPerf.streak_count || 0) + 1;
       dailyPerf.is_century_hit = true;
@@ -3623,13 +3673,33 @@ function renderScorecard() {
         sMsg.innerText = "✔ Progress & Metrics Synced Successfully"; 
       }
 
-      if (activeTest.id > 0 || (activeTest.id === -1 && isSunday())) {
+      if (activeTest.id > 0 || (activeTest.id === -1 && isSun)) {
         if (shouldIncrementStreak) {
           if (isSun) {
-            showAppNoticeModal("Sunday Crucible", "Crucible Conquered! 👑", "Weekly Backlog & Mastery session completed! Streak +1 secured.", "🎉", "View Dashboard");
+            showAppNoticeModal(
+              "Sunday Crucible",
+              "Crucible Milestone Met! 👑",
+              `Weekly Backlog cleared (${actuallyAttemptedThisExam}/${testQuestions.length} Qs attempted • Min target was ${requiredSundayAttempts}). Streak +1 secured!`,
+              "🎉",
+              "View Dashboard"
+            );
           } else {
-            showAppNoticeModal("Daily Milestone", "Baseline Target Hit! 🔥", "You completed your 100-Question Target for today! Streak +1 secured.", "🎉", "Keep Going");
+            showAppNoticeModal(
+              "Daily Milestone",
+              "Baseline Target Hit! 🔥",
+              "You completed your 100-Question Target for today! Streak +1 secured.",
+              "🎉",
+              "Keep Going"
+            );
           }
+        } else if (isSun && isCrucible && !dailyPerf.is_century_hit) {
+          showAppNoticeModal(
+            "Crucible Incomplete",
+            "Target Not Reached ⚠️",
+            `Aapne ${actuallyAttemptedThisExam} questions attempt kiye. Sunday streak ke liye kam se kam ${requiredSundayAttempts} questions attempt karna zaroori tha. Streak update nahi hui.`,
+            "⏳",
+            "Dismiss"
+          );
         }
 
         await supabaseClient.from("daily_performance").update({ 
@@ -3639,7 +3709,7 @@ function renderScorecard() {
         }).eq("id", dailyPerf.id);
 
         const tList = userPlaylists.find(p => p.playlist_name === 'Today');
-        if (tList) {
+        if (tList && hit) {
           await supabaseClient.from("playlist_items").delete().match({ 
             playlist_id: tList.id, 
             test_id: activeTest.id, 
