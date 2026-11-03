@@ -100,6 +100,7 @@ let lastBoosterFetchTime = 0;
 let isExitingApp = false;
 
 // 🔥 STATE FOR QUIZ & READ MODES
+let activePracticeMode = "read"; // 🚀 Formally declared active practice mode state
 let currentPracticeContext = null; // { type: 'test', id: 12 } ya { type: 'booster' } ya { type: 'mistake_bank' }
 let localQuizState = { answers: {}, starred: new Set(), isFinished: false, filter: "all" };
 let localReadState = { starred: new Set(), filter: "all" };
@@ -938,20 +939,6 @@ function start5PMEngine() {
 // ==========================================================================
 // 6. CUSTOM IN-APP MODALS (ALERT, CREATE, EDIT & DELETE PLAYLIST)
 // ==========================================================================
-
-// 🚀 REUSABLE MODAL DOM TOGGLE HELPER
-function toggleModalDOM(modalId, isOpen, displayType = "flex") {
-  const el = document.getElementById(modalId);
-  if (!el) return false;
-  if (isOpen) {
-    el.style.setProperty("display", displayType, "important");
-    el.style.pointerEvents = "auto";
-  } else {
-    el.style.setProperty("display", "none", "important");
-    el.style.pointerEvents = "none";
-  }
-  return true;
-}
 
 window.showAppNoticeModal = function(title, heading, message, icon = '🎯', actionText = 'Explore Library', actionCallback = null, secText = 'Dismiss', secCallback = null) {
   const modal = document.getElementById("appNoticeModal"); 
@@ -1865,9 +1852,7 @@ window.launchBoosterMode = async function(mode = 'exam') {
     }
 
     switchView("viewPractice", true);
-    if (mode === "read") renderReadMode();
-    else if (mode === "quiz") renderInteractiveQuizMode();
-    else { flashcardIndex = 0; renderFlashcardMode(); }
+    window.setPracticeMode(mode);
   }
 };
 
@@ -1989,25 +1974,32 @@ function getPlaylistAddBtnHtml(pId, pName) {
   return `<button type="button" class="btn-create-playlist-trigger" style="margin-top: 10px; grid-column: 1 / -1;" onclick="enableLibrarySelectionMode('${pId}', '${pName.replace(/'/g, "\\'")}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg><span>Add Sets to ${pName}</span></button>`;
 }
 
-// 🚀 SURGICAL STARRED CONTAINER RENDERER (TODAY CONTAINER REMAINS UNTOUCHED)
-function renderStarredPlaylistOnly() {
-  const starredContainer = document.getElementById("starredPlaylistContainer");
-  const badge = document.getElementById("starredCountPill");
-  const starredList = userPlaylists.find(p => p.playlist_name === 'Starred Sets');
-  if (!starredList || !starredContainer) return;
+// 🚀 ATOMIC SECONDARY PLAYLIST CONTAINER RENDERER (DRY ENGINE)
+function renderSecondaryPlaylistStream(playlistName, containerId, countPillId, cardId, emptyMessage, cachedScroll = 0) {
+  const container = document.getElementById(containerId);
+  const badge = document.getElementById(countPillId);
+  const playlist = userPlaylists.find(p => p.playlist_name === playlistName);
+  if (!playlist || !container) return;
 
-  const items = userPlaylistItems.filter(pi => pi.playlist_id === starredList.id);
-  const prevScroll = starredContainer.scrollTop;
-  starredContainer.innerHTML = (items.length > 0 
-    ? items.map(i => renderPlaylistSetTileHtml(i, 'Starred Sets')).join("") 
-    : `<div style="text-align:center; padding:18px; color:var(--text-muted); font-size:12.5px; font-weight:600; grid-column:1 / -1;">No starred sets yet. Click ☆ on any set to save here.</div>`
-  ) + getPlaylistAddBtnHtml(starredList.id, 'Starred Sets');
-  starredContainer.scrollTop = prevScroll;
+  const items = userPlaylistItems.filter(pi => pi.playlist_id === playlist.id);
+  const prevScroll = cachedScroll || container.scrollTop;
+
+  const setsHtml = items.length > 0
+    ? items.map(i => renderPlaylistSetTileHtml(i, playlistName)).join("")
+    : `<div style="text-align:center; padding:18px; color:var(--text-muted); font-size:12.5px; font-weight:600; grid-column:1 / -1;">${emptyMessage}</div>`;
+
+  container.innerHTML = setsHtml + getPlaylistAddBtnHtml(playlist.id, playlistName);
+  container.scrollTop = prevScroll;
 
   if (badge) badge.innerText = `${items.length} Sets ▼`;
 
-  const starredHeader = document.querySelector("#starredPlaylistCard .playlist-header");
-  if (starredHeader) starredHeader.onclick = () => window.toggleSecondaryPlaylist(starredHeader);
+  const header = document.querySelector(`#${cardId} .playlist-header`);
+  if (header) header.onclick = () => window.toggleSecondaryPlaylist(header);
+}
+
+// 🚀 SURGICAL STARRED CONTAINER RENDERER (NOW POWERED BY ATOMIC HELPER)
+function renderStarredPlaylistOnly() {
+  renderSecondaryPlaylistStream('Starred Sets', 'starredPlaylistContainer', 'starredCountPill', 'starredPlaylistCard', 'No starred sets yet. Click ☆ on any set to save here.');
 }
 
 // 🚀 MUTEX-LOCKED & ATOMIC ASSIGNMENT RENDERER (WITH SCROLL PRESERVATION & ZERO-OVERLAP)
@@ -2028,7 +2020,7 @@ async function renderHomePlaylists() {
 
     if (!todayContainer || !tomorrowContainer || !weekContainer) return;
 
-    // 🚀 CACHE SCROLL POSITIONS BEFORE WIPING TO PREVENT JUMPING
+    // 🚀 1. CACHE SCROLL POSITIONS BEFORE WIPING TO PREVENT JUMPING
     const todayScrollParent = todayContainer.closest('.playlist-sets-stream') || todayContainer;
     const scrollMap = {
       today: todayScrollParent.scrollTop,
@@ -2043,7 +2035,7 @@ async function renderHomePlaylists() {
     weekContainer.innerHTML = ""; 
     if (starredContainer) starredContainer.innerHTML = "";
 
-    // 🚀 1. COMPILE BOOSTER TILE HTML (Unified Grid Item #1)
+    // 🚀 2. COMPILE BOOSTER TILE HTML
     let boosterTileHtml = "";
     const isSun = isSunday();
     const todayStr = getLocalDateString();
@@ -2143,7 +2135,7 @@ async function renderHomePlaylists() {
       `;
     }
 
-    // 🚀 2. RENDER TODAY'S PAYLOAD DIRECTLY (Booster + Queue Sets into One Unified Flow)
+    // 🚀 3. RENDER TODAY'S PAYLOAD DIRECTLY
     let todayLoad = 0, tomorrowLoad = 0;
     const todayList = userPlaylists.find(p => p.playlist_name === 'Today'), 
           tomorrowList = userPlaylists.find(p => p.playlist_name === 'Tomorrow'), 
@@ -2167,51 +2159,30 @@ async function renderHomePlaylists() {
       if (pill) pill.innerText = `${items.length} Sets ▼`;
     }
 
+    // 🚀 4. ATOMIC SECONDARY PLAYLIST RENDERING VIA HELPER
     if (tomorrowList) {
       const items = userPlaylistItems.filter(pi => pi.playlist_id === tomorrowList.id);
       items.forEach(i => {
         const c = catalogData.find(x => String(x.test_id) === String(i.test_id));
         tomorrowLoad += c ? (c.total_questions || 10) : 10;
       });
-      tomorrowContainer.innerHTML = (items.length > 0 ? items.map(i => renderPlaylistSetTileHtml(i, 'Tomorrow')).join("") : `<div style="text-align:center; padding:18px; color:var(--text-muted); font-size:12.5px; font-weight:600; grid-column:1 / -1;">Queue is empty.</div>`) + getPlaylistAddBtnHtml(tomorrowList.id, 'Tomorrow');
-      tomorrowContainer.scrollTop = scrollMap.tomorrow;
-      const badge = document.getElementById("tomorrowCountPill"); 
-      if (badge) badge.innerText = `${items.length} Sets ▼`;
-      
-      const tomHeader = document.querySelector("#tomorrowPlaylistCard .playlist-header");
-      if (tomHeader) tomHeader.onclick = () => window.toggleSecondaryPlaylist(tomHeader);
+      renderSecondaryPlaylistStream('Tomorrow', 'tomorrowPlaylistContainer', 'tomorrowCountPill', 'tomorrowPlaylistCard', 'Queue is empty.', scrollMap.tomorrow);
     }
 
     if (weekList) {
-      const items = userPlaylistItems.filter(pi => pi.playlist_id === weekList.id);
-      weekContainer.innerHTML = (items.length > 0 ? items.map(i => renderPlaylistSetTileHtml(i, 'This Week')).join("") : `<div style="text-align:center; padding:18px; color:var(--text-muted); font-size:12.5px; font-weight:600; grid-column:1 / -1;">Backlog is empty.</div>`) + getPlaylistAddBtnHtml(weekList.id, 'This Week');
-      weekContainer.scrollTop = scrollMap.week;
-      const badge = document.getElementById("weekCountPill"); 
-      if (badge) badge.innerText = `${items.length} Sets ▼`;
-
-      const weekHeader = document.querySelector("#weekPlaylistCard .playlist-header");
-      if (weekHeader) weekHeader.onclick = () => window.toggleSecondaryPlaylist(weekHeader);
+      renderSecondaryPlaylistStream('This Week', 'weekPlaylistContainer', 'weekCountPill', 'weekPlaylistCard', 'Backlog is empty.', scrollMap.week);
     }
 
-    // ⭐ RENDER STARRED SETS CONTAINER
     if (starredList && starredContainer) {
-      const items = userPlaylistItems.filter(pi => pi.playlist_id === starredList.id);
-      starredContainer.innerHTML = (items.length > 0 ? items.map(i => renderPlaylistSetTileHtml(i, 'Starred Sets')).join("") : `<div style="text-align:center; padding:18px; color:var(--text-muted); font-size:12.5px; font-weight:600; grid-column:1 / -1;">No starred sets yet. Click ☆ on any set to save here.</div>`) + getPlaylistAddBtnHtml(starredList.id, 'Starred Sets');
-      starredContainer.scrollTop = scrollMap.starred;
-      const badge = document.getElementById("starredCountPill"); 
-      if (badge) badge.innerText = `${items.length} Sets ▼`;
-
-      const starredHeader = document.querySelector("#starredPlaylistCard .playlist-header");
-      if (starredHeader) starredHeader.onclick = () => window.toggleSecondaryPlaylist(starredHeader);
+      renderSecondaryPlaylistStream('Starred Sets', 'starredPlaylistContainer', 'starredCountPill', 'starredPlaylistCard', 'No starred sets yet. Click ☆ on any set to save here.', scrollMap.starred);
     }
     
-    // 🚀 ATOMIC BATCHED RENDER FOR CUSTOM PLAYLISTS
+    // 🚀 5. ATOMIC BATCHED RENDER FOR CUSTOM PLAYLISTS
     if (customContainer) {
       const customLists = userPlaylists.filter(p => !['Today', 'Tomorrow', 'This Week', 'Starred Sets'].includes(p.playlist_name));
-      let customHtml = "";
-      customLists.forEach(playlist => {
+      customContainer.innerHTML = customLists.map(playlist => {
         const items = userPlaylistItems.filter(pi => pi.playlist_id === playlist.id);
-        customHtml += `
+        return `
           <div class="mission-playlist-card collapsed playlist-accordion-card">
             <div class="playlist-header" onclick="window.toggleSecondaryPlaylist(this)">
               <div class="playlist-header-left"><h3 class="playlist-title">${playlist.playlist_name}</h3></div>
@@ -2226,16 +2197,15 @@ async function renderHomePlaylists() {
             </div>
           </div>
         `;
-      });
-      customContainer.innerHTML = customHtml;
+      }).join("");
     }
 
-    // 🎯 3. DECOUPLED CENTURY BAROMETER TELEMETRY (PURE UNIQUE ATTEMPTS & HONEST MASTERY)
+    // 🎯 6. DECOUPLED CENTURY BAROMETER TELEMETRY (PURE UNIQUE ATTEMPTS & HONEST MASTERY)
     const targetQ = 100;
     const actualAttemptedCount = dailyPerf.total_questions_attempted || 0;
     const todayAttempts = userAttemptHistory.filter(a => (a.attempt_date || "").split("T")[0] === todayStr && (Number(a.test_id) > 0 || (Number(a.test_id) === -1 && isSunday())));
     
-    // 🚀 Unique test_id ke hisab se best mastered count calculate karein (No Double Counting)
+    // Unique test_id ke hisab se best mastered count calculate karein (No Double Counting)
     const uniqueMasteredSets = new Map();
     todayAttempts.forEach(a => { 
       const tid = Number(a.test_id);
@@ -2269,12 +2239,12 @@ async function renderHomePlaylists() {
           meterText = document.getElementById("centuryLoadText");
     const trackElement = attFill?.parentElement || document.querySelector(".multi-tier-track") || document.querySelector(".century-progress-track");
 
-    // 1. Staging Fill Decoupled
+    // (A) Staging Fill Decoupled
     if (capFill) capFill.style.display = "none";
     if (attFill) attFill.style.width = attPct + "%"; 
     if (masFill) masFill.style.width = masPct + "%";
 
-    // 2. 🚀 Hyperdrive Physical Beam Activation (> 100 Qs)
+    // (B) 🚀 Hyperdrive Physical Beam Activation (> 100 Qs)
     const isOverdrive = !isSun && actualAttemptedCount > 100;
     if (trackElement) {
       trackElement.classList.toggle("hyperdrive-active-track", isOverdrive);
@@ -2291,7 +2261,7 @@ async function renderHomePlaylists() {
       }
     }
 
-    // 3. 🛰️ Honest Satellite Telemetry Updates
+    // (C) 🛰️ Honest Satellite Telemetry Updates
     if (meterText) {
       if (isSun) {
         meterText.innerText = dailyPerf.is_century_hit 
@@ -2311,7 +2281,9 @@ async function renderHomePlaylists() {
       }
     }
 
-    localStorage.setItem("tomorrow_load_" + currentCandidate.roll_number, tomorrowLoad);
+    if (currentCandidate?.roll_number) {
+      localStorage.setItem("tomorrow_load_" + currentCandidate.roll_number, tomorrowLoad);
+    }
   } finally {
     isRenderingPlaylists = false;
     if (pendingPlaylistRender) {
@@ -2693,6 +2665,32 @@ async function fetchWeakQuestions() {
   } catch (err) { 
     console.error("Mistake Bank Load Error:", err); 
   }
+}
+
+// 🚀 CENTRALIZED LEITNER MISTAKE TELEMETRY COMPILER
+function getSubjectMistakeTelemetry(subName) {
+  const activeClean = (subName || activeSubject || "").trim().toLowerCase();
+  const now = new Date();
+
+  const allMistakes = (userWeakQuestions || []).filter(q => 
+    (q.subject || "").trim().toLowerCase() === activeClean &&
+    (q.times_wrong || 0) > 0 && 
+    (q.mastery_streak || 0) < 4
+  );
+
+  const dueMistakes = allMistakes.filter(q => !q.next_review_at || new Date(q.next_review_at) <= now);
+  const clearedCount = (userWeakQuestions || []).filter(q => 
+    (q.subject || "").trim().toLowerCase() === activeClean &&
+    (q.mastery_streak || 0) >= 4
+  ).length;
+
+  const loopCount = allMistakes.filter(q => (q.mastery_streak || 0) > 0).length;
+  const freshCount = allMistakes.filter(q => (q.mastery_streak || 0) === 0).length;
+  const dueCount = dueMistakes.length;
+  const inReviewCount = allMistakes.length;
+  const durationMins = Math.max(3, Math.ceil((dueCount || inReviewCount) * 0.6));
+
+  return { allMistakes, dueMistakes, dueCount, inReviewCount, loopCount, freshCount, clearedCount, durationMins };
 }
 
 async function fetchTestCatalog() {
@@ -3158,25 +3156,18 @@ async function syncMistakeBank(payloads) {
 }
 
 window.launchSubjectMistakeMode = function(mode = 'quiz') {
-  const activeClean = (activeSubject || "").trim().toLowerCase();
-  const now = new Date();
-  const allMistakes = (userWeakQuestions || []).filter(q => 
-    (q.subject || "").trim().toLowerCase() === activeClean && 
-    (q.times_wrong || 0) > 0 && 
-    (q.mastery_streak || 0) < 4
-  );
-  const dueMistakes = allMistakes.filter(q => !q.next_review_at || new Date(q.next_review_at) <= now);
+  const telemetry = getSubjectMistakeTelemetry(activeSubject);
 
-  if (!allMistakes.length) {
+  if (!telemetry.allMistakes.length) {
     return showAppNoticeModal("Mistake Bank Cleared", "Zero Active Leaks! 🎉", `All flagged questions for ${activeSubject} have been mastered.`, "🏆", "Explore Sets");
   }
 
-  if (mode === 'exam' && !dueMistakes.length) {
+  if (mode === 'exam' && !telemetry.dueMistakes.length) {
     return showAppNoticeModal("Exam Mode Locked", "0 Due Today", "All due mistakes for today have already been attempted. You can use Flashcard, Quiz, or Read mode to practice anytime!", "🛡️", "Dismiss");
   }
 
   // 🚀 Exam drills only due questions. Practice/Quiz/Read/Flashcards allow drilling all pipeline questions anytime!
-  const targetList = (mode === 'exam') ? dueMistakes : allMistakes;
+  const targetList = (mode === 'exam') ? telemetry.dueMistakes : telemetry.allMistakes;
 
   let qList = targetList.map((item, i) => {
     const qData = item.question_data || {};
@@ -3243,9 +3234,7 @@ window.launchSubjectMistakeMode = function(mode = 'quiz') {
     }
 
     switchView("viewPractice", true);
-    if (mode === "read") renderReadMode();
-    else if (mode === "quiz") renderInteractiveQuizMode();
-    else { flashcardIndex = 0; renderFlashcardMode(); }
+    window.setPracticeMode(mode);
   }
 };
 
@@ -4354,9 +4343,7 @@ window.launchPracticeMode = async function(testId, mode) {
       subEl.innerText = `${subjName} • ${qCount} Questions`;
     }
 
-    if (mode === "read") renderReadMode(); 
-    else if (mode === "quiz") renderInteractiveQuizMode(); 
-    else { flashcardIndex = 0; renderFlashcardMode(); }
+    window.setPracticeMode(mode);
 
   } catch (err) {
     if (container) {
@@ -4707,17 +4694,6 @@ window.triggerQuizRetake = function() {
   }, 160);
 };
 
-function executeQuizRestart() {
-  if (!practiceQuestions || !practiceQuestions.length) return;
-  localQuizState = { answers: {}, starred: new Set(), isFinished: false, filter: "all" };
-  if (isShuffleEnabled) {
-    practiceQuestions = shuffleArray(practiceQuestions);
-  }
-  practiceQuestions.forEach((q, idx) => { q.qNum = idx + 1; });
-  renderQuizUI();
-  scrollToTopOfPractice();
-}
-
 window.filterQuizReview = function(t) { 
   localQuizState.filter = t; 
   renderQuizUI(); 
@@ -4862,13 +4838,6 @@ window.handleFlashcardGrading = async function(isMastered) {
   renderFlashcardCardDOM();
 };
 
-window.resetFlashcardDeck = function() {
-  flashcardDeck = [...practiceQuestions];
-  flashcardOriginalCount = practiceQuestions.length;
-  flashcardMasteredCount = 0;
-  renderFlashcardCardDOM();
-};
-
 // ⌨️ SINGLE-KEY PC PRODUCTIVITY FLOW
 function setupFlashcardKeyboardShortcuts() {
   if (isFlashcardListenerActive) return;
@@ -4962,28 +4931,59 @@ function updatePracticeModeHeader(titleText, modeKey) {
   }
 }
 
-function renderReadMode() {
-  updatePracticeModeHeader("Read Mode", "read");
-  localReadState = { starred: new Set(), filter: "all" }; 
-  renderReadUI();
-}
+// 🎛️ CENTRALIZED PRACTICE MODE DISPATCHER (ZERO-LEAK RUNTIME)
+window.setPracticeMode = function(modeKey) {
+  const targetMode = (modeKey || "read").toLowerCase();
+  activePracticeMode = targetMode;
 
-function renderInteractiveQuizMode() {
-  updatePracticeModeHeader("Instant Quiz", "quiz"); 
-  localQuizState = { answers: {}, starred: new Set(), isFinished: false, filter: "all" }; 
-  renderQuizUI(); 
-}
+  const modeTitles = {
+    read: "Read Mode",
+    quiz: "Instant Quiz",
+    flashcards: "Flashcards"
+  };
 
-function renderFlashcardMode() {
-  updatePracticeModeHeader("Flashcards", "flashcards");
+  // 1. Header Icon, Title & Dock Visibility Sync
+  updatePracticeModeHeader(modeTitles[targetMode] || "Practice", targetMode);
+
+  // 2. Clean State Teardown & Mode-Specific Mount
+  if (targetMode === "read") {
+    localReadState = { starred: new Set(), filter: "all" };
+    renderReadUI();
+  } else if (targetMode === "quiz") {
+    localQuizState = { answers: {}, starred: new Set(), isFinished: false, filter: "all" };
+    renderQuizUI();
+  } else if (targetMode === "flashcards") {
+    flashcardDeck = [...practiceQuestions];
+    flashcardOriginalCount = practiceQuestions.length;
+    flashcardMasteredCount = 0;
+    flashcardIndex = 0;
+    isFlashcardFlipped = false;
+    setupFlashcardKeyboardShortcuts();
+    renderFlashcardCardDOM();
+  }
+
+  // 3. Smooth Top Alignment
+  scrollToTopOfPractice();
+};
+
+// 🔒 100% Backward-Compatible Wrappers
+function renderReadMode() { window.setPracticeMode("read"); }
+function renderInteractiveQuizMode() { window.setPracticeMode("quiz"); }
+function renderFlashcardMode() { window.setPracticeMode("flashcards"); }
+
+// 🔄 Flashcard Reset with Face Alignment
+window.resetFlashcardDeck = function() {
   flashcardDeck = [...practiceQuestions];
   flashcardOriginalCount = practiceQuestions.length;
   flashcardMasteredCount = 0;
   isFlashcardFlipped = false;
-  setupFlashcardKeyboardShortcuts();
   renderFlashcardCardDOM();
-}
+};
 
+// 🔒 Alias for Legacy Quiz Restart
+window.executeQuizRestart = window.triggerQuizRetake;
+
+// 🎛️ MODAL POPUP CONTROLLERS (ONLY ONCE)
 window.openPracticeModeSwitcher = function() {
   const sheet = document.getElementById("practiceModeSwitcherSheet");
   const overlay = document.getElementById("practiceModeSwitcherOverlay");
@@ -4992,7 +4992,6 @@ window.openPracticeModeSwitcher = function() {
 
   if (shuffleToggle) shuffleToggle.checked = isShuffleEnabled;
 
-  // Active state highlight
   ['read', 'quiz', 'flashcards'].forEach(m => {
     const btn = document.getElementById(`modeBtn_${m}`);
     if (btn) btn.classList.toggle("active-mode", m === activePracticeMode);
@@ -5013,10 +5012,11 @@ window.closePracticeModeSwitcher = function() {
   }
 };
 
+// 🎛️ SINGLE CENTRAL DISPATCH SWITCHER
 window.switchActivePracticeMode = function(targetMode) {
   closePracticeModeSwitcher();
 
-  // 🚀 1. EXAM MODE SPEEDBUMP CONFIRMATION (ONE-WAY PROTECTION)
+  // 1. Exam Mode Speedbump
   if (targetMode === "exam") {
     showAppNoticeModal(
       "Official Examination",
@@ -5032,7 +5032,7 @@ window.switchActivePracticeMode = function(targetMode) {
 
   if (targetMode === activePracticeMode || !practiceQuestions || !practiceQuestions.length) return;
 
-  // 2. Check Shuffle Preference
+  // 2. Shuffle Setting Check
   const shuffleToggle = document.getElementById("togglePracticeSwitchShuffle");
   if (shuffleToggle) isShuffleEnabled = shuffleToggle.checked;
 
@@ -5041,21 +5041,10 @@ window.switchActivePracticeMode = function(targetMode) {
   }
   practiceQuestions.forEach((q, idx) => { q.qNum = idx + 1; });
 
-  // 3. Switch between learning modes
-  if (targetMode === "read") {
-    renderReadMode();
-  } else if (targetMode === "quiz") {
-    renderInteractiveQuizMode();
-  } else if (targetMode === "flashcards") {
-    flashcardDeck = [];
-    flashcardOriginalCount = practiceQuestions.length;
-    flashcardMasteredCount = 0;
-    flashcardIndex = 0;
-    renderFlashcardMode();
-  }
-
-  scrollToTopOfPractice();
+  // 3. Dispatch
+  window.setPracticeMode(targetMode);
 };
+
 
 // 🚀 UNIVERSAL QUESTION CARD BUILDER (ZERO-REDUNDANCY & REVIEW-SAFE)
 function buildQuestionCardDOM(q, idx, mode, stateObj, isMB = false) {
