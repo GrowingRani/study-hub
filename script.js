@@ -142,10 +142,6 @@ function mountExamSession(testMeta, questionsList, sectionName = "General") {
 function getLocalDateString(d = new Date()) {
   return new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split("T")[0];
 }
-// 🚀 SYNCHRONOUS LOCAL CALENDAR DATE HELPER (AVOIDS MIDNIGHT TIMEZONE DRIFT)
-function getLocalDateString(d = new Date()) {
-  return new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split("T")[0];
-}
 
 // 🎯 UNIVERSAL ATTEMPT DATE RESOLVER (CONVERTS UTC TO CANDIDATE LOCAL DATE)
 function getAttemptLocalDate(dateVal) {
@@ -1355,7 +1351,7 @@ window.openMissionBriefingModal = async function(testId, bypassSundayCheck = fal
   if (testId === -1) {
     // 🚀 TODAY'S PAYLOAD BOOSTER / SUNDAY CRUCIBLE EXAM
     const todayStr = getLocalDateString();
-    const isBoosterAttempted = userAttemptHistory.some(a => Number(a.test_id) === -1 && (a.attempt_date || "").split("T")[0] === todayStr);
+    const isBoosterAttempted = userAttemptHistory.some(a => Number(a.test_id) === -1 && getAttemptLocalDate(a.attempt_date) === todayStr);
     const poolLimit = isSun ? 100 : 25;
     const boosterQuestions = await compileMasteryBoosterPool(poolLimit, false, isBoosterAttempted);
     const qCount = boosterQuestions.length;
@@ -1955,7 +1951,7 @@ async function compileMasteryBoosterPool(maxLimit = 25, forceRefresh = false, al
 window.launchBoosterMode = async function(mode = 'exam') {
   const isSun = isSunday();
   const todayStr = getLocalDateString();
-  const isBoosterAttempted = userAttemptHistory.some(a => Number(a.test_id) === -1 && (a.attempt_date || "").split("T")[0] === todayStr);
+  const isBoosterAttempted = userAttemptHistory.some(a => Number(a.test_id) === -1 && getAttemptLocalDate(a.attempt_date) === todayStr);
 
   if (mode === 'exam' && isBoosterAttempted) {
     return showAppNoticeModal(
@@ -2195,7 +2191,7 @@ async function renderHomePlaylists() {
     let boosterTileHtml = "";
     const isSun = isSunday();
     const todayStr = getLocalDateString();
-    const boosterAttemptedToday = userAttemptHistory.some(a => Number(a.test_id) === -1 && (a.attempt_date || "").split("T")[0] === todayStr);
+    const boosterAttemptedToday = userAttemptHistory.some(a => Number(a.test_id) === -1 && getAttemptLocalDate(a.attempt_date) === todayStr);
     const boosterLimit = isSun ? 100 : 25;
     const boosterQuestions = await compileMasteryBoosterPool(boosterLimit, false, boosterAttemptedToday);
     const qCount = boosterQuestions.length;
@@ -2835,8 +2831,11 @@ function getSubjectMistakeTelemetry(subName) {
   );
 
   const dueMistakes = allMistakes.filter(q => !q.next_review_at || new Date(q.next_review_at) <= now);
+  
+  // 🎯 FIX: (q.times_wrong || 0) > 0 check add kiya taaki analytics aur vault tally karein
   const clearedCount = (userWeakQuestions || []).filter(q => 
     (q.subject || "").trim().toLowerCase() === activeClean &&
+    (q.times_wrong || 0) > 0 &&
     (q.mastery_streak || 0) >= 4
   ).length;
 
@@ -3283,27 +3282,30 @@ async function syncMistakeBank(payloads) {
         // 🎯 1. TIME GATEKEEPER: Check if card was due today
         const isDue = !ex.next_review_at || new Date(ex.next_review_at) <= now;
         let nStreak = ex.mastery_streak || 0;
-        let nRev = ex.next_review_at ? new Date(ex.next_review_at) : new Date();
+        let nRevIso = ex.next_review_at;
 
         if (p.isCorrect) {
           if (isDue) {
             // Sahi attempt + Due date reached = Advance Streak
             nStreak = Math.min(4, nStreak + 1);
-            nRev = new Date();
+            let nRev = new Date();
             if (nStreak < 4) {
               nRev.setDate(nRev.getDate() + REVIEW_INTERVALS_DAYS[nStreak - 1]);
-              nRev.setHours(0, 0, 0, 0); // ⏰ Midnight anchor (Available all day)
+              nRev.setHours(0, 0, 0, 0); // ⏰ Midnight anchor (Din me kisi bhi waqt attempt ho sake)
+              nRevIso = nRev.toISOString();
             } else {
               nRev.setFullYear(nRev.getFullYear() + 100); // 🏆 Permanently Mastered
+              nRevIso = nRev.toISOString();
             }
           }
-          // Agar Due nahi tha aur sahi kiya: Streak & Date frozen (No cheat advance)
+          // Agar Due nahi tha aur exam me sahi hua: Streak aur next_review_at freeze rahenge
         } else {
           // ❌ Galti hui: Reset to Streak 0, Due Tomorrow Midnight
           nStreak = 0;
-          nRev = new Date();
+          let nRev = new Date();
           nRev.setDate(nRev.getDate() + 1);
           nRev.setHours(0, 0, 0, 0); // ⏰ Kal subah se available
+          nRevIso = nRev.toISOString();
         }
 
         updates.push(supabaseClient.from("student_question_stats").update({ 
@@ -3311,7 +3313,7 @@ async function syncMistakeBank(payloads) {
           times_wrong: p.isCorrect ? ex.times_wrong : (ex.times_wrong || 0) + 1, 
           times_correct: p.isCorrect ? (ex.times_correct || 0) + 1 : ex.times_correct, 
           mastery_streak: nStreak, 
-          next_review_at: nRev.toISOString(), 
+          next_review_at: nRevIso, 
           last_attempt_date: nowIso, 
           question_data: p.question_data 
         }).eq("id", ex.id));
@@ -3348,6 +3350,7 @@ async function syncMistakeBank(payloads) {
     console.error("Mistake Bank Sync Error:", e); 
   }
 }
+
 
 window.launchSubjectMistakeMode = function(mode = 'quiz') {
   const telemetry = getSubjectMistakeTelemetry(activeSubject);
@@ -4231,7 +4234,7 @@ function renderDomainCompetencyMatrix(matrixData) {
   }
 }
 
-// 🚀 8.4: MISTAKE FUNNEL & NEGATIVE BLEED AUDITOR RENDERER
+// 🚀 8.4: MISTAKE FUNNEL & NEGATIVE BLEED AUDITOR RENDERER (RESPONSIVE & AUTO-SCALING)
 function renderAuditAndRetentionEngines(totals) {
   const { nCorr, nIncorr, totalQ } = totals;
 
@@ -4266,15 +4269,25 @@ function renderAuditAndRetentionEngines(totals) {
   const fNote = document.getElementById("funnelFooterNote");
   if (fNote) {
     if (totalMistakes === 0) {
-      fNote.innerHTML = `🛡️ <strong style="color:var(--success-dark);">Clean Slate:</strong> No mistakes logged. All attempted questions answered accurately!`;
+      fNote.style.borderLeftColor = "var(--success)";
+      fNote.innerHTML = `🛡️ <strong style="color:var(--success-dark);">Clean Slate:</strong> Zero mistakes logged. All questions attempted accurately!`;
     } else if (recoveryRate >= 75) {
-      fNote.innerHTML = `🏆 <strong style="color:var(--success-dark);">Exceptional Retention:</strong> ${masteredMistakes} of ${totalMistakes} mistakes permanently mastered. Spaced repetition loop is operating at peak efficiency.`;
+      fNote.style.borderLeftColor = "var(--success)";
+      fNote.innerHTML = `🏆 <strong style="color:var(--success-dark);">Exceptional Retention:</strong> ${masteredMistakes} of ${totalMistakes} mistakes permanently mastered into long-term recall.`;
     } else if (loopMistakes > 0) {
-      fNote.innerHTML = `⚡ <strong style="color:var(--tcs-blue-accent);">${loopMistakes} questions</strong> currently advancing through the review cycle. Clear upcoming Mastery Booster sets to lock them into Streak 4.`;
+      fNote.style.borderLeftColor = "var(--warning)";
+      fNote.innerHTML = `⚡ <strong style="color:var(--warning-dark);">${loopMistakes} questions</strong> advancing through the review loop. Clear upcoming Mastery Booster sets to lock them into Streak 4.`;
     } else {
-      fNote.innerHTML = `⚠️ <strong style="color:var(--warning-dark);">${unaddressedMistakes} fresh errors</strong> awaiting first review. Launch Mistake Bank or Daily Booster to start the recovery cycle.`;
+      fNote.style.borderLeftColor = "var(--danger)";
+      fNote.innerHTML = `⚠️ <strong style="color:var(--danger-dark);">${unaddressedMistakes} fresh errors</strong> awaiting first review. Launch Mistake Bank or Daily Booster to start the recovery cycle.`;
     }
   }
+
+  // 🎯 SMART COMPACT FORMATTER (Trims trailing .00 on integers to prevent layout breaks at 10,000+ marks)
+  const formatScore = (val) => {
+    const num = Number(val);
+    return Number.isInteger(num) ? num.toString() : num.toFixed(2);
+  };
 
   // 2. Negative Bleed Auditor Engine
   const grossEarned = nCorr * 2.00;
@@ -4284,35 +4297,80 @@ function renderAuditAndRetentionEngines(totals) {
   const bleedPercentage = grossEarned > 0 ? ((penaltyBleed / grossEarned) * 100).toFixed(1) : "0.0";
 
   const bBadge = document.getElementById("bleedRatioBadge");
-  if (bBadge) bBadge.innerText = `-${penaltyBleed.toFixed(2)} MARKS LOST`;
+  if (bBadge) bBadge.innerText = `-${formatScore(penaltyBleed)} MARKS LOST`;
 
   const bGrossVal = document.getElementById("bleedGrossVal");
-  if (bGrossVal) bGrossVal.innerText = `+${grossEarned.toFixed(2)}`;
+  if (bGrossVal) bGrossVal.innerText = `+${formatScore(grossEarned)}`;
   const bGrossSub = document.getElementById("bleedGrossSub");
-  if (bGrossSub) bGrossSub.innerText = `${nCorr} Correct (+2.00)`;
+  if (bGrossSub) bGrossSub.innerHTML = `<span>${nCorr} ✓</span> <small>(+2)</small>`;
 
   const bPenVal = document.getElementById("bleedPenaltyVal");
-  if (bPenVal) bPenVal.innerText = `-${penaltyBleed.toFixed(2)}`;
+  if (bPenVal) bPenVal.innerText = `-${formatScore(penaltyBleed)}`;
   const bPenSub = document.getElementById("bleedPenaltySub");
-  if (bPenSub) bPenSub.innerText = `${nIncorr} Wrong (-0.50)`;
+  if (bPenSub) bPenSub.innerHTML = `<span>${nIncorr} ✗</span> <small>(-0.5)</small>`;
 
   const bNetVal = document.getElementById("bleedNetVal");
-  if (bNetVal) bNetVal.innerText = `${netRealized.toFixed(2)}`;
+  if (bNetVal) bNetVal.innerText = `${formatScore(netRealized)}`;
   const bNetSub = document.getElementById("bleedNetSub");
   if (bNetSub) bNetSub.innerText = `${scoreEfficiency}% Retained`;
 
+  // 🎯 STRUCTURED EXECUTIVE VERDICT CARD (REPLACES PLAIN UNSTYLED TEXT)
   const bNote = document.getElementById("bleedFooterNote");
   if (bNote) {
     if (totalQ === 0) {
-      bNote.innerHTML = `🛡️ <strong>Zero Telemetry:</strong> Attempt mock sets to evaluate guesswork penalties and score retention.`;
+      bNote.className = "bleed-verdict-card verdict-neutral";
+      bNote.innerHTML = `
+        <div class="verdict-header">
+          <span class="verdict-status-pill pill-neutral">🛡️ ZERO TELEMETRY</span>
+        </div>
+        <div class="verdict-body">
+          Attempt mock test sets to evaluate guesswork penalties and score retention efficiency.
+        </div>
+      `;
     } else if (penaltyBleed === 0) {
-      bNote.innerHTML = `🎯 <strong style="color:var(--success-dark);">Sniper Precision (100% Efficiency):</strong> Zero negative marking deductions. Every question attempted was correct!`;
+      bNote.className = "bleed-verdict-card verdict-success";
+      bNote.innerHTML = `
+        <div class="verdict-header">
+          <span class="verdict-status-pill pill-success">🎯 SNIPER PRECISION (100%)</span>
+          <span class="verdict-metric-pill pill-metric-success">0.0% BLEED</span>
+        </div>
+        <div class="verdict-body">
+          <strong>Flawless Accuracy:</strong> Zero negative marking deductions. Every question attempted was answered correctly!
+        </div>
+      `;
     } else if (parseFloat(bleedPercentage) > 20) {
-      bNote.innerHTML = `⚠️ <strong style="color:var(--danger-dark);">${bleedPercentage}% Score Bleed:</strong> You forfeited <strong style="color:var(--danger-dark);">${penaltyBleed.toFixed(2)} marks</strong> to incorrect attempts (${nIncorr} wrong). Avoiding wild guesses will immediately lift your net cutoff.`;
+      bNote.className = "bleed-verdict-card verdict-danger";
+      bNote.innerHTML = `
+        <div class="verdict-header">
+          <span class="verdict-status-pill pill-danger">⚠️ HIGH PENALTY BLEED (${bleedPercentage}%)</span>
+          <span class="verdict-metric-pill pill-metric-danger">-${formatScore(penaltyBleed)} MARKS</span>
+        </div>
+        <div class="verdict-body">
+          You forfeited <strong style="color:var(--danger-dark);">${formatScore(penaltyBleed)} marks</strong> to incorrect attempts (${nIncorr} wrong). Eliminating wild guesses will immediately lift your net cutoff.
+        </div>
+      `;
     } else if (parseFloat(bleedPercentage) > 10) {
-      bNote.innerHTML = `⚡ <strong style="color:var(--warning-dark);">${bleedPercentage}% Controlled Bleed:</strong> Moderately disciplined testing with <strong style="color:var(--warning-dark);">${penaltyBleed.toFixed(2)} marks</strong> lost. Practice skipping 50/50 doubts when unconfident.`;
+      bNote.className = "bleed-verdict-card verdict-warning";
+      bNote.innerHTML = `
+        <div class="verdict-header">
+          <span class="verdict-status-pill pill-warning">⚡ CONTROLLED BLEED (${bleedPercentage}%)</span>
+          <span class="verdict-metric-pill pill-metric-warning">-${formatScore(penaltyBleed)} MARKS</span>
+        </div>
+        <div class="verdict-body">
+          Moderately disciplined testing with <strong style="color:var(--warning-dark);">${formatScore(penaltyBleed)} marks</strong> lost. Practice skipping 50/50 doubts when unconfident.
+        </div>
+      `;
     } else {
-      bNote.innerHTML = `🏆 <strong style="color:var(--success-dark);">${scoreEfficiency}% High Efficiency:</strong> Outstanding exam discipline. Minimal guesswork penalty (<strong style="color:var(--success-dark);">${bleedPercentage}% bleed</strong>). Examination-ready accuracy.`;
+      bNote.className = "bleed-verdict-card verdict-success";
+      bNote.innerHTML = `
+        <div class="verdict-header">
+          <span class="verdict-status-pill pill-success">🏆 ${scoreEfficiency}% HIGH EFFICIENCY</span>
+          <span class="verdict-metric-pill pill-metric-success">${bleedPercentage}% BLEED</span>
+        </div>
+        <div class="verdict-body">
+          <strong>Outstanding Exam Discipline:</strong> Minimal guesswork penalty (<strong style="color:var(--success-dark);">${bleedPercentage}% bleed</strong>). Examination-ready accuracy.
+        </div>
+      `;
     }
   }
 }
@@ -5147,23 +5205,14 @@ window.toggleFlashcard3DFlip = function() {
   card.classList.toggle("is-flipped", isFlashcardFlipped);
 };
 
-// 🎯 LEITNER IN-SESSION MICRO-LOOP ALGORITHM
+// 🎯 UPDATED: FLASHCARD PRACTICE DOES NOT TOUCH MISTAKE BANK DATABASE
 window.handleFlashcardGrading = async function(isMastered) {
   if (!flashcardDeck.length) return;
   const currentQ = flashcardDeck.shift(); // Remove from front
 
   if (isMastered) {
     flashcardMasteredCount++;
-    // Optional Mistake Bank Sync if question had stats
-    if (currentCandidate && currentQ.id) {
-      syncMistakeBank([{
-        student_roll: currentCandidate.roll_number,
-        subject: activeSubject || "General",
-        question_id: currentQ.id,
-        question_data: currentQ,
-        isCorrect: true
-      }]);
-    }
+    // Database sync yahan se poori tarah hata diya gaya hai
   } else {
     // 🚀 ZERO-LEAK RE-QUEUE: Insert exactly 3 cards deeper in the current deck
     const reinsertIndex = Math.min(flashcardDeck.length, 3);
@@ -5549,7 +5598,6 @@ function buildQuestionCardDOM(q, idx, mode, stateObj, isMB = false) {
         const exp = document.getElementById(`quizExp_${idx}`);
         if (exp) exp.style.display = "block";
 
-        if (isMB && currentCandidate) await syncMistakeBank([{ student_roll: currentCandidate.roll_number, subject: activeSubject || "General", question_id: q.id, question_data: q, isCorrect: isC }]);
       };
     });
   }
