@@ -4028,11 +4028,23 @@ function renderAnalyticsTopStats(telemetry) {
   drawSparkline("sparkSpeed", speedTrends.slice(-10), "var(--success)");
 }
 
-// 🚀 8.2: 4-TIER WEEKLY CONSISTENCY & FOCUS TRACK RENDERER
 function renderWeeklyConsistencyTrack(context) {
-  const { attMap, past7, todayStr, todayMins, todayMasteredCount, dailyQuestionsMap } = context;
+  const { attMap, past7, todayStr, todayMins, todayMasteredCount, dailyQuestionsMap, todayStats = {} } = context;
   const extra = document.getElementById("extraAnalyticsSummary");
   if (!extra) return;
+
+  const {
+    todayCorr = 0,
+    todayIncorr = 0,
+    todayQAttempted = 0,
+    todayGross = 0,
+    todayBleed = 0,
+    todayNet = 0,
+    todayAcc = 0,
+    todayAvgPace = 0,
+    todayPromoted = 0,
+    todayFreshErrors = 0
+  } = todayStats;
 
   const dots = past7.slice().reverse().map(d => {
     const mins = attMap[d] || 0;
@@ -4047,14 +4059,18 @@ function renderWeeklyConsistencyTrack(context) {
     const isToday = (d === todayStr);
     const isSundayCentury = isToday && isSunday() && dailyPerf?.is_century_hit;
 
-    if (qCount > 100) {
+    if (qCount >= 300) {
+      nodeClass = "node-tier-crown";
+      nodeIcon = "👑";
+      hoverTitle = `${dateFormatted}: Apex Crucible Conquered (${qCount} Qs • ${Math.floor(mins / 60)}h ${mins % 60}m)`;
+    } else if (qCount >= 200) {
       nodeClass = "node-tier-overdrive";
       nodeIcon = "★";
-      hoverTitle = `${dateFormatted}: Overdrive Century Conquered (${qCount} Qs • ${Math.floor(mins / 60)}h ${mins % 60}m)`;
-    } else if (qCount === 100 || isSundayCentury) {
+      hoverTitle = `${dateFormatted}: Double Century Overdrive (${qCount} Qs • ${Math.floor(mins / 60)}h ${mins % 60}m)`;
+    } else if (qCount >= 100 || isSundayCentury) {
       nodeClass = "node-tier-century";
       nodeIcon = "✓";
-      hoverTitle = `${dateFormatted}: Daily Milestone Met (${qCount} Qs • ${Math.floor(mins / 60)}h ${mins % 60}m)`;
+      hoverTitle = `${dateFormatted}: Daily Milestone Secured (${qCount} Qs • ${Math.floor(mins / 60)}h ${mins % 60}m)`;
     } else if (mins > 0 || qCount > 0) {
       nodeClass = "node-tier-presence";
       nodeIcon = "✓";
@@ -4072,30 +4088,82 @@ function renderWeeklyConsistencyTrack(context) {
   let last7Mins = 0;
   past7.forEach(d => { last7Mins += (attMap[d] || 0); });
 
+  let todayVerdictHtml = "";
+  if (todayQAttempted === 0 && todayMins === 0) {
+    todayVerdictHtml = `
+      <div class="today-tactical-footer">
+        <span>🎯 <strong>Ready for Action:</strong> No tests attempted today. Launch today's payload to start tracking daily output!</span>
+      </div>
+    `;
+  } else if (todayBleed === 0 && todayCorr > 0) {
+    todayVerdictHtml = `
+      <div class="today-tactical-footer verdict-green">
+        <span>🏆 <strong>Flawless Precision:</strong> Zero negative penalties today! 100% score retention across attempted sets.</span>
+      </div>
+    `;
+  } else if (todayGross > 0 && (todayBleed / todayGross) > 0.20) {
+    todayVerdictHtml = `
+      <div class="today-tactical-footer verdict-red">
+        <span>⚠️ <strong>Penalty Warning:</strong> Negative bleed (-${todayBleed.toFixed(1)}) is taking over 20% of today's earnings. Curtail 50/50 doubts.</span>
+      </div>
+    `;
+  } else {
+    todayVerdictHtml = `
+      <div class="today-tactical-footer verdict-blue">
+        <span>⚡ <strong>Disciplined Scoring:</strong> +${todayNet.toFixed(1)} net marks realized with ${todayAcc}% strike-rate.</span>
+      </div>
+    `;
+  }
+
+  const formatNetVal = todayNet > 0 ? `+${todayNet.toFixed(1)}` : (todayNet < 0 ? `${todayNet.toFixed(1)}` : `0.0`);
+  const netColorStyle = todayNet > 0 ? "color:var(--success-dark);" : (todayNet < 0 ? "color:var(--danger-dark);" : "color:var(--text-main);");
+  const accColorStyle = todayAcc >= 80 ? "color:var(--success-dark);" : (todayAcc >= 60 ? "color:var(--warning-dark);" : "color:var(--danger-dark);");
+
   extra.innerHTML = `
-    <div class="profile-section-card" style="padding:16px; border-left:4px solid var(--success);">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-        <h4 style="font-size:13.5px; font-weight:700; color:var(--tcs-blue-header); margin:0;">🎯 Today's Focus & Output</h4>
-        <span style="font-size:10px; font-weight:800; background:var(--success-bg-subtle); color:var(--success-dark); padding:2px 8px; border-radius:12px;">ACTIVE SESSION</span>
+    <div class="profile-section-card" style="padding:14px 16px; border-left:4px solid var(--success); display:flex; flex-direction:column; justify-content:space-between;">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h4 style="font-size:13.5px; font-weight:800; color:var(--tcs-blue-header); margin:0;">🎯 Today's Tactical Balance Sheet</h4>
+        <span style="font-size:10px; font-weight:800; background:var(--success-bg-subtle); color:var(--success-dark); padding:2px 8px; border-radius:12px; font-family:var(--font-mono);">
+          ${todayQAttempted > 0 ? `${todayQAttempted} Qs Evaluated` : 'ACTIVE SESSION'}
+        </span>
       </div>
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px;">
-        <div style="background:var(--bg-primary); padding:10px; border-radius:6px; border:1px solid var(--border-color);">
-          <span style="font-size:11px; color:var(--text-muted); font-weight:600; display:block;">Time Invested</span>
-          <strong style="font-size:16px; color:var(--success-dark); font-family:var(--font-mono);">${Math.floor(todayMins / 60)}h ${todayMins % 60}m</strong>
+
+      <div class="today-bento-grid">
+        <div class="today-bento-cell">
+          <span class="today-bento-label">Net Realized P&L</span>
+          <strong class="today-bento-value" style="${netColorStyle}">${formatNetVal}</strong>
+          <span class="today-bento-sub">+${todayGross.toFixed(1)} Earned • -${todayBleed.toFixed(1)} Bleed</span>
         </div>
-        <div style="background:var(--bg-primary); padding:10px; border-radius:6px; border:1px solid var(--border-color);">
-          <span style="font-size:11px; color:var(--text-muted); font-weight:600; display:block;">Mastered Today (100%)</span>
-          <strong style="font-size:16px; color:var(--success-dark); font-family:var(--font-mono);">${todayMasteredCount} Sets</strong>
+
+        <div class="today-bento-cell">
+          <span class="today-bento-label">Daily Strike-Rate</span>
+          <strong class="today-bento-value" style="${accColorStyle}">${todayAcc}%</strong>
+          <span class="today-bento-sub">${todayCorr} Correct • ${todayIncorr} Wrong</span>
+        </div>
+
+        <div class="today-bento-cell">
+          <span class="today-bento-label">Vault Recovery Delta</span>
+          <strong class="today-bento-value" style="color:var(--success-dark);">${todayPromoted > 0 ? `+${todayPromoted}` : '0'} Promoted</strong>
+          <span class="today-bento-sub">vs ${todayFreshErrors} New Leaks Flagged</span>
+        </div>
+
+        <div class="today-bento-cell">
+          <span class="today-bento-label">Time & Solving Pace</span>
+          <strong class="today-bento-value" style="color:var(--tcs-blue-accent);">${todayMins >= 60 ? `${Math.floor(todayMins / 60)}h ${todayMins % 60}m` : `${todayMins}m`}</strong>
+          <span class="today-bento-sub">${todayMasteredCount} Mastered Sets • ${todayAvgPace > 0 ? `Avg ${todayAvgPace}s/Q` : '--'}</span>
         </div>
       </div>
+
+      ${todayVerdictHtml}
     </div>
-    <div class="profile-section-card" style="padding:16px; border-left:4px solid var(--tcs-blue-accent);">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-        <h4 style="font-size:13.5px; font-weight:700; color:var(--tcs-blue-header); margin:0;">📊 Weekly Consistency Track</h4>
+
+    <div class="profile-section-card" style="padding:14px 16px; border-left:4px solid var(--tcs-blue-accent); display:flex; flex-direction:column; justify-content:space-between;">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h4 style="font-size:13.5px; font-weight:800; color:var(--tcs-blue-header); margin:0;">📊 Weekly Consistency Track</h4>
         <span style="font-size:11px; font-weight:700; color:var(--tcs-blue-accent); font-family:var(--font-mono);">${Object.keys(attMap).filter(d => past7.includes(d)).length} / 7 Days Active</span>
       </div>
       <div class="weekly-track-container">${dots}</div>
-      <div style="display:flex; justify-content:space-between; font-size:11.5px; color:var(--text-muted); margin-top:4px;">
+      <div style="display:flex; justify-content:space-between; font-size:11.5px; color:var(--text-muted); margin-top:auto;">
         <span>Total: <strong style="color:var(--tcs-blue-accent); font-family:var(--font-mono);">${Math.floor(last7Mins / 60)}h ${last7Mins % 60}m</strong></span>
         <span>Daily Pace: <strong style="color:var(--tcs-blue-accent); font-family:var(--font-mono);">${Math.round(last7Mins / 7)}m / day</strong></span>
       </div>
@@ -4571,18 +4639,57 @@ window.fetchStudentAnalytics = async function(isSilent = false) {
       portfolioIncorrect += iCount;
     });
 
-    // 4. Today's Specific Filters
+    // 4. Today's Tactical Filters & Deep Telemetry
     const todayMasteredTests = new Set();
+    let todayCorr = 0;
+    let todayIncorr = 0;
+    let todaySecs = 0;
+
     atts.forEach(a => {
-      const attDate = (a.attempt_date || "").split("T")[0];
-      if (attDate === todayStr && Number(a.test_id) > 0) {
-        const cat = catalogData.find(item => String(item.test_id) === String(a.test_id));
-        const tQs = cat ? (cat.total_questions || 10) : ((a.total_correct || 0) + (a.total_incorrect || 0) || 10);
-        const maxM = tQs * 2;
-        const pct = maxM > 0 ? (parseFloat(a.score || 0) / maxM) * 100 : 0;
-        if (pct >= 100) todayMasteredTests.add(String(a.test_id));
+      const attDate = getAttemptLocalDate(a.attempt_date);
+      if (attDate === todayStr) {
+        todayCorr += (a.total_correct || 0);
+        todayIncorr += (a.total_incorrect || 0);
+        todaySecs += (a.time_spent_seconds || 0);
+
+        if (Number(a.test_id) > 0) {
+          const cat = catalogData.find(item => String(item.test_id) === String(a.test_id));
+          const tQs = cat ? (cat.total_questions || 10) : ((a.total_correct || 0) + (a.total_incorrect || 0) || 10);
+          const maxM = tQs * 2;
+          const pct = maxM > 0 ? (parseFloat(a.score || 0) / maxM) * 100 : 0;
+          if (pct >= 100) todayMasteredTests.add(String(a.test_id));
+        }
       }
     });
+
+    const todayQAttempted = todayCorr + todayIncorr;
+    const todayGross = todayCorr * 2.0;
+    const todayBleed = Math.round(todayIncorr * 0.5 * 100) / 100;
+    const todayNet = Math.round((todayGross - todayBleed) * 100) / 100;
+    const todayAcc = todayQAttempted > 0 ? Math.round((todayCorr / todayQAttempted) * 100) : 0;
+    const todayAvgPace = todayQAttempted > 0 ? Math.round(todaySecs / todayQAttempted) : 0;
+
+    let todayPromoted = 0;
+    let todayFreshErrors = 0;
+    (userWeakQuestions || []).forEach(q => {
+      if (getAttemptLocalDate(q.last_attempt_date) === todayStr) {
+        if ((q.mastery_streak || 0) > 0) todayPromoted++;
+        else if ((q.times_wrong || 0) > 0) todayFreshErrors++;
+      }
+    });
+
+    const todayStats = {
+      todayCorr,
+      todayIncorr,
+      todayQAttempted,
+      todayGross,
+      todayBleed,
+      todayNet,
+      todayAcc,
+      todayAvgPace,
+      todayPromoted,
+      todayFreshErrors
+    };
 
     const totalQ = nCorr + nIncorr;
     const accVal = totalQ > 0 ? ((nCorr / totalQ) * 100).toFixed(1) : "0.0";
@@ -4608,7 +4715,15 @@ window.fetchStudentAnalytics = async function(isSilent = false) {
 
     // 🎯 6. DISPATCH TO DEDICATED SUB-ENGINES
     renderAnalyticsTopStats({ accVal, nCorr, nIncorr, streak, avgSpd, accTrends, speedTrends, attMap });
-    renderWeeklyConsistencyTrack({ attMap, past7, todayStr, todayMins, todayMasteredCount: todayMasteredTests.size, dailyQuestionsMap });
+    renderWeeklyConsistencyTrack({ 
+      attMap, 
+      past7, 
+      todayStr, 
+      todayMins, 
+      todayMasteredCount: todayMasteredTests.size, 
+      dailyQuestionsMap,
+      todayStats 
+    });
     renderDomainCompetencyMatrix({ subStats, attemptedTests, masteredTests });
     renderAuditAndRetentionEngines({ nCorr: portfolioCorrect, nIncorr: portfolioIncorrect, totalQ: (portfolioCorrect + portfolioIncorrect) }, subStats);
     // 7. Heatmap
