@@ -1050,55 +1050,92 @@ body.dark-theme .box-fc { color: #c084fc; }
   .funnel-verdict-box { font-size: 10px !important; padding: 8px 10px !important; }
 }
 /* ==========================================================================
-   🚀 COMPLETE NEGATIVE BLEED AUDITOR (3-BOX GRID + STYLED VERDICT CARD)
+   🎯 COMPLETE UNIFIED SUBJECT LEAK MATRIX & AUDITOR ENGINE (HORIZONTAL CONDENSED)
    ========================================================================== */
-.bleed-metrics-grid { display: grid !important; grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 8px !important; margin-bottom: 12px !important; width: 100% !important; box-sizing: border-box !important; }
-.bleed-metric-box { background: var(--bg-surface-elevated) !important; border: 1px solid var(--border-color) !important; padding: 10px 6px !important; border-radius: 8px !important; text-align: center !important; display: flex !important; flex-direction: column !important; justify-content: space-between !important; min-width: 0 !important; overflow: hidden !important; box-sizing: border-box !important; gap: 3px !important; }
-.bleed-metric-box.box-gross { border-bottom: 3px solid var(--success-dark) !important; }
-.bleed-metric-box.box-penalty { border-bottom: 3px solid var(--danger-dark) !important; }
-.bleed-metric-box.box-net { border-bottom: 3px solid var(--tcs-blue-accent) !important; }
 
-.bleed-label { font-size: 9.5px !important; font-weight: 800 !important; color: var(--text-muted) !important; text-transform: uppercase !important; letter-spacing: 0.3px !important; line-height: 1.2 !important; display: block !important; margin-bottom: 2px !important; }
-.bleed-val { font-size: 15.5px !important; font-weight: 800 !important; font-family: var(--font-mono) !important; line-height: 1.15 !important; margin: 3px 0 !important; display: block !important; }
-.box-gross .bleed-val { color: var(--success-dark) !important; }
-.box-penalty .bleed-val { color: var(--danger-dark) !important; }
-.box-net .bleed-val { color: var(--tcs-blue-accent) !important; }
-
-.bleed-sub { font-size: 9.5px !important; font-weight: 700 !important; color: var(--text-muted) !important; font-family: var(--font-mono) !important; display: flex !important; align-items: center !important; justify-content: center !important; gap: 4px !important; flex-wrap: wrap !important; line-height: 1.2 !important; }
+/* 1. TOP 3-BENTO SUMMARY GRID */
+.bleed-metrics-grid { display: grid !important; grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 8px !important; margin: 10px 0 12px 0 !important; width: 100% !important; box-sizing: border-box !important; }
+.bleed-metric-box { background: var(--bg-surface-elevated, #131b2e) !important; border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1)) !important; padding: 10px 6px !important; border-radius: 8px !important; text-align: center !important; display: flex !important; flex-direction: column !important; justify-content: space-between !important; min-width: 0 !important; overflow: hidden !important; box-sizing: border-box !important; gap: 3px !important; }
+.bleed-metric-box.box-gross { border-bottom: 3px solid var(--success-dark, #16a34a) !important; }
+.bleed-metric-box.box-penalty { border-bottom: 3px solid var(--danger-dark, #ef4444) !important; }
+.bleed-metric-box.box-net { border-bottom: 3px solid var(--tcs-blue-accent, #38bdf8) !important; }
+.bleed-label { font-size: 9.5px !important; font-weight: 800 !important; color: var(--text-muted, #94a3b8) !important; text-transform: uppercase !important; letter-spacing: 0.3px !important; line-height: 1.2 !important; display: block !important; margin-bottom: 2px !important; }
+.bleed-val { font-size: 16px !important; font-weight: 800 !important; font-family: var(--font-mono, monospace) !important; line-height: 1.15 !important; margin: 2px 0 !important; display: block !important; }
+.box-gross .bleed-val { color: var(--success-dark, #22c55e) !important; }
+.box-penalty .bleed-val { color: var(--danger-dark, #ef4444) !important; }
+.box-net .bleed-val { color: var(--tcs-blue-accent, #38bdf8) !important; }
+.bleed-sub { font-size: 9.5px !important; font-weight: 700 !important; color: var(--text-muted, #94a3b8) !important; font-family: var(--font-mono, monospace) !important; display: flex !important; align-items: center !important; justify-content: center !important; gap: 4px !important; flex-wrap: wrap !important; line-height: 1.2 !important; }
 .bleed-sub small { font-size: 8.5px !important; opacity: 0.85 !important; }
 
-/* 🎯 EXECUTIVE VERDICT CARD STYLES */
-.bleed-verdict-card, .bleed-footer-note { display: flex !important; flex-direction: column !important; gap: 6px !important; padding: 10px 12px !important; border-radius: 8px !important; border: 1px solid var(--border-color) !important; border-left-width: 4px !important; background: var(--bg-surface-elevated) !important; box-sizing: border-box !important; transition: all 0.2s ease !important; }
-.bleed-verdict-card.verdict-success { border-left-color: var(--success) !important; background: linear-gradient(135deg, var(--success-bg-subtle) 0%, var(--bg-surface-elevated) 100%) !important; }
-.bleed-verdict-card.verdict-warning { border-left-color: var(--warning) !important; background: linear-gradient(135deg, var(--warning-bg-subtle) 0%, var(--bg-surface-elevated) 100%) !important; }
-.bleed-verdict-card.verdict-danger { border-left-color: var(--danger) !important; background: linear-gradient(135deg, var(--danger-bg-subtle) 0%, var(--bg-surface-elevated) 100%) !important; }
-.bleed-verdict-card.verdict-neutral { border-left-color: var(--text-muted) !important; }
+/* 2. MIDDLE SUBJECT-WISE LEAK MATRIX */
+.leak-matrix-wrapper { margin-top: 10px !important; background: var(--bg-surface-elevated, #131b2e) !important; border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1)) !important; border-radius: 8px !important; padding: 10px 12px !important; box-sizing: border-box !important; }
+.leak-matrix-header { display: flex !important; justify-content: space-between !important; font-size: 9.5px !important; font-weight: 800 !important; font-family: var(--font-mono, monospace) !important; color: var(--text-muted, #94a3b8) !important; letter-spacing: 0.5px !important; padding-bottom: 6px !important; border-bottom: 1px solid var(--border-color, rgba(255, 255, 255, 0.1)) !important; margin-bottom: 8px !important; }
+.leak-matrix-list { display: flex !important; flex-direction: column !important; gap: 6px !important; }
+.leak-matrix-row { display: flex !important; align-items: center !important; justify-content: space-between !important; padding: 7px 10px !important; background: var(--bg-panel, #0f172a) !important; border-radius: 6px !important; border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08)) !important; gap: 8px !important; }
+.leak-row-left { display: flex !important; flex-direction: column !important; min-width: 0 !important; }
+.leak-subject-title { font-size: 12px !important; font-weight: 700 !important; color: var(--text-main, #f8fafc) !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; }
+.leak-subject-sub { font-size: 10px !important; color: var(--text-muted, #94a3b8) !important; font-family: var(--font-mono, monospace) !important; }
+.leak-row-right { display: flex !important; align-items: center !important; gap: 8px !important; flex-shrink: 0 !important; }
+.leak-marks-tag { font-size: 11.5px !important; font-weight: 800 !important; font-family: var(--font-mono, monospace) !important; }
+.leak-risk-badge { font-size: 9px !important; font-weight: 800 !important; font-family: var(--font-mono, monospace) !important; padding: 2px 6px !important; border-radius: 4px !important; text-transform: uppercase !important; letter-spacing: 0.3px !important; }
 
+/* Risk Status Colors */
+.risk-high .leak-marks-tag { color: var(--danger-dark, #ef4444) !important; }
+.risk-high .leak-risk-badge { background: var(--danger-bg-subtle, rgba(239, 68, 68, 0.15)) !important; color: var(--danger-dark, #ef4444) !important; border: 1px solid var(--danger-border, rgba(239, 68, 68, 0.3)) !important; }
+.risk-moderate .leak-marks-tag { color: var(--warning-dark, #f59e0b) !important; }
+.risk-moderate .leak-risk-badge { background: var(--warning-bg-subtle, rgba(245, 158, 11, 0.15)) !important; color: var(--warning-dark, #f59e0b) !important; border: 1px solid var(--warning-border, rgba(245, 158, 11, 0.3)) !important; }
+.risk-safe .leak-marks-tag { color: var(--success-dark, #22c55e) !important; }
+.risk-safe .leak-risk-badge { background: var(--success-bg-subtle, rgba(34, 197, 94, 0.15)) !important; color: var(--success-dark, #22c55e) !important; border: 1px solid var(--success-border, rgba(34, 197, 94, 0.3)) !important; }
+
+/* 3. BOTTOM EXECUTIVE VERDICT CARD */
+.bleed-verdict-card, .bleed-footer-note { display: flex !important; flex-direction: column !important; gap: 6px !important; padding: 10px 12px !important; border-radius: 8px !important; border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1)) !important; border-left-width: 4px !important; background: var(--bg-surface-elevated, #131b2e) !important; box-sizing: border-box !important; margin-top: 10px !important; }
+.bleed-verdict-card.verdict-success { border-left-color: var(--success, #22c55e) !important; background: linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, var(--bg-surface-elevated, #131b2e) 100%) !important; }
+.bleed-verdict-card.verdict-warning { border-left-color: var(--warning, #f59e0b) !important; background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, var(--bg-surface-elevated, #131b2e) 100%) !important; }
+.bleed-verdict-card.verdict-danger { border-left-color: var(--danger, #ef4444) !important; background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, var(--bg-surface-elevated, #131b2e) 100%) !important; }
 .verdict-header { display: flex !important; align-items: center !important; justify-content: space-between !important; gap: 8px !important; }
-.verdict-status-pill { font-size: 10px !important; font-weight: 800 !important; font-family: var(--font-mono) !important; letter-spacing: 0.5px !important; text-transform: uppercase !important; padding: 2px 7px !important; border-radius: 5px !important; }
-.pill-success { background: var(--success-bg-subtle) !important; color: var(--success-dark) !important; border: 1px solid var(--success-border) !important; }
-.pill-warning { background: var(--warning-bg-subtle) !important; color: var(--warning-dark) !important; border: 1px solid var(--warning-border) !important; }
-.pill-danger { background: var(--danger-bg-subtle) !important; color: var(--danger-dark) !important; border: 1px solid var(--danger-border) !important; }
-.pill-neutral { background: var(--bg-surface-hover) !important; color: var(--text-muted) !important; border: 1px solid var(--border-color) !important; }
+.verdict-status-pill { font-size: 10px !important; font-weight: 800 !important; font-family: var(--font-mono, monospace) !important; letter-spacing: 0.5px !important; text-transform: uppercase !important; padding: 2px 7px !important; border-radius: 5px !important; }
+.pill-success { background: var(--success-bg-subtle, rgba(34, 197, 94, 0.15)) !important; color: var(--success-dark, #22c55e) !important; border: 1px solid var(--success-border, rgba(34, 197, 94, 0.3)) !important; }
+.pill-warning { background: var(--warning-bg-subtle, rgba(245, 158, 11, 0.15)) !important; color: var(--warning-dark, #f59e0b) !important; border: 1px solid var(--warning-border, rgba(245, 158, 11, 0.3)) !important; }
+.pill-danger { background: var(--danger-bg-subtle, rgba(239, 68, 68, 0.15)) !important; color: var(--danger-dark, #ef4444) !important; border: 1px solid var(--danger-border, rgba(239, 68, 68, 0.3)) !important; }
+.verdict-metric-pill { font-size: 9.5px !important; font-weight: 800 !important; font-family: var(--font-mono, monospace) !important; background: var(--bg-panel, #0f172a) !important; padding: 2px 6px !important; border-radius: 4px !important; border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1)) !important; }
+.pill-metric-success { color: var(--success-dark, #22c55e) !important; border-color: rgba(34, 197, 94, 0.3) !important; }
+.pill-metric-warning { color: var(--warning-dark, #f59e0b) !important; border-color: rgba(245, 158, 11, 0.3) !important; }
+.pill-metric-danger { color: var(--danger-dark, #ef4444) !important; border-color: rgba(239, 68, 68, 0.3) !important; }
+.verdict-body { font-size: 11.5px !important; line-height: 1.5 !important; color: var(--text-main, #f8fafc) !important; font-weight: 500 !important; }
+.verdict-body strong { color: var(--text-main, #f8fafc) !important; font-weight: 700 !important; }
 
-.verdict-metric-pill { font-size: 9.5px !important; font-weight: 800 !important; font-family: var(--font-mono) !important; color: var(--text-muted) !important; background: var(--bg-panel) !important; padding: 2px 6px !important; border-radius: 4px !important; border: 1px solid var(--border-color) !important; }
-.pill-metric-success { color: var(--success-dark) !important; border-color: var(--success-border) !important; }
-.pill-metric-warning { color: var(--warning-dark) !important; border-color: var(--warning-border) !important; }
-.pill-metric-danger { color: var(--danger-dark) !important; border-color: var(--danger-border) !important; }
-
-.verdict-body { font-size: 11.5px !important; line-height: 1.5 !important; color: var(--text-main) !important; font-weight: 500 !important; }
-.verdict-body strong { color: var(--text-main) !important; font-weight: 700 !important; }
-
+/* 4. CONSOLIDATED MOBILE RESPONSIVE ENGINE */
 @media screen and (max-width: 768px) {
   .bleed-metrics-grid { gap: 6px !important; }
   .bleed-metric-box { padding: 6px 3px !important; }
   .bleed-label { font-size: 8.5px !important; }
-  .bleed-val { font-size: 13.5px !important; }
+  .bleed-val { font-size: 14px !important; }
   .bleed-sub { font-size: 8.5px !important; }
-  .bleed-verdict-card { padding: 9px 10px !important; gap: 5px !important; }
+  .leak-matrix-wrapper { padding: 8px 10px !important; }
+  .leak-subject-title { font-size: 11px !important; }
+  .leak-subject-sub { font-size: 9px !important; }
+  .leak-marks-tag { font-size: 10.5px !important; }
+  .leak-risk-badge { font-size: 8.5px !important; padding: 1.5px 5px !important; }
+  .bleed-verdict-card { padding: 8px 10px !important; gap: 4px !important; }
   .verdict-status-pill { font-size: 9px !important; }
   .verdict-metric-pill { font-size: 8.5px !important; }
-  .verdict-body { font-size: 10.5px !important; line-height: 1.45 !important; }
+  .verdict-body { font-size: 10.5px !important; line-height: 1.4 !important; }
+}
+/* 🚀 SYMMETRY FIX: SUBJECT LEAK SCROLLER & FUNNEL PACKING */
+#subjectLeakMatrixContainer { max-height: 130px !important; overflow-y: auto !important; padding-right: 4px !important; scrollbar-width: thin !important; }
+#subjectLeakMatrixContainer::-webkit-scrollbar { width: 4px !important; }
+#subjectLeakMatrixContainer::-webkit-scrollbar-thumb { background: var(--border-color, rgba(255, 255, 255, 0.2)) !important; border-radius: 4px !important; }
+
+/* Left Card (Funnel) Spacing Tightening */
+#mistakeFunnelCard { display: flex !important; flex-direction: column !important; justify-content: flex-start !important; gap: 12px !important; }
+#mistakeFunnelCard .funnel-track-wrapper { margin: 4px 0 6px 0 !important; }
+#mistakeFunnelCard .funnel-stage-grid { margin-bottom: 0 !important; }
+#mistakeFunnelCard .funnel-footer-note, #mistakeFunnelCard .funnel-verdict-box { margin-top: auto !important; }
+
+/* Desktop Grid Alignment */
+@media screen and (min-width: 769px) {
+  .advanced-analytics-grid { align-items: stretch !important; }
+  #mistakeFunnelCard, #negativeBleedCard { min-height: 430px !important; box-sizing: border-box !important; }
 }
 /* 🚀 MOBILE SEGMENTED PILL SWITCHER */
 .analytics-mobile-switcher { display: none; }

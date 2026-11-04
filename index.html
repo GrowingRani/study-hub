@@ -647,38 +647,49 @@
           </div>
         </div>
 
-        <!-- CARD 4: Negative Bleed Auditor (deck-audit add karein) -->
-        <div class="profile-section-card deck-audit" id="negativeBleedCard">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-            <h3 class="section-title" style="margin-bottom: 0; border-bottom: none; padding-bottom: 0;">Negative Bleed Auditor</h3>
-            <span class="briefing-badge" id="bleedRatioBadge" style="background: var(--danger-bg-subtle); color: var(--danger-dark); border-color: var(--danger-border);">-0.00 MARKS</span>
+        <!-- CARD 4: Subject-Wise Leak Matrix & Penalty Bleed (deck-audit add karein) -->
+      <div class="profile-section-card" id="negativeBleedCard">
+        <div class="staging-queues-header" style="margin-bottom: 10px;">
+          <div>
+            <h4 style="font-size:15px; font-weight:800; color:var(--tcs-blue-header); margin:0;">Subject-Wise Leak Matrix</h4>
+            <p style="font-size:11px; color:var(--text-muted); margin:2px 0 0 0;">Identifies which subjects are bleeding marks due to negative marking (-0.50).</p>
           </div>
-          <p style="font-size: 11.5px; color: var(--text-muted); margin-bottom: 14px; line-height: 1.45;">
-            Measures marks forfeited to inaccurate guesses (-0.50 penalty) versus gross positive scoring (+2.00).
-          </p>
+          <span class="playlist-status-tag" id="bleedRatioBadge" style="background:var(--danger-bg-subtle); color:var(--danger-dark); border-color:var(--danger-border); white-space:nowrap;">-0 MARKS LOST</span>
+        </div>
 
-          <div class="bleed-metrics-grid">
-            <div class="bleed-metric-box box-gross">
-              <span class="bleed-label">Gross Earned</span>
-              <strong class="bleed-val" id="bleedGrossVal">+0.00</strong>
-              <span class="bleed-sub" id="bleedGrossSub">0 Correct (+2.00)</span>
-            </div>
-            <div class="bleed-metric-box box-penalty">
-              <span class="bleed-label">Penalty Bleed</span>
-              <strong class="bleed-val" id="bleedPenaltyVal">-0.00</strong>
-              <span class="bleed-sub" id="bleedPenaltySub">0 Wrong (-0.50)</span>
-            </div>
-            <div class="bleed-metric-box box-net">
-              <span class="bleed-label">Net Realized</span>
-              <strong class="bleed-val" id="bleedNetVal">0.00</strong>
-              <span class="bleed-sub" id="bleedNetSub">0% Efficiency</span>
-            </div>
+        <!-- Compact 3-Bento Summary Strip -->
+        <div class="bleed-metrics-grid">
+          <div class="bleed-metric-box box-gross">
+            <span class="bleed-label">Gross Earned</span>
+            <span class="bleed-val" id="bleedGrossVal">+0</span>
+            <span class="bleed-sub" id="bleedGrossSub">0 ✓ <small>(+2)</small></span>
           </div>
-
-          <div class="bleed-footer-note" id="bleedFooterNote">
-            Compiling penalty audit telemetry...
+          <div class="bleed-metric-box box-penalty">
+            <span class="bleed-label">Penalty Bleed</span>
+            <span class="bleed-val" id="bleedPenaltyVal">-0</span>
+            <span class="bleed-sub" id="bleedPenaltySub">0 ✗ <small>(-0.5)</small></span>
+          </div>
+          <div class="bleed-metric-box box-net">
+            <span class="bleed-label">Net Realized</span>
+            <span class="bleed-val" id="bleedNetVal">0</span>
+            <span class="bleed-sub" id="bleedNetSub">0% Retained</span>
           </div>
         </div>
+
+        <!-- 🎯 DYNAMIC SUBJECT LEAK MATRIX LIST -->
+        <div class="leak-matrix-wrapper">
+          <div class="leak-matrix-header">
+            <span>DOMAIN BREAKDOWN</span>
+            <span>PENALTY & RISK</span>
+          </div>
+          <div id="subjectLeakMatrixContainer" class="leak-matrix-list">
+            <!-- JS dynamically populates subject rows here -->
+          </div>
+        </div>
+
+        <!-- Strategic Takeaway Verdict -->
+        <div id="bleedFooterNote" class="bleed-footer-note" style="margin-top: 10px;"></div>
+      </div>
 
         <!-- CARD 5: Activity Heatmap (Universal Full Width Base) -->
         <div class="profile-section-card" style="grid-column: 1 / -1;">

@@ -4234,8 +4234,8 @@ function renderDomainCompetencyMatrix(matrixData) {
   }
 }
 
-// 🚀 8.4: MISTAKE FUNNEL & NEGATIVE BLEED AUDITOR RENDERER (RESPONSIVE & AUTO-SCALING)
-function renderAuditAndRetentionEngines(totals) {
+// 🚀 8.4: MISTAKE FUNNEL & SUBJECT-WISE LEAK MATRIX RENDERER
+function renderAuditAndRetentionEngines(totals, subStats = {}) {
   const { nCorr, nIncorr, totalQ } = totals;
 
   // 1. Mistake Funnel Engine
@@ -4269,32 +4269,27 @@ function renderAuditAndRetentionEngines(totals) {
   const fNote = document.getElementById("funnelFooterNote");
   if (fNote) {
     if (totalMistakes === 0) {
-      fNote.style.borderLeftColor = "var(--success)";
-      fNote.innerHTML = `🛡️ <strong style="color:var(--success-dark);">Clean Slate:</strong> Zero mistakes logged. All questions attempted accurately!`;
+      fNote.innerHTML = `🛡️ <strong style="color:var(--success-dark);">Clean Slate:</strong> No mistakes logged. All questions attempted accurately!`;
     } else if (recoveryRate >= 75) {
-      fNote.style.borderLeftColor = "var(--success)";
-      fNote.innerHTML = `🏆 <strong style="color:var(--success-dark);">Exceptional Retention:</strong> ${masteredMistakes} of ${totalMistakes} mistakes permanently mastered into long-term recall.`;
+      fNote.innerHTML = `🏆 <strong style="color:var(--success-dark);">Exceptional Retention:</strong> ${masteredMistakes} of ${totalMistakes} mistakes permanently mastered. Spaced repetition loop operating at peak efficiency.`;
     } else if (loopMistakes > 0) {
-      fNote.style.borderLeftColor = "var(--warning)";
-      fNote.innerHTML = `⚡ <strong style="color:var(--warning-dark);">${loopMistakes} questions</strong> advancing through the review loop. Clear upcoming Mastery Booster sets to lock them into Streak 4.`;
+      fNote.innerHTML = `⚡ <strong style="color:var(--tcs-blue-accent);">${loopMistakes} questions</strong> currently advancing through the review cycle.`;
     } else {
-      fNote.style.borderLeftColor = "var(--danger)";
-      fNote.innerHTML = `⚠️ <strong style="color:var(--danger-dark);">${unaddressedMistakes} fresh errors</strong> awaiting first review. Launch Mistake Bank or Daily Booster to start the recovery cycle.`;
+      fNote.innerHTML = `⚠️ <strong style="color:var(--warning-dark);">${unaddressedMistakes} fresh errors</strong> awaiting first review. Launch Mistake Bank or Daily Booster.`;
     }
   }
 
-  // 🎯 SMART COMPACT FORMATTER (Trims trailing .00 on integers to prevent layout breaks at 10,000+ marks)
+  // 🎯 SMART COMPACT NUMBER FORMATTER
   const formatScore = (val) => {
     const num = Number(val);
     return Number.isInteger(num) ? num.toString() : num.toFixed(2);
   };
 
-  // 2. Negative Bleed Auditor Engine
+  // 2. Overview Stats
   const grossEarned = nCorr * 2.00;
   const penaltyBleed = nIncorr * 0.50;
   const netRealized = Math.max(0, grossEarned - penaltyBleed);
   const scoreEfficiency = grossEarned > 0 ? Math.max(0, Math.min(100, Math.round((netRealized / grossEarned) * 100))) : 0;
-  const bleedPercentage = grossEarned > 0 ? ((penaltyBleed / grossEarned) * 100).toFixed(1) : "0.0";
 
   const bBadge = document.getElementById("bleedRatioBadge");
   if (bBadge) bBadge.innerText = `-${formatScore(penaltyBleed)} MARKS LOST`;
@@ -4314,61 +4309,78 @@ function renderAuditAndRetentionEngines(totals) {
   const bNetSub = document.getElementById("bleedNetSub");
   if (bNetSub) bNetSub.innerText = `${scoreEfficiency}% Retained`;
 
-  // 🎯 STRUCTURED EXECUTIVE VERDICT CARD (REPLACES PLAIN UNSTYLED TEXT)
+  // 🎯 3. SUBJECT-WISE LEAK MATRIX COMPILER
+  const matrixContainer = document.getElementById("subjectLeakMatrixContainer");
+  if (matrixContainer) {
+    const subjectList = Object.entries(subStats)
+      .map(([name, data]) => {
+        const wrong = data.incorrect || 0;
+        const loss = wrong * 0.50;
+        const correct = data.correct || 0;
+        const attempted = correct + wrong;
+        return { name, wrong, correct, loss, attempted };
+      })
+      .filter(s => s.attempted > 0)
+      .sort((a, b) => b.loss - a.loss); // Sabse zyada loss wala subject sabse upar
+
+    if (subjectList.length === 0) {
+      matrixContainer.innerHTML = `<div style="text-align:center; padding:12px; font-size:11px; color:var(--text-muted);">Attempt question sets to map subject-wise penalties.</div>`;
+    } else {
+      matrixContainer.innerHTML = subjectList.map(item => {
+        let riskClass = "risk-safe";
+        let riskLabel = "Safe";
+
+        if (item.loss >= 4.0 || (item.attempted >= 5 && (item.wrong / item.attempted) > 0.35)) {
+          riskClass = "risk-high";
+          riskLabel = "High Risk";
+        } else if (item.loss >= 1.5 || (item.attempted >= 5 && (item.wrong / item.attempted) > 0.15)) {
+          riskClass = "risk-moderate";
+          riskLabel = "Moderate";
+        }
+
+        return `
+          <div class="leak-matrix-row ${riskClass}">
+            <div class="leak-row-left">
+              <span class="leak-subject-title">${item.name}</span>
+              <span class="leak-subject-sub">${item.wrong} wrong out of ${item.attempted} attempts</span>
+            </div>
+            <div class="leak-row-right">
+              <span class="leak-marks-tag">-${formatScore(item.loss)}</span>
+              <span class="leak-risk-badge">${riskLabel}</span>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+  }
+
+  // 4. Actionable Verdict Note
   const bNote = document.getElementById("bleedFooterNote");
   if (bNote) {
-    if (totalQ === 0) {
-      bNote.className = "bleed-verdict-card verdict-neutral";
-      bNote.innerHTML = `
-        <div class="verdict-header">
-          <span class="verdict-status-pill pill-neutral">🛡️ ZERO TELEMETRY</span>
-        </div>
-        <div class="verdict-body">
-          Attempt mock test sets to evaluate guesswork penalties and score retention efficiency.
-        </div>
-      `;
-    } else if (penaltyBleed === 0) {
+    const worstSub = Object.entries(subStats)
+      .map(([name, data]) => ({ name, wrong: data.incorrect || 0, loss: (data.incorrect || 0) * 0.50 }))
+      .sort((a, b) => b.loss - a.loss)[0];
+
+    if (!worstSub || worstSub.loss === 0) {
       bNote.className = "bleed-verdict-card verdict-success";
       bNote.innerHTML = `
         <div class="verdict-header">
-          <span class="verdict-status-pill pill-success">🎯 SNIPER PRECISION (100%)</span>
-          <span class="verdict-metric-pill pill-metric-success">0.0% BLEED</span>
+          <span class="verdict-status-pill pill-success">🎯 ZERO BLEED OBSERVED</span>
         </div>
         <div class="verdict-body">
-          <strong>Flawless Accuracy:</strong> Zero negative marking deductions. Every question attempted was answered correctly!
-        </div>
-      `;
-    } else if (parseFloat(bleedPercentage) > 20) {
-      bNote.className = "bleed-verdict-card verdict-danger";
-      bNote.innerHTML = `
-        <div class="verdict-header">
-          <span class="verdict-status-pill pill-danger">⚠️ HIGH PENALTY BLEED (${bleedPercentage}%)</span>
-          <span class="verdict-metric-pill pill-metric-danger">-${formatScore(penaltyBleed)} MARKS</span>
-        </div>
-        <div class="verdict-body">
-          You forfeited <strong style="color:var(--danger-dark);">${formatScore(penaltyBleed)} marks</strong> to incorrect attempts (${nIncorr} wrong). Eliminating wild guesses will immediately lift your net cutoff.
-        </div>
-      `;
-    } else if (parseFloat(bleedPercentage) > 10) {
-      bNote.className = "bleed-verdict-card verdict-warning";
-      bNote.innerHTML = `
-        <div class="verdict-header">
-          <span class="verdict-status-pill pill-warning">⚡ CONTROLLED BLEED (${bleedPercentage}%)</span>
-          <span class="verdict-metric-pill pill-metric-warning">-${formatScore(penaltyBleed)} MARKS</span>
-        </div>
-        <div class="verdict-body">
-          Moderately disciplined testing with <strong style="color:var(--warning-dark);">${formatScore(penaltyBleed)} marks</strong> lost. Practice skipping 50/50 doubts when unconfident.
+          Flawless discipline across all domains. Zero negative marking deductions logged.
         </div>
       `;
     } else {
-      bNote.className = "bleed-verdict-card verdict-success";
+      const isCritical = worstSub.loss >= 4.0;
+      bNote.className = `bleed-verdict-card ${isCritical ? 'verdict-danger' : 'verdict-warning'}`;
       bNote.innerHTML = `
         <div class="verdict-header">
-          <span class="verdict-status-pill pill-success">🏆 ${scoreEfficiency}% HIGH EFFICIENCY</span>
-          <span class="verdict-metric-pill pill-metric-success">${bleedPercentage}% BLEED</span>
+          <span class="verdict-status-pill ${isCritical ? 'pill-danger' : 'pill-warning'}">⚠️ PRIMARY TARGET: ${worstSub.name.toUpperCase()}</span>
+          <span class="verdict-metric-pill ${isCritical ? 'pill-metric-danger' : 'pill-metric-warning'}">-${formatScore(worstSub.loss)} MARKS</span>
         </div>
         <div class="verdict-body">
-          <strong>Outstanding Exam Discipline:</strong> Minimal guesswork penalty (<strong style="color:var(--success-dark);">${bleedPercentage}% bleed</strong>). Examination-ready accuracy.
+          Biggest score leak is happening in <strong>${worstSub.name}</strong> (${worstSub.wrong} wrong attempts). Skipping doubtful questions here will instantly improve your net cutoff.
         </div>
       `;
     }
@@ -4499,8 +4511,7 @@ window.fetchStudentAnalytics = async function(isSilent = false) {
     renderAnalyticsTopStats({ accVal, nCorr, nIncorr, streak, avgSpd, accTrends, speedTrends, attMap });
     renderWeeklyConsistencyTrack({ attMap, past7, todayStr, todayMins, todayMasteredCount: todayMasteredTests.size, dailyQuestionsMap });
     renderDomainCompetencyMatrix({ subStats, attemptedTests, masteredTests });
-    renderAuditAndRetentionEngines({ nCorr, nIncorr, totalQ });
-
+    renderAuditAndRetentionEngines({ nCorr, nIncorr, totalQ }, subStats);
     // 7. Heatmap
     renderHeatmap(attMap);
 
