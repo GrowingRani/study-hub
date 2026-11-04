@@ -943,17 +943,32 @@ body.dark-theme .box-fc { color: #c084fc; }
 .extra-summary-grid, .advanced-analytics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-bottom: 24px; width: 100%; box-sizing: border-box; }
 /* 🚀 PERFECT 2x2 DESKTOP BENTO GRID FOR ANALYTICS */
 @media (min-width: 769px) {
-  .advanced-analytics-grid { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 18px !important; margin-bottom: 24px !important; width: 100% !important; box-sizing: border-box !important; }
-  .mastery-card-container { min-height: 390px !important; }
-  #mistakeFunnelCard, #negativeBleedCard { min-height: 250px !important; display: flex !important; flex-direction: column !important; justify-content: space-between !important; }
+  .advanced-analytics-grid { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 18px !important; margin-bottom: 24px !important; width: 100% !important; box-sizing: border-box !important; align-items: stretch !important; }
+  .mastery-card-container { min-height: 380px !important; }
 }
 .profile-section-card { background: var(--bg-panel) !important; border: 1px solid var(--border-color) !important; color: var(--text-main) !important; padding: 24px; border-radius: 8px; box-shadow: var(--shadow-sm); }
 .section-title { font-size: 16px; color: var(--tcs-blue-header) !important; margin-bottom: 20px; border-bottom: 2px solid var(--border-color) !important; padding-bottom: 10px; }
 .mastery-card-container { display: flex; flex-direction: column; min-height: 380px; }
 .mastery-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid var(--border-color) !important; padding-bottom: 10px; }
-.mastery-view-toggle { display: flex; gap: 4px; background: var(--bg-surface-elevated); padding: 3px; border-radius: 6px; border: 1px solid var(--border-color); }
-.view-pill { border: none; background: transparent; padding: 4px 10px; font-size: 11px; font-weight: 700; color: var(--text-muted); border-radius: 4px; cursor: pointer; transition: all 0.2s ease; }
-.view-pill.active { background: var(--bg-panel); color: var(--tcs-blue-accent); box-shadow: var(--shadow-sm); }
+
+/* ==========================================================================
+   🎯 SWIPEABLE SUBJECT COMPETENCY MATRIX CAROUSEL
+   ========================================================================== */
+.mastery-carousel-track { display: flex !important; overflow-x: auto !important; scroll-snap-type: x mandatory !important; scroll-behavior: smooth !important; -webkit-overflow-scrolling: touch !important; scrollbar-width: none !important; gap: 12px !important; width: 100% !important; box-sizing: border-box !important; }
+.mastery-carousel-track::-webkit-scrollbar { display: none !important; }
+
+.mastery-carousel-slide { min-width: 100% !important; width: 100% !important; flex-shrink: 0 !important; scroll-snap-align: start !important; box-sizing: border-box !important; display: flex !important; flex-direction: column !important; justify-content: center !important; }
+
+.mastery-carousel-slide #radarViewport { width: 100% !important; height: 240px !important; display: flex !important; align-items: center !important; justify-content: center !important; }
+.mastery-carousel-slide #gridViewport { width: 100% !important; max-height: 240px !important; overflow-y: auto !important; display: grid !important; grid-template-columns: repeat(2, 1fr) !important; gap: 8px !important; padding: 4px 2px !important; box-sizing: border-box !important; scrollbar-width: thin !important; }
+.mastery-carousel-slide #gridViewport::-webkit-scrollbar { width: 3px !important; }
+.mastery-carousel-slide #gridViewport::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2) !important; border-radius: 3px !important; }
+
+.mastery-carousel-dots { display: flex !important; align-items: center !important; justify-content: center !important; gap: 6px !important; margin-top: 6px !important; }
+.mastery-dot { width: 6px !important; height: 6px !important; border-radius: 50% !important; background: var(--border-color, rgba(255, 255, 255, 0.2)) !important; border: none !important; padding: 0 !important; cursor: pointer !important; transition: all 0.25s ease !important; }
+.mastery-dot.active { width: 18px !important; border-radius: 4px !important; background: var(--tcs-blue-accent, #38bdf8) !important; }
+
+
 /* 🚀 SMOOTH MATRIX VIEW SWITCHING (SECTION 11 MEIN .radar-viewport-wrap KE BAAD) */
 .radar-viewport-wrap { position: relative; width: 100%; height: 290px; display: flex; align-items: center; justify-content: center; }
 .micro-mastery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(135px, 1fr)); gap: 8px; max-height: 290px; overflow-y: auto; padding-right: 4px; }
@@ -1049,102 +1064,108 @@ body.dark-theme .box-fc { color: #c084fc; }
   .funnel-stage-pill .stage-sub { font-size: 8.5px !important; }
   .funnel-verdict-box { font-size: 10px !important; padding: 8px 10px !important; }
 }
+
 /* ==========================================================================
-   🎯 COMPLETE UNIFIED SUBJECT LEAK MATRIX & AUDITOR ENGINE (HORIZONTAL CONDENSED)
+   🚀 SYMMETRICAL AUDIT & RETENTION ENGINE (UNIFIED & SWIPE-READY)
    ========================================================================== */
 
-/* 1. TOP 3-BENTO SUMMARY GRID */
-.bleed-metrics-grid { display: grid !important; grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 8px !important; margin: 10px 0 12px 0 !important; width: 100% !important; box-sizing: border-box !important; }
-.bleed-metric-box { background: var(--bg-surface-elevated, #131b2e) !important; border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1)) !important; padding: 10px 6px !important; border-radius: 8px !important; text-align: center !important; display: flex !important; flex-direction: column !important; justify-content: space-between !important; min-width: 0 !important; overflow: hidden !important; box-sizing: border-box !important; gap: 3px !important; }
+/* 1. BASE DUAL-CARD CONTAINERS */
+#mistakeFunnelCard, #negativeBleedCard { display: flex !important; flex-direction: column !important; justify-content: flex-start !important; gap: 8px !important; box-sizing: border-box !important; }
+
+/* 2. MISTAKE REHABILITATION FUNNEL CARD */
+.funnel-card-header { display: flex !important; justify-content: space-between !important; align-items: flex-start !important; gap: 8px !important; margin-bottom: 2px !important; }
+.funnel-title-group { display: flex !important; flex-direction: column !important; flex: 1 !important; min-width: 0 !important; }
+.funnel-title { font-size: 14.5px !important; font-weight: 800 !important; color: var(--tcs-blue-header) !important; margin: 0 0 2px 0 !important; line-height: 1.25 !important; }
+.funnel-subtitle { font-size: 11px !important; color: var(--text-muted) !important; margin: 0 !important; line-height: 1.35 !important; }
+.funnel-rate-pill { font-size: 10px !important; font-weight: 800 !important; font-family: var(--font-mono) !important; background: var(--tcs-blue-bg-subtle) !important; color: var(--tcs-blue-accent) !important; border: 1.5px solid var(--tcs-blue-border-subtle) !important; padding: 2px 8px !important; border-radius: 5px !important; white-space: nowrap !important; flex-shrink: 0 !important; }
+.funnel-track-wrapper { margin: 4px 0 6px 0 !important; }
+.funnel-progress-track { position: relative !important; width: 100% !important; height: 6px !important; background: var(--bg-surface-hover) !important; border-radius: 4px !important; overflow: hidden !important; border: 1px solid var(--border-color) !important; }
+.funnel-fill-active { position: absolute !important; left: 0 !important; top: 0 !important; height: 100% !important; background: linear-gradient(90deg, #f59e0b, #fbbf24) !important; transition: width 0.3s ease !important; z-index: 1 !important; }
+.funnel-fill-mastered { position: absolute !important; left: 0 !important; top: 0 !important; height: 100% !important; background: linear-gradient(90deg, #16a34a, #22c55e) !important; transition: width 0.3s ease !important; z-index: 2 !important; }
+.funnel-stage-grid { display: grid !important; grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 8px !important; width: 100% !important; box-sizing: border-box !important; }
+.funnel-stage-pill { background: var(--bg-surface-elevated, #131b2e) !important; border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1)) !important; padding: 8px 5px !important; border-radius: 7px !important; text-align: center !important; display: flex !important; flex-direction: column !important; justify-content: space-between !important; min-width: 0 !important; gap: 2px !important; }
+.funnel-stage-pill.stage-unaddressed { border-bottom: 3px solid var(--danger-dark, #ef4444) !important; }
+.funnel-stage-pill.stage-loop { border-bottom: 3px solid var(--warning-dark, #f59e0b) !important; }
+.funnel-stage-pill.stage-cleared { border-bottom: 3px solid var(--success-dark, #16a34a) !important; }
+.funnel-stage-pill .stage-label { font-size: 9px !important; font-weight: 800 !important; color: var(--text-muted) !important; text-transform: uppercase !important; letter-spacing: 0.3px !important; }
+.funnel-stage-pill .stage-val { font-size: 15px !important; font-weight: 800 !important; font-family: var(--font-mono) !important; color: var(--text-main) !important; line-height: 1.15 !important; }
+.stage-unaddressed .stage-val { color: var(--danger-dark, #ef4444) !important; }
+.stage-loop .stage-val { color: var(--warning-dark, #f59e0b) !important; }
+.stage-cleared .stage-val { color: var(--success-dark, #22c55e) !important; }
+.funnel-stage-pill .stage-sub { font-size: 9px !important; font-weight: 700 !important; color: var(--text-muted) !important; font-family: var(--font-mono) !important; }
+
+/* 🎯 4-STAGE RETENTION PIPELINE STRIP */
+.funnel-pipeline-strip { display: flex !important; align-items: center !important; justify-content: space-between !important; background: var(--bg-surface-elevated, #131b2e) !important; border: 1px solid var(--border-color, rgba(255,255,255,0.08)) !important; border-radius: 6px !important; padding: 6px 10px !important; margin: 2px 0 !important; font-family: var(--font-mono) !important; font-size: 9.5px !important; color: var(--text-muted) !important; font-weight: 700 !important; }
+.pipeline-step { display: flex !important; align-items: center !important; gap: 4px !important; }
+.pipe-dot { width: 5px !important; height: 5px !important; border-radius: 50% !important; background: var(--tcs-blue-accent) !important; }
+.pipe-locked .pipe-dot { background: var(--success-dark) !important; }
+.pipe-locked { color: var(--success-dark) !important; }
+.pipe-arrow { font-size: 8.5px !important; opacity: 0.45 !important; }
+.funnel-verdict-box, .funnel-footer-note { padding: 8px 10px !important; font-size: 11px !important; color: var(--text-main) !important; line-height: 1.4 !important; background: var(--bg-surface-elevated, #131b2e) !important; border-radius: 7px !important; border: 1px solid var(--border-color, rgba(255,255,255,0.1)) !important; border-left: 4px solid var(--tcs-blue-accent) !important; margin-top: auto !important; box-sizing: border-box !important; }
+
+/* 3. SWIPEABLE CAROUSEL TRACK & SLIDES */
+.bleed-carousel-track { display: flex !important; overflow-x: auto !important; scroll-snap-type: x mandatory !important; scroll-behavior: smooth !important; -webkit-overflow-scrolling: touch !important; scrollbar-width: none !important; gap: 12px !important; width: 100% !important; box-sizing: border-box !important; }
+.bleed-carousel-track::-webkit-scrollbar { display: none !important; }
+.bleed-carousel-slide { min-width: 100% !important; width: 100% !important; flex-shrink: 0 !important; scroll-snap-align: start !important; box-sizing: border-box !important; display: flex !important; flex-direction: column !important; justify-content: space-between !important; gap: 8px !important; }
+
+.bleed-carousel-dots { display: flex !important; align-items: center !important; justify-content: center !important; gap: 6px !important; margin-top: 4px !important; }
+.bleed-dot { width: 6px !important; height: 6px !important; border-radius: 50% !important; background: var(--border-color, rgba(255, 255, 255, 0.2)) !important; border: none !important; padding: 0 !important; cursor: pointer !important; transition: all 0.25s ease !important; }
+.bleed-dot.active { width: 18px !important; border-radius: 4px !important; background: var(--tcs-blue-accent, #38bdf8) !important; }
+
+/* 4. SLIDE 1: BENTO SUMMARY METRICS GRID */
+.bleed-metrics-grid { display: grid !important; grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 8px !important; margin: 2px 0 4px 0 !important; width: 100% !important; box-sizing: border-box !important; }
+.bleed-metric-box { background: var(--bg-surface-elevated, #131b2e) !important; border: 1px solid var(--border-color, rgba(255,255,255,0.1)) !important; padding: 7px 5px !important; border-radius: 7px !important; text-align: center !important; display: flex !important; flex-direction: column !important; justify-content: space-between !important; min-width: 0 !important; gap: 2px !important; }
 .bleed-metric-box.box-gross { border-bottom: 3px solid var(--success-dark, #16a34a) !important; }
 .bleed-metric-box.box-penalty { border-bottom: 3px solid var(--danger-dark, #ef4444) !important; }
 .bleed-metric-box.box-net { border-bottom: 3px solid var(--tcs-blue-accent, #38bdf8) !important; }
-.bleed-label { font-size: 9.5px !important; font-weight: 800 !important; color: var(--text-muted, #94a3b8) !important; text-transform: uppercase !important; letter-spacing: 0.3px !important; line-height: 1.2 !important; display: block !important; margin-bottom: 2px !important; }
-.bleed-val { font-size: 16px !important; font-weight: 800 !important; font-family: var(--font-mono, monospace) !important; line-height: 1.15 !important; margin: 2px 0 !important; display: block !important; }
+.bleed-label { font-size: 9px !important; font-weight: 800 !important; color: var(--text-muted) !important; text-transform: uppercase !important; letter-spacing: 0.3px !important; display: block !important; }
+.bleed-val { font-size: 15px !important; font-weight: 800 !important; font-family: var(--font-mono) !important; line-height: 1.15 !important; margin: 1px 0 !important; display: block !important; }
 .box-gross .bleed-val { color: var(--success-dark, #22c55e) !important; }
 .box-penalty .bleed-val { color: var(--danger-dark, #ef4444) !important; }
 .box-net .bleed-val { color: var(--tcs-blue-accent, #38bdf8) !important; }
-.bleed-sub { font-size: 9.5px !important; font-weight: 700 !important; color: var(--text-muted, #94a3b8) !important; font-family: var(--font-mono, monospace) !important; display: flex !important; align-items: center !important; justify-content: center !important; gap: 4px !important; flex-wrap: wrap !important; line-height: 1.2 !important; }
-.bleed-sub small { font-size: 8.5px !important; opacity: 0.85 !important; }
+.bleed-sub { font-size: 9px !important; font-weight: 700 !important; color: var(--text-muted) !important; font-family: var(--font-mono) !important; display: flex !important; align-items: center !important; justify-content: center !important; gap: 4px !important; }
+.bleed-sub small { font-size: 8px !important; opacity: 0.85 !important; }
 
-/* 2. MIDDLE SUBJECT-WISE LEAK MATRIX */
-.leak-matrix-wrapper { margin-top: 10px !important; background: var(--bg-surface-elevated, #131b2e) !important; border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1)) !important; border-radius: 8px !important; padding: 10px 12px !important; box-sizing: border-box !important; }
-.leak-matrix-header { display: flex !important; justify-content: space-between !important; font-size: 9.5px !important; font-weight: 800 !important; font-family: var(--font-mono, monospace) !important; color: var(--text-muted, #94a3b8) !important; letter-spacing: 0.5px !important; padding-bottom: 6px !important; border-bottom: 1px solid var(--border-color, rgba(255, 255, 255, 0.1)) !important; margin-bottom: 8px !important; }
-.leak-matrix-list { display: flex !important; flex-direction: column !important; gap: 6px !important; }
-.leak-matrix-row { display: flex !important; align-items: center !important; justify-content: space-between !important; padding: 7px 10px !important; background: var(--bg-panel, #0f172a) !important; border-radius: 6px !important; border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08)) !important; gap: 8px !important; }
+/* 5. SLIDE 2: CONSTRAINED LEAK MATRIX LIST */
+.leak-matrix-wrapper { background: var(--bg-surface-elevated, #131b2e) !important; border: 1px solid var(--border-color, rgba(255,255,255,0.1)) !important; border-radius: 7px !important; padding: 7px 9px !important; box-sizing: border-box !important; }
+.leak-matrix-header { display: flex !important; justify-content: space-between !important; font-size: 9px !important; font-weight: 800 !important; font-family: var(--font-mono) !important; color: var(--text-muted) !important; letter-spacing: 0.4px !important; padding-bottom: 4px !important; border-bottom: 1px solid var(--border-color, rgba(255,255,255,0.1)) !important; margin-bottom: 6px !important; }
+.leak-matrix-list { display: flex !important; flex-direction: column !important; gap: 5px !important; max-height: 96px !important; overflow-y: auto !important; padding-right: 3px !important; scrollbar-width: thin !important; }
+.leak-matrix-list::-webkit-scrollbar { width: 3px !important; }
+.leak-matrix-list::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2) !important; border-radius: 3px !important; }
+.leak-matrix-row { display: flex !important; align-items: center !important; justify-content: space-between !important; padding: 5px 8px !important; background: var(--bg-panel, #0f172a) !important; border-radius: 5px !important; border: 1px solid var(--border-color, rgba(255,255,255,0.06)) !important; gap: 6px !important; }
 .leak-row-left { display: flex !important; flex-direction: column !important; min-width: 0 !important; }
-.leak-subject-title { font-size: 12px !important; font-weight: 700 !important; color: var(--text-main, #f8fafc) !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; }
-.leak-subject-sub { font-size: 10px !important; color: var(--text-muted, #94a3b8) !important; font-family: var(--font-mono, monospace) !important; }
-.leak-row-right { display: flex !important; align-items: center !important; gap: 8px !important; flex-shrink: 0 !important; }
-.leak-marks-tag { font-size: 11.5px !important; font-weight: 800 !important; font-family: var(--font-mono, monospace) !important; }
-.leak-risk-badge { font-size: 9px !important; font-weight: 800 !important; font-family: var(--font-mono, monospace) !important; padding: 2px 6px !important; border-radius: 4px !important; text-transform: uppercase !important; letter-spacing: 0.3px !important; }
-
-/* Risk Status Colors */
+.leak-subject-title { font-size: 11.5px !important; font-weight: 700 !important; color: var(--text-main) !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; }
+.leak-subject-sub { font-size: 9.5px !important; color: var(--text-muted) !important; font-family: var(--font-mono) !important; }
+.leak-row-right { display: flex !important; align-items: center !important; gap: 6px !important; flex-shrink: 0 !important; }
+.leak-marks-tag { font-size: 11px !important; font-weight: 800 !important; font-family: var(--font-mono) !important; }
+.leak-risk-badge { font-size: 8.5px !important; font-weight: 800 !important; font-family: var(--font-mono) !important; padding: 1px 5px !important; border-radius: 4px !important; text-transform: uppercase !important; }
 .risk-high .leak-marks-tag { color: var(--danger-dark, #ef4444) !important; }
-.risk-high .leak-risk-badge { background: var(--danger-bg-subtle, rgba(239, 68, 68, 0.15)) !important; color: var(--danger-dark, #ef4444) !important; border: 1px solid var(--danger-border, rgba(239, 68, 68, 0.3)) !important; }
+.risk-high .leak-risk-badge { background: var(--danger-bg-subtle) !important; color: var(--danger-dark, #ef4444) !important; border: 1px solid var(--danger-border) !important; }
 .risk-moderate .leak-marks-tag { color: var(--warning-dark, #f59e0b) !important; }
-.risk-moderate .leak-risk-badge { background: var(--warning-bg-subtle, rgba(245, 158, 11, 0.15)) !important; color: var(--warning-dark, #f59e0b) !important; border: 1px solid var(--warning-border, rgba(245, 158, 11, 0.3)) !important; }
+.risk-moderate .leak-risk-badge { background: var(--warning-bg-subtle) !important; color: var(--warning-dark, #f59e0b) !important; border: 1px solid var(--warning-border) !important; }
 .risk-safe .leak-marks-tag { color: var(--success-dark, #22c55e) !important; }
-.risk-safe .leak-risk-badge { background: var(--success-bg-subtle, rgba(34, 197, 94, 0.15)) !important; color: var(--success-dark, #22c55e) !important; border: 1px solid var(--success-border, rgba(34, 197, 94, 0.3)) !important; }
+.risk-safe .leak-risk-badge { background: var(--success-bg-subtle) !important; color: var(--success-dark, #22c55e) !important; border: 1px solid var(--success-border) !important; }
 
-/* 3. BOTTOM EXECUTIVE VERDICT CARD */
-.bleed-verdict-card, .bleed-footer-note { display: flex !important; flex-direction: column !important; gap: 6px !important; padding: 10px 12px !important; border-radius: 8px !important; border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1)) !important; border-left-width: 4px !important; background: var(--bg-surface-elevated, #131b2e) !important; box-sizing: border-box !important; margin-top: 10px !important; }
-.bleed-verdict-card.verdict-success { border-left-color: var(--success, #22c55e) !important; background: linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, var(--bg-surface-elevated, #131b2e) 100%) !important; }
-.bleed-verdict-card.verdict-warning { border-left-color: var(--warning, #f59e0b) !important; background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, var(--bg-surface-elevated, #131b2e) 100%) !important; }
-.bleed-verdict-card.verdict-danger { border-left-color: var(--danger, #ef4444) !important; background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, var(--bg-surface-elevated, #131b2e) 100%) !important; }
-.verdict-header { display: flex !important; align-items: center !important; justify-content: space-between !important; gap: 8px !important; }
-.verdict-status-pill { font-size: 10px !important; font-weight: 800 !important; font-family: var(--font-mono, monospace) !important; letter-spacing: 0.5px !important; text-transform: uppercase !important; padding: 2px 7px !important; border-radius: 5px !important; }
-.pill-success { background: var(--success-bg-subtle, rgba(34, 197, 94, 0.15)) !important; color: var(--success-dark, #22c55e) !important; border: 1px solid var(--success-border, rgba(34, 197, 94, 0.3)) !important; }
-.pill-warning { background: var(--warning-bg-subtle, rgba(245, 158, 11, 0.15)) !important; color: var(--warning-dark, #f59e0b) !important; border: 1px solid var(--warning-border, rgba(245, 158, 11, 0.3)) !important; }
-.pill-danger { background: var(--danger-bg-subtle, rgba(239, 68, 68, 0.15)) !important; color: var(--danger-dark, #ef4444) !important; border: 1px solid var(--danger-border, rgba(239, 68, 68, 0.3)) !important; }
-.verdict-metric-pill { font-size: 9.5px !important; font-weight: 800 !important; font-family: var(--font-mono, monospace) !important; background: var(--bg-panel, #0f172a) !important; padding: 2px 6px !important; border-radius: 4px !important; border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1)) !important; }
-.pill-metric-success { color: var(--success-dark, #22c55e) !important; border-color: rgba(34, 197, 94, 0.3) !important; }
-.pill-metric-warning { color: var(--warning-dark, #f59e0b) !important; border-color: rgba(245, 158, 11, 0.3) !important; }
-.pill-metric-danger { color: var(--danger-dark, #ef4444) !important; border-color: rgba(239, 68, 68, 0.3) !important; }
-.verdict-body { font-size: 11.5px !important; line-height: 1.5 !important; color: var(--text-main, #f8fafc) !important; font-weight: 500 !important; }
-.verdict-body strong { color: var(--text-main, #f8fafc) !important; font-weight: 700 !important; }
+/* 6. VERDICT CARDS (SUMMARY & DOMAIN SLIDES) */
+.bleed-verdict-card, .bleed-footer-note { display: flex !important; flex-direction: column !important; gap: 4px !important; padding: 8px 10px !important; border-radius: 7px !important; border: 1px solid var(--border-color, rgba(255,255,255,0.1)) !important; border-left-width: 4px !important; background: var(--bg-surface-elevated, #131b2e) !important; box-sizing: border-box !important; margin-top: auto !important; }
+.bleed-verdict-card.verdict-success { border-left-color: var(--success, #22c55e) !important; background: linear-gradient(135deg, rgba(34,197,94,0.08) 0%, var(--bg-surface-elevated, #131b2e) 100%) !important; }
+.bleed-verdict-card.verdict-warning { border-left-color: var(--warning, #f59e0b) !important; background: linear-gradient(135deg, rgba(245,158,11,0.08) 0%, var(--bg-surface-elevated, #131b2e) 100%) !important; }
+.bleed-verdict-card.verdict-danger { border-left-color: var(--danger, #ef4444) !important; background: linear-gradient(135deg, rgba(239,68,68,0.08) 0%, var(--bg-surface-elevated, #131b2e) 100%) !important; }
+.verdict-header { display: flex !important; align-items: center !important; justify-content: space-between !important; gap: 6px !important; }
+.verdict-status-pill { font-size: 9.5px !important; font-weight: 800 !important; font-family: var(--font-mono) !important; padding: 1.5px 6px !important; border-radius: 4px !important; }
+.verdict-metric-pill { font-size: 9px !important; font-weight: 800 !important; font-family: var(--font-mono) !important; background: var(--bg-panel) !important; padding: 1.5px 5px !important; border-radius: 4px !important; }
+.verdict-body { font-size: 11px !important; line-height: 1.4 !important; color: var(--text-main) !important; }
 
-/* 4. CONSOLIDATED MOBILE RESPONSIVE ENGINE */
-@media screen and (max-width: 768px) {
-  .bleed-metrics-grid { gap: 6px !important; }
-  .bleed-metric-box { padding: 6px 3px !important; }
-  .bleed-label { font-size: 8.5px !important; }
-  .bleed-val { font-size: 14px !important; }
-  .bleed-sub { font-size: 8.5px !important; }
-  .leak-matrix-wrapper { padding: 8px 10px !important; }
-  .leak-subject-title { font-size: 11px !important; }
-  .leak-subject-sub { font-size: 9px !important; }
-  .leak-marks-tag { font-size: 10.5px !important; }
-  .leak-risk-badge { font-size: 8.5px !important; padding: 1.5px 5px !important; }
-  .bleed-verdict-card { padding: 8px 10px !important; gap: 4px !important; }
-  .verdict-status-pill { font-size: 9px !important; }
-  .verdict-metric-pill { font-size: 8.5px !important; }
-  .verdict-body { font-size: 10.5px !important; line-height: 1.4 !important; }
-}
-/* 🚀 SYMMETRY FIX: SUBJECT LEAK SCROLLER & FUNNEL PACKING */
-#subjectLeakMatrixContainer { max-height: 130px !important; overflow-y: auto !important; padding-right: 4px !important; scrollbar-width: thin !important; }
-#subjectLeakMatrixContainer::-webkit-scrollbar { width: 4px !important; }
-#subjectLeakMatrixContainer::-webkit-scrollbar-thumb { background: var(--border-color, rgba(255, 255, 255, 0.2)) !important; border-radius: 4px !important; }
-
-/* Left Card (Funnel) Spacing Tightening */
-#mistakeFunnelCard { display: flex !important; flex-direction: column !important; justify-content: flex-start !important; gap: 12px !important; }
-#mistakeFunnelCard .funnel-track-wrapper { margin: 4px 0 6px 0 !important; }
-#mistakeFunnelCard .funnel-stage-grid { margin-bottom: 0 !important; }
-#mistakeFunnelCard .funnel-footer-note, #mistakeFunnelCard .funnel-verdict-box { margin-top: auto !important; }
-
-/* Desktop Grid Alignment */
+/* 7. DESKTOP GRID & MOBILE SWITCHER */
 @media screen and (min-width: 769px) {
   .advanced-analytics-grid { align-items: stretch !important; }
-  #mistakeFunnelCard, #negativeBleedCard { min-height: 430px !important; box-sizing: border-box !important; }
 }
-/* 🚀 MOBILE SEGMENTED PILL SWITCHER */
-.analytics-mobile-switcher { display: none; }
 
+.analytics-mobile-switcher { display: none; }
 @media screen and (max-width: 768px) {
   .analytics-mobile-switcher { display: flex !important; background: var(--bg-surface-elevated); padding: 4px; border-radius: 10px; border: 1px solid var(--border-color); gap: 4px; margin-bottom: 14px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08); }
   .analytics-seg-btn { flex: 1; height: 36px; border: none; background: transparent; color: var(--text-muted); font-size: 11.5px; font-weight: 700; border-radius: 7px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1); outline: none; padding: 0 4px; -webkit-tap-highlight-color: transparent; }
   .analytics-seg-btn.active { background: var(--bg-panel); color: var(--tcs-blue-accent); font-weight: 800; border: 1px solid var(--border-color); box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12); }
-
   .advanced-analytics-grid.show-domains .deck-audit { display: none !important; }
   .advanced-analytics-grid.show-audit .deck-domains { display: none !important; }
   .advanced-analytics-grid .deck-domains, .advanced-analytics-grid .deck-audit { animation: fadeInDeck 0.25s cubic-bezier(0.16, 1, 0.3, 1); }

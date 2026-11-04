@@ -287,6 +287,7 @@ window.addEventListener("DOMContentLoaded", () => {
   setupAppEvents(); 
   initAuthSessionWatcher(); 
   setupMobileExamGestures();
+  initAnalyticsCarousels();
   window.addEventListener('resize', () => {
     const bottomNav = document.getElementById('mobileBottomNav');
     if (bottomNav) {
@@ -622,34 +623,6 @@ window.toggleProfileDrawer = function() {
   switchView('viewProfile'); 
 };
 
-// 🚀 ROBUST SUBJECT MASTERY VIEW SWITCHER (FIXED TOGGLE & CHART RESIZE)
-window.switchMasteryView = function(viewType) {
-  const rWrap = document.getElementById("radarViewport");
-  const gWrap = document.getElementById("gridViewport");
-  const bRadar = document.getElementById("btnToggleRadar");
-  const bGrid = document.getElementById("btnToggleGrid");
-
-  if (viewType === 'radar') { 
-    if (rWrap) rWrap.style.display = "flex"; 
-    if (gWrap) gWrap.style.display = "none"; 
-    bRadar?.classList.add("active"); 
-    bGrid?.classList.remove("active"); 
-
-    // 🎯 Canvas dimensions restore karein taaki chart blank/freeze na ho
-    if (subjectRadarChartInstance) {
-      requestAnimationFrame(() => {
-        try {
-          subjectRadarChartInstance.resize();
-        } catch (e) {}
-      });
-    }
-  } else { 
-    if (rWrap) rWrap.style.display = "none"; 
-    if (gWrap) gWrap.style.display = "grid"; 
-    bGrid?.classList.add("active"); 
-    bRadar?.classList.remove("active"); 
-  }
-};
 
 // ==========================================================================
 // 4. AUTHENTICATION & CANDIDATE SESSION
@@ -1518,16 +1491,19 @@ window.executeBriefingMode = function(mode) {
   const tId = activeBriefingTestId;
   closeMissionBriefingModal();
   if (tId === null || tId === undefined) return;
+
+  // Flashcard singular ko plural normalize karein taaki engine crash na ho
+  const normalizedMode = (mode === 'flashcard' || mode === 'flashcards') ? 'flashcards' : mode;
   
   if (tId === -1) {
-    launchBoosterMode(mode);
+    launchBoosterMode(normalizedMode);
   } else if (tId === -3) {
-    launchSubjectMistakeMode(mode);
+    launchSubjectMistakeMode(normalizedMode);
   } else {
-    if (mode === 'exam') {
+    if (normalizedMode === 'exam') {
       launchAssessment(tId);
     } else {
-      launchPracticeMode(tId, mode);
+      launchPracticeMode(tId, normalizedMode);
     }
   }
 };
@@ -4189,9 +4165,6 @@ function renderDomainCompetencyMatrix(matrixData) {
     `).join("");
   }
 
-  if (isMobileViewport) switchMasteryView('grid');
-  else switchMasteryView('radar');
-
   // 4. Radar Canvas Drawing
   const isAnalyticsVisible = document.getElementById("viewAnalytics")?.style.display === "flex";
   const rCanvas = document.getElementById("subjectRadarChart");
@@ -4234,12 +4207,56 @@ function renderDomainCompetencyMatrix(matrixData) {
   }
 }
 
-// 🚀 8.4: MISTAKE FUNNEL & SUBJECT-WISE LEAK MATRIX RENDERER
-function renderAuditAndRetentionEngines(totals, subStats = {}) {
-  const { nCorr, nIncorr, totalQ } = totals;
+window.scrollMasterySlide = function(index) {
+  const track = document.getElementById("masteryCarouselTrack");
+  if (!track) return;
+  track.scrollTo({ left: index * (track.offsetWidth || 1), behavior: 'smooth' });
+};
 
-  // 1. Mistake Funnel Engine
-  const allMistakes = (userWeakQuestions || []).filter(q => (q.times_wrong || 0) > 0);
+window.scrollBleedSlide = function(index) {
+  const track = document.getElementById("bleedCarouselTrack");
+  if (!track) return;
+  track.scrollTo({ left: index * (track.offsetWidth || 1), behavior: 'smooth' });
+};
+
+function initAnalyticsCarousels() {
+  const mTrack = document.getElementById("masteryCarouselTrack");
+  const mDot0 = document.getElementById("masteryDot0");
+  const mDot1 = document.getElementById("masteryDot1");
+  if (mTrack && mDot0 && mDot1) {
+    mTrack.addEventListener("scroll", () => {
+      const width = mTrack.offsetWidth || 1;
+      const idx = Math.round(mTrack.scrollLeft / width);
+      mDot0.classList.toggle("active", idx === 0);
+      mDot1.classList.toggle("active", idx !== 0);
+      if (idx === 0 && subjectRadarChartInstance) {
+        try { subjectRadarChartInstance.resize(); } catch (e) {}
+      }
+    }, { passive: true });
+  }
+
+  const bTrack = document.getElementById("bleedCarouselTrack");
+  const bDot0 = document.getElementById("bleedDot0");
+  const bDot1 = document.getElementById("bleedDot1");
+  if (bTrack && bDot0 && bDot1) {
+    bTrack.addEventListener("scroll", () => {
+      const width = bTrack.offsetWidth || 1;
+      const idx = Math.round(bTrack.scrollLeft / width);
+      bDot0.classList.toggle("active", idx === 0);
+      bDot1.classList.toggle("active", idx !== 0);
+    }, { passive: true });
+  }
+}
+
+function renderAuditAndRetentionEngines(totals = {}, subStats = {}) {
+  const nCorr = totals.nCorr || 0;
+  const nIncorr = totals.nIncorr || 0;
+  const totalQ = totals.totalQ || (nCorr + nIncorr);
+
+  const allMistakes = (typeof userWeakQuestions !== "undefined" && Array.isArray(userWeakQuestions))
+    ? userWeakQuestions.filter(q => (q.times_wrong || 0) > 0)
+    : [];
+  
   const totalMistakes = allMistakes.length;
   const masteredMistakes = allMistakes.filter(q => (q.mastery_streak || 0) >= 4).length;
   const loopMistakes = allMistakes.filter(q => (q.mastery_streak || 0) >= 1 && (q.mastery_streak || 0) < 4).length;
@@ -4269,27 +4286,39 @@ function renderAuditAndRetentionEngines(totals, subStats = {}) {
   const fNote = document.getElementById("funnelFooterNote");
   if (fNote) {
     if (totalMistakes === 0) {
-      fNote.innerHTML = `🛡️ <strong style="color:var(--success-dark);">Clean Slate:</strong> No mistakes logged. All questions attempted accurately!`;
+      fNote.style.borderLeftColor = "var(--success)";
+      fNote.innerHTML = `🛡️ <strong style="color:var(--success-dark);">Clean Slate:</strong> Zero mistakes logged. All questions attempted accurately!`;
     } else if (recoveryRate >= 75) {
-      fNote.innerHTML = `🏆 <strong style="color:var(--success-dark);">Exceptional Retention:</strong> ${masteredMistakes} of ${totalMistakes} mistakes permanently mastered. Spaced repetition loop operating at peak efficiency.`;
+      fNote.style.borderLeftColor = "var(--success)";
+      fNote.innerHTML = `🏆 <strong style="color:var(--success-dark);">Exceptional Retention:</strong> ${masteredMistakes} of ${totalMistakes} mistakes permanently mastered into long-term recall.`;
     } else if (loopMistakes > 0) {
-      fNote.innerHTML = `⚡ <strong style="color:var(--tcs-blue-accent);">${loopMistakes} questions</strong> currently advancing through the review cycle.`;
+      fNote.style.borderLeftColor = "var(--warning)";
+      fNote.innerHTML = `⚡ <strong style="color:var(--warning-dark);">${loopMistakes} questions</strong> advancing through the review loop. Clear upcoming Mastery Booster sets to lock them into Streak 4.`;
     } else {
-      fNote.innerHTML = `⚠️ <strong style="color:var(--warning-dark);">${unaddressedMistakes} fresh errors</strong> awaiting first review. Launch Mistake Bank or Daily Booster.`;
+      fNote.style.borderLeftColor = "var(--danger)";
+      fNote.innerHTML = `⚠️ <strong style="color:var(--danger-dark);">${unaddressedMistakes} fresh errors</strong> awaiting first review. Launch Mistake Bank or Daily Booster to start the recovery cycle.`;
     }
   }
 
-  // 🎯 SMART COMPACT NUMBER FORMATTER
   const formatScore = (val) => {
     const num = Number(val);
     return Number.isInteger(num) ? num.toString() : num.toFixed(2);
   };
 
-  // 2. Overview Stats
   const grossEarned = nCorr * 2.00;
   const penaltyBleed = nIncorr * 0.50;
   const netRealized = Math.max(0, grossEarned - penaltyBleed);
-  const scoreEfficiency = grossEarned > 0 ? Math.max(0, Math.min(100, Math.round((netRealized / grossEarned) * 100))) : 0;
+
+  let bleedPercentage = "0.0";
+  let scoreEfficiency = 0;
+
+  if (grossEarned > 0) {
+    bleedPercentage = ((penaltyBleed / grossEarned) * 100).toFixed(1);
+    scoreEfficiency = Math.max(0, Math.min(100, Math.round((netRealized / grossEarned) * 100)));
+  } else if (penaltyBleed > 0) {
+    bleedPercentage = "100.0";
+    scoreEfficiency = 0;
+  }
 
   const bBadge = document.getElementById("bleedRatioBadge");
   if (bBadge) bBadge.innerText = `-${formatScore(penaltyBleed)} MARKS LOST`;
@@ -4309,22 +4338,21 @@ function renderAuditAndRetentionEngines(totals, subStats = {}) {
   const bNetSub = document.getElementById("bleedNetSub");
   if (bNetSub) bNetSub.innerText = `${scoreEfficiency}% Retained`;
 
-  // 🎯 3. SUBJECT-WISE LEAK MATRIX COMPILER
   const matrixContainer = document.getElementById("subjectLeakMatrixContainer");
-  if (matrixContainer) {
-    const subjectList = Object.entries(subStats)
-      .map(([name, data]) => {
-        const wrong = data.incorrect || 0;
-        const loss = wrong * 0.50;
-        const correct = data.correct || 0;
-        const attempted = correct + wrong;
-        return { name, wrong, correct, loss, attempted };
-      })
-      .filter(s => s.attempted > 0)
-      .sort((a, b) => b.loss - a.loss); // Sabse zyada loss wala subject sabse upar
+  const subjectList = Object.entries(subStats)
+    .map(([name, data]) => {
+      const wrong = data.incorrect || 0;
+      const loss = wrong * 0.50;
+      const correct = data.correct || 0;
+      const attempted = correct + wrong;
+      return { name, wrong, correct, loss, attempted };
+    })
+    .filter(s => s.attempted > 0)
+    .sort((a, b) => b.loss - a.loss);
 
+  if (matrixContainer) {
     if (subjectList.length === 0) {
-      matrixContainer.innerHTML = `<div style="text-align:center; padding:12px; font-size:11px; color:var(--text-muted);">Attempt question sets to map subject-wise penalties.</div>`;
+      matrixContainer.innerHTML = `<div style="text-align:center; padding:12px; font-size:11px; color:var(--text-muted);">Attempt mock sets to map subject-wise penalties.</div>`;
     } else {
       matrixContainer.innerHTML = subjectList.map(item => {
         let riskClass = "risk-safe";
@@ -4354,18 +4382,74 @@ function renderAuditAndRetentionEngines(totals, subStats = {}) {
     }
   }
 
-  // 4. Actionable Verdict Note
   const bNote = document.getElementById("bleedFooterNote");
   if (bNote) {
-    const worstSub = Object.entries(subStats)
-      .map(([name, data]) => ({ name, wrong: data.incorrect || 0, loss: (data.incorrect || 0) * 0.50 }))
-      .sort((a, b) => b.loss - a.loss)[0];
-
-    if (!worstSub || worstSub.loss === 0) {
+    if (totalQ === 0) {
+      bNote.className = "bleed-verdict-card verdict-neutral";
+      bNote.innerHTML = `
+        <div class="verdict-header">
+          <span class="verdict-status-pill pill-neutral">🛡️ ZERO TELEMETRY</span>
+        </div>
+        <div class="verdict-body">
+          Attempt mock sets to evaluate guesswork penalties and score retention.
+        </div>
+      `;
+    } else if (penaltyBleed === 0) {
       bNote.className = "bleed-verdict-card verdict-success";
       bNote.innerHTML = `
         <div class="verdict-header">
-          <span class="verdict-status-pill pill-success">🎯 ZERO BLEED OBSERVED</span>
+          <span class="verdict-status-pill pill-success">🎯 100% EFFICIENCY</span>
+          <span class="verdict-metric-pill pill-metric-success">0.0% BLEED</span>
+        </div>
+        <div class="verdict-body">
+          <strong>Sniper Precision:</strong> Zero negative deductions. Every question attempted was correct!
+        </div>
+      `;
+    } else if (grossEarned === 0 || parseFloat(bleedPercentage) > 20) {
+      bNote.className = "bleed-verdict-card verdict-danger";
+      bNote.innerHTML = `
+        <div class="verdict-header">
+          <span class="verdict-status-pill pill-danger">⚠️ ${bleedPercentage}% BLEED</span>
+          <span class="verdict-metric-pill pill-metric-danger">-${formatScore(penaltyBleed)} MARKS</span>
+        </div>
+        <div class="verdict-body">
+          Negative deductions are severely eroding your score (${nIncorr} wrong). Practice skipping 50/50 doubts immediately.
+        </div>
+      `;
+    } else if (parseFloat(bleedPercentage) > 10) {
+      bNote.className = "bleed-verdict-card verdict-warning";
+      bNote.innerHTML = `
+        <div class="verdict-header">
+          <span class="verdict-status-pill pill-warning">⚡ CONTROLLED BLEED</span>
+          <span class="verdict-metric-pill pill-metric-warning">${bleedPercentage}% BLEED</span>
+        </div>
+        <div class="verdict-body">
+          Moderately disciplined scoring with -${formatScore(penaltyBleed)} marks lost. Minimizing doubtful attempts will boost your rank.
+        </div>
+      `;
+    } else {
+      bNote.className = "bleed-verdict-card verdict-success";
+      bNote.innerHTML = `
+        <div class="verdict-header">
+          <span class="verdict-status-pill pill-success">🏆 ${scoreEfficiency}% HIGH EFFICIENCY</span>
+          <span class="verdict-metric-pill pill-metric-success">${bleedPercentage}% BLEED</span>
+        </div>
+        <div class="verdict-body">
+          <strong>Outstanding Exam Discipline:</strong> Minimal guesswork penalty (${bleedPercentage}% bleed). Examination-ready accuracy.
+        </div>
+      `;
+    }
+  }
+
+  const dNote = document.getElementById("bleedDomainVerdictNote");
+  if (dNote) {
+    const worstSub = subjectList.length > 0 ? subjectList[0] : null;
+
+    if (!worstSub || worstSub.loss === 0) {
+      dNote.className = "bleed-verdict-card verdict-success";
+      dNote.innerHTML = `
+        <div class="verdict-header">
+          <span class="verdict-status-pill pill-success">🎯 ALL DOMAINS SAFE</span>
         </div>
         <div class="verdict-body">
           Flawless discipline across all domains. Zero negative marking deductions logged.
@@ -4373,14 +4457,14 @@ function renderAuditAndRetentionEngines(totals, subStats = {}) {
       `;
     } else {
       const isCritical = worstSub.loss >= 4.0;
-      bNote.className = `bleed-verdict-card ${isCritical ? 'verdict-danger' : 'verdict-warning'}`;
-      bNote.innerHTML = `
+      dNote.className = `bleed-verdict-card ${isCritical ? 'verdict-danger' : 'verdict-warning'}`;
+      dNote.innerHTML = `
         <div class="verdict-header">
           <span class="verdict-status-pill ${isCritical ? 'pill-danger' : 'pill-warning'}">⚠️ PRIMARY TARGET: ${worstSub.name.toUpperCase()}</span>
           <span class="verdict-metric-pill ${isCritical ? 'pill-metric-danger' : 'pill-metric-warning'}">-${formatScore(worstSub.loss)} MARKS</span>
         </div>
         <div class="verdict-body">
-          Biggest score leak is happening in <strong>${worstSub.name}</strong> (${worstSub.wrong} wrong attempts). Skipping doubtful questions here will instantly improve your net cutoff.
+          Biggest score leak is occurring in <strong>${worstSub.name}</strong> (${worstSub.wrong} wrong attempts). Skipping doubtful questions here will instantly improve your net cutoff.
         </div>
       `;
     }
@@ -5336,7 +5420,8 @@ function updatePracticeModeHeader(titleText, modeKey) {
 }
 
 window.setPracticeMode = function(modeKey) {
-  const targetMode = (modeKey || "read").toLowerCase();
+  let targetMode = (modeKey || "read").toLowerCase();
+  if (targetMode === "flashcard") targetMode = "flashcards";
   activePracticeMode = targetMode;
 
   // 🎯 STRICT ZERO-LEAK GUARD: Agar mode 'read' nahi hai toh strip ko foran gayab karein
@@ -5364,8 +5449,8 @@ window.setPracticeMode = function(modeKey) {
     localQuizState = { answers: {}, starred: new Set(), isFinished: false, filter: "all" };
     renderQuizUI();
   } else if (targetMode === "flashcards") {
-    flashcardDeck = [...practiceQuestions];
-    flashcardOriginalCount = practiceQuestions.length;
+    flashcardDeck = (practiceQuestions && practiceQuestions.length) ? [...practiceQuestions] : [];
+    flashcardOriginalCount = flashcardDeck.length;
     flashcardMasteredCount = 0;
     flashcardIndex = 0;
     isFlashcardFlipped = false;

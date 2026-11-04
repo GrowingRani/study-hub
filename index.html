@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Study Hub - Industrial Assessment Portal</title>
-  <link rel="stylesheet" href="style.css?v=3.8">
+  <link rel="stylesheet" href="style.css?v=3.9">
   <link rel="manifest" href="./manifest.json" crossorigin="use-credentials">
   <meta name="theme-color" content="#080c14">
   <meta name="mobile-web-app-capable" content="yes">
@@ -570,19 +570,37 @@
       <!-- 🚀 GRID CONTAINER: Default class 'show-domains' ke sath -->
       <div class="advanced-analytics-grid show-domains">
 
-        <!-- CARD 1: Subject Competency Matrix (deck-domains add karein) -->
+        <!-- CARD 1: Subject Competency Matrix (Swipeable Carousel) -->
         <div class="profile-section-card mastery-card-container deck-domains">
-          <div class="mastery-card-header">
-            <h3 class="section-title">Subject Competency Matrix</h3>
-            <div class="mastery-view-toggle">
-              <button type="button" class="view-pill active" id="btnToggleRadar" onclick="switchMasteryView('radar')">Radar 🕸️</button>
-              <button type="button" class="view-pill" id="btnToggleGrid" onclick="switchMasteryView('grid')">Cards ▦</button>
+          <div class="mastery-card-header" style="margin-bottom: 6px; justify-content: space-between; align-items: center;">
+            <div>
+              <h3 class="section-title" style="margin: 0; border: none; padding: 0;">Subject Competency Matrix</h3>
+              <p style="font-size: 11px; color: var(--text-muted); margin: 2px 0 0 0;">Swipe between radar diagram & domain cards</p>
             </div>
           </div>
-          <div id="radarViewport" class="radar-viewport-wrap">
-            <canvas id="subjectRadarChart"></canvas>
+
+          <!-- 🎯 HORIZONTAL SWIPEABLE TRACK -->
+          <div class="mastery-carousel-track" id="masteryCarouselTrack">
+            
+            <!-- SLIDE 1: RADAR CHART -->
+            <div class="mastery-carousel-slide">
+              <div id="radarViewport" class="radar-viewport-wrap">
+                <canvas id="subjectRadarChart"></canvas>
+              </div>
+            </div>
+
+            <!-- SLIDE 2: MICRO MASTERY CARDS -->
+            <div class="mastery-carousel-slide">
+              <div id="gridViewport" class="micro-mastery-grid"></div>
+            </div>
+
           </div>
-          <div id="gridViewport" class="micro-mastery-grid" style="display: none;"></div>
+
+          <!-- 🎯 PAGINATION DOTS -->
+          <div class="mastery-carousel-dots">
+            <button type="button" class="mastery-dot active" id="masteryDot0" onclick="scrollMasterySlide(0)" title="Radar View"></button>
+            <button type="button" class="mastery-dot" id="masteryDot1" onclick="scrollMasterySlide(1)" title="Cards View"></button>
+          </div>
         </div>
 
         <!-- CARD 2: Actionable Insights (id aur deck-domains add karein) -->
@@ -609,87 +627,115 @@
           </div>
         </div>
 
-        <!-- CARD 3: Mistake Funnel (deck-audit add karein) -->
+        <!-- CARD 3: Mistake Funnel (Clean Balanced Layout) -->
         <div class="profile-section-card deck-audit" id="mistakeFunnelCard">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-            <h3 class="section-title" style="margin-bottom: 0; border-bottom: none; padding-bottom: 0;">Mistake Rehabilitation Funnel</h3>
-            <span class="briefing-badge" id="funnelRateBadge">0% RECOVERED</span>
-          </div>
-          <p style="font-size: 11.5px; color: var(--text-muted); margin-bottom: 14px; line-height: 1.45;">
-            Tracks conversion of flagged mistakes into long-term memory through the 4-stage spaced review protocol.
-          </p>
-
-          <div class="multi-tier-track" style="height: 9px; margin-bottom: 12px;">
-            <div id="funnelActiveFill" class="century-fill" style="background: linear-gradient(90deg, #f59e0b, #fbbf24); width: 0%;"></div>
-            <div id="funnelMasteredFill" class="century-fill" style="background: linear-gradient(90deg, #16a34a, #22c55e); width: 0%;"></div>
+          <div class="funnel-card-header">
+            <div class="funnel-title-group">
+              <h4 class="funnel-title">Mistake Rehabilitation Funnel</h4>
+              <p class="funnel-subtitle">Tracks conversion of flagged mistakes into long-term recall via 4-stage spaced repetition.</p>
+            </div>
+            <span class="funnel-rate-pill" id="funnelRateBadge">0% RECOVERED</span>
           </div>
 
+          <!-- Dual-Track Spaced Progress Track -->
+          <div class="funnel-track-wrapper">
+            <div class="funnel-progress-track">
+              <div class="funnel-fill-active" id="funnelActiveFill" style="width: 0%;"></div>
+              <div class="funnel-fill-mastered" id="funnelMasteredFill" style="width: 0%;"></div>
+            </div>
+          </div>
+
+          <!-- 3 Bento Telemetry Boxes -->
           <div class="funnel-stage-grid">
             <div class="funnel-stage-pill stage-unaddressed">
               <span class="stage-label">Fresh Leak</span>
-              <strong class="stage-val" id="funnelUnaddressedVal">0</strong>
+              <span class="stage-val" id="funnelUnaddressedVal">0</span>
               <span class="stage-sub">Streak 0</span>
             </div>
             <div class="funnel-stage-pill stage-loop">
               <span class="stage-label">Review Loop</span>
-              <strong class="stage-val" id="funnelLoopVal">0</strong>
+              <span class="stage-val" id="funnelLoopVal">0</span>
               <span class="stage-sub">Streak 1–3</span>
             </div>
             <div class="funnel-stage-pill stage-cleared">
               <span class="stage-label">Mastered</span>
-              <strong class="stage-val" id="funnelClearedVal">0</strong>
-              <span class="stage-sub">Streak 4 (Locked)</span>
+              <span class="stage-val" id="funnelClearedVal">0</span>
+              <span class="stage-sub">Streak 4 🔒</span>
             </div>
           </div>
 
-          <div class="funnel-footer-note" id="funnelFooterNote">
-            Compiling mistake recovery telemetry...
+          <!-- 🎯 4-STAGE RETENTION PIPELINE (Dead Space Fill + True Telemetry) -->
+          <div class="funnel-pipeline-strip">
+            <div class="pipeline-step"><span class="pipe-dot"></span><span>S1 Initial</span></div>
+            <span class="pipe-arrow">➔</span>
+            <div class="pipeline-step"><span class="pipe-dot"></span><span>S2 24h</span></div>
+            <span class="pipe-arrow">➔</span>
+            <div class="pipeline-step"><span class="pipe-dot"></span><span>S3 3-Day</span></div>
+            <span class="pipe-arrow">➔</span>
+            <div class="pipeline-step pipe-locked"><span class="pipe-dot"></span><span>S4 Locked 🔒</span></div>
+          </div>
+
+          <!-- Verdict Footer -->
+          <div id="funnelFooterNote" class="funnel-verdict-box">
+            ⚡ <strong>Telemetry Ready:</strong> Review flagged doubts to advance mastery streak.
           </div>
         </div>
 
-        <!-- CARD 4: Subject-Wise Leak Matrix & Penalty Bleed (deck-audit add karein) -->
-      <div class="profile-section-card" id="negativeBleedCard">
-        <div class="staging-queues-header" style="margin-bottom: 10px;">
-          <div>
-            <h4 style="font-size:15px; font-weight:800; color:var(--tcs-blue-header); margin:0;">Subject-Wise Leak Matrix</h4>
-            <p style="font-size:11px; color:var(--text-muted); margin:2px 0 0 0;">Identifies which subjects are bleeding marks due to negative marking (-0.50).</p>
+        <!-- CARD 4: Subject-Wise Leak Matrix (Swipeable Carousel) -->
+        <div class="profile-section-card deck-audit" id="negativeBleedCard">
+          <div class="staging-queues-header" style="margin-bottom: 6px; justify-content: space-between; align-items: center;">
+            <div>
+              <h4 style="font-size:14.5px; font-weight:800; color:var(--tcs-blue-header); margin:0;">Subject-Wise Leak Matrix</h4>
+              <p style="font-size:11px; color:var(--text-muted); margin:2px 0 0 0;">Negative marking penalty (-0.50) audit</p>
+            </div>
+            <span class="playlist-status-tag" id="bleedRatioBadge" style="background:var(--danger-bg-subtle); color:var(--danger-dark); border-color:var(--danger-border); white-space:nowrap;">-0 MARKS LOST</span>
           </div>
-          <span class="playlist-status-tag" id="bleedRatioBadge" style="background:var(--danger-bg-subtle); color:var(--danger-dark); border-color:var(--danger-border); white-space:nowrap;">-0 MARKS LOST</span>
-        </div>
 
-        <!-- Compact 3-Bento Summary Strip -->
-        <div class="bleed-metrics-grid">
-          <div class="bleed-metric-box box-gross">
-            <span class="bleed-label">Gross Earned</span>
-            <span class="bleed-val" id="bleedGrossVal">+0</span>
-            <span class="bleed-sub" id="bleedGrossSub">0 ✓ <small>(+2)</small></span>
+          <!-- 🎯 HORIZONTAL SWIPEABLE TRACK -->
+          <div class="bleed-carousel-track" id="bleedCarouselTrack">
+            
+            <!-- SLIDE 1: SUMMARY METRICS -->
+            <div class="bleed-carousel-slide">
+              <div class="bleed-metrics-grid">
+                <div class="bleed-metric-box box-gross">
+                  <span class="bleed-label">Gross Earned</span>
+                  <span class="bleed-val" id="bleedGrossVal">+0</span>
+                  <span class="bleed-sub" id="bleedGrossSub">0 ✓ <small>(+2)</small></span>
+                </div>
+                <div class="bleed-metric-box box-penalty">
+                  <span class="bleed-label">Penalty Bleed</span>
+                  <span class="bleed-val" id="bleedPenaltyVal">-0</span>
+                  <span class="bleed-sub" id="bleedPenaltySub">0 ✗ <small>(-0.5)</small></span>
+                </div>
+                <div class="bleed-metric-box box-net">
+                  <span class="bleed-label">Net Realized</span>
+                  <span class="bleed-val" id="bleedNetVal">0</span>
+                  <span class="bleed-sub" id="bleedNetSub">0% Retained</span>
+                </div>
+              </div>
+              <div id="bleedFooterNote" class="bleed-verdict-card verdict-success"></div>
+            </div>
+
+            <!-- SLIDE 2: DOMAIN BREAKDOWN -->
+            <div class="bleed-carousel-slide">
+              <div class="leak-matrix-wrapper">
+                <div class="leak-matrix-header">
+                  <span>DOMAIN BREAKDOWN</span>
+                  <span>PENALTY & RISK</span>
+                </div>
+                <div id="subjectLeakMatrixContainer" class="leak-matrix-list"></div>
+              </div>
+              <div id="bleedDomainVerdictNote" class="bleed-verdict-card verdict-warning"></div>
+            </div>
+
           </div>
-          <div class="bleed-metric-box box-penalty">
-            <span class="bleed-label">Penalty Bleed</span>
-            <span class="bleed-val" id="bleedPenaltyVal">-0</span>
-            <span class="bleed-sub" id="bleedPenaltySub">0 ✗ <small>(-0.5)</small></span>
-          </div>
-          <div class="bleed-metric-box box-net">
-            <span class="bleed-label">Net Realized</span>
-            <span class="bleed-val" id="bleedNetVal">0</span>
-            <span class="bleed-sub" id="bleedNetSub">0% Retained</span>
+
+          <!-- 🎯 PAGINATION DOTS (स्लाइड स्थिति दर्शाने और क्लिक करने के लिए) -->
+          <div class="bleed-carousel-dots">
+            <button type="button" class="bleed-dot active" id="bleedDot0" onclick="scrollBleedSlide(0)" title="Summary View"></button>
+            <button type="button" class="bleed-dot" id="bleedDot1" onclick="scrollBleedSlide(1)" title="Domain View"></button>
           </div>
         </div>
-
-        <!-- 🎯 DYNAMIC SUBJECT LEAK MATRIX LIST -->
-        <div class="leak-matrix-wrapper">
-          <div class="leak-matrix-header">
-            <span>DOMAIN BREAKDOWN</span>
-            <span>PENALTY & RISK</span>
-          </div>
-          <div id="subjectLeakMatrixContainer" class="leak-matrix-list">
-            <!-- JS dynamically populates subject rows here -->
-          </div>
-        </div>
-
-        <!-- Strategic Takeaway Verdict -->
-        <div id="bleedFooterNote" class="bleed-footer-note" style="margin-top: 10px;"></div>
-      </div>
 
         <!-- CARD 5: Activity Heatmap (Universal Full Width Base) -->
         <div class="profile-section-card" style="grid-column: 1 / -1;">
