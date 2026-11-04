@@ -4511,7 +4511,8 @@ window.fetchStudentAnalytics = async function(isSilent = false) {
   }
 };
 
-// 🗓️ 30-DAY ATTENDANCE HEATMAP RENDERER (SINGLE-PASS OPTIMIZED)
+
+// 🗓️ 30-DAY ATTENDANCE HEATMAP RENDERER (100% COMPLETE & AUTO-DOCK TO TODAY)
 function renderHeatmap(attMap) {
   const container = document.getElementById("heatmapContainer"); 
   if (!container) return; 
@@ -4528,7 +4529,7 @@ function renderHeatmap(attMap) {
   let activeDaysMonth = 0;
   const today = new Date();
 
-  // 🚀 Single-pass: Metrics calculate aur DOM cells ek hi loop me render honge
+  // 🚀 Single-pass: Metrics calculation aur DOM cells rendering (Purana Logic 100% Intact)
   for (let i = 29; i >= 0; i--) { 
     let d = new Date(today); 
     d.setDate(d.getDate() - i);
@@ -4577,15 +4578,22 @@ function renderHeatmap(attMap) {
     container.appendChild(cell);
   }
 
-  // Monthly Stats Header Strip Update
+  // Monthly Stats Header Strip Update (Same as before)
   const statsStrip = document.getElementById("heatmapStatsStrip");
   if (statsStrip) {
     const h = Math.floor(totalMinsMonth / 60);
     const m = totalMinsMonth % 60;
     statsStrip.innerText = `${h}h ${m}m Active • ${activeDaysMonth}/30 Days Logged`;
   }
-}
 
+  // 🚀 ONLY ADDITION: Page load par scroll bar right edge (Today) par dock rahega
+  const scrollWrapper = container.closest('.heatmap-scroll-wrapper') || container.parentElement || container;
+  if (scrollWrapper) {
+    requestAnimationFrame(() => {
+      scrollWrapper.scrollLeft = scrollWrapper.scrollWidth;
+    });
+  }
+}
 // 📱 MOBILE ANALYTICS SEGMENTED CONTROLLER (PRESERVED)
 window.switchAnalyticsTab = function(tabKey) {
   const grid = document.querySelector(".advanced-analytics-grid");
