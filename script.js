@@ -4338,17 +4338,25 @@ function renderAuditAndRetentionEngines(totals = {}, subStats = {}) {
   const bNetSub = document.getElementById("bleedNetSub");
   if (bNetSub) bNetSub.innerText = `${scoreEfficiency}% Retained`;
 
+  // 🎯 3. SUBJECT-WISE LEAK MATRIX COMPILER (Multi-Factor Risk & Precision Locked)
   const matrixContainer = document.getElementById("subjectLeakMatrixContainer");
   const subjectList = Object.entries(subStats)
     .map(([name, data]) => {
       const wrong = data.incorrect || 0;
-      const loss = wrong * 0.50;
       const correct = data.correct || 0;
       const attempted = correct + wrong;
-      return { name, wrong, correct, loss, attempted };
+      // Precision-safe loss calculation (avoid binary floating-point drift)
+      const loss = Math.round(wrong * 0.5 * 100) / 100;
+      const errorRate = attempted > 0 ? Math.round((wrong / attempted) * 100) : 0;
+      return { name, wrong, correct, loss, attempted, errorRate };
     })
     .filter(s => s.attempted > 0)
-    .sort((a, b) => b.loss - a.loss);
+    .sort((a, b) => {
+      // Primary Sort: Sabse zyada marks loss
+      if (b.loss !== a.loss) return b.loss - a.loss;
+      // Secondary Tie-Breaker: Zyada error rate pehle aayegi
+      return b.errorRate - a.errorRate;
+    });
 
   if (matrixContainer) {
     if (subjectList.length === 0) {
@@ -4358,10 +4366,11 @@ function renderAuditAndRetentionEngines(totals = {}, subStats = {}) {
         let riskClass = "risk-safe";
         let riskLabel = "Safe";
 
-        if (item.loss >= 4.0 || (item.attempted >= 5 && (item.wrong / item.attempted) > 0.35)) {
+        // Balanced Risk Algorithm considering both absolute bleed and error percentage
+        if (item.loss >= 4.0 || (item.attempted >= 4 && item.errorRate >= 35)) {
           riskClass = "risk-high";
           riskLabel = "High Risk";
-        } else if (item.loss >= 1.5 || (item.attempted >= 5 && (item.wrong / item.attempted) > 0.15)) {
+        } else if (item.loss >= 1.5 || (item.attempted >= 4 && item.errorRate >= 15)) {
           riskClass = "risk-moderate";
           riskLabel = "Moderate";
         }
@@ -4370,7 +4379,7 @@ function renderAuditAndRetentionEngines(totals = {}, subStats = {}) {
           <div class="leak-matrix-row ${riskClass}">
             <div class="leak-row-left">
               <span class="leak-subject-title">${item.name}</span>
-              <span class="leak-subject-sub">${item.wrong} wrong out of ${item.attempted} attempts</span>
+              <span class="leak-subject-sub">${item.wrong} wrong out of ${item.attempted} attempts (${item.errorRate}% error rate)</span>
             </div>
             <div class="leak-row-right">
               <span class="leak-marks-tag">-${formatScore(item.loss)}</span>
@@ -4527,33 +4536,39 @@ window.fetchStudentAnalytics = async function(isSilent = false) {
 
     dailyQuestionsMap[todayStr] = Math.max(dailyQuestionsMap[todayStr] || 0, dailyPerf?.total_questions_attempted || 0);
 
-    // 3. Subject Competency Stats Compilation
+    // 3. Subject Competency Stats Compilation (Robust Fallback & Portfolio Sync)
     const subStats = {};
     const masteredTests = new Set();
     const attemptedTests = new Set();
+    let portfolioCorrect = 0;
+    let portfolioIncorrect = 0;
 
     Object.values(bestMap).forEach(a => {
       if (Number(a.test_id) <= 0) return;
 
       const cat = catalogData.find(item => String(item.test_id) === String(a.test_id));
-      if (!cat || !cat.subject) return;
-
-      const tQs = cat.total_questions || 10;
+      const subj = (cat?.subject || a.subject || "General Studies").trim();
+      const tQs = cat ? (cat.total_questions || 10) : ((a.total_correct || 0) + (a.total_incorrect || 0) || 10);
       const maxM = tQs * 2;
-      const pct = maxM > 0 ? Math.max(0, (a.score / maxM) * 100) : 0;
+      const pct = maxM > 0 ? Math.max(0, (parseFloat(a.score || 0) / maxM) * 100) : 0;
 
       attemptedTests.add(String(a.test_id));
       if (pct >= 100) masteredTests.add(String(a.test_id));
 
-      const subj = cat.subject.trim();
       if (!subStats[subj]) {
         subStats[subj] = { earned: 0, max: 0, correct: 0, incorrect: 0, sets: 0 };
       }
+      const cCount = a.total_correct || 0;
+      const iCount = a.total_incorrect || 0;
+
       subStats[subj].earned += parseFloat(a.score || 0); 
       subStats[subj].max += maxM; 
-      subStats[subj].correct += (a.total_correct || 0); 
-      subStats[subj].incorrect += (a.total_incorrect || 0); 
+      subStats[subj].correct += cCount; 
+      subStats[subj].incorrect += iCount; 
       subStats[subj].sets += 1;
+
+      portfolioCorrect += cCount;
+      portfolioIncorrect += iCount;
     });
 
     // 4. Today's Specific Filters
@@ -4595,7 +4610,7 @@ window.fetchStudentAnalytics = async function(isSilent = false) {
     renderAnalyticsTopStats({ accVal, nCorr, nIncorr, streak, avgSpd, accTrends, speedTrends, attMap });
     renderWeeklyConsistencyTrack({ attMap, past7, todayStr, todayMins, todayMasteredCount: todayMasteredTests.size, dailyQuestionsMap });
     renderDomainCompetencyMatrix({ subStats, attemptedTests, masteredTests });
-    renderAuditAndRetentionEngines({ nCorr, nIncorr, totalQ }, subStats);
+    renderAuditAndRetentionEngines({ nCorr: portfolioCorrect, nIncorr: portfolioIncorrect, totalQ: (portfolioCorrect + portfolioIncorrect) }, subStats);
     // 7. Heatmap
     renderHeatmap(attMap);
 
