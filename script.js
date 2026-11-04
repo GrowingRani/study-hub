@@ -1511,6 +1511,39 @@ window.executeBriefingMode = function(mode) {
 // ==========================================================================
 // 8. HOME DECK & PLAYLIST ENGINE (QUANTUM CORE BOOSTER & ANTI-DRIFT ROLLOVER)
 // ==========================================================================
+function getMilestoneBeaconHtml(count) {
+  if (count >= 300) {
+    return `
+      <span class="milestone-beacon-pip beacon-tier-300" title="Apex Tier Conquered (300+ Qs)">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5zm14 3c0 .6-.4 1-1 1H6c-.6 0-1-.4-1-1v-1h14v1z"/>
+        </svg>
+      </span>`;
+  }
+  if (count >= 200) {
+    return `
+      <span class="milestone-beacon-pip beacon-tier-200" title="Overdrive Tier (200+ Qs)">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+        </svg>
+      </span>`;
+  }
+  if (count >= 100) {
+    return `
+      <span class="milestone-beacon-pip beacon-tier-100" title="Target Lock Secured (100+ Qs)">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="7"></circle>
+          <line x1="12" y1="2" x2="12" y2="5"></line>
+          <line x1="12" y1="19" x2="12" y2="22"></line>
+          <line x1="2" y1="12" x2="5" y2="12"></line>
+          <line x1="19" y1="12" x2="22" y2="12"></line>
+          <circle cx="12" cy="12" r="1.5" fill="currentColor"></circle>
+        </svg>
+      </span>`;
+  }
+  return "";
+}
+
 async function mountDashboard(isInitialLoad = false) {
   const cName = document.getElementById("dashCandidateName"); 
   if (cName) cName.innerText = currentCandidate?.full_name || "Candidate";
@@ -1586,17 +1619,25 @@ async function mountDashboard(isInitialLoad = false) {
       }
     }
 
+    const beaconHtmlInit = getMilestoneBeaconHtml(cachedCount);
+
     if (isSun) {
       cMeter.innerText = dailyPerf?.is_century_hit ? `${cachedCount} Qs 👑 (Crucible Conquered)` : `${cachedCount} Qs ⚔️ (Crucible Target)`;
     } else if (isOverdriveInit) {
       cMeter.innerHTML = `
         <div class="honest-satellite-cluster">
+          ${beaconHtmlInit}
           <span class="honest-pill-mastered">✓ ${dailyPerf?.total_correct || 0} MASTERED</span>
           <span class="honest-pill-overdrive"><span class="honest-pip-amber"></span>${cachedCount} / 100 Qs (+${cachedCount - 100})</span>
         </div>
       `;
-    } else if (dailyPerf?.is_century_hit || cachedCount === 100) {
-      cMeter.innerText = `100 / 100 Qs 🔥 (Century Secured)`;
+    } else if (dailyPerf?.is_century_hit || cachedCount >= 100) {
+      cMeter.innerHTML = `
+        <div class="honest-satellite-cluster">
+          ${beaconHtmlInit}
+          <span class="honest-pill-overdrive" style="background:var(--success-bg-subtle); color:var(--success-dark); border-color:var(--success-border); font-weight:800;">100 / 100 Qs 🔥 Secured</span>
+        </div>
+      `;
     } else if (cachedCount > 0) {
       cMeter.innerText = `${cachedCount} / 100 Qs 🎯`;
     } else {
@@ -2391,6 +2432,8 @@ async function renderHomePlaylists() {
 
     // (C) 🛰️ Honest Satellite Telemetry Updates
     if (meterText) {
+      const beaconHtmlLive = getMilestoneBeaconHtml(actualAttemptedCount);
+
       if (isSun) {
         meterText.innerText = dailyPerf.is_century_hit 
           ? `${actualAttemptedCount} Qs 👑 (Crucible Conquered)` 
@@ -2398,14 +2441,22 @@ async function renderHomePlaylists() {
       } else if (isOverdrive) {
         meterText.innerHTML = `
           <div class="honest-satellite-cluster">
+            ${beaconHtmlLive}
             <span class="honest-pill-mastered">✓ ${todayMasteredQ} MASTERED</span>
             <span class="honest-pill-overdrive"><span class="honest-pip-amber"></span>${actualAttemptedCount} / 100 Qs (+${actualAttemptedCount - 100})</span>
           </div>
         `;
-      } else if (actualAttemptedCount === 100) {
-        meterText.innerText = `100 / 100 Qs 🔥 (Century Secured)`;
-      } else {
+      } else if (actualAttemptedCount >= 100 || dailyPerf.is_century_hit) {
+        meterText.innerHTML = `
+          <div class="honest-satellite-cluster">
+            ${beaconHtmlLive}
+            <span class="honest-pill-overdrive" style="background:var(--success-bg-subtle); color:var(--success-dark); border-color:var(--success-border); font-weight:800;">100 / 100 Qs 🔥 Secured</span>
+          </div>
+        `;
+      } else if (actualAttemptedCount > 0) {
         meterText.innerText = `${actualAttemptedCount} / 100 Qs 🎯`;
+      } else {
+        meterText.innerText = "0 / 100 Qs";
       }
     }
 
@@ -4061,11 +4112,11 @@ function renderWeeklyConsistencyTrack(context) {
 
     if (qCount >= 300) {
       nodeClass = "node-tier-crown";
-      nodeIcon = "👑";
+      nodeIcon = `<svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5zm14 3c0 .6-.4 1-1 1H6c-.6 0-1-.4-1-1v-1h14v1z"/></svg>`;
       hoverTitle = `${dateFormatted}: Apex Crucible Conquered (${qCount} Qs • ${Math.floor(mins / 60)}h ${mins % 60}m)`;
-    } else if (qCount >= 200) {
+      } else if (qCount >= 200) {
       nodeClass = "node-tier-overdrive";
-      nodeIcon = "★";
+      nodeIcon = `<svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
       hoverTitle = `${dateFormatted}: Double Century Overdrive (${qCount} Qs • ${Math.floor(mins / 60)}h ${mins % 60}m)`;
     } else if (qCount >= 100 || isSundayCentury) {
       nodeClass = "node-tier-century";

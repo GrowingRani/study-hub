@@ -147,6 +147,102 @@ body.portal-body { font-family: var(--font-family); background-color: var(--bg-p
 .honest-pill-mastered { display: inline-flex !important; align-items: center !important; gap: 4px !important; padding: 3px 8px !important; border-radius: 6px !important; background: var(--success-bg-subtle) !important; border: 1px solid var(--success-border) !important; color: var(--success-dark) !important; font-family: var(--font-mono) !important; font-size: 11px !important; font-weight: 800 !important; letter-spacing: 0.3px !important; white-space: nowrap !important; }
 .honest-pill-overdrive { display: inline-flex !important; align-items: center !important; gap: 5px !important; padding: 3px 9px !important; border-radius: 6px !important; background: var(--warning-bg-subtle) !important; border: 1px solid var(--warning-border) !important; color: var(--warning-dark) !important; font-family: var(--font-mono) !important; font-size: 11px !important; font-weight: 800 !important; letter-spacing: 0.3px !important; white-space: nowrap !important; }
 .honest-pip-amber { width: 5px !important; height: 5px !important; border-radius: 50% !important; background: #f59e0b !important; box-shadow: 0 0 5px #f59e0b !important; flex-shrink: 0 !important; }
+
+/* 🚀 DYNAMIC MILESTONE TIER PULSING BEACONS */
+.century-meter-card {
+  position: relative !important;
+}
+
+.milestone-beacon-pip {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 24px !important;
+  height: 24px !important;
+  border-radius: 50% !important;
+  font-size: 12px !important;
+  line-height: 1 !important;
+  flex-shrink: 0 !important;
+  box-sizing: border-box !important;
+  user-select: none !important;
+}
+
+/* 100+ Emerald Heartbeat */
+.beacon-tier-100 {
+  background: rgba(34, 197, 94, 0.14) !important;
+  border: 1.5px solid rgba(34, 197, 94, 0.6) !important;
+  color: #22c55e !important;
+  box-shadow: 0 0 10px rgba(34, 197, 94, 0.35) !important;
+  animation: beaconPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite !important;
+}
+
+/* 200+ Amber Starburst */
+.beacon-tier-200 {
+  background: rgba(245, 158, 11, 0.16) !important;
+  border: 1.5px solid rgba(245, 158, 11, 0.75) !important;
+  color: #f59e0b !important;
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.45) !important;
+  animation: beaconPulse 1.6s cubic-bezier(0.4, 0, 0.6, 1) infinite !important;
+}
+
+/* 300+ Apex Crisp Imperial Gold Crown */
+.beacon-tier-300 {
+  background: rgba(251, 191, 36, 0.18) !important;
+  border: 1.5px solid #fbbf24 !important;
+  color: #fde047 !important;
+  box-shadow: 0 0 14px rgba(251, 191, 36, 0.55), inset 0 0 4px rgba(251, 191, 36, 0.25) !important;
+  animation: beaconPulse 1.2s cubic-bezier(0.4, 0, 0.6, 1) infinite !important;
+}
+
+@keyframes beaconPulse {
+  0% { transform: scale(0.94); box-shadow: 0 0 6px currentColor; }
+  50% { transform: scale(1.08); box-shadow: 0 0 14px currentColor; }
+  100% { transform: scale(0.94); box-shadow: 0 0 6px currentColor; }
+}
+
+/* 📱 MOBILE SCREEN FIT (TOP-RIGHT PINNED BEACON & ROW-2 PILLS) */
+@media screen and (max-width: 768px) {
+  .century-meter-header {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 8px !important;
+    padding-right: 36px !important;
+  }
+
+  .century-meter-label {
+    width: 100% !important;
+  }
+
+  .milestone-beacon-pip {
+    position: absolute !important;
+    top: 12px !important;
+    right: 14px !important;
+    width: 24px !important;
+    height: 24px !important;
+    font-size: 12px !important;
+    z-index: 5 !important;
+  }
+
+  #centuryLoadText {
+    width: 100% !important;
+  }
+
+  .honest-satellite-cluster {
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    width: 100% !important;
+  }
+
+  .honest-pill-mastered,
+  .honest-pill-overdrive {
+    font-size: 10.5px !important;
+    padding: 3px 8px !important;
+    line-height: 1.2 !important;
+  }
+}
+
 .mission-deck-container.balanced-split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; align-items: start; width: 100%; }
 .mission-column-primary, .mission-column-secondary { display: flex; flex-direction: column; gap: 14px; min-width: 0; width: 100%; }
 .mission-playlist-card { background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 12px; overflow: hidden; box-shadow: var(--shadow-sm); transition: border-color 0.2s ease, box-shadow 0.2s ease; width: 100%; position: relative; }
@@ -1017,10 +1113,34 @@ body.dark-theme .box-fc { color: #c084fc; }
 .node-tier-century { background: var(--success-bg-subtle); border: 1.5px solid var(--success); color: var(--success-dark); box-shadow: 0 1px 6px rgba(22, 163, 74, 0.18); }
 
 /* Tier 3: Double Century Overdrive (200 - 299 Qs) */
-.node-tier-overdrive { background: linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(217, 119, 6, 0.25) 100%); border: 1.5px solid var(--warning); color: var(--warning-dark); box-shadow: 0 2px 10px rgba(245, 158, 11, 0.22); }
+.node-tier-overdrive { 
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(217, 119, 6, 0.25) 100%) !important; 
+  border: 1.5px solid var(--warning) !important; 
+  color: #f59e0b !important; 
+  box-shadow: 0 2px 10px rgba(245, 158, 11, 0.28) !important; 
+  display: flex !important; 
+  align-items: center !important; 
+  justify-content: center !important; 
+}
+.node-tier-overdrive svg { 
+  display: block !important; 
+  flex-shrink: 0 !important; 
+}
 
 /* Tier 4: Apex Crucible Crown (300+ Qs) */
-.node-tier-crown { background: linear-gradient(135deg, rgba(234, 179, 8, 0.25) 0%, rgba(180, 83, 9, 0.35) 100%); border: 1.5px solid #eab308; box-shadow: 0 0 12px rgba(234, 179, 8, 0.45); font-size: 11px !important; }
+.node-tier-crown { 
+  background: linear-gradient(135deg, rgba(234, 179, 8, 0.2) 0%, rgba(180, 83, 9, 0.35) 100%) !important; 
+  border: 1.5px solid #fbbf24 !important; 
+  color: #fde047 !important; 
+  box-shadow: 0 0 10px rgba(251, 191, 36, 0.4) !important; 
+  display: flex !important; 
+  align-items: center !important; 
+  justify-content: center !important; 
+}
+.node-tier-crown svg { 
+  display: block !important; 
+  flex-shrink: 0 !important; 
+}
 
 /* 🎯 TODAY'S 2x2 TACTICAL BENTO GRID & DYNAMIC FOOTER */
 .today-bento-grid { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 8px !important; margin-top: 10px !important; margin-bottom: 8px !important; width: 100% !important; box-sizing: border-box !important; }
