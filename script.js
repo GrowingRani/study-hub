@@ -430,6 +430,13 @@ window.switchView = function(viewId, pushHistory = true) {
   const currentActiveView = Array.from(document.querySelectorAll('.view-screen')).find(v => v.style.display === 'flex')?.id;
   if (currentActiveView === viewId) return;
 
+  // 🧹 DOCKED FILTER STRIP CLEANUP (Prevents ghost bars when switching away from Practice)
+  if (viewId !== 'viewPractice') {
+    const readBar = document.getElementById("readFixedFilterBar");
+    if (readBar) readBar.classList.remove("show-dock");
+  }
+
+  // 🎯 LIBRARY STAGING SELECTION TEARDOWN
   if (librarySelectionMode && viewId !== 'viewLibrary') {
     librarySelectionMode = false;
     targetPlaylistForSelection = null;
@@ -438,11 +445,16 @@ window.switchView = function(viewId, pushHistory = true) {
     if (dock) dock.style.display = "none";
     const scroller = document.getElementById("stagingDomainScroller");
     if (scroller) scroller.style.display = "none";
+    const toast = document.getElementById("selectionToast");
+    if (toast) {
+      toast.classList.remove("show");
+      toast.style.display = "none";
+    }
   }
 
   renderViewDOM(viewId);
 
-  // 🚀 0ms LIVE ANALYTICS SYNC: Analytics टैब खुलते ही 7-Day Nodes और Stats तुरंत रेंडर होंगे
+  // 🚀 0ms LIVE ANALYTICS SYNC: Fetch and render metrics immediately on tab entry
   if (viewId === 'viewAnalytics') {
     fetchStudentAnalytics(false);
   }
@@ -3243,12 +3255,14 @@ function renderTopicSets() {
   applyTopicFilter(currentFilter);
 }
 
-// 🚀 HIGH-SPEED BATCHED MISTAKE BANK SYNC (WITH CLOSED-LOOP INTEGRITY)
+// 🚀 PRODUCTION-GRADE LEITNER SRS GATEKEEPER
 const REVIEW_INTERVALS_DAYS = [1, 3, 6, 15];
+
 async function syncMistakeBank(payloads) {
   if (!payloads?.length || !currentCandidate) return;
   try {
-    const qIds = payloads.map(p => p.question_id ? String(p.question_id) : String(Math.abs((p.question_data.content || "").length * 999)));
+    const qIds = payloads.map(p => p.question_id ? String(p.question_id) : String(Math.abs((p.question_data?.content || "").length * 999)));
+    
     const { data: existingRows } = await supabaseClient
       .from("student_question_stats")
       .select("id, question_id, times_wrong, times_correct, mastery_streak, next_review_at")
@@ -3258,40 +3272,69 @@ async function syncMistakeBank(payloads) {
     const exMap = new Map((existingRows || []).map(r => [String(r.question_id), r]));
     const updates = [];
     const inserts = [];
-    const nowIso = new Date().toISOString();
+    const now = new Date();
+    const nowIso = now.toISOString();
 
     for (const p of payloads) {
-      const qId = p.question_id ? String(p.question_id) : String(Math.abs((p.question_data.content || "").length * 999));
+      const qId = p.question_id ? String(p.question_id) : String(Math.abs((p.question_data?.content || "").length * 999));
       const ex = exMap.get(qId);
+
       if (ex) {
-        let nStreak = p.isCorrect ? Math.min(4, (ex.mastery_streak || 0) + 1) : 0;
-        let nRev = new Date();
-        if (p.isCorrect && nStreak < 4) nRev.setDate(nRev.getDate() + REVIEW_INTERVALS_DAYS[nStreak - 1]); 
-        else if (p.isCorrect) nRev.setFullYear(nRev.getFullYear() + 100);
-        
+        // 🎯 1. TIME GATEKEEPER: Check if card was due today
+        const isDue = !ex.next_review_at || new Date(ex.next_review_at) <= now;
+        let nStreak = ex.mastery_streak || 0;
+        let nRev = ex.next_review_at ? new Date(ex.next_review_at) : new Date();
+
+        if (p.isCorrect) {
+          if (isDue) {
+            // Sahi attempt + Due date reached = Advance Streak
+            nStreak = Math.min(4, nStreak + 1);
+            nRev = new Date();
+            if (nStreak < 4) {
+              nRev.setDate(nRev.getDate() + REVIEW_INTERVALS_DAYS[nStreak - 1]);
+              nRev.setHours(0, 0, 0, 0); // ⏰ Midnight anchor (Available all day)
+            } else {
+              nRev.setFullYear(nRev.getFullYear() + 100); // 🏆 Permanently Mastered
+            }
+          }
+          // Agar Due nahi tha aur sahi kiya: Streak & Date frozen (No cheat advance)
+        } else {
+          // ❌ Galti hui: Reset to Streak 0, Due Tomorrow Midnight
+          nStreak = 0;
+          nRev = new Date();
+          nRev.setDate(nRev.getDate() + 1);
+          nRev.setHours(0, 0, 0, 0); // ⏰ Kal subah se available
+        }
+
         updates.push(supabaseClient.from("student_question_stats").update({ 
-          subject: p.subject, // सब्जेक्ट अगर पहले General रह गया था तो सही विषय से अपडेट हो जाएगा
-          times_wrong: p.isCorrect ? ex.times_wrong : ex.times_wrong + 1, 
-          times_correct: p.isCorrect ? ex.times_correct + 1 : ex.times_correct, 
+          subject: p.subject,
+          times_wrong: p.isCorrect ? ex.times_wrong : (ex.times_wrong || 0) + 1, 
+          times_correct: p.isCorrect ? (ex.times_correct || 0) + 1 : ex.times_correct, 
           mastery_streak: nStreak, 
           next_review_at: nRev.toISOString(), 
           last_attempt_date: nowIso, 
           question_data: p.question_data 
         }).eq("id", ex.id));
+
       } else {
-        let nRev = new Date(); 
-        if (p.isCorrect) nRev.setDate(nRev.getDate() + REVIEW_INTERVALS_DAYS[0]);
-        inserts.push({ 
-          student_roll: p.student_roll, 
-          subject: p.subject, 
-          question_id: qId, 
-          question_data: p.question_data, 
-          times_wrong: p.isCorrect ? 0 : 1, 
-          times_correct: p.isCorrect ? 1 : 0, 
-          mastery_streak: p.isCorrect ? 1 : 0, 
-          next_review_at: nRev.toISOString(),
-          last_attempt_date: nowIso // 🎯 पहली बार इंसर्ट पर भी टाइमस्टैम्प सुरक्षित रहेगा
-        });
+        // 🎯 2. ZERO-POLLUTION GUARD: Sahi sawal pehli baar me mistake bank me nahi ghusega
+        if (!p.isCorrect) {
+          let nRev = new Date();
+          nRev.setDate(nRev.getDate() + 1);
+          nRev.setHours(0, 0, 0, 0); // ⏰ Kal subah se due
+
+          inserts.push({ 
+            student_roll: p.student_roll, 
+            subject: p.subject, 
+            question_id: qId, 
+            question_data: p.question_data, 
+            times_wrong: 1, 
+            times_correct: 0, 
+            mastery_streak: 0, 
+            next_review_at: nRev.toISOString(),
+            last_attempt_date: nowIso 
+          });
+        }
       }
     }
 
@@ -3871,12 +3914,19 @@ function renderSolutionsUI() {
 
   const priorityCount = wrongCount + skippedCount;
 
-  // 2. Render Balanced Floating Filter Dock
-  const filterToolbar = document.createElement("div");
-  filterToolbar.className = "solutions-filter-strip";
+  // 2. Fixed Sub-Header Dock (Scroll Container ke Bahar Place Hoga)
+  let filterToolbar = document.getElementById("solutionsFixedFilterBar");
+  if (!filterToolbar) {
+    filterToolbar = document.createElement("div");
+    filterToolbar.id = "solutionsFixedFilterBar";
+    filterToolbar.className = "solutions-filter-strip";
+    container.parentNode.insertBefore(filterToolbar, container);
+  }
+
+  // 🚀 "All Questions" ko compact "All" kiya gaya taaki teeno pills 1 line me fit hon
   filterToolbar.innerHTML = `
     <button type="button" class="sol-filter-btn btn-all ${currentSolutionsFilter === 'all' ? 'active' : ''}" onclick="filterSolutionsView('all')">
-      <span>All Questions</span>
+      <span>All</span>
       <span class="filter-badge">${totalCount}</span>
     </button>
     <button type="button" class="sol-filter-btn btn-priority ${currentSolutionsFilter === 'priority' ? 'active' : ''}" onclick="filterSolutionsView('priority')" title="Mistakes & Skipped Questions">
@@ -3888,7 +3938,6 @@ function renderSolutionsUI() {
       <span class="filter-badge">${wrongCount}</span>
     </button>
   `;
-  container.appendChild(filterToolbar);
 
   // 3. Mock State for Universal Card Builder
   const mockReviewState = {
@@ -4648,37 +4697,44 @@ function renderReadUI() {
   const totalQ = practiceQuestions.length;
   const stCount = localReadState.starred.size;
 
-  // 🚀 ULTRA-SLEEK COMPACT SEGMENTED BAR (~40px HEIGHT)
-  const toolbar = document.createElement("div");
-  toolbar.className = "read-compact-toolbar";
-  toolbar.innerHTML = `
-    <div class="read-segment-group">
-      <button type="button" class="read-segment-btn ${localReadState.filter === 'all' ? 'active' : ''}" onclick="filterReadMode('all')">
-        <span>All Questions</span>
-        <span class="segment-badge" id="readTotalBadge">${totalQ}</span>
-      </button>
-      <button type="button" class="read-segment-btn ${localReadState.filter === 'starred' ? 'active' : ''}" onclick="filterReadMode('starred')">
-        <span>⭐ Starred</span>
-        <span class="segment-badge badge-starred" id="readStarredBadge">${stCount}</span>
-      </button>
-    </div>
+  // 🚀 FIXED SUB-HEADER DOCK (Sirf tabhi dikhega jab .show-dock class lagegi)
+  let filterToolbar = document.getElementById("readFixedFilterBar");
+  if (!filterToolbar) {
+    filterToolbar = document.createElement("div");
+    filterToolbar.id = "readFixedFilterBar";
+    filterToolbar.className = "read-filter-strip";
+    container.parentNode.insertBefore(filterToolbar, container);
+  }
+  filterToolbar.classList.add("show-dock");
+
+  filterToolbar.innerHTML = `
+    <button type="button" class="read-filter-btn btn-all ${localReadState.filter === 'all' ? 'active' : ''}" onclick="filterReadMode('all')">
+      <span>All</span>
+      <span class="filter-badge" id="readTotalBadge">${totalQ}</span>
+    </button>
+    <button type="button" class="read-filter-btn btn-starred ${localReadState.filter === 'starred' ? 'active' : ''}" onclick="filterReadMode('starred')" title="Starred Questions Only">
+      <span>⭐ Starred</span>
+      <span class="filter-badge" id="readStarredBadge">${stCount}</span>
+    </button>
   `;
-  container.appendChild(toolbar);
 
   let renderedCount = 0;
   practiceQuestions.forEach((q, idx) => {
     if (localReadState.filter === 'starred' && !localReadState.starred.has(idx)) return;
     renderedCount++;
 
-    // 🚀 USE UNIVERSAL CARD BUILDER
     const card = buildQuestionCardDOM(q, idx, 'read', localReadState, false);
     container.appendChild(card);
   });
 
   if (renderedCount === 0 && localReadState.filter === 'starred') {
     const emptyNotice = document.createElement("div");
-    emptyNotice.style.cssText = "text-align:center; padding:30px 16px; color:var(--text-muted); font-size:13px; font-weight:600;";
-    emptyNotice.innerText = "No starred questions yet. Click ☆ on any question above to star it for quick revision.";
+    emptyNotice.style.cssText = "text-align:center; padding:48px 16px; color:var(--text-muted); font-size:13.5px; font-weight:700;";
+    emptyNotice.innerHTML = `
+      <div style="font-size:32px; margin-bottom:10px;">⭐</div>
+      <strong style="color:var(--warning-dark); font-size:15px; display:block;">No Starred Questions!</strong>
+      <p style="margin-top:4px; font-weight:500; font-size:12.5px;">Click ☆ on any question above to star it for quick revision.</p>
+    `;
     container.appendChild(emptyNotice);
   }
 
@@ -5211,10 +5267,19 @@ function updatePracticeModeHeader(titleText, modeKey) {
   }
 }
 
-// 🎛️ CENTRALIZED PRACTICE MODE DISPATCHER (ZERO-LEAK RUNTIME)
 window.setPracticeMode = function(modeKey) {
   const targetMode = (modeKey || "read").toLowerCase();
   activePracticeMode = targetMode;
+
+  // 🎯 STRICT ZERO-LEAK GUARD: Agar mode 'read' nahi hai toh strip ko foran gayab karein
+  const readBar = document.getElementById("readFixedFilterBar");
+  if (readBar) {
+    if (targetMode === "read") {
+      readBar.classList.add("show-dock");
+    } else {
+      readBar.classList.remove("show-dock");
+    }
+  }
 
   const modeTitles = {
     read: "Read Mode",
@@ -5222,10 +5287,8 @@ window.setPracticeMode = function(modeKey) {
     flashcards: "Flashcards"
   };
 
-  // 1. Header Icon, Title & Dock Visibility Sync
   updatePracticeModeHeader(modeTitles[targetMode] || "Practice", targetMode);
 
-  // 2. Clean State Teardown & Mode-Specific Mount
   if (targetMode === "read") {
     localReadState = { starred: new Set(), filter: "all" };
     renderReadUI();
@@ -5242,7 +5305,6 @@ window.setPracticeMode = function(modeKey) {
     renderFlashcardCardDOM();
   }
 
-  // 3. Smooth Top Alignment
   scrollToTopOfPractice();
 };
 

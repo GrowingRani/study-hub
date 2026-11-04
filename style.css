@@ -729,11 +729,10 @@ body.dark-theme .theme-mistake-briefing #briefingStatusBadge { background: rgba(
 .sol-explanation { background: var(--bg-surface-elevated) !important; border-left: 4px solid var(--tcs-blue-accent) !important; padding: 16px; margin-top: 20px; font-size: 14px; color: var(--text-muted) !important; white-space: pre-line !important; line-height: 1.65; word-break: break-word; }
 .sol-explanation strong { color: var(--tcs-blue-accent) !important; display: block; margin-bottom: 6px; }
 
-/* 🚀 EXAM-SLEEK SOLUTIONS FLOATING FILTER DOCK & COLORED PILLS */
-.solutions-filter-strip { position: sticky !important; top: 0 !important; z-index: 25 !important; margin-top: -20px !important; margin-bottom: 18px !important; padding: 12px 14px !important; background: var(--bg-primary) !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; border-bottom: 1px solid var(--border-color) !important; border-radius: 0 0 12px 12px !important; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06) !important; display: flex !important; align-items: center !important; gap: 8px !important; width: 100% !important; box-sizing: border-box !important; overflow-x: auto !important; scrollbar-width: none !important; }
-.solutions-filter-strip::before { content: "" !important; position: absolute !important; top: -40px !important; left: -20px !important; right: -20px !important; height: 40px !important; background: var(--bg-primary) !important; pointer-events: none !important; z-index: 24 !important; }
+/* 🚀 SOLUTIONS PERMANENT SUB-HEADER DOCK (ZERO SCROLL-LEAK) */
+.solutions-filter-strip { display: flex !important; align-items: center !important; justify-content: flex-start !important; gap: 8px !important; padding: 10px 16px !important; background: var(--bg-panel) !important; border-bottom: 1px solid var(--border-color) !important; flex-shrink: 0 !important; width: 100% !important; box-sizing: border-box !important; z-index: 50 !important; overflow-x: auto !important; scrollbar-width: none !important; }
 .solutions-filter-strip::-webkit-scrollbar { display: none !important; }
-.sol-filter-btn { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-panel); color: var(--text-muted); font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1); outline: none; font-family: var(--font-family); user-select: none; white-space: nowrap; flex-shrink: 0; }
+.sol-filter-btn { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-surface-elevated); color: var(--text-muted); font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1); outline: none; font-family: var(--font-family); user-select: none; white-space: nowrap; flex-shrink: 0; }
 .sol-filter-btn:hover { background: var(--bg-surface-hover); color: var(--text-main); border-color: var(--border-hover); }
 .sol-filter-btn .filter-badge { font-family: var(--font-mono); font-size: 10px; font-weight: 800; padding: 1.5px 6px; border-radius: 10px; background: var(--bg-surface-hover); color: inherit; }
 .sol-filter-btn.active.btn-all { background: var(--tcs-blue-accent) !important; color: #ffffff !important; border-color: var(--tcs-blue-accent) !important; box-shadow: 0 2px 8px var(--tcs-blue-bg-subtle); }
@@ -743,9 +742,8 @@ body.dark-theme .theme-mistake-briefing #briefingStatusBadge { background: rgba(
 .sol-filter-btn.active.btn-wrong { background: linear-gradient(135deg, #dc2626, #ef4444) !important; color: #ffffff !important; border-color: #ef4444 !important; box-shadow: 0 2px 8px rgba(239, 68, 68, 0.25); }
 .sol-filter-btn.active.btn-wrong .filter-badge { background: rgba(255, 255, 255, 0.25); color: #ffffff; }
 
-@media screen and (max-width: 768px) {
-  .solutions-filter-strip { margin-top: -14px !important; padding: 10px 10px !important; }
-}
+#viewSolutions .practice-viewport { padding-top: 14px !important; }
+@media screen and (max-width: 768px) { .solutions-filter-strip { padding: 8px 12px !important; } }
 
 /* 🚀 TWO-TIER COMPACT PRACTICE HEADER (HEIGHT: 50px) */
 .practice-top-bar { display: flex !important; align-items: center !important; justify-content: space-between !important; padding: 0 14px !important; min-height: 50px !important; height: 50px !important; flex-shrink: 0 !important; position: sticky !important; top: 0 !important; z-index: 100 !important; width: 100% !important; box-sizing: border-box !important; gap: 8px !important; }
@@ -861,15 +859,20 @@ body.dark-theme .box-fc { color: #c084fc; }
 /* ==========================================================================
    🚀 REFINED INDUSTRIAL READ & QUIZ CONTROLS (ULTRA-COMPACT)
    ========================================================================== */
-/* 1. READ MODE: SLEEK COMPACT SEGMENTED BAR (~40px Height) */
-.read-compact-toolbar { display: flex; align-items: center; justify-content: space-between; background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 10px; padding: 5px 8px; margin-bottom: 14px; box-shadow: var(--shadow-sm); gap: 10px; }
-.read-segment-group { display: inline-flex; background: var(--bg-surface-elevated); padding: 3px; border-radius: 8px; border: 1px solid var(--border-color); gap: 4px; width: 100%; }
-.read-segment-btn { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 6px 12px; border: none; background: transparent; color: var(--text-muted); font-size: 12px; font-weight: 700; border-radius: 6px; cursor: pointer; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1); font-family: var(--font-family); white-space: nowrap; }
-.read-segment-btn:hover { color: var(--text-main); }
-.read-segment-btn.active { background: var(--bg-panel); color: var(--tcs-blue-accent); box-shadow: var(--shadow-sm); }
-.read-segment-btn .segment-badge { font-family: var(--font-mono); font-size: 10px; font-weight: 800; background: var(--bg-surface-hover); padding: 1.5px 7px; border-radius: 10px; color: inherit; }
-.read-segment-btn.active .segment-badge { background: var(--tcs-blue-bg-subtle); color: var(--tcs-blue-accent); }
-.read-segment-btn.active .segment-badge.badge-starred { background: var(--warning-bg-subtle); color: var(--warning-dark); }
+/* 🚀 READ MODE: ZERO-LEAK CONDITIONAL SUB-HEADER DOCK */
+.read-filter-strip { display: none; align-items: center; justify-content: flex-start; gap: 8px; padding: 10px 16px; background: var(--bg-panel); border-bottom: 1px solid var(--border-color); flex-shrink: 0; width: 100%; box-sizing: border-box; z-index: 50; overflow-x: auto; scrollbar-width: none; }
+.read-filter-strip.show-dock { display: flex !important; }
+.read-filter-strip::-webkit-scrollbar { display: none !important; }
+.read-filter-btn { display: inline-flex !important; align-items: center !important; gap: 6px !important; height: 32px !important; padding: 0 14px !important; border-radius: 8px !important; border: 1px solid var(--border-color) !important; background: var(--bg-surface-elevated) !important; color: var(--text-muted) !important; font-size: 12px !important; font-weight: 700 !important; cursor: pointer !important; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important; outline: none !important; font-family: var(--font-family) !important; user-select: none !important; white-space: nowrap !important; flex-shrink: 0 !important; }
+.read-filter-btn:hover { background: var(--bg-surface-hover) !important; color: var(--text-main) !important; border-color: var(--border-hover) !important; }
+.read-filter-btn .filter-badge { font-family: var(--font-mono) !important; font-size: 10px !important; font-weight: 800 !important; padding: 1.5px 6.5px !important; border-radius: 10px !important; background: var(--bg-surface-hover) !important; color: inherit; }
+.read-filter-btn.active.btn-all { background: var(--tcs-blue-accent) !important; color: #ffffff !important; border-color: var(--tcs-blue-accent) !important; box-shadow: 0 2px 8px var(--tcs-blue-bg-subtle) !important; }
+.read-filter-btn.active.btn-all .filter-badge { background: rgba(255, 255, 255, 0.25) !important; color: #ffffff !important; }
+.read-filter-btn.active.btn-starred { background: linear-gradient(135deg, #d97706, #f59e0b) !important; color: #ffffff !important; border-color: #f59e0b !important; box-shadow: 0 2px 8px rgba(245, 158, 11, 0.25) !important; }
+.read-filter-btn.active.btn-starred .filter-badge { background: rgba(255, 255, 255, 0.25) !important; color: #ffffff !important; }
+
+#viewPractice .practice-viewport { padding-top: 14px !important; }
+@media screen and (max-width: 768px) { .read-filter-strip { padding: 8px 12px !important; } }
 
 /* 2. INSTANT QUIZ: REFINED DASHBOARD SCORECARD */
 .quiz-score-banner { background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 12px; padding: 14px 16px; margin-bottom: 18px; box-shadow: var(--shadow-sm); }
