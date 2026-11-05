@@ -246,15 +246,17 @@ function resolveBilingualField(raw) {
 function getLocalizedText(obj) {
   const parsed = resolveBilingualField(obj);
   let text = "";
-  if (typeof parsed === "object" && parsed !== null) {
-    if (currentLang === "hi") {
-      text = parsed.hi ? parsed.hi : (parsed.en ? `${parsed.en}\n\n*(यह सामग्री अभी हिंदी में उपलब्ध नहीं है)*` : "");
-    } else {
-      text = parsed.en || parsed.hi || "";
-    }
-  } else {
-    text = String(parsed || "");
-  }
+  if (typeof parsed === "object" && parsed !== null) { 
+    // 🚀 FIX: parsed.text को सपोर्ट दिया गया ताकि नया JSONB format खाली न हो
+    const englishText = parsed.en || parsed.text || "";
+    if (currentLang === "hi") { 
+      text = parsed.hi ? parsed.hi : (englishText ? `${englishText}\n\n*(यह सामग्री अभी हिंदी में उपलब्ध नहीं है)*` : ""); 
+    } else { 
+      text = englishText || parsed.hi || ""; 
+    } 
+  } else { 
+    text = String(parsed || ""); 
+  } 
   return typeof text === "string" ? text.replace(/\\n/g, "\n") : String(text || "");
 }
 
@@ -262,15 +264,18 @@ function formatExplanation(exp) {
   if (!exp) return "Yet to add explanation";
   const parsed = resolveBilingualField(exp);
   let text = "";
-  if (typeof parsed === "object" && parsed !== null) {
-    text = currentLang === "hi" ? (parsed.hi || parsed.en || "") : (parsed.en || parsed.hi || "");
-  } else {
-    text = String(parsed || "").trim();
-  }
-  text = String(text || "").trim();
-  if (!text || text === '{"en":""}' || text === '{"hi":""}' || text === '{"en":"","hi":""}' || text === 'null' || text === 'undefined') {
-    return "Yet to add explanation";
-  }
+  if (typeof parsed === "object" && parsed !== null) { 
+    // 🚀 FIX: parsed.text को भी चेक करें
+    text = currentLang === "hi" 
+      ? (parsed.hi || parsed.text || parsed.en || "") 
+      : (parsed.en || parsed.text || parsed.hi || ""); 
+  } else { 
+    text = String(parsed || "").trim(); 
+  } 
+  text = String(text || "").trim(); 
+  if (!text || text === '{"en":""}' || text === '{"hi":""}' || text === '{"text":""}' || text === '{"en":"","hi":""}' || text === 'null' || text === 'undefined') { 
+    return "Yet to add explanation"; 
+  } 
   return text.replace(/\\n/g, "\n");
 }
 

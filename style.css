@@ -252,102 +252,73 @@ body.portal-body { font-family: var(--font-family); background-color: var(--bg-p
   display: none !important;
 }
 
-/* 📱 MOBILE SCREEN FIT (DEDICATED SLOT & BALANCED ROWS) */
+/* 📱 MOBILE RESPONSIVE TUNING (ICON LOCKED TO TOP-RIGHT) */
 @media screen and (max-width: 768px) {
-  /* 🚀 MOBILE SINGLE ROW LOCK (ICON KABHI NEECHE NAHI GIREGA) */
+  #dailyMilestoneCard {
+    position: relative !important;
+    padding: 10px 12px !important;
+  }
+
+  /* हेडर को दाईं तरफ 38px पैडिंग दी है ताकि टाइटल आइकन से न टकराए */
   .century-meter-header {
     display: flex !important;
-    flex-direction: row !important;
-    align-items: center !important;
-    justify-content: space-between !important;
-    gap: 10px !important;
-    padding-right: 0 !important;
-    min-height: 44px !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    padding-right: 38px !important;
+    margin-bottom: 0 !important;
+    gap: 0 !important;
   }
 
   .century-meter-label {
-    width: auto !important;
-    flex: 1 !important;
+    width: 100% !important;
     min-width: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
   }
 
-  /* 🚀 1. EXPANDED STATE (MOBILE): Subtitle wapas dikhegi compact font ke sath */
+  .century-title-stack {
+    min-width: 0 !important;
+    flex: 1 !important;
+  }
+
+  .century-title {
+    font-size: 13px !important;
+    line-height: 1.2 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  /* सबटाइटल दोनों मोड (खुले और बंद) में हमेशा दिखेगी */
   .century-subtitle {
     display: block !important;
-    font-size: 10px !important;
+    font-size: 9.5px !important;
     color: var(--text-muted) !important;
-    line-height: 1.2 !important;
+    line-height: 1.25 !important;
     margin-top: 1px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
   }
 
-  /* 🚀 2. CARD PADDING TIGHTENING (Dead vertical space khatam) */
-  .century-meter-card {
-    padding: 10px 12px !important;
-    margin-bottom: 12px !important;
-  }
-
-  /* 🚀 3. COLLAPSED STATE (MOBILE): Ultra-slim ~38px ribbon */
-  #dailyMilestoneCard.milestone-collapsed {
-    padding-top: 8px !important;
-    padding-bottom: 8px !important;
-    margin-bottom: 12px !important;
-  }
-
-  #dailyMilestoneCard.milestone-collapsed .century-meter-header {
-    flex-direction: row !important;
-    align-items: center !important;
-    justify-content: space-between !important;
-    min-height: 36px !important;
-    padding-right: 0 !important;
-  }
-
-  /* Collapsed mode mein subtitle aur text badges dono hide */
-  #dailyMilestoneCard.milestone-collapsed .century-subtitle,
-  #dailyMilestoneCard.milestone-collapsed #centuryLoadText {
-    display: none !important;
-  }
-
-  /* Beacon right corner mein cleanly baith jayega */
-  #dailyMilestoneCard.milestone-collapsed .milestone-beacon-slot {
-    display: flex !important;
-    margin-left: auto !important;
-  }
-
-  .century-header-status-wrap {
-    width: auto !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: flex-end !important;
-    gap: 8px !important;
-    flex-shrink: 0 !important;
-  }
-
+  /* 🚀 बीकन आइकन परमानेंटली Top-Right कोने में लॉक (कभी नीचे नहीं गिरेगा) */
   .milestone-beacon-slot {
+    position: absolute !important;
+    top: 10px !important;
+    right: 12px !important;
+    z-index: 10 !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
   }
 
-  #centuryLoadText {
-    width: auto !important;
-    flex: 1 !important;
-  }
-
-  .honest-satellite-cluster {
-    display: flex !important;
-    align-items: center !important;
-    gap: 6px !important;
+  .century-header-status-wrap {
     width: 100% !important;
-  }
-
-  .honest-pill-mastered,
-  .honest-pill-overdrive {
-    font-size: 10.5px !important;
-    padding: 3px 8px !important;
-    line-height: 1.2 !important;
+    display: flex !important;
+    flex-direction: column !important;
   }
 }
-
 .mission-deck-container.balanced-split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; align-items: start; width: 100%; }
 .mission-column-primary, .mission-column-secondary { display: flex; flex-direction: column; gap: 14px; min-width: 0; width: 100%; }
 .mission-playlist-card { background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 12px; overflow: hidden; box-shadow: var(--shadow-sm); transition: border-color 0.2s ease, box-shadow 0.2s ease; width: 100%; position: relative; }
@@ -1483,7 +1454,7 @@ body.dark-theme .box-fc { color: #c084fc; }
   .mission-playlist-card.expanded > .playlist-body { padding: 10px !important; }
   
   .playlist-sets-stream { max-height: 315px !important; overflow-y: auto !important; overscroll-behavior: contain; scrollbar-gutter: stable; padding: 0 4px 0 0 !important; scrollbar-width: thin; scrollbar-color: var(--border-color) transparent; }
-  .today-payload-card .playlist-sets-stream { max-height: 440px !important; }
+  .today-payload-card .playlist-sets-stream { max-height: 315px !important; }
   .dynamic-revision-tile { width: 100% !important; min-height: auto !important; height: auto !important; display: flex !important; flex-direction: column !important; margin-bottom: 10px !important; overflow: visible !important; } .dynamic-revision-tile .set-score-info { display: block !important; overflow: visible !important; white-space: normal !important; line-height: 1.45 !important; padding-top: 4px !important; margin-bottom: 14px !important; min-height: auto !important; } .dynamic-revision-tile .set-action-footer { display: flex !important; width: 100% !important; margin-top: auto !important; padding-bottom: 2px !important; } .dynamic-revision-tile .set-action-footer button { height: 36px !important; width: 100% !important; }
   .playlist-sets-stream::-webkit-scrollbar { width: 4px; }
   .playlist-sets-stream::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
@@ -1615,25 +1586,35 @@ body.dark-theme .box-fc { color: #c084fc; }
 
 /* 🎯 MILESTONE CARD: ULTRA-CLEAN CYBER ACCORDION ENGINE */
 #dailyMilestoneCard {
-  transition: padding 0.35s cubic-bezier(0.16, 1, 0.3, 1), 
-              margin 0.35s cubic-bezier(0.16, 1, 0.3, 1), 
+  transition: padding 0.32s cubic-bezier(0.16, 1, 0.3, 1), 
+              margin 0.32s cubic-bezier(0.16, 1, 0.3, 1), 
               border-color 0.25s ease !important;
   cursor: pointer;
 }
 
-/* 🌊 BUTTERY SMOOTH BODY ACCORDION (ZERO DISPLAY:NONE JUMP) */
+/* 🌊 BUTTERY SMOOTH BODY ACCORDION */
 .century-body {
   max-height: 90px;
   opacity: 1;
   overflow: hidden;
   transform: translateY(0);
-  transition: max-height 0.38s cubic-bezier(0.16, 1, 0.3, 1), 
-              opacity 0.28s ease, 
-              transform 0.35s cubic-bezier(0.16, 1, 0.3, 1),
-              margin 0.35s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  transition: max-height 0.35s cubic-bezier(0.16, 1, 0.3, 1), 
+              opacity 0.25s ease, 
+              transform 0.32s cubic-bezier(0.16, 1, 0.3, 1),
+              margin-top 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  margin-top: 8px !important;
 }
 
-/* Collapsed State (Desktop & Mobile Base) */
+/* 🌊 BUTTERY SMOOTH DATA PILLS TRANSITION */
+#centuryLoadText {
+  transition: max-height 0.32s cubic-bezier(0.16, 1, 0.3, 1),
+              opacity 0.22s ease,
+              transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+              margin-top 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  overflow: hidden !important;
+}
+
+/* Collapsed State (Desktop) */
 #dailyMilestoneCard.milestone-collapsed {
   padding-top: 10px !important;
   padding-bottom: 10px !important;
@@ -1644,40 +1625,39 @@ body.dark-theme .box-fc { color: #c084fc; }
   margin-bottom: 0 !important;
 }
 
-/* display:none hatakar smooth slide-up aur fade out */
 #dailyMilestoneCard.milestone-collapsed .century-body {
   max-height: 0 !important;
   opacity: 0 !important;
-  margin: 0 !important;
-  transform: translateY(-4px);
+  margin-top: 0 !important;
+  transform: translateY(-4px) !important;
   pointer-events: none !important;
 }
 
-/* 📱 MOBILE SPECIFIC: TEXT PILLS HIDE + DEDICATED BEACON SLOT ALIGNMENT */
+/* 📱 MOBILE STRICT BUTTERY ACCORDION (<768px) */
 @media screen and (max-width: 768px) {
-  /* Mobile collapsed mode mein header ek clean single horizontal row ban jayega */
-  #dailyMilestoneCard.milestone-collapsed .century-meter-header {
-    flex-direction: row !important;
-    align-items: center !important;
-    justify-content: space-between !important;
-    min-height: 40px !important;
-    padding-right: 0 !important;
+  /* कार्ड खुला हो: पिल्स टाइटल के नीचे मक्खन की तरह स्लाइड होंगी */
+  #dailyMilestoneCard:not(.milestone-collapsed) #centuryLoadText {
+    max-height: 40px !important;
+    opacity: 1 !important;
+    margin-top: 8px !important;
+    transform: translateY(0) !important;
   }
 
-  /* Saare text badges aur pills completely hide */
+  /* कार्ड बंद हो: पिल्स बिना किसी झटके के फेड-आउट होकर बंद होंगी */
   #dailyMilestoneCard.milestone-collapsed #centuryLoadText {
-    display: none !important;
+    max-height: 0 !important;
+    opacity: 0 !important;
+    margin-top: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    transform: translateY(-4px) !important;
+    pointer-events: none !important;
   }
 
-  /* Right-side container ab sirf beacon slot ko carry karega */
-  #dailyMilestoneCard.milestone-collapsed .century-header-status-wrap {
-    width: auto !important;
-    margin-left: auto !important;
-  }
-
-  /* Beacon clean flexbox se naturally center aur right-align rahega */
-  #dailyMilestoneCard.milestone-collapsed .milestone-beacon-slot {
-    display: flex !important;
+  /* कार्ड बंद होने पर कार्ड की हाइट स्लिम (~46px) रहेगी */
+  #dailyMilestoneCard.milestone-collapsed {
+    padding-top: 10px !important;
+    padding-bottom: 10px !important;
+    margin-bottom: 12px !important;
   }
 }
-
