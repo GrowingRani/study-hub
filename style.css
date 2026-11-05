@@ -120,7 +120,38 @@ body.portal-body { font-family: var(--font-family); background-color: var(--bg-p
 .century-title-stack { display: flex; flex-direction: column; }
 .century-title { font-size: 14.5px; font-weight: 800; color: var(--tcs-blue-header); letter-spacing: -0.2px; }
 .century-subtitle { font-size: 11px; color: var(--text-muted); font-weight: 600; }
-.century-count-badge { font-size: 12.5px; font-weight: 800; font-family: var(--font-mono); color: var(--text-main); background: var(--bg-surface-elevated); padding: 4px 12px; border-radius: 20px; border: 1px solid var(--border-color); white-space: nowrap; }
+/* 🎯 CLEAN SQUIRCLE BADGE (NO AWKWARD CAPSULE CLASH) */
+.century-count-badge {
+  font-size: 12px;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  color: var(--text-main);
+  background: transparent;
+  padding: 0;
+  border: none;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Jab simple text ho (jaise 0 / 100 Qs) tabhi subtle border aayega */
+.century-count-badge:not(:has(.honest-satellite-cluster)) {
+  background: var(--bg-surface-elevated);
+  padding: 4px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+}
+
+.honest-satellite-cluster {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+}
+
+.honest-pill-mastered,
+.honest-pill-overdrive {
+  border-radius: 8px !important; /* Pills ke corners container se match honge */
+}
 .multi-tier-track { position: relative; width: 100%; height: 10px; background: var(--bg-surface-hover); border-radius: 6px; overflow: hidden; margin-top: 4px; }
 .century-fill { height: 100%; border-radius: 6px; transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
 .century-fill-capacity { position: absolute; left: 0; top: 0; height: 100%; background: var(--text-muted); opacity: 0.35; z-index: 1; }
@@ -200,32 +231,106 @@ body.portal-body { font-family: var(--font-family); background-color: var(--bg-p
   100% { transform: scale(0.94); box-shadow: 0 0 6px currentColor; }
 }
 
-/* 📱 MOBILE SCREEN FIT (TOP-RIGHT PINNED BEACON & ROW-2 PILLS) */
+/* 🚀 DEDICATED BEACON SLOT & TELEMETRY WRAPPER */
+.century-header-status-wrap {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  flex-shrink: 0 !important;
+}
+
+.milestone-beacon-slot {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-width: 24px !important;
+  height: 24px !important;
+  flex-shrink: 0 !important;
+}
+
+.milestone-beacon-slot:empty {
+  display: none !important;
+}
+
+/* 📱 MOBILE SCREEN FIT (DEDICATED SLOT & BALANCED ROWS) */
 @media screen and (max-width: 768px) {
+  /* 🚀 MOBILE SINGLE ROW LOCK (ICON KABHI NEECHE NAHI GIREGA) */
   .century-meter-header {
     display: flex !important;
-    flex-direction: column !important;
-    align-items: flex-start !important;
-    gap: 8px !important;
-    padding-right: 36px !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 10px !important;
+    padding-right: 0 !important;
+    min-height: 44px !important;
   }
 
   .century-meter-label {
-    width: 100% !important;
+    width: auto !important;
+    flex: 1 !important;
+    min-width: 0 !important;
   }
 
-  .milestone-beacon-pip {
-    position: absolute !important;
-    top: 12px !important;
-    right: 14px !important;
-    width: 24px !important;
-    height: 24px !important;
-    font-size: 12px !important;
-    z-index: 5 !important;
+  /* 🚀 1. EXPANDED STATE (MOBILE): Subtitle wapas dikhegi compact font ke sath */
+  .century-subtitle {
+    display: block !important;
+    font-size: 10px !important;
+    color: var(--text-muted) !important;
+    line-height: 1.2 !important;
+    margin-top: 1px !important;
+  }
+
+  /* 🚀 2. CARD PADDING TIGHTENING (Dead vertical space khatam) */
+  .century-meter-card {
+    padding: 10px 12px !important;
+    margin-bottom: 12px !important;
+  }
+
+  /* 🚀 3. COLLAPSED STATE (MOBILE): Ultra-slim ~38px ribbon */
+  #dailyMilestoneCard.milestone-collapsed {
+    padding-top: 8px !important;
+    padding-bottom: 8px !important;
+    margin-bottom: 12px !important;
+  }
+
+  #dailyMilestoneCard.milestone-collapsed .century-meter-header {
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    min-height: 36px !important;
+    padding-right: 0 !important;
+  }
+
+  /* Collapsed mode mein subtitle aur text badges dono hide */
+  #dailyMilestoneCard.milestone-collapsed .century-subtitle,
+  #dailyMilestoneCard.milestone-collapsed #centuryLoadText {
+    display: none !important;
+  }
+
+  /* Beacon right corner mein cleanly baith jayega */
+  #dailyMilestoneCard.milestone-collapsed .milestone-beacon-slot {
+    display: flex !important;
+    margin-left: auto !important;
+  }
+
+  .century-header-status-wrap {
+    width: auto !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    gap: 8px !important;
+    flex-shrink: 0 !important;
+  }
+
+  .milestone-beacon-slot {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
   }
 
   #centuryLoadText {
-    width: 100% !important;
+    width: auto !important;
+    flex: 1 !important;
   }
 
   .honest-satellite-cluster {
@@ -1508,22 +1613,30 @@ body.dark-theme .box-fc { color: #c084fc; }
 @keyframes progressSweep { 0% { transform: translateX(-100%); } 100% { transform: translateX(250%); } }
 
 
-/* 🎯 MILESTONE CARD: PURE NATURAL ACCORDION COLLAPSE */
+/* 🎯 MILESTONE CARD: ULTRA-CLEAN CYBER ACCORDION ENGINE */
 #dailyMilestoneCard {
-  transition: padding 0.25s ease, margin 0.25s ease !important;
+  transition: padding 0.35s cubic-bezier(0.16, 1, 0.3, 1), 
+              margin 0.35s cubic-bezier(0.16, 1, 0.3, 1), 
+              border-color 0.25s ease !important;
+  cursor: pointer;
 }
 
-#milestoneToggleArrow {
-  display: inline-block !important;
-  font-size: 11px !important;
-  color: var(--text-muted) !important;
-  transition: transform 0.25s ease !important;
+/* 🌊 BUTTERY SMOOTH BODY ACCORDION (ZERO DISPLAY:NONE JUMP) */
+.century-body {
+  max-height: 90px;
+  opacity: 1;
+  overflow: hidden;
+  transform: translateY(0);
+  transition: max-height 0.38s cubic-bezier(0.16, 1, 0.3, 1), 
+              opacity 0.28s ease, 
+              transform 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+              margin 0.35s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
-/* Jab card collapsed hoga */
+/* Collapsed State (Desktop & Mobile Base) */
 #dailyMilestoneCard.milestone-collapsed {
-  padding-top: 12px !important;
-  padding-bottom: 12px !important;
+  padding-top: 10px !important;
+  padding-bottom: 10px !important;
   margin-bottom: 14px !important;
 }
 
@@ -1531,12 +1644,40 @@ body.dark-theme .box-fc { color: #c084fc; }
   margin-bottom: 0 !important;
 }
 
-#dailyMilestoneCard.milestone-collapsed .century-body,
-#dailyMilestoneCard.milestone-collapsed .century-track,
-#dailyMilestoneCard.milestone-collapsed .century-tier-legend {
-  display: none !important;
+/* display:none hatakar smooth slide-up aur fade out */
+#dailyMilestoneCard.milestone-collapsed .century-body {
+  max-height: 0 !important;
+  opacity: 0 !important;
+  margin: 0 !important;
+  transform: translateY(-4px);
+  pointer-events: none !important;
 }
 
-#dailyMilestoneCard.milestone-collapsed #milestoneToggleArrow {
-  transform: rotate(-90deg) !important;
+/* 📱 MOBILE SPECIFIC: TEXT PILLS HIDE + DEDICATED BEACON SLOT ALIGNMENT */
+@media screen and (max-width: 768px) {
+  /* Mobile collapsed mode mein header ek clean single horizontal row ban jayega */
+  #dailyMilestoneCard.milestone-collapsed .century-meter-header {
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    min-height: 40px !important;
+    padding-right: 0 !important;
+  }
+
+  /* Saare text badges aur pills completely hide */
+  #dailyMilestoneCard.milestone-collapsed #centuryLoadText {
+    display: none !important;
+  }
+
+  /* Right-side container ab sirf beacon slot ko carry karega */
+  #dailyMilestoneCard.milestone-collapsed .century-header-status-wrap {
+    width: auto !important;
+    margin-left: auto !important;
+  }
+
+  /* Beacon clean flexbox se naturally center aur right-align rahega */
+  #dailyMilestoneCard.milestone-collapsed .milestone-beacon-slot {
+    display: flex !important;
+  }
 }
+

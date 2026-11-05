@@ -1546,15 +1546,10 @@ function getMilestoneBeaconHtml(count) {
 
 window.toggleMilestoneVisibility = function() {
   const card = document.getElementById("dailyMilestoneCard");
-  const arrow = document.getElementById("milestoneToggleArrow");
   if (!card) return;
 
   const isCollapsed = card.classList.toggle("milestone-collapsed");
   appStorage.set("milestone_collapsed", isCollapsed ? "true" : "false");
-
-  if (arrow) {
-    arrow.style.transform = isCollapsed ? "rotate(-90deg)" : "rotate(0deg)";
-  }
 };
 
 async function mountDashboard(isInitialLoad = false) {
@@ -1606,40 +1601,44 @@ async function mountDashboard(isInitialLoad = false) {
   if (cSub) cSub.innerText = isSun ? "Weekly Backlog & Mastery Crucible" : "100-Question Target & Mastery Barometer";
 
   // 🚀 0ms Anti-Flicker Badge & Hyperdrive Beam Initialization
-  if (cMeter) {
-    const cachedCount = dailyPerf?.total_questions_attempted || 0;
-    const isOverdriveInit = !isSun && cachedCount > 100;
-    const attFillInit = document.getElementById("centuryAttemptedFill");
-    const capFillInit = document.getElementById("centuryCapacityFill");
-    const trackInit = attFillInit?.parentElement || document.querySelector(".multi-tier-track") || document.querySelector(".century-progress-track");
+  const cachedCount = dailyPerf?.total_questions_attempted || 0;
+  const isOverdriveInit = !isSun && cachedCount > 100;
+  const attFillInit = document.getElementById("centuryAttemptedFill");
+  const capFillInit = document.getElementById("centuryCapacityFill");
+  const trackInit = attFillInit?.parentElement || document.querySelector(".multi-tier-track") || document.querySelector(".century-progress-track");
 
-    // Decouple Staging fill permanently
-    if (capFillInit) capFillInit.style.display = "none";
+  // Decouple Staging fill permanently
+  if (capFillInit) capFillInit.style.display = "none";
 
-    // Hyperdrive dynamic physical beam mounting on track
-    if (trackInit) {
-      trackInit.classList.toggle("hyperdrive-active-track", isOverdriveInit);
-      const existingBeam = trackInit.querySelector(".hyperdrive-physical-beam");
-      if (isOverdriveInit) {
-        if (!existingBeam) {
-          const beamLayer = document.createElement("div");
-          beamLayer.className = "hyperdrive-physical-beam";
-          beamLayer.innerHTML = `<div class="hyperdrive-flare-head"></div>`;
-          trackInit.appendChild(beamLayer);
-        }
-      } else if (existingBeam) {
-        existingBeam.remove();
+  // Hyperdrive dynamic physical beam mounting on track
+  if (trackInit) {
+    trackInit.classList.toggle("hyperdrive-active-track", isOverdriveInit);
+    const existingBeam = trackInit.querySelector(".hyperdrive-physical-beam");
+    if (isOverdriveInit) {
+      if (!existingBeam) {
+        const beamLayer = document.createElement("div");
+        beamLayer.className = "hyperdrive-physical-beam";
+        beamLayer.innerHTML = `<div class="hyperdrive-flare-head"></div>`;
+        trackInit.appendChild(beamLayer);
       }
+    } else if (existingBeam) {
+      existingBeam.remove();
     }
+  }
 
-    const beaconHtmlInit = getMilestoneBeaconHtml(cachedCount);
+  // 🎯 1. Dedicated Slot mein Achievement Beacon mount karein
+  const beaconSlot = document.getElementById("milestoneBeaconSlot");
+  if (beaconSlot) {
+    beaconSlot.innerHTML = getMilestoneBeaconHtml(cachedCount);
+  }
 
+  // 🎯 2. cMeter mein sirf clean Data Metrics/Pills rahengi
+  if (cMeter) {
     if (isSun) {
       cMeter.innerText = dailyPerf?.is_century_hit ? `${cachedCount} Qs 👑 (Crucible Conquered)` : `${cachedCount} Qs ⚔️ (Crucible Target)`;
     } else if (isOverdriveInit) {
       cMeter.innerHTML = `
         <div class="honest-satellite-cluster">
-          ${beaconHtmlInit}
           <span class="honest-pill-mastered">✓ ${dailyPerf?.total_correct || 0} MASTERED</span>
           <span class="honest-pill-overdrive"><span class="honest-pip-amber"></span>${cachedCount} / 100 Qs (+${cachedCount - 100})</span>
         </div>
@@ -1647,7 +1646,6 @@ async function mountDashboard(isInitialLoad = false) {
     } else if (dailyPerf?.is_century_hit || cachedCount >= 100) {
       cMeter.innerHTML = `
         <div class="honest-satellite-cluster">
-          ${beaconHtmlInit}
           <span class="honest-pill-overdrive" style="background:var(--success-bg-subtle); color:var(--success-dark); border-color:var(--success-border); font-weight:800;">100 / 100 Qs 🔥 Secured</span>
         </div>
       `;
@@ -1692,10 +1690,8 @@ async function mountDashboard(isInitialLoad = false) {
   // 🚀 Restore Milestone Collapse State on Mount
   const isCollapsedSaved = appStorage.get("milestone_collapsed") === "true";
   const card = document.getElementById("dailyMilestoneCard");
-  const arrow = document.getElementById("milestoneToggleArrow");
   if (card && isCollapsedSaved) {
     card.classList.add("milestone-collapsed");
-    if (arrow) arrow.style.transform = "rotate(-90deg)";
   }
 }
 
@@ -2210,7 +2206,6 @@ function renderStarredPlaylistOnly() {
   renderSecondaryPlaylistStream('Starred Sets', 'starredPlaylistContainer', 'starredCountPill', 'starredPlaylistCard', 'No starred sets yet. Click ☆ on any set to save here.');
 }
 
-// 🚀 MUTEX-LOCKED & ATOMIC ASSIGNMENT RENDERER (WITH SCROLL PRESERVATION & ZERO-OVERLAP)
 async function renderHomePlaylists() {
   if (isRenderingPlaylists) {
     pendingPlaylistRender = true;
@@ -2469,10 +2464,14 @@ async function renderHomePlaylists() {
       }
     }
 
-    // (C) 🛰️ Honest Satellite Telemetry Updates
-    if (meterText) {
-      const beaconHtmlLive = getMilestoneBeaconHtml(actualAttemptedCount);
+    // (C) 🛰️ Dedicated Slot mein Beacon update karein
+    const beaconSlot = document.getElementById("milestoneBeaconSlot");
+    if (beaconSlot) {
+      beaconSlot.innerHTML = getMilestoneBeaconHtml(actualAttemptedCount);
+    }
 
+    // 🎯 cMeter mein sirf clean Data Metrics/Pills rahengi
+    if (meterText) {
       if (isSun) {
         meterText.innerText = dailyPerf.is_century_hit 
           ? `${actualAttemptedCount} Qs 👑 (Crucible Conquered)` 
@@ -2480,7 +2479,6 @@ async function renderHomePlaylists() {
       } else if (isOverdrive) {
         meterText.innerHTML = `
           <div class="honest-satellite-cluster">
-            ${beaconHtmlLive}
             <span class="honest-pill-mastered">✓ ${todayMasteredQ} MASTERED</span>
             <span class="honest-pill-overdrive"><span class="honest-pip-amber"></span>${actualAttemptedCount} / 100 Qs (+${actualAttemptedCount - 100})</span>
           </div>
@@ -2488,7 +2486,6 @@ async function renderHomePlaylists() {
       } else if (actualAttemptedCount >= 100 || dailyPerf.is_century_hit) {
         meterText.innerHTML = `
           <div class="honest-satellite-cluster">
-            ${beaconHtmlLive}
             <span class="honest-pill-overdrive" style="background:var(--success-bg-subtle); color:var(--success-dark); border-color:var(--success-border); font-weight:800;">100 / 100 Qs 🔥 Secured</span>
           </div>
         `;
