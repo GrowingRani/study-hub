@@ -173,11 +173,84 @@ body.portal-body { font-family: var(--font-family); background-color: var(--bg-p
 @keyframes hyperdriveStream { 0% { background-position: 0 0; } 100% { background-position: 32px 0; } }
 @keyframes flareSweep { 0% { left: -10%; opacity: 0; } 15% { opacity: 1; } 85% { opacity: 1; } 100% { left: 110%; opacity: 0; } }
 
-/* 🛰️ Honest Satellite Telemetry Pills */
-.honest-satellite-cluster { display: inline-flex !important; align-items: center !important; gap: 6px !important; }
-.honest-pill-mastered { display: inline-flex !important; align-items: center !important; gap: 4px !important; padding: 3px 8px !important; border-radius: 6px !important; background: var(--success-bg-subtle) !important; border: 1px solid var(--success-border) !important; color: var(--success-dark) !important; font-family: var(--font-mono) !important; font-size: 11px !important; font-weight: 800 !important; letter-spacing: 0.3px !important; white-space: nowrap !important; }
-.honest-pill-overdrive { display: inline-flex !important; align-items: center !important; gap: 5px !important; padding: 3px 9px !important; border-radius: 6px !important; background: var(--warning-bg-subtle) !important; border: 1px solid var(--warning-border) !important; color: var(--warning-dark) !important; font-family: var(--font-mono) !important; font-size: 11px !important; font-weight: 800 !important; letter-spacing: 0.3px !important; white-space: nowrap !important; }
-.honest-pip-amber { width: 5px !important; height: 5px !important; border-radius: 50% !important; background: #f59e0b !important; box-shadow: 0 0 5px #f59e0b !important; flex-shrink: 0 !important; }
+/* 🛰️ 4-TIER CRISP TELEMETRY HUD PILLS */
+.honest-satellite-cluster { 
+  display: inline-flex !important; 
+  align-items: center !important; 
+  gap: 6px !important; 
+  width: auto;
+  box-sizing: border-box;
+}
+
+.telemetry-pill {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  padding: 3.5px 8px !important;
+  border-radius: 6px !important;
+  font-family: var(--font-mono) !important;
+  font-size: 10.5px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.3px !important;
+  white-space: nowrap !important;
+  box-sizing: border-box !important;
+  user-select: none !important;
+  line-height: 1 !important;
+  transition: all 0.2s ease !important;
+}
+
+.telemetry-pill svg {
+  width: 11px !important;
+  height: 11px !important;
+  flex-shrink: 0 !important;
+  display: block !important;
+}
+
+/* Tier 0: < 100 Qs (Target Standby & Ascent) */
+.pill-tier-ascent {
+  background: var(--bg-surface-elevated) !important;
+  border: 1px solid var(--border-color) !important;
+  color: var(--text-main) !important;
+}
+
+.pill-tier-deficit {
+  background: var(--tcs-blue-bg-subtle) !important;
+  border: 1px solid var(--tcs-blue-border-subtle) !important;
+  color: var(--tcs-blue-accent) !important;
+}
+
+/* Tier 1: 100 - 199 Qs (Baseline Target Secured) */
+.pill-tier-secured {
+  background: var(--success-bg-subtle) !important;
+  border: 1px solid var(--success-border) !important;
+  color: var(--success-dark) !important;
+}
+
+/* Tier 2: 200 - 299 Qs (Overdrive Matrix) */
+.pill-tier-overdrive {
+  background: var(--warning-bg-subtle) !important;
+  border: 1px solid var(--warning-border) !important;
+  color: var(--warning-dark) !important;
+}
+
+/* Tier 3: 300+ Qs (Apex Peak Load) */
+.pill-tier-apex {
+  background: rgba(251, 191, 36, 0.16) !important;
+  border: 1px solid rgba(251, 191, 36, 0.5) !important;
+  color: #b45309 !important;
+}
+body.dark-theme .pill-tier-apex {
+  background: rgba(251, 191, 36, 0.14) !important;
+  border-color: rgba(251, 191, 36, 0.45) !important;
+  color: #fde047 !important;
+}
+
+/* Sunday Revision Protocol */
+.pill-tier-crucible {
+  background: var(--warning-bg-subtle) !important;
+  border: 1px solid var(--warning-border) !important;
+  color: var(--warning-dark) !important;
+}
 
 /* 🚀 DYNAMIC MILESTONE TIER PULSING BEACONS */
 .century-meter-card {
@@ -259,12 +332,12 @@ body.portal-body { font-family: var(--font-family); background-color: var(--bg-p
     padding: 10px 12px !important;
   }
 
-  /* हेडर को दाईं तरफ 38px पैडिंग दी है ताकि टाइटल आइकन से न टकराए */
+  /* हेडर फुल विड्थ रहेगा, पैडिंग केवल टाइटल लेबल पर लगेगी */
   .century-meter-header {
     display: flex !important;
     flex-direction: column !important;
     align-items: flex-start !important;
-    padding-right: 38px !important;
+    padding-right: 0 !important;
     margin-bottom: 0 !important;
     gap: 0 !important;
   }
@@ -275,6 +348,8 @@ body.portal-body { font-family: var(--font-family); background-color: var(--bg-p
     display: flex !important;
     align-items: center !important;
     gap: 8px !important;
+    padding-right: 38px !important;
+    box-sizing: border-box !important;
   }
 
   .century-title-stack {
@@ -317,6 +392,28 @@ body.portal-body { font-family: var(--font-family); background-color: var(--bg-p
     width: 100% !important;
     display: flex !important;
     flex-direction: column !important;
+    align-items: center !important;
+  }
+
+  #centuryLoadText {
+    width: 100% !important;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    text-align: center !important;
+  }
+
+  .honest-satellite-cluster {
+    width: auto !important;
+    display: inline-flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    gap: 8px !important;
+    margin: 0 auto !important;
+  }
+
+  .honest-satellite-cluster > * {
+    flex: initial !important;
   }
 }
 .mission-deck-container.balanced-split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; align-items: start; width: 100%; }
@@ -1384,8 +1481,15 @@ body.dark-theme .box-fc { color: #c084fc; }
   .analytics-mobile-switcher { display: flex !important; background: var(--bg-surface-elevated); padding: 4px; border-radius: 10px; border: 1px solid var(--border-color); gap: 4px; margin-bottom: 14px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08); }
   .analytics-seg-btn { flex: 1; height: 36px; border: none; background: transparent; color: var(--text-muted); font-size: 11.5px; font-weight: 700; border-radius: 7px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1); outline: none; padding: 0 4px; -webkit-tap-highlight-color: transparent; }
   .analytics-seg-btn.active { background: var(--bg-panel); color: var(--tcs-blue-accent); font-weight: 800; border: 1px solid var(--border-color); box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12); }
-  .advanced-analytics-grid.show-domains .deck-audit { display: none !important; }
-  .advanced-analytics-grid.show-audit .deck-domains { display: none !important; }
+  .advanced-analytics-grid.show-domains .deck-audit,
+  .advanced-analytics-grid.show-domains #mistakeFunnelCard,
+  .advanced-analytics-grid.show-domains #negativeBleedCard { 
+    display: none !important; 
+  }
+  .advanced-analytics-grid.show-audit .deck-domains,
+  .advanced-analytics-grid.show-audit #actionableInsightsCard { 
+    display: none !important; 
+  }
   .advanced-analytics-grid .deck-domains, .advanced-analytics-grid .deck-audit { animation: fadeInDeck 0.25s cubic-bezier(0.16, 1, 0.3, 1); }
 }
 

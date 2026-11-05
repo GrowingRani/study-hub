@@ -1549,6 +1549,70 @@ function getMilestoneBeaconHtml(count) {
   return "";
 }
 
+function getMilestoneTelemetryHtml(attemptedCount = 0, masteredCount = 0, isSundayMode = false, isSundayHit = false) {
+  const count = Number(attemptedCount) || 0;
+  const mastered = Number(masteredCount) || 0;
+
+  const svgTarget = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"></circle><line x1="12" y1="2" x2="12" y2="4"></line><line x1="12" y1="20" x2="12" y2="22"></line><line x1="2" y1="12" x2="4" y2="12"></line><line x1="20" y1="12" x2="22" y2="12"></line></svg>`;
+  const svgFlag = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line></svg>`;
+  const svgShield = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><polyline points="9 12 11 14 15 10"></polyline></svg>`;
+  const svgCheck = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+  const svgLightning = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>`;
+  const svgFastForward = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 17 18 12 13 7"></polyline><polyline points="6 17 11 12 6 7"></polyline></svg>`;
+  const svgDiamond = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12l4 6-10 13L2 9z"></path></svg>`;
+  const svgStar = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>`;
+
+  if (isSundayMode) {
+    return `
+      <div class="honest-satellite-cluster">
+        <span class="telemetry-pill pill-tier-crucible">${svgTarget} ${count} Qs</span>
+        <span class="telemetry-pill pill-tier-crucible">${isSundayHit ? svgShield : svgFlag} ${isSundayHit ? 'CONQUERED' : 'CRUCIBLE'}</span>
+      </div>
+    `;
+  }
+
+  if (count < 100) {
+    const deficit = Math.max(0, 100 - count);
+    return `
+      <div class="honest-satellite-cluster">
+        <span class="telemetry-pill pill-tier-ascent">${svgTarget} ${count} / 100 Qs</span>
+        <span class="telemetry-pill pill-tier-deficit">${svgFlag} ${deficit} REM</span>
+      </div>
+    `;
+  }
+
+  if (count < 200) {
+    const surplus = count - 100;
+    const rightContent = mastered > 0
+      ? `${svgCheck} ${mastered} MAST (+${surplus})`
+      : `${svgFlag} +${surplus} SURPLUS`;
+    return `
+      <div class="honest-satellite-cluster">
+        <span class="telemetry-pill pill-tier-secured">${svgShield} 100 SECURED</span>
+        <span class="telemetry-pill pill-tier-secured">${rightContent}</span>
+      </div>
+    `;
+  }
+
+  if (count < 300) {
+    const buffer = count - 100;
+    return `
+      <div class="honest-satellite-cluster">
+        <span class="telemetry-pill pill-tier-overdrive">${svgLightning} 200+ OVERDRIVE</span>
+        <span class="telemetry-pill pill-tier-overdrive">${svgFastForward} +${buffer} BUFFER</span>
+      </div>
+    `;
+  }
+
+  const apexYield = count - 100;
+  return `
+    <div class="honest-satellite-cluster">
+      <span class="telemetry-pill pill-tier-apex">${svgDiamond} 300+ APEX</span>
+      <span class="telemetry-pill pill-tier-apex">${svgStar} +${apexYield} YIELD</span>
+    </div>
+  `;
+}
+
 window.toggleMilestoneVisibility = function() {
   const card = document.getElementById("dailyMilestoneCard");
   if (!card) return;
@@ -1637,28 +1701,9 @@ async function mountDashboard(isInitialLoad = false) {
     beaconSlot.innerHTML = getMilestoneBeaconHtml(cachedCount);
   }
 
-  // 🎯 2. cMeter mein sirf clean Data Metrics/Pills rahengi
+  // 🎯 2. cMeter mein 4-Tier Crisp Telemetry Pills rahengi
   if (cMeter) {
-    if (isSun) {
-      cMeter.innerText = dailyPerf?.is_century_hit ? `${cachedCount} Qs 👑 (Crucible Conquered)` : `${cachedCount} Qs ⚔️ (Crucible Target)`;
-    } else if (isOverdriveInit) {
-      cMeter.innerHTML = `
-        <div class="honest-satellite-cluster">
-          <span class="honest-pill-mastered">✓ ${dailyPerf?.total_correct || 0} MASTERED</span>
-          <span class="honest-pill-overdrive"><span class="honest-pip-amber"></span>${cachedCount} / 100 Qs (+${cachedCount - 100})</span>
-        </div>
-      `;
-    } else if (dailyPerf?.is_century_hit || cachedCount >= 100) {
-      cMeter.innerHTML = `
-        <div class="honest-satellite-cluster">
-          <span class="honest-pill-overdrive" style="background:var(--success-bg-subtle); color:var(--success-dark); border-color:var(--success-border); font-weight:800;">100 / 100 Qs 🔥 Secured</span>
-        </div>
-      `;
-    } else if (cachedCount > 0) {
-      cMeter.innerText = `${cachedCount} / 100 Qs 🎯`;
-    } else {
-      cMeter.innerText = "0 / 100 Qs";
-    }
+    cMeter.innerHTML = getMilestoneTelemetryHtml(cachedCount, dailyPerf?.total_correct || 0, isSun, dailyPerf?.is_century_hit);
   }
 
   // 🚀 स्ट्रीक बैज को 0ms पर सही संख्या के साथ पेंट करें
@@ -2474,30 +2519,9 @@ async function renderHomePlaylists() {
       beaconSlot.innerHTML = getMilestoneBeaconHtml(actualAttemptedCount);
     }
 
-    // 🎯 cMeter mein sirf clean Data Metrics/Pills rahengi
+    // 🎯 cMeter mein 4-Tier Crisp Telemetry Pills rahengi
     if (meterText) {
-      if (isSun) {
-        meterText.innerText = dailyPerf.is_century_hit 
-          ? `${actualAttemptedCount} Qs 👑 (Crucible Conquered)` 
-          : `${actualAttemptedCount} Qs ⚔️ (Crucible Target)`;
-      } else if (isOverdrive) {
-        meterText.innerHTML = `
-          <div class="honest-satellite-cluster">
-            <span class="honest-pill-mastered">✓ ${todayMasteredQ} MASTERED</span>
-            <span class="honest-pill-overdrive"><span class="honest-pip-amber"></span>${actualAttemptedCount} / 100 Qs (+${actualAttemptedCount - 100})</span>
-          </div>
-        `;
-      } else if (actualAttemptedCount >= 100 || dailyPerf.is_century_hit) {
-        meterText.innerHTML = `
-          <div class="honest-satellite-cluster">
-            <span class="honest-pill-overdrive" style="background:var(--success-bg-subtle); color:var(--success-dark); border-color:var(--success-border); font-weight:800;">100 / 100 Qs 🔥 Secured</span>
-          </div>
-        `;
-      } else if (actualAttemptedCount > 0) {
-        meterText.innerText = `${actualAttemptedCount} / 100 Qs 🎯`;
-      } else {
-        meterText.innerText = "0 / 100 Qs";
-      }
+      meterText.innerHTML = getMilestoneTelemetryHtml(actualAttemptedCount, todayMasteredQ, isSun, isSunHit);
     }
 
     if (currentCandidate?.roll_number) {
