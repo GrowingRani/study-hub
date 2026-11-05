@@ -204,6 +204,8 @@ let cachedBoosterPool = null;
 let lastBoosterFetchTime = 0;
  
 let isExitingApp = false;
+let activeTacticalDate = null;
+let cachedWeeklyContext = null;
 
 // 🔥 STATE FOR QUIZ & READ MODES
 let activePracticeMode = "read"; // 🚀 Formally declared active practice mode state
@@ -4143,42 +4145,126 @@ function renderAnalyticsTopStats(telemetry) {
   drawSparkline("sparkSpeed", speedTrends.slice(-10), "var(--success)");
 }
 
-function renderWeeklyConsistencyTrack(context) {
-  const { attMap, past7, todayStr, todayMins, todayMasteredCount, dailyQuestionsMap, todayStats = {} } = context;
-  const extra = document.getElementById("extraAnalyticsSummary");
-  if (!extra) return;
+function getTacticalStatsForDate(d, atts = [], attMap = {}) {
+  const isToday = (d === getLocalDateString());
+  let dCorr = 0;
+  let dIncorr = 0;
+  let dSecs = 0;
+  const dMasteredTests = new Set();
 
-  const {
-    todayCorr = 0,
-    todayIncorr = 0,
-    todayQAttempted = 0,
-    todayGross = 0,
-    todayBleed = 0,
-    todayNet = 0,
-    todayAcc = 0,
-    todayAvgPace = 0,
-    todayPromoted = 0,
-    todayFreshErrors = 0
-  } = todayStats;
+  (atts || []).forEach(a => {
+    const attDate = getAttemptLocalDate(a.attempt_date);
+    if (attDate === d) {
+      dCorr += (a.total_correct || 0);
+      dIncorr += (a.total_incorrect || 0);
+      dSecs += (a.time_spent_seconds || 0);
+
+      if (Number(a.test_id) > 0) {
+        const cat = catalogData.find(item => String(item.test_id) === String(a.test_id));
+        const tQs = cat ? (cat.total_questions || 10) : ((a.total_correct || 0) + (a.total_incorrect || 0) || 10);
+        const maxM = tQs * 2;
+        const pct = maxM > 0 ? (parseFloat(a.score || 0) / maxM) * 100 : 0;
+        if (pct >= 100) dMasteredTests.add(String(a.test_id));
+      }
+    }
+  });
+
+  const dQAttempted = dCorr + dIncorr;
+  const dGross = dCorr * 2.0;
+  const dBleed = Math.round(dIncorr * 0.5 * 100) / 100;
+  const dNet = Math.round((dGross - dBleed) * 100) / 100;
+  const dAcc = dQAttempted > 0 ? Math.round((dCorr / dQAttempted) * 100) : 0;
+  const dAvgPace = dQAttempted > 0 ? Math.round(dSecs / dQAttempted) : 0;
+
+  let dPromoted = 0;
+  let dFreshErrors = 0;
+  (userWeakQuestions || []).forEach(q => {
+    if (getAttemptLocalDate(q.last_attempt_date) === d) {
+      if ((q.mastery_streak || 0) > 0) dPromoted++;
+      else if ((q.times_wrong || 0) > 0) dFreshErrors++;
+    }
+  });
+
+  const dMins = attMap[d] || 0;
+
+  return {
+    date: d,
+    isToday,
+    dCorr,
+    dIncorr,
+    dQAttempted,
+    dGross,
+    dBleed,
+    dNet,
+    dAcc,
+    dAvgPace,
+    dPromoted,
+    dFreshErrors,
+    dMins,
+    dMasteredCount: dMasteredTests.size
+  };
+}
+
+window.switchTacticalDate = function(targetDate) {
+  if (!cachedWeeklyContext || !cachedWeeklyContext.past7.includes(targetDate)) return;
+  activeTacticalDate = targetDate;
+  renderWeeklyConsistencyTrack(cachedWeeklyContext);
+};
+
+window.stepTacticalDate = function(dir) {
+  if (!cachedWeeklyContext) return;
+  const { past7 } = cachedWeeklyContext;
+  const currIdx = past7.indexOf(activeTacticalDate || past7[0]);
+  if (currIdx === -1) return;
+  const nextIdx = currIdx - dir;
+  if (nextIdx >= 0 && nextIdx < past7.length) {
+    window.switchTacticalDate(past7[nextIdx]);
+  }
+};
+
+function renderWeeklyConsistencyTrack(context) {
+  const { attMap = {}, past7 = [], todayStr, dailyQuestionsMap = {}, atts = [] } = context;
+  const extra = document.getElementById("extraAnalyticsSummary");
+  if (!extra || !past7.length) return;
+
+  if (!activeTacticalDate || !past7.includes(activeTacticalDate)) {
+    activeTacticalDate = todayStr || past7[0];
+  }
+
+  const currIdx = past7.indexOf(activeTacticalDate);
+  const canStepBack = currIdx < past7.length - 1;
+  const canStepForward = currIdx > 0;
+
+  let dateLabel = "Today";
+  if (currIdx === 1) {
+    dateLabel = "Yesterday";
+  } else if (currIdx > 1) {
+    const dObj = new Date(activeTacticalDate);
+    dateLabel = dObj.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' });
+  }
+
+  const dStats = getTacticalStatsForDate(activeTacticalDate, atts, attMap);
+  const isToday = dStats.isToday;
 
   const dots = past7.slice().reverse().map(d => {
     const mins = attMap[d] || 0;
     const qCount = dailyQuestionsMap[d] || 0;
     const dayLabel = new Date(d).toLocaleDateString('en-US', { weekday: 'narrow' });
     const dateFormatted = new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const isActive = (d === activeTacticalDate);
 
     let nodeClass = "node-tier-inactive";
     let nodeIcon = "•";
     let hoverTitle = `${dateFormatted}: Rest / Inactive`;
 
-    const isToday = (d === todayStr);
-    const isSundayCentury = isToday && isSunday() && dailyPerf?.is_century_hit;
+    const isThisToday = (d === todayStr);
+    const isSundayCentury = isThisToday && isSunday() && dailyPerf?.is_century_hit;
 
     if (qCount >= 300) {
       nodeClass = "node-tier-crown";
       nodeIcon = `<svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5zm14 3c0 .6-.4 1-1 1H6c-.6 0-1-.4-1-1v-1h14v1z"/></svg>`;
       hoverTitle = `${dateFormatted}: Apex Crucible Conquered (${qCount} Qs • ${Math.floor(mins / 60)}h ${mins % 60}m)`;
-      } else if (qCount >= 200) {
+    } else if (qCount >= 200) {
       nodeClass = "node-tier-overdrive";
       nodeIcon = `<svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
       hoverTitle = `${dateFormatted}: Double Century Overdrive (${qCount} Qs • ${Math.floor(mins / 60)}h ${mins % 60}m)`;
@@ -4193,7 +4279,7 @@ function renderWeeklyConsistencyTrack(context) {
     }
 
     return `
-      <div class="weekly-node-col">
+      <div class="weekly-node-col ${isActive ? 'node-active-day' : ''}" onclick="switchTacticalDate('${d}')" title="Tap to view ${dateFormatted} metrics">
         <span class="weekly-node-day">${dayLabel}</span>
         <span class="weekly-track-node ${nodeClass}" title="${hoverTitle}">${nodeIcon}</span>
       </div>
@@ -4203,73 +4289,79 @@ function renderWeeklyConsistencyTrack(context) {
   let last7Mins = 0;
   past7.forEach(d => { last7Mins += (attMap[d] || 0); });
 
-  let todayVerdictHtml = "";
-  if (todayQAttempted === 0 && todayMins === 0) {
-    todayVerdictHtml = `
+  let verdictHtml = "";
+  if (dStats.dQAttempted === 0 && dStats.dMins === 0) {
+    verdictHtml = `
       <div class="today-tactical-footer">
-        <span>🎯 <strong>Ready for Action:</strong> No tests attempted today. Launch today's payload to start tracking daily output!</span>
+        <span>🎯 <strong>Ready for Action:</strong> ${isToday ? "No tests attempted today. Launch today's payload to start tracking daily output!" : "No sessions or practice tests logged on this date."}</span>
       </div>
     `;
-  } else if (todayBleed === 0 && todayCorr > 0) {
-    todayVerdictHtml = `
+  } else if (dStats.dBleed === 0 && dStats.dCorr > 0) {
+    verdictHtml = `
       <div class="today-tactical-footer verdict-green">
-        <span>🏆 <strong>Flawless Precision:</strong> Zero negative penalties today! 100% score retention across attempted sets.</span>
+        <span>🏆 <strong>Flawless Precision:</strong> Zero negative penalties ${isToday ? "today" : "on this date"}! 100% score retention across attempted sets.</span>
       </div>
     `;
-  } else if (todayGross > 0 && (todayBleed / todayGross) > 0.20) {
-    todayVerdictHtml = `
+  } else if (dStats.dGross > 0 && (dStats.dBleed / dStats.dGross) > 0.20) {
+    verdictHtml = `
       <div class="today-tactical-footer verdict-red">
-        <span>⚠️ <strong>Penalty Warning:</strong> Negative bleed (-${todayBleed.toFixed(1)}) is taking over 20% of today's earnings. Curtail 50/50 doubts.</span>
+        <span>⚠️ <strong>Penalty Warning:</strong> Negative bleed (-${dStats.dBleed.toFixed(1)}) took over 20% of ${isToday ? "today's" : "that day's"} earnings. Curtail 50/50 doubts.</span>
       </div>
     `;
   } else {
-    todayVerdictHtml = `
+    verdictHtml = `
       <div class="today-tactical-footer verdict-blue">
-        <span>⚡ <strong>Disciplined Scoring:</strong> +${todayNet.toFixed(1)} net marks realized with ${todayAcc}% strike-rate.</span>
+        <span>⚡ <strong>Disciplined Scoring:</strong> +${dStats.dNet.toFixed(1)} net marks realized with ${dStats.dAcc}% strike-rate.</span>
       </div>
     `;
   }
 
-  const formatNetVal = todayNet > 0 ? `+${todayNet.toFixed(1)}` : (todayNet < 0 ? `${todayNet.toFixed(1)}` : `0.0`);
-  const netColorStyle = todayNet > 0 ? "color:var(--success-dark);" : (todayNet < 0 ? "color:var(--danger-dark);" : "color:var(--text-main);");
-  const accColorStyle = todayAcc >= 80 ? "color:var(--success-dark);" : (todayAcc >= 60 ? "color:var(--warning-dark);" : "color:var(--danger-dark);");
+  const formatNetVal = dStats.dNet > 0 ? `+${dStats.dNet.toFixed(1)}` : (dStats.dNet < 0 ? `${dStats.dNet.toFixed(1)}` : `0.0`);
+  const netColorStyle = dStats.dNet > 0 ? "color:var(--success-dark);" : (dStats.dNet < 0 ? "color:var(--danger-dark);" : "color:var(--text-main);");
+  const accColorStyle = dStats.dAcc >= 80 ? "color:var(--success-dark);" : (dStats.dAcc >= 60 ? "color:var(--warning-dark);" : "color:var(--danger-dark);");
 
   extra.innerHTML = `
-    <div class="profile-section-card" style="padding:14px 16px; border-left:4px solid var(--success); display:flex; flex-direction:column; justify-content:space-between;">
-      <div style="display:flex; justify-content:space-between; align-items:center;">
-        <h4 style="font-size:13.5px; font-weight:800; color:var(--tcs-blue-header); margin:0;">🎯 Today's Tactical Balance Sheet</h4>
-        <span style="font-size:10px; font-weight:800; background:var(--success-bg-subtle); color:var(--success-dark); padding:2px 8px; border-radius:12px; font-family:var(--font-mono);">
-          ${todayQAttempted > 0 ? `${todayQAttempted} Qs Evaluated` : 'ACTIVE SESSION'}
-        </span>
+    <div class="profile-section-card" id="tacticalSheetCard" style="padding:14px 16px; border-left:4px solid var(--success); display:flex; flex-direction:column; justify-content:space-between; user-select:none;">
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+        <h4 style="font-size:13.5px; font-weight:800; color:var(--tcs-blue-header); margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">🎯 ${isToday ? "Today's" : (currIdx === 1 ? "Yesterday's" : dateLabel)} Balance Sheet</h4>
+        <div class="tactical-stepper-wrap">
+          <button type="button" class="btn-stepper-nav" onclick="stepTacticalDate(-1)" title="Previous Day" ${canStepBack ? "" : "disabled"}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+          </button>
+          <span class="stepper-date-label">${dateLabel}</span>
+          <button type="button" class="btn-stepper-nav" onclick="stepTacticalDate(1)" title="Next Day" ${canStepForward ? "" : "disabled"}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+          </button>
+        </div>
       </div>
 
-      <div class="today-bento-grid">
+      <div class="today-bento-grid tactical-sheet-body">
         <div class="today-bento-cell">
           <span class="today-bento-label">Net Realized P&L</span>
           <strong class="today-bento-value" style="${netColorStyle}">${formatNetVal}</strong>
-          <span class="today-bento-sub">+${todayGross.toFixed(1)} Earned • -${todayBleed.toFixed(1)} Bleed</span>
+          <span class="today-bento-sub">+${dStats.dGross.toFixed(1)} Earned • -${dStats.dBleed.toFixed(1)} Bleed</span>
         </div>
 
         <div class="today-bento-cell">
           <span class="today-bento-label">Daily Strike-Rate</span>
-          <strong class="today-bento-value" style="${accColorStyle}">${todayAcc}%</strong>
-          <span class="today-bento-sub">${todayCorr} Correct • ${todayIncorr} Wrong</span>
+          <strong class="today-bento-value" style="${accColorStyle}">${dStats.dAcc}%</strong>
+          <span class="today-bento-sub">${dStats.dCorr} Correct • ${dStats.dIncorr} Wrong</span>
         </div>
 
         <div class="today-bento-cell">
           <span class="today-bento-label">Vault Recovery Delta</span>
-          <strong class="today-bento-value" style="color:var(--success-dark);">${todayPromoted > 0 ? `+${todayPromoted}` : '0'} Promoted</strong>
-          <span class="today-bento-sub">vs ${todayFreshErrors} New Leaks Flagged</span>
+          <strong class="today-bento-value" style="color:var(--success-dark);">${dStats.dPromoted > 0 ? `+${dStats.dPromoted}` : '0'} Promoted</strong>
+          <span class="today-bento-sub">vs ${dStats.dFreshErrors} New Leaks Flagged</span>
         </div>
 
         <div class="today-bento-cell">
           <span class="today-bento-label">Time & Solving Pace</span>
-          <strong class="today-bento-value" style="color:var(--tcs-blue-accent);">${todayMins >= 60 ? `${Math.floor(todayMins / 60)}h ${todayMins % 60}m` : `${todayMins}m`}</strong>
-          <span class="today-bento-sub">${todayMasteredCount} Mastered Sets • ${todayAvgPace > 0 ? `Avg ${todayAvgPace}s/Q` : '--'}</span>
+          <strong class="today-bento-value" style="color:var(--tcs-blue-accent);">${dStats.dMins >= 60 ? `${Math.floor(dStats.dMins / 60)}h ${dStats.dMins % 60}m` : `${dStats.dMins}m`}</strong>
+          <span class="today-bento-sub">${dStats.dMasteredCount} Mastered Sets • ${dStats.dAvgPace > 0 ? `Avg ${dStats.dAvgPace}s/Q` : '--'}</span>
         </div>
       </div>
 
-      ${todayVerdictHtml}
+      ${verdictHtml}
     </div>
 
     <div class="profile-section-card" style="padding:14px 16px; border-left:4px solid var(--tcs-blue-accent); display:flex; flex-direction:column; justify-content:space-between;">
@@ -4284,6 +4376,33 @@ function renderWeeklyConsistencyTrack(context) {
       </div>
     </div>
   `;
+
+  const cardEl = document.getElementById("tacticalSheetCard");
+  if (cardEl) {
+    let tStartX = 0;
+    let tStartY = 0;
+    let tStartTime = 0;
+
+    cardEl.addEventListener("touchstart", (e) => {
+      tStartX = e.touches[0].clientX;
+      tStartY = e.touches[0].clientY;
+      tStartTime = Date.now();
+    }, { passive: true });
+
+    cardEl.addEventListener("touchend", (e) => {
+      const diffX = e.changedTouches[0].clientX - tStartX;
+      const diffY = e.changedTouches[0].clientY - tStartY;
+      const duration = Date.now() - tStartTime;
+
+      if (Math.abs(diffX) > 40 && Math.abs(diffX) > Math.abs(diffY) * 1.2 && duration < 500) {
+        if (diffX < 0) {
+          window.stepTacticalDate(-1);
+        } else {
+          window.stepTacticalDate(1);
+        }
+      }
+    }, { passive: true });
+  }
 }
 
 // 🚀 8.3: SYLLABUS, DOMAIN INSIGHTS & RADAR VIEW RENDERER
@@ -4828,17 +4947,18 @@ window.fetchStudentAnalytics = async function(isSilent = false) {
 
     const streak = dailyPerf?.streak_count || 0;
 
+    cachedWeeklyContext = {
+      attMap,
+      past7,
+      todayStr,
+      dailyQuestionsMap,
+      atts,
+      attnd
+    };
+
     // 🎯 6. DISPATCH TO DEDICATED SUB-ENGINES
     renderAnalyticsTopStats({ accVal, nCorr, nIncorr, streak, avgSpd, accTrends, speedTrends, attMap });
-    renderWeeklyConsistencyTrack({ 
-      attMap, 
-      past7, 
-      todayStr, 
-      todayMins, 
-      todayMasteredCount: todayMasteredTests.size, 
-      dailyQuestionsMap,
-      todayStats 
-    });
+    renderWeeklyConsistencyTrack(cachedWeeklyContext);
     renderDomainCompetencyMatrix({ subStats, attemptedTests, masteredTests });
     renderAuditAndRetentionEngines({ nCorr: portfolioCorrect, nIncorr: portfolioIncorrect, totalQ: (portfolioCorrect + portfolioIncorrect) }, subStats);
     // 7. Heatmap

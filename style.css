@@ -1270,12 +1270,83 @@ body.dark-theme .box-fc { color: #c084fc; }
 .heatmap-cell:hover { transform: scale(1.25); transform-origin: center right; border: 1px solid var(--text-main); z-index: 10; }
 .cal-legend { margin-top: 10px; display: flex; justify-content: flex-end; align-items: center; gap: 4px; font-size: 10px; color: var(--text-muted) !important; font-weight: bold; }
 .cal-legend .heatmap-cell { width: 12px; height: 12px; }
-/* 🚀 MATURE 4-TIER WEEKLY CONSISTENCY TRACK NODES */
+/* 🚀 MATURE 4-TIER WEEKLY CONSISTENCY TRACK NODES (INTERACTIVE & TWO-WAY SYNCED) */
 .weekly-track-container { display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; margin: 10px 0; background: var(--bg-surface-elevated); border-radius: 8px; border: 1px solid var(--border-color); }
-.weekly-node-col { display: flex; flex-direction: column; align-items: center; gap: 5px; }
-.weekly-node-day { font-size: 9.5px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; font-family: var(--font-mono); letter-spacing: 0.3px; }
-.weekly-track-node { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800; line-height: 1; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1); box-sizing: border-box; }
+.weekly-node-col { display: flex; flex-direction: column; align-items: center; gap: 5px; cursor: pointer; user-select: none; -webkit-tap-highlight-color: transparent; }
+.weekly-node-day { font-size: 9.5px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; font-family: var(--font-mono); letter-spacing: 0.3px; transition: color 0.15s ease; }
+.weekly-track-node { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800; line-height: 1; transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), outline 0.15s ease, box-shadow 0.15s ease; box-sizing: border-box; position: relative; }
 
+/* 🎯 TACTILE TAP & HOVER STATES FOR NODES */
+.weekly-node-col:hover .weekly-track-node { transform: scale(1.15); }
+.weekly-node-col:active .weekly-track-node { transform: scale(0.92); }
+
+/* 🎯 ACTIVE SELECTED DAY FOCUS RING (TWO-WAY SYNC WITH BALANCE SHEET) */
+.weekly-node-col.node-active-day .weekly-node-day { color: var(--tcs-blue-accent) !important; font-weight: 800; }
+.weekly-node-col.node-active-day .weekly-track-node { 
+  outline: 2px solid var(--tcs-blue-accent) !important; 
+  outline-offset: 2.5px !important; 
+  box-shadow: 0 0 10px var(--tcs-blue-bg-subtle) !important; 
+  transform: scale(1.08); 
+}
+
+/* 🧭 TACTICAL BALANCE SHEET DATE STEPPER & SHUTTER TRANSITION */
+.tactical-stepper-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 2px 4px;
+  box-sizing: border-box;
+}
+
+.btn-stepper-nav {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+  padding: 0;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.btn-stepper-nav svg {
+  width: 12px;
+  height: 12px;
+  stroke-width: 2.5;
+  display: block;
+}
+
+.btn-stepper-nav:hover { background: var(--bg-surface-hover); color: var(--text-main); }
+.btn-stepper-nav:active { transform: scale(0.88); }
+.btn-stepper-nav:disabled { opacity: 0.3; cursor: not-allowed; pointer-events: none; }
+
+.stepper-date-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--text-main);
+  padding: 0 4px;
+  white-space: nowrap;
+  letter-spacing: 0.2px;
+}
+
+/* 🌊 SHUTTER FADE FOR DAY SWITCHING */
+.tactical-sheet-body {
+  transition: opacity 0.14s ease, transform 0.14s ease !important;
+}
+.tactical-sheet-body.shutter-fade {
+  opacity: 0 !important;
+  transform: translateY(3px) !important;
+}
 /* Tier 0: Inactive / Rest Day */
 .node-tier-inactive { background: var(--bg-panel); border: 1px solid var(--border-color); color: var(--text-muted); opacity: 0.6; }
 
