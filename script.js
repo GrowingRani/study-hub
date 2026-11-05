@@ -1544,6 +1544,19 @@ function getMilestoneBeaconHtml(count) {
   return "";
 }
 
+window.toggleMilestoneVisibility = function() {
+  const card = document.getElementById("dailyMilestoneCard");
+  const arrow = document.getElementById("milestoneToggleArrow");
+  if (!card) return;
+
+  const isCollapsed = card.classList.toggle("milestone-collapsed");
+  appStorage.set("milestone_collapsed", isCollapsed ? "true" : "false");
+
+  if (arrow) {
+    arrow.style.transform = isCollapsed ? "rotate(-90deg)" : "rotate(0deg)";
+  }
+};
+
 async function mountDashboard(isInitialLoad = false) {
   const cName = document.getElementById("dashCandidateName"); 
   if (cName) cName.innerText = currentCandidate?.full_name || "Candidate";
@@ -1675,6 +1688,15 @@ async function mountDashboard(isInitialLoad = false) {
 
   fetchStudentAnalytics(true);
   start5PMEngine();
+
+  // 🚀 Restore Milestone Collapse State on Mount
+  const isCollapsedSaved = appStorage.get("milestone_collapsed") === "true";
+  const card = document.getElementById("dailyMilestoneCard");
+  const arrow = document.getElementById("milestoneToggleArrow");
+  if (card && isCollapsedSaved) {
+    card.classList.add("milestone-collapsed");
+    if (arrow) arrow.style.transform = "rotate(-90deg)";
+  }
 }
 
 async function fetchPlaylistsAndCheckRollover() {
@@ -1760,7 +1782,15 @@ async function fetchPlaylistsAndCheckRollover() {
           uniqueSetsAttemptedToday.set(tid, attemptedInRun);
         }
       }
-    });
+      // 🚀 Restore Milestone Collapse State on Mount
+      const isHiddenSaved = appStorage.get("milestone_collapsed") === "true";
+      const card = document.getElementById("dailyMilestoneCard");
+      const arrow = document.getElementById("milestoneToggleArrow");
+      if (card && isHiddenSaved) {
+        card.classList.add("milestone-hidden");
+        if (arrow) arrow.style.transform = "rotate(-90deg)";
+  }
+  });
 
     const actualExamAttemptedToday = Array.from(uniqueSetsAttemptedToday.values()).reduce((sum, q) => sum + q, 0);
 
@@ -1859,6 +1889,15 @@ async function fetchPlaylistsAndCheckRollover() {
     }
   } catch (error) { 
     console.error("Playlist Init Error:", error); 
+  }
+
+  // 🚀 Restore Milestone Collapse State on Mount
+  const isHiddenSaved = appStorage.get("milestone_collapsed") === "true";
+  const card = document.getElementById("dailyMilestoneCard");
+  const arrow = document.getElementById("milestoneToggleArrow");
+  if (card && isHiddenSaved) {
+    card.classList.add("milestone-hidden");
+    if (arrow) arrow.style.transform = "rotate(-90deg)";
   }
 }
 

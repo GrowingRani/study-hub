@@ -1508,3 +1508,35 @@ body.dark-theme .box-fc { color: #c084fc; }
 @keyframes progressSweep { 0% { transform: translateX(-100%); } 100% { transform: translateX(250%); } }
 
 
+/* 🎯 MILESTONE CARD: PURE NATURAL ACCORDION COLLAPSE */
+#dailyMilestoneCard {
+  transition: padding 0.25s ease, margin 0.25s ease !important;
+}
+
+#milestoneToggleArrow {
+  display: inline-block !important;
+  font-size: 11px !important;
+  color: var(--text-muted) !important;
+  transition: transform 0.25s ease !important;
+}
+
+/* Jab card collapsed hoga */
+#dailyMilestoneCard.milestone-collapsed {
+  padding-top: 12px !important;
+  padding-bottom: 12px !important;
+  margin-bottom: 14px !important;
+}
+
+#dailyMilestoneCard.milestone-collapsed .century-meter-header {
+  margin-bottom: 0 !important;
+}
+
+#dailyMilestoneCard.milestone-collapsed .century-body,
+#dailyMilestoneCard.milestone-collapsed .century-track,
+#dailyMilestoneCard.milestone-collapsed .century-tier-legend {
+  display: none !important;
+}
+
+#dailyMilestoneCard.milestone-collapsed #milestoneToggleArrow {
+  transform: rotate(-90deg) !important;
+}

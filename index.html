@@ -202,9 +202,10 @@
     </header>
 
     <main class="catalog-viewport mission-viewport">
+
       <!-- 🎯 TOP FULL-WIDTH MULTI-TIER MILESTONE BAROMETER -->
       <div class="century-meter-card full-width-milestone" id="dailyMilestoneCard">
-        <div class="century-meter-header" onclick="toggleMilestoneVisibility()" title="Click to Hide/Show Barometer" style="cursor: pointer;" role="button">
+        <div class="century-meter-header" onclick="toggleMilestoneVisibility()" title="Click to Collapse / Expand Barometer" style="cursor: pointer; user-select: none;">
           <div class="century-meter-label">
             <span class="century-icon" id="centuryIcon">🎯</span>
             <div class="century-title-stack">
@@ -214,24 +215,25 @@
           </div>
           <div style="display: flex; align-items: center; gap: 8px;">
             <span id="centuryLoadText" class="century-count-badge">0 / 100 Qs</span>
-            <span id="milestoneToggleArrow" style="font-size: 10px; color: var(--text-muted); transition: transform 0.3s ease;">▼</span>
+            <span id="milestoneToggleArrow">▼</span>
           </div>
         </div>
-        <div class="century-track multi-tier-track" id="centuryTrack">
-          <!-- Tier 1: Staged Target Capacity (Muted Track / Capacity) -->
-          <div id="centuryCapacityFill" class="century-fill century-fill-capacity" style="width: 0%;"></div>
-          <!-- Tier 2: Attempted Questions (Amber / Warm Yellow) -->
-          <div id="centuryAttemptedFill" class="century-fill century-fill-attempted" style="width: 0%;"></div>
-          <!-- Tier 3: Mastered Questions with 100% Accuracy (Emerald Green) -->
-          <div id="centuryMasteredFill" class="century-fill century-fill-mastered" style="width: 0%;"></div>
-        </div>
-        <div class="century-tier-legend">
-          <span class="tier-legend-item"><span class="tier-dot tier-dot-staged"></span> Staged Target</span>
-          <span class="tier-legend-item"><span class="tier-dot tier-dot-attempted"></span> Attempted</span>
-          <span class="tier-legend-item"><span class="tier-dot tier-dot-mastered"></span> Mastered (100%)</span>
+        
+        <!-- 🚀 WRAPPED INSIDE A COLLAPSIBLE BODY CONTAINER -->
+        <div class="century-body" id="centuryCardBody">
+          <div class="century-track multi-tier-track" id="centuryTrack">
+            <div id="centuryCapacityFill" class="century-fill century-fill-capacity" style="width: 0%;"></div>
+            <div id="centuryAttemptedFill" class="century-fill century-fill-attempted" style="width: 0%;"></div>
+            <div id="centuryMasteredFill" class="century-fill century-fill-mastered" style="width: 0%;"></div>
+          </div>
+          <div class="century-tier-legend">
+            <span class="tier-legend-item"><span class="tier-dot tier-dot-staged"></span> Staged Target</span>
+            <span class="tier-legend-item"><span class="tier-dot tier-dot-attempted"></span> Attempted</span>
+            <span class="tier-legend-item"><span class="tier-dot tier-dot-mastered"></span> Mastered (100%)</span>
+          </div>
         </div>
       </div>
-
+      
       <!-- ⚖️ BALANCED 50/50 TWO-COLUMN DECK -->
       <div class="mission-deck-container balanced-split">
         
