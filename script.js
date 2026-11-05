@@ -1819,11 +1819,11 @@ async function fetchPlaylistsAndCheckRollover() {
     const baseStreak = (yData && yData.is_century_hit) ? (yData.streak_count || 0) : 0;
     const correctStreakToday = targetHitToday ? (baseStreak + 1) : baseStreak;
 
-    if (dpData) {
-      // 🚀 Never downgrade in-memory progress if local was already higher
-      const resolvedAttempted = Math.max(dpData.total_questions_attempted || 0, actualExamAttemptedToday, dailyPerf?.total_questions_attempted || 0);
-      const resolvedHit = dpData.is_century_hit || targetHitToday;
+    // 🎯 GROUND TRUTH FIX: Hamesha actual database attempts ko hi maanein
+    const resolvedAttempted = actualExamAttemptedToday;
+    const resolvedHit = targetHitToday;
 
+    if (dpData) {
       if (
         dpData.total_questions_attempted !== resolvedAttempted || 
         dpData.is_century_hit !== resolvedHit ||
@@ -1841,12 +1841,11 @@ async function fetchPlaylistsAndCheckRollover() {
       }
       dailyPerf = dpData;
     } else {
-      const initialAttempted = Math.max(actualExamAttemptedToday, dailyPerf?.total_questions_attempted || 0);
       const { data: insData } = await supabaseClient.from("daily_performance").insert({ 
         student_roll: roll, 
         target_date: todayStr, 
-        total_questions_attempted: initialAttempted, 
-        is_century_hit: targetHitToday,
+        total_questions_attempted: resolvedAttempted, 
+        is_century_hit: resolvedHit,
         streak_count: correctStreakToday 
       }).select().single();
       if (insData) dailyPerf = insData;
