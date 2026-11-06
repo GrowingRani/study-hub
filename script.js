@@ -385,6 +385,12 @@ function initPlaylistSwipeGestures() {
       activeTile.style.transform = "translateX(0px)";
     }
 
+    if (preventNextClick) {
+      setTimeout(() => {
+        preventNextClick = false;
+      }, 60);
+    }
+
     activeWrapper = null;
     activeTile = null;
     isHorizontalGesture = null;
