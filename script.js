@@ -286,10 +286,9 @@ function initPlaylistSwipeGestures() {
   let activeWrapper = null, activeTile = null;
   let initialOffsetX = 0;
   let currentTranslateX = 0;
-  let isHorizontalGesture = null; // null | true | false
+  let isHorizontalGesture = null;
   let preventNextClick = false;
 
-  // 1. Capture-phase click blocker: Swipe ke baad button ya modal trigger nahi hone dega
   document.addEventListener("click", (e) => {
     if (preventNextClick) {
       e.preventDefault();
@@ -301,7 +300,6 @@ function initPlaylistSwipeGestures() {
   document.addEventListener("touchstart", (e) => {
     const wrapper = e.target.closest(".swipe-item-wrapper");
     if (!wrapper) {
-      // Bahar tap karne par khule hue cards smoothly close ho jayenge
       document.querySelectorAll(".swipe-item-wrapper .set-tile").forEach(t => {
         if (t.style.transform && t.style.transform !== "translateX(0px)") {
           t.style.transition = "transform 0.22s cubic-bezier(0.16, 1, 0.3, 1)";
@@ -311,13 +309,11 @@ function initPlaylistSwipeGestures() {
       return;
     }
 
-    // Interactive buttons ya Remove backdrop par drag shuru na karein
     if (e.target.closest("button") || e.target.closest(".swipe-action-backdrop")) return;
 
     const tile = wrapper.querySelector(".set-tile");
     if (!tile) return;
 
-    // Dusre kisi card ka open swipe band karein
     document.querySelectorAll(".swipe-item-wrapper .set-tile").forEach(t => {
       if (t !== tile && t.style.transform && t.style.transform !== "translateX(0px)") {
         t.style.transition = "transform 0.22s cubic-bezier(0.16, 1, 0.3, 1)";
@@ -328,7 +324,6 @@ function initPlaylistSwipeGestures() {
     startX = e.touches[0].clientX;
     startY = e.touches[0].clientY;
 
-    // Current offset read karein (taaki open card jump na kare)
     const transformStyle = tile.style.transform || "";
     const match = transformStyle.match(/translateX\(([-\d.]+)px\)/);
     initialOffsetX = match ? parseFloat(match[1]) : 0;
@@ -349,24 +344,23 @@ function initPlaylistSwipeGestures() {
     const absX = Math.abs(diffX);
     const absY = Math.abs(diffY);
 
-    // Asymmetric Gesture Arbitration (Generous horizontal lock)
     if (isHorizontalGesture === null) {
-      if (absX > 7 || absY > 7) {
-        if (absX >= absY) {
-          isHorizontalGesture = true;
-        } else {
-          isHorizontalGesture = false; // Vertical page scroll ko chhod dein
-        }
+      if (absX > 6 && absX >= absY) {
+        isHorizontalGesture = true;
+      } else if (absY > 16 && absY > absX * 1.6) {
+        isHorizontalGesture = false;
       }
     }
 
     if (!isHorizontalGesture) return;
 
-    // 1:1 Pure physics drag (Zero transition lag)
+    if (e.cancelable) {
+      e.preventDefault();
+    }
+
     activeTile.style.transition = "none";
     const targetX = initialOffsetX + diffX;
 
-    // Clamping: Right drag max 0px, Left drag max -110px (with rubber-band effect)
     if (targetX <= 0) {
       currentTranslateX = Math.max(-110, targetX);
       activeTile.style.transform = `translateX(${currentTranslateX}px)`;
@@ -375,19 +369,17 @@ function initPlaylistSwipeGestures() {
       activeTile.style.transform = "translateX(0px)";
     }
 
-    // Agar 10px se zyada khiskayein toh intentional swipe hai, synthetic click rok dein
-    if (absX > 10) {
+    if (absX > 8) {
       preventNextClick = true;
     }
-  }, { passive: true });
+  }, { passive: false });
 
   const endGesture = () => {
     if (!activeWrapper || !activeTile) return;
 
     activeTile.style.transition = "transform 0.22s cubic-bezier(0.16, 1, 0.3, 1)";
 
-    // Snap points: Agar -40px se zyada left hai toh open (-85px), warna close (0px)
-    if (isHorizontalGesture && currentTranslateX < -40) {
+    if (isHorizontalGesture && currentTranslateX < -35) {
       activeTile.style.transform = "translateX(-85px)";
     } else {
       activeTile.style.transform = "translateX(0px)";
@@ -2343,12 +2335,15 @@ function renderSetTileHtml(setOrItem, options = {}) {
   } else {
     const starredPl = userPlaylists.find(p => p.playlist_name === 'Starred Sets');
     const isStarred = starredPl && userPlaylistItems.some(pi => pi.playlist_id === starredPl.id && String(pi.test_id) === String(testId));
+    const pIdArg = options.playlistId ? `'${options.playlistId}'` : 'null';
+    const pNameArg = options.playlistName ? `'${options.playlistName.replace(/'/g, "\\'")}'` : 'null';
+
     headerActions = `
       ${badgeHtml}
       <button type="button" class="btn-star-set ${isStarred ? 'starred' : ''}" data-test-id="${testId}" onclick="toggleStarSet(event, ${testId})" title="${isStarred ? 'Unstar set' : 'Star set'}">
         ${starIconSvg}
       </button>
-      <button type="button" class="btn-three-dots" onclick="openThreeDotsMenu(event, ${testId})" title="Options">⋮</button>
+      <button type="button" class="btn-three-dots" onclick="openThreeDotsMenu(event, ${testId}, ${pIdArg}, ${pNameArg})" title="Options">⋮</button>
     `;
     footerAction = `
       <div class="set-action-footer">
@@ -2379,7 +2374,7 @@ function renderSetTileHtml(setOrItem, options = {}) {
 
 // 🔒 100% Backward-Compatible Wrapper for Dashboard/Playlists (YouTube-Style Swipe-to-Remove)
 function renderPlaylistSetTileHtml(item, pName) {
-  const tileHtml = renderSetTileHtml(item, { isRollover: item.is_rollover, isLibrary: false });
+  const tileHtml = renderSetTileHtml(item, { isRollover: item.is_rollover, isLibrary: false, playlistId: item.playlist_id, playlistName: pName });
   const pId = item.playlist_id;
   const tId = item.test_id;
 
@@ -2387,9 +2382,9 @@ function renderPlaylistSetTileHtml(item, pName) {
     <div class="swipe-item-wrapper" data-test-id="${tId}" data-playlist-id="${pId}">
       <div class="swipe-action-backdrop" onclick="executeSwipeRemove('${pId}', ${tId}, '${pName.replace(/'/g, "\\'")}', this)">
         <span class="swipe-action-label">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="3 6 5 6 21 6"></polyline>
-            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
           </svg>
           <span>Remove</span>
         </span>
@@ -2400,17 +2395,26 @@ function renderPlaylistSetTileHtml(item, pName) {
 }
 
 window.executeSwipeRemove = async function(pId, testId, pName, el) {
-  const wrapper = el?.closest('.swipe-item-wrapper') || document.querySelector(`.swipe-item-wrapper[data-playlist-id="${pId}"][data-test-id="${testId}"]`);
-  if (wrapper) {
-    wrapper.classList.add("removing");
-    setTimeout(async () => {
-      await togglePlaylistMembership(pId, testId, true);
-      showSelectionToast(`Removed from "${pName}"`);
-    }, 240);
-  } else {
-    await togglePlaylistMembership(pId, testId, true);
-    showSelectionToast(`Removed from "${pName}"`);
+  const backdrop = el || document.querySelector(`.swipe-item-wrapper[data-playlist-id="${pId}"][data-test-id="${testId}"] .swipe-action-backdrop`);
+  if (backdrop) backdrop.classList.add("is-pressed");
+  if (typeof navigator !== "undefined" && navigator.vibrate) {
+    try { navigator.vibrate(15); } catch(e) {}
   }
+
+  const wrapper = backdrop?.closest('.swipe-item-wrapper') || document.querySelector(`.swipe-item-wrapper[data-playlist-id="${pId}"][data-test-id="${testId}"]`);
+
+  setTimeout(() => {
+    if (wrapper) {
+      wrapper.classList.add("removing");
+      setTimeout(async () => {
+        await togglePlaylistMembership(pId, testId, true);
+        showSelectionToast(`Removed from "${pName}"`);
+      }, 340);
+    } else {
+      togglePlaylistMembership(pId, testId, true);
+      showSelectionToast(`Removed from "${pName}"`);
+    }
+  }, 100);
 };
 
 // ⭐ 1-TAP STAR SET CONTROLLER (Ensures Header Star Button Works)
@@ -3010,12 +3014,34 @@ window.toggleDirectStaging = async function(testId) {
   updateStagingDockUI();
 };
 
-window.openThreeDotsMenu = function(event, testId) {
+let currentThreeDotsPlaylistContext = null;
+
+window.openThreeDotsMenu = function(event, testId, playlistId = null, playlistName = null) {
   if (event) { event.preventDefault(); event.stopPropagation(); }
   currentThreeDotsTestId = testId; 
+  currentThreeDotsPlaylistContext = (playlistId && playlistName) ? { playlistId, playlistName } : null;
   closePlaylistActionMenu();
   const menu = document.getElementById("threeDotsMenu"), overlay = document.getElementById("threeDotsMenuOverlay"); 
   if (!menu || !overlay) return;
+
+  const btnRemove = document.getElementById("btnPopupRemoveFromPlaylist");
+  const labelRemove = document.getElementById("labelPopupRemoveFromPlaylist");
+  if (btnRemove && labelRemove) {
+    if (currentThreeDotsPlaylistContext) {
+      const friendlyPlaylistNames = {
+        'Today': "Today's Payload",
+        'Tomorrow': "Tomorrow's Queue",
+        'This Week': "This Week Backlog",
+        'Starred Sets': "Starred Sets"
+      };
+      const displayName = friendlyPlaylistNames[playlistName] || playlistName;
+      labelRemove.innerText = `Remove from ${displayName}`;
+      btnRemove.style.display = "flex";
+    } else {
+      btnRemove.style.display = "none";
+    }
+  }
+
   const btnRect = event.currentTarget.getBoundingClientRect();
   menu.style.display = "block"; 
   menu.style.zIndex = "3200"; 
@@ -3023,11 +3049,12 @@ window.openThreeDotsMenu = function(event, testId) {
   overlay.style.zIndex = "3100"; 
   overlay.style.pointerEvents = "auto"; 
   overlay.classList.add("open");
-  const menuWidth = 165; 
+  const menuWidth = 230; 
   let leftPos = btnRect.right - menuWidth; 
   if (leftPos < 10) leftPos = 10;
   let topPos = btnRect.bottom + 6; 
-  if (topPos + 60 > window.innerHeight) topPos = Math.max(10, btnRect.top - 50);
+  const estHeight = currentThreeDotsPlaylistContext ? 92 : 48;
+  if (topPos + estHeight > window.innerHeight) topPos = Math.max(10, btnRect.top - estHeight);
   menu.style.top = `${topPos}px`; 
   menu.style.left = `${leftPos}px`;
 };
@@ -3040,11 +3067,21 @@ window.closeThreeDotsMenu = function() {
     overlay.style.pointerEvents = "none"; 
     overlay.classList.remove("open"); 
   }
+  currentThreeDotsPlaylistContext = null;
 };
 
 window.triggerBottomSheetFromMenu = function() { 
+  const tId = currentThreeDotsTestId;
   closeThreeDotsMenu(); 
-  if (currentThreeDotsTestId) openPlaylistBottomSheet(currentThreeDotsTestId); 
+  if (tId) openPlaylistBottomSheet(tId); 
+};
+
+window.triggerRemoveFromPlaylistFromMenu = function() {
+  if (!currentThreeDotsTestId || !currentThreeDotsPlaylistContext) return;
+  const { playlistId, playlistName } = currentThreeDotsPlaylistContext;
+  const testId = currentThreeDotsTestId;
+  closeThreeDotsMenu();
+  executeSwipeRemove(playlistId, testId, playlistName);
 };
 
 window.openPlaylistBottomSheet = function(testId) {

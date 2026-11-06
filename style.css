@@ -688,7 +688,10 @@ body.dark-theme .theme-mistake-briefing #briefingStatusBadge { background: rgba(
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  transition: max-height 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.22s ease, margin 0.28s ease !important;
+  max-height: 280px;
+  touch-action: pan-y !important;
+  -webkit-touch-callout: none !important;
+  transition: max-height 0.36s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.28s ease, transform 0.34s cubic-bezier(0.16, 1, 0.3, 1), margin 0.36s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
 .swipe-item-wrapper .set-tile {
@@ -700,6 +703,7 @@ body.dark-theme .theme-mistake-briefing #briefingStatusBadge { background: rgba(
 .swipe-item-wrapper.removing {
   max-height: 0 !important;
   opacity: 0 !important;
+  transform: translateX(-36px) scale(0.95) !important;
   margin-top: 0 !important;
   margin-bottom: 0 !important;
   padding-top: 0 !important;
@@ -710,7 +714,7 @@ body.dark-theme .theme-mistake-briefing #briefingStatusBadge { background: rgba(
 .swipe-action-backdrop {
   position: absolute;
   inset: 0;
-  background: var(--danger-gradient, linear-gradient(135deg, #b91c1c, #dc2626));
+  background: linear-gradient(135deg, #334155, #1e293b);
   display: flex;
   align-items: center;
   justify-content: flex-end;
@@ -720,7 +724,15 @@ body.dark-theme .theme-mistake-briefing #briefingStatusBadge { background: rgba(
   z-index: 1;
   cursor: pointer;
   user-select: none;
+  -webkit-user-select: none;
   -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s ease, filter 0.12s ease;
+}
+
+.swipe-action-backdrop:active,
+.swipe-action-backdrop.is-pressed {
+  background: #0f172a !important;
+  filter: brightness(0.9);
 }
 
 .swipe-action-label {
@@ -732,6 +744,13 @@ body.dark-theme .theme-mistake-briefing #briefingStatusBadge { background: rgba(
   font-weight: 800;
   letter-spacing: 0.5px;
   text-transform: uppercase;
+  transition: transform 0.12s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
+}
+
+.swipe-action-backdrop:active .swipe-action-label,
+.swipe-action-backdrop.is-pressed .swipe-action-label {
+  transform: scale(0.88);
 }
 
 .set-tile { position: relative; z-index: 2; background: var(--bg-panel); border: 1px solid var(--border-color); padding: 14px 15px; display: flex; flex-direction: column; justify-content: space-between; border-left: 4px solid var(--tcs-blue-accent); border-radius: 8px; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; outline: none; transition: all 0.2s ease; min-width: 0; color: var(--text-main); }
@@ -811,8 +830,8 @@ body.dark-theme .theme-mistake-briefing #briefingStatusBadge { background: rgba(
 /* ==========================================================================
    8. UNIVERSAL POPUPS & BOTTOM SHEETS
    ========================================================================== */
-.three-dots-floating-popup { position: fixed; background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 8px; box-shadow: var(--shadow-lg); z-index: 3200 !important; padding: 6px; min-width: 180px; animation: modalFadeIn 0.15s ease-out; }
-.btn-popup-action { width: 100%; text-align: left; background: transparent; border: none; padding: 10px 14px; font-size: 13px; font-weight: 600; color: var(--text-main); cursor: pointer; border-radius: 6px; display: flex; align-items: center; gap: 10px; transition: background 0.15s ease; }
+.three-dots-floating-popup { position: fixed; background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 8px; box-shadow: var(--shadow-lg); z-index: 3200 !important; padding: 6px; min-width: 220px; animation: modalFadeIn 0.15s ease-out; }
+.btn-popup-action { width: 100%; text-align: left; background: transparent; border: none; padding: 10px 14px; font-size: 13px; font-weight: 600; color: var(--text-main); cursor: pointer; border-radius: 6px; display: flex; align-items: center; gap: 10px; transition: background 0.15s ease; white-space: nowrap; }
 .btn-popup-action:hover { background: var(--bg-surface-elevated); }
 .popup-action-icon { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; flex-shrink: 0; }
 .popup-action-icon svg { width: 16px; height: 16px; stroke-width: 2.2; }
