@@ -363,9 +363,13 @@ function initPlaylistSwipeGestures() {
 
     activeTile.style.transition = "transform 0.24s cubic-bezier(0.16, 1, 0.3, 1)";
 
-    // -45px (लगभग आधा स्वाइप) पार करते ही बटन लॉक हो जाएगा
+    // -45px se zyada swipe par action button lock ho jayega
     if (gestureDirection === 'horizontal' && currentDiffX < -45) {
       activeTile.style.transform = "translateX(-85px)";
+      // Swipe hone par click ko suppress karein taaki briefing modal na khule
+      const tileToLock = activeTile;
+      tileToLock.style.pointerEvents = "none";
+      setTimeout(() => { if (tileToLock) tileToLock.style.pointerEvents = ""; }, 250);
     } else {
       activeTile.style.transform = "translateX(0px)";
     }
@@ -3069,12 +3073,17 @@ window.togglePlaylistMembership = async function(pId, testId, inList) {
 
   // 1. Instant 0ms Local Memory Toggle (String-safe comparison)
   if (inList) {
-    userPlaylistItems = userPlaylistItems.filter(pi => !(String(pi.playlist_id) === String(pId) && String(pi.test_id) === String(testId)));
+    userPlaylistItems = userPlaylistItems.filter(
+      pi => !(String(pi.playlist_id) === String(pId) && String(pi.test_id) === String(testId))
+    );
   } else {
     userPlaylistItems.push({ playlist_id: pId, test_id: testId, student_roll: roll });
   }
 
-  // Check if Starred Sets was the toggled playlist
+  // 0ms Cache Sync (Taaki page refresh hone par instant update barkarar rahe)
+  appStorage.setJSON("cache_playlist_items_" + roll, userPlaylistItems);
+
+  // 2. Star Icon State Sync (Agar toggled playlist 'Starred Sets' hai)
   const starredList = userPlaylists.find(p => p.playlist_name === 'Starred Sets');
   if (starredList && String(starredList.id) === String(pId)) {
     document.querySelectorAll(`.btn-star-set[data-test-id="${testId}"]`).forEach(btn => {
@@ -3083,28 +3092,52 @@ window.togglePlaylistMembership = async function(pId, testId, inList) {
     });
   }
 
-  // 2. Instant DOM Re-render (Sirf tabhi bottom sheet update hogi agar wo pehle se khuli ho)
+  // 3. Instant UI Re-render (Modal sirf tabhi refresh hoga jab pehle se screen par open ho)
   const overlay = document.getElementById("playlistBottomSheetOverlay");
   if (overlay && overlay.classList.contains("open")) {
     openPlaylistBottomSheet(testId);
   }
   renderHomePlaylists();
 
-  // 3. Background Cloud Sync
+  // 4. Background Cloud Sync with Revert Handling
   try {
     if (inList) {
-      await supabaseClient.from("playlist_items").delete().eq("playlist_id", pId).eq("test_id", testId).eq("student_roll", roll);
+      const { error: delErr } = await supabaseClient
+        .from("playlist_items")
+        .delete()
+        .eq("playlist_id", pId)
+        .eq("test_id", testId)
+        .eq("student_roll", roll);
+      if (delErr) throw delErr;
     } else {
-      await supabaseClient.from("playlist_items").insert({ playlist_id: pId, test_id: testId, student_roll: roll });
+      const { error: insErr } = await supabaseClient
+        .from("playlist_items")
+        .insert({ playlist_id: pId, test_id: testId, student_roll: roll });
+      if (insErr) throw insErr;
     }
   } catch (err) { 
     console.error("Cloud playlist sync failed, reverting:", err); 
+    
+    // Fail hone par exact state revert karein
     if (inList) { 
       userPlaylistItems.push({ playlist_id: pId, test_id: testId, student_roll: roll }); 
     } else { 
-      userPlaylistItems = userPlaylistItems.filter(pi => !(String(pi.playlist_id) === String(pId) && String(pi.test_id) === String(testId))); 
+      userPlaylistItems = userPlaylistItems.filter(
+        pi => !(String(pi.playlist_id) === String(pId) && String(pi.test_id) === String(testId))
+      ); 
     } 
-    const overlay = document.getElementById("playlistBottomSheetOverlay");
+
+    // Cache revert sync
+    appStorage.setJSON("cache_playlist_items_" + roll, userPlaylistItems);
+
+    // Star icon revert sync
+    if (starredList && String(starredList.id) === String(pId)) {
+      document.querySelectorAll(`.btn-star-set[data-test-id="${testId}"]`).forEach(btn => {
+        btn.classList.toggle("starred", inList);
+        btn.title = inList ? "Unstar set" : "Star set";
+      });
+    }
+
     if (overlay && overlay.classList.contains("open")) {
       openPlaylistBottomSheet(testId);
     }
