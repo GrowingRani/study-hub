@@ -283,19 +283,10 @@ function formatExplanation(exp) {
 
 function initPlaylistSwipeGestures() {
   let startX = 0, startY = 0;
-  let activeWrapper = null, activeTile = null;
-  let initialOffsetX = 0;
+  let activeWrapper = null, activeTile = null, activeBackdrop = null;
   let currentTranslateX = 0;
   let isHorizontalGesture = null;
-  let preventNextClick = false;
-
-  document.addEventListener("click", (e) => {
-    if (preventNextClick) {
-      e.preventDefault();
-      e.stopPropagation();
-      preventNextClick = false;
-    }
-  }, true);
+  let hasHapticTriggered = false;
 
   document.addEventListener("touchstart", (e) => {
     const wrapper = e.target.closest(".swipe-item-wrapper");
@@ -309,29 +300,21 @@ function initPlaylistSwipeGestures() {
       return;
     }
 
-    if (e.target.closest("button") || e.target.closest(".swipe-action-backdrop")) return;
+    if (e.target.closest("button")) return;
 
     const tile = wrapper.querySelector(".set-tile");
+    const backdrop = wrapper.querySelector(".swipe-action-backdrop");
     if (!tile) return;
-
-    document.querySelectorAll(".swipe-item-wrapper .set-tile").forEach(t => {
-      if (t !== tile && t.style.transform && t.style.transform !== "translateX(0px)") {
-        t.style.transition = "transform 0.22s cubic-bezier(0.16, 1, 0.3, 1)";
-        t.style.transform = "translateX(0px)";
-      }
-    });
 
     startX = e.touches[0].clientX;
     startY = e.touches[0].clientY;
-
-    const transformStyle = tile.style.transform || "";
-    const match = transformStyle.match(/translateX\(([-\d.]+)px\)/);
-    initialOffsetX = match ? parseFloat(match[1]) : 0;
-    currentTranslateX = initialOffsetX;
+    currentTranslateX = 0;
 
     activeWrapper = wrapper;
     activeTile = tile;
+    activeBackdrop = backdrop;
     isHorizontalGesture = null;
+    hasHapticTriggered = false;
   }, { passive: true });
 
   document.addEventListener("touchmove", (e) => {
@@ -347,7 +330,7 @@ function initPlaylistSwipeGestures() {
     if (isHorizontalGesture === null) {
       if (absX > 6 && absX >= absY) {
         isHorizontalGesture = true;
-      } else if (absY > 16 && absY > absX * 1.6) {
+      } else if (absY > 12 && absY > absX * 1.5) {
         isHorizontalGesture = false;
       }
     }
@@ -358,42 +341,63 @@ function initPlaylistSwipeGestures() {
       e.preventDefault();
     }
 
-    activeTile.style.transition = "none";
-    const targetX = initialOffsetX + diffX;
-
-    if (targetX <= 0) {
-      currentTranslateX = Math.max(-110, targetX);
+    if (diffX <= 0) {
+      currentTranslateX = diffX;
+      activeTile.style.transition = "none";
       activeTile.style.transform = `translateX(${currentTranslateX}px)`;
-    } else {
-      currentTranslateX = 0;
-      activeTile.style.transform = "translateX(0px)";
-    }
 
-    if (absX > 8) {
-      preventNextClick = true;
+      const wrapperWidth = activeWrapper.offsetWidth || 300;
+      const isPastThreshold = Math.abs(currentTranslateX) > (wrapperWidth * 0.45);
+
+      if (activeBackdrop) {
+        activeBackdrop.classList.toggle("is-active-threshold", isPastThreshold);
+      }
+
+      // Haptic tick upon crossing commit threshold
+      if (isPastThreshold && !hasHapticTriggered) {
+        if (typeof navigator !== "undefined" && navigator.vibrate) {
+          try { navigator.vibrate(15); } catch(err) {}
+        }
+        hasHapticTriggered = true;
+      } else if (!isPastThreshold && hasHapticTriggered) {
+        hasHapticTriggered = false;
+      }
     }
   }, { passive: false });
 
   const endGesture = () => {
     if (!activeWrapper || !activeTile) return;
 
-    activeTile.style.transition = "transform 0.22s cubic-bezier(0.16, 1, 0.3, 1)";
-
-    if (isHorizontalGesture && currentTranslateX < -35) {
-      activeTile.style.transform = "translateX(-85px)";
-    } else {
-      activeTile.style.transform = "translateX(0px)";
-    }
-
-    if (preventNextClick) {
-      setTimeout(() => {
-        preventNextClick = false;
-      }, 60);
-    }
+    const wrapper = activeWrapper;
+    const tile = activeTile;
+    const backdrop = activeBackdrop;
+    const wrapperWidth = wrapper.offsetWidth || 300;
+    const shouldCommit = isHorizontalGesture && (Math.abs(currentTranslateX) > (wrapperWidth * 0.45));
 
     activeWrapper = null;
     activeTile = null;
+    activeBackdrop = null;
     isHorizontalGesture = null;
+
+    if (shouldCommit) {
+      // 🚀 Threshold cross: Left throw -> instant display none -> smooth upward glide
+      tile.style.transition = "transform 0.14s ease-out";
+      tile.style.transform = `translateX(-${wrapperWidth + 20}px)`;
+
+      const pId = wrapper.getAttribute("data-playlist-id");
+      const testId = wrapper.getAttribute("data-test-id");
+      const pName = wrapper.closest(".mission-playlist-card")?.querySelector(".playlist-title")?.innerText || "Playlist";
+
+      setTimeout(() => {
+        window.executeSwipeRemove(pId, testId, pName, wrapper);
+      }, 120);
+
+    } else {
+      // Safe snap back
+      tile.style.transition = "transform 0.22s cubic-bezier(0.16, 1, 0.3, 1)";
+      tile.style.transform = "translateX(0px)";
+      if (backdrop) backdrop.classList.remove("is-active-threshold");
+    }
   };
 
   document.addEventListener("touchend", endGesture, { passive: true });
@@ -2399,14 +2403,51 @@ function renderPlaylistSetTileHtml(item, pName) {
   `;
 }
 
-window.executeSwipeRemove = async function(pId, testId, pName, el) {
-  const backdrop = el || document.querySelector(`.swipe-item-wrapper[data-playlist-id="${pId}"][data-test-id="${testId}"] .swipe-action-backdrop`);
-  if (backdrop) backdrop.classList.add("is-pressed");
-  if (typeof navigator !== "undefined" && navigator.vibrate) {
-    try { navigator.vibrate(15); } catch(e) {}
+// 🚀 REUSABLE FLIP REMOVE ENGINE (Instantly hides target & smoothly glides siblings up)
+function animateAndRemoveWrapper(wrapper, onComplete) {
+  if (!wrapper || !wrapper.parentElement) {
+    if (onComplete) onComplete();
+    return;
   }
+  const container = wrapper.parentElement;
+  const siblings = Array.from(container.children).filter(child => child !== wrapper && child.nodeType === 1);
 
-  const wrapper = backdrop?.closest('.swipe-item-wrapper') || document.querySelector(`.swipe-item-wrapper[data-playlist-id="${pId}"][data-test-id="${testId}"]`);
+  const firstPositions = new Map();
+  siblings.forEach(child => {
+    firstPositions.set(child, child.getBoundingClientRect());
+  });
+
+  wrapper.style.display = 'none';
+
+  siblings.forEach(child => {
+    const firstRect = firstPositions.get(child);
+    const lastRect = child.getBoundingClientRect();
+    const deltaX = firstRect.left - lastRect.left;
+    const deltaY = firstRect.top - lastRect.top;
+
+    if (deltaX !== 0 || deltaY !== 0) {
+      child.style.transition = 'none';
+      child.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
+    }
+  });
+
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      siblings.forEach(child => {
+        child.style.transition = 'transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1)';
+        child.style.transform = '';
+      });
+    });
+  });
+
+  setTimeout(() => {
+    siblings.forEach(child => { child.style.transition = ''; });
+    if (onComplete) onComplete();
+  }, 280);
+}
+
+window.executeSwipeRemove = async function(pId, testId, pName, el) {
+  const wrapper = el?.closest('.swipe-item-wrapper') || document.querySelector(`.swipe-item-wrapper[data-playlist-id="${pId}"][data-test-id="${testId}"]`);
   lastRemovedPayload = { pId, testId, pName };
 
   const undoAction = async () => {
@@ -2417,43 +2458,11 @@ window.executeSwipeRemove = async function(pId, testId, pName, el) {
     lastRemovedPayload = null;
   };
 
-  if (wrapper && wrapper.parentElement) {
-    const container = wrapper.parentElement;
-    const siblings = Array.from(container.children).filter(child => child !== wrapper && child.nodeType === 1);
-
-    const firstPositions = new Map();
-    siblings.forEach(child => {
-      firstPositions.set(child, child.getBoundingClientRect());
-    });
-
-    wrapper.style.display = 'none';
-
-    siblings.forEach(child => {
-      const firstRect = firstPositions.get(child);
-      const lastRect = child.getBoundingClientRect();
-      const deltaX = firstRect.left - lastRect.left;
-      const deltaY = firstRect.top - lastRect.top;
-
-      if (deltaX !== 0 || deltaY !== 0) {
-        child.style.transition = 'none';
-        child.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
-      }
-    });
-
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        siblings.forEach(child => {
-          child.style.transition = 'transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1)';
-          child.style.transform = '';
-        });
-      });
-    });
-
-    setTimeout(async () => {
-      siblings.forEach(child => { child.style.transition = ''; });
+  if (wrapper) {
+    animateAndRemoveWrapper(wrapper, async () => {
       await togglePlaylistMembership(pId, testId, true);
       showSelectionToast(`Removed from "${pName}"`, undoAction);
-    }, 280);
+    });
   } else {
     await togglePlaylistMembership(pId, testId, true);
     showSelectionToast(`Removed from "${pName}"`, undoAction);
