@@ -1651,6 +1651,7 @@ async function mountDashboard(isInitialLoad = false) {
     }
     userPlaylists = appStorage.getJSON("cache_playlists_" + roll, userPlaylists);
     userPlaylistItems = appStorage.getJSON("cache_playlist_items_" + roll, userPlaylistItems);
+    catalogData = appStorage.getJSON("cache_catalog_data", catalogData);
   }
 
   // 👑 Sunday Golden UI & Header Sync (Immediate 0ms UI Swap)
@@ -1667,19 +1668,41 @@ async function mountDashboard(isInitialLoad = false) {
         cSub = document.getElementById("centurySubtitleText"),
         cMeter = document.getElementById("centuryLoadText");
 
+  const cachedCount = dailyPerf?.total_questions_attempted || 0;
+  const cachedCorrect = dailyPerf?.total_correct || 0;
+
   if (cIcon) cIcon.innerText = isSun ? "👑" : "🎯";
   if (cTitle) cTitle.innerText = isSun ? "Sunday Revision Target" : "Daily Milestone";
-  if (cSub) cSub.innerText = isSun ? "Weekly Backlog & Mastery Crucible" : "100-Question Target & Mastery Barometer";
+  if (cSub) {
+    if (isSun) {
+      cSub.innerText = "Weekly Backlog & Mastery Crucible";
+    } else if (cachedCount >= 100) {
+      cSub.innerText = `Scale: Total Attempted (${cachedCount} Qs) • Overdrive Active`;
+    } else {
+      cSub.innerText = "100-Question Target & Precision Barometer";
+    }
+  }
 
   // 🚀 0ms Anti-Flicker Badge & Hyperdrive Beam Initialization
-  const cachedCount = dailyPerf?.total_questions_attempted || 0;
-  const isOverdriveInit = !isSun && cachedCount > 100;
+  const isOverdriveInit = !isSun && cachedCount >= 100;
   const attFillInit = document.getElementById("centuryAttemptedFill");
+  const masFillInit = document.getElementById("centuryMasteredFill");
   const capFillInit = document.getElementById("centuryCapacityFill");
   const trackInit = attFillInit?.parentElement || document.querySelector(".multi-tier-track") || document.querySelector(".century-progress-track");
 
   // Decouple Staging fill permanently
   if (capFillInit) capFillInit.style.display = "none";
+
+  if (attFillInit && masFillInit) {
+    if (cachedCount >= 100) {
+      attFillInit.style.width = "100%";
+      const masInitPct = cachedCount > 0 ? Math.min(100, Math.round((cachedCorrect / cachedCount) * 100)) : 0;
+      masFillInit.style.width = masInitPct + "%";
+    } else {
+      attFillInit.style.width = Math.min(100, cachedCount) + "%";
+      masFillInit.style.width = Math.min(cachedCount, cachedCorrect) + "%";
+    }
+  }
 
   // Hyperdrive dynamic physical beam mounting on track
   if (trackInit) {
@@ -1904,7 +1927,7 @@ async function fetchPlaylistsAndCheckRollover() {
     appStorage.setJSON("cache_playlists_" + roll, userPlaylists);
     appStorage.setJSON("cache_playlist_items_" + roll, userPlaylistItems);
 
-    // 🚀 Rollover Engine
+    // 🚀 Date-Aware Smart Rollover Engine (Only Truly Unattempted Sets go to Backlog)
     const serverLastRollover = currentCandidate?.last_rollover_date;
     if (serverLastRollover !== todayStr && !isSunday()) {
       const todayList = userPlaylists.find(p => p.playlist_name === 'Today');
@@ -1912,12 +1935,50 @@ async function fetchPlaylistsAndCheckRollover() {
       const weekList = userPlaylists.find(p => p.playlist_name === 'This Week');
 
       if (todayList && tomorrowList) {
-        if (weekList) {
+        const targetRolloverDate = serverLastRollover || getLocalDateString(new Date(Date.now() - 86400000));
+        const todayItems = userPlaylistItems.filter(pi => pi.playlist_id === todayList.id);
+        const weekItemTestIds = new Set(
+          userPlaylistItems
+            .filter(pi => weekList && pi.playlist_id === weekList.id)
+            .map(pi => String(pi.test_id))
+        );
+
+        const testIdsToDelete = [];
+        const testIdsToBacklog = [];
+
+        todayItems.forEach(item => {
+          const tid = String(item.test_id);
+          // Check if set was attempted on the rollover date or today
+          const wasAttemptedOnDate = (todayAttRows || []).some(a => 
+            String(a.test_id) === tid && 
+            (getAttemptLocalDate(a.attempt_date) === targetRolloverDate || getAttemptLocalDate(a.attempt_date) === todayStr)
+          );
+
+          if (wasAttemptedOnDate || weekItemTestIds.has(tid)) {
+            // Attempted or already in backlog: Dismiss from Today without polluting backlog
+            testIdsToDelete.push(item.test_id);
+          } else {
+            // Truly unattempted on that day: Move to This Week Backlog
+            testIdsToBacklog.push(item.test_id);
+          }
+        });
+
+        if (testIdsToDelete.length > 0) {
+          await supabaseClient
+            .from("playlist_items")
+            .delete()
+            .eq("playlist_id", todayList.id)
+            .eq("student_roll", roll)
+            .in("test_id", testIdsToDelete);
+        }
+
+        if (testIdsToBacklog.length > 0 && weekList) {
           await supabaseClient
             .from("playlist_items")
             .update({ playlist_id: weekList.id, is_rollover: true })
             .eq("playlist_id", todayList.id)
-            .eq("student_roll", roll);
+            .eq("student_roll", roll)
+            .in("test_id", testIdsToBacklog);
         }
 
         await supabaseClient
@@ -2484,22 +2545,68 @@ async function renderHomePlaylists() {
     const todayMasteredQ = Array.from(uniqueMasteredSets.values()).reduce((sum, q) => sum + q, 0);
 
     const isSunHit = isSun && dailyPerf.is_century_hit;
-    const attPct = isSunHit ? 100 : Math.min(100, Math.round((actualAttemptedCount / targetQ) * 100));
-    const masPct = isSunHit ? 100 : Math.min(attPct, Math.min(100, Math.round((todayMasteredQ / targetQ) * 100)));
+    const isOverdrive = !isSun && actualAttemptedCount >= 100;
+
+    let attPct = 0;
+    let masPct = 0;
+
+    if (isSunHit) {
+      attPct = 100;
+      masPct = 100;
+    } else if (actualAttemptedCount >= 100) {
+      // 🚀 OVERDRIVE MODE: Scale represents total attempted questions (100% full bar)
+      attPct = 100;
+      masPct = actualAttemptedCount > 0 ? Math.min(100, Math.round((todayMasteredQ / actualAttemptedCount) * 100)) : 0;
+    } else {
+      // 🚀 TARGET MODE: Scale represents fixed 100-question baseline target
+      attPct = Math.min(100, Math.round((actualAttemptedCount / 100) * 100));
+      masPct = Math.min(attPct, Math.round((todayMasteredQ / 100) * 100));
+    }
 
     const capFill = document.getElementById("centuryCapacityFill"), 
           attFill = document.getElementById("centuryAttemptedFill"), 
           masFill = document.getElementById("centuryMasteredFill"), 
-          meterText = document.getElementById("centuryLoadText");
+          meterText = document.getElementById("centuryLoadText"),
+          subText = document.getElementById("centurySubtitleText");
     const trackElement = attFill?.parentElement || document.querySelector(".multi-tier-track") || document.querySelector(".century-progress-track");
 
-    // (A) Staging Fill Decoupled
+    // (A) Staging Fill Decoupled & Dual-Scale Fills (Green = Correct, Red = Errors)
     if (capFill) capFill.style.display = "none";
     if (attFill) attFill.style.width = attPct + "%"; 
     if (masFill) masFill.style.width = masPct + "%";
 
-    // (B) 🚀 Hyperdrive Physical Beam Activation (> 100 Qs)
-    const isOverdrive = !isSun && actualAttemptedCount > 100;
+    // (B) Dynamic Subtitle Scale Indicator
+    if (subText) {
+      if (isSun) {
+        subText.innerText = "Weekly Backlog & Mastery Crucible";
+      } else if (actualAttemptedCount >= 100) {
+        subText.innerText = `Scale: Total Attempted (${actualAttemptedCount} Qs) • Overdrive Active`;
+      } else {
+        subText.innerText = "100-Question Target & Precision Barometer";
+      }
+    }
+
+    // (C) Dynamic Legend Telemetry
+    const legendEl = document.querySelector(".century-tier-legend");
+    if (legendEl) {
+      const todayErrors = Math.max(0, actualAttemptedCount - todayMasteredQ);
+      if (actualAttemptedCount >= 100) {
+        legendEl.innerHTML = `
+          <span class="tier-legend-item"><span class="tier-dot tier-dot-mastered"></span> Correct (${todayMasteredQ})</span>
+          <span class="tier-legend-item"><span class="tier-dot tier-dot-error"></span> Errors (${todayErrors})</span>
+          <span class="tier-legend-item" style="color:var(--warning-dark); font-family:var(--font-mono); font-weight:800;">⚡ Overdrive (${actualAttemptedCount} Qs Scale)</span>
+        `;
+      } else {
+        const remCount = Math.max(0, 100 - actualAttemptedCount);
+        legendEl.innerHTML = `
+          <span class="tier-legend-item"><span class="tier-dot tier-dot-mastered"></span> Correct (${todayMasteredQ})</span>
+          <span class="tier-legend-item"><span class="tier-dot tier-dot-error"></span> Errors (${todayErrors})</span>
+          <span class="tier-legend-item"><span class="tier-dot tier-dot-remaining"></span> Deficit (${remCount})</span>
+        `;
+      }
+    }
+
+    // (D) 🚀 Zebra Crossing Laser Beam + Shimmer Sweep (Active when >= 100 Qs)
     if (trackElement) {
       trackElement.classList.toggle("hyperdrive-active-track", isOverdrive);
       const existingBeam = trackElement.querySelector(".hyperdrive-physical-beam");
@@ -3907,7 +4014,7 @@ function renderScorecard() {
         if (upsertedPerf) dailyPerf = upsertedPerf;
 
         const tList = userPlaylists.find(p => p.playlist_name === 'Today');
-        if (tList && hit) {
+        if (tList && activeTest.id > 0) {
           await supabaseClient.from("playlist_items").delete().match({ 
             playlist_id: tList.id, 
             test_id: activeTest.id, 
