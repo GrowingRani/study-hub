@@ -284,28 +284,27 @@ function formatExplanation(exp) {
 function initPlaylistSwipeGestures() {
   let startX = 0, startY = 0, currentDiffX = 0;
   let activeWrapper = null, activeTile = null;
-  let isSwiping = false;
+  let gestureDirection = null; // 'horizontal' | 'vertical' | null
 
   document.addEventListener("touchstart", (e) => {
     const wrapper = e.target.closest(".swipe-item-wrapper");
     if (!wrapper) {
       document.querySelectorAll(".swipe-item-wrapper .set-tile").forEach(t => {
-        t.style.transition = "transform 0.2s ease";
+        t.style.transition = "transform 0.22s cubic-bezier(0.16, 1, 0.3, 1)";
         t.style.transform = "";
       });
       return;
     }
 
-    // Buttons ya 3-dots tap karne par swipe activate nahi hoga
     if (e.target.closest("button") || e.target.closest(".swipe-action-backdrop")) return;
 
     const tile = wrapper.querySelector(".set-tile");
     if (!tile) return;
 
-    // Dusre kisi tile ka open swipe band karein
+    // अगर कोई दूसरा कार्ड खुला है तो उसे बंद करें
     document.querySelectorAll(".swipe-item-wrapper .set-tile").forEach(t => {
-      if (t !== tile && t.style.transform) {
-        t.style.transition = "transform 0.2s ease";
+      if (t !== tile && t.style.transform && t.style.transform !== "translateX(0px)") {
+        t.style.transition = "transform 0.22s cubic-bezier(0.16, 1, 0.3, 1)";
         t.style.transform = "";
       }
     });
@@ -315,7 +314,7 @@ function initPlaylistSwipeGestures() {
     currentDiffX = 0;
     activeWrapper = wrapper;
     activeTile = tile;
-    isSwiping = false;
+    gestureDirection = null;
   }, { passive: true });
 
   document.addEventListener("touchmove", (e) => {
@@ -326,40 +325,54 @@ function initPlaylistSwipeGestures() {
     const diffX = touchX - startX;
     const diffY = touchY - startY;
 
-    // Vertical scroll ko priority dein taaki page scroll na atke
-    if (!isSwiping && Math.abs(diffY) > Math.abs(diffX)) {
-      activeWrapper = null;
-      activeTile = null;
-      return;
+    // 10px का डेडज़ोन: जब तक उंगली 10px न खिसके, दिशा तय न करें
+    if (!gestureDirection) {
+      if (Math.abs(diffX) > 10 || Math.abs(diffY) > 10) {
+        if (Math.abs(diffX) > Math.abs(diffY) * 1.1) {
+          gestureDirection = 'horizontal';
+        } else {
+          gestureDirection = 'vertical';
+        }
+      }
     }
 
-    // Sirf left direction swipe (-X)
-    if (diffX < -8) {
-      isSwiping = true;
-      currentDiffX = Math.max(-95, diffX);
+    if (gestureDirection === 'vertical') {
+      return; // सामान्य पेज स्क्रॉल को बिना रुकावट चलने दें
+    }
+
+    if (gestureDirection === 'horizontal') {
+      // टच ड्रैग के दौरान CSS ट्रांज़िशन को पूरी तरह डिसेबल रखें ताकि उंगली के साथ 1:1 चले
       activeTile.style.transition = "none";
-      activeTile.style.transform = `translateX(${currentDiffX}px)`;
-    } else if (diffX > 0 && activeTile.style.transform) {
-      activeTile.style.transition = "none";
-      activeTile.style.transform = `translateX(${Math.min(0, diffX - 85)}px)`;
+
+      if (diffX < 0) {
+        // लेफ्ट स्वाइप: रबर-बैंडिंग इफेक्ट के साथ मैक्स -110px तक
+        const clampedX = Math.max(-110, diffX);
+        currentDiffX = clampedX;
+        activeTile.style.transform = `translateX(${clampedX}px)`;
+      } else if (activeTile.style.transform && activeTile.style.transform !== "translateX(0px)") {
+        // अगर पहले से खुला था और वापस राइट खींच रहे हैं
+        const backX = Math.min(0, -85 + diffX);
+        currentDiffX = backX;
+        activeTile.style.transform = `translateX(${backX}px)`;
+      }
     }
   }, { passive: true });
 
-  document.addEventListener("touchend", (e) => {
+  document.addEventListener("touchend", () => {
     if (!activeWrapper || !activeTile) return;
 
-    activeTile.style.transition = "transform 0.22s cubic-bezier(0.16, 1, 0.3, 1)";
+    activeTile.style.transition = "transform 0.24s cubic-bezier(0.16, 1, 0.3, 1)";
 
-    // Agar -65px se zyada swipe hua toh action button reveal rahega
-    if (currentDiffX < -65) {
+    // -45px (लगभग आधा स्वाइप) पार करते ही बटन लॉक हो जाएगा
+    if (gestureDirection === 'horizontal' && currentDiffX < -45) {
       activeTile.style.transform = "translateX(-85px)";
     } else {
-      activeTile.style.transform = "";
+      activeTile.style.transform = "translateX(0px)";
     }
 
     activeWrapper = null;
     activeTile = null;
-    isSwiping = false;
+    gestureDirection = null;
   }, { passive: true });
 }
 

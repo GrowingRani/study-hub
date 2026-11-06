@@ -738,8 +738,10 @@ body.dark-theme .theme-mistake-briefing #briefingStatusBadge { background: rgba(
 
 .swipe-item-wrapper .set-tile {
   margin-bottom: 0 !important;
-  touch-action: pan-y;
+  touch-action: pan-y pan-x;
   will-change: transform;
+  user-select: none;
+  -webkit-user-select: none;
 }
    .set-tile:hover, .set-tile:active, .set-tile:focus { border-color: var(--tcs-blue-border-subtle) !important; border-left-color: var(--tcs-blue-accent) !important; box-shadow: var(--shadow-md); }
 
