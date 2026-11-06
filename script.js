@@ -363,6 +363,88 @@ function initPlaylistSwipeGestures() {
   }, { passive: true });
 }
 
+function initPlaylistSwipeGestures() {
+  let startX = 0, startY = 0, currentDiffX = 0;
+  let activeWrapper = null, activeTile = null;
+  let isSwiping = false;
+
+  document.addEventListener("touchstart", (e) => {
+    const wrapper = e.target.closest(".swipe-item-wrapper");
+    if (!wrapper) {
+      document.querySelectorAll(".swipe-item-wrapper .set-tile").forEach(t => {
+        t.style.transition = "transform 0.2s ease";
+        t.style.transform = "";
+      });
+      return;
+    }
+
+    // Buttons ya 3-dots tap karne par swipe activate nahi hoga
+    if (e.target.closest("button") || e.target.closest(".swipe-action-backdrop")) return;
+
+    const tile = wrapper.querySelector(".set-tile");
+    if (!tile) return;
+
+    // Dusre kisi tile ka open swipe band karein
+    document.querySelectorAll(".swipe-item-wrapper .set-tile").forEach(t => {
+      if (t !== tile && t.style.transform) {
+        t.style.transition = "transform 0.2s ease";
+        t.style.transform = "";
+      }
+    });
+
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+    currentDiffX = 0;
+    activeWrapper = wrapper;
+    activeTile = tile;
+    isSwiping = false;
+  }, { passive: true });
+
+  document.addEventListener("touchmove", (e) => {
+    if (!activeWrapper || !activeTile) return;
+
+    const touchX = e.touches[0].clientX;
+    const touchY = e.touches[0].clientY;
+    const diffX = touchX - startX;
+    const diffY = touchY - startY;
+
+    // Vertical scroll ko priority dein taaki page scroll na atke
+    if (!isSwiping && Math.abs(diffY) > Math.abs(diffX)) {
+      activeWrapper = null;
+      activeTile = null;
+      return;
+    }
+
+    // Sirf left direction swipe (-X)
+    if (diffX < -8) {
+      isSwiping = true;
+      currentDiffX = Math.max(-95, diffX);
+      activeTile.style.transition = "none";
+      activeTile.style.transform = `translateX(${currentDiffX}px)`;
+    } else if (diffX > 0 && activeTile.style.transform) {
+      activeTile.style.transition = "none";
+      activeTile.style.transform = `translateX(${Math.min(0, diffX - 85)}px)`;
+    }
+  }, { passive: true });
+
+  document.addEventListener("touchend", (e) => {
+    if (!activeWrapper || !activeTile) return;
+
+    activeTile.style.transition = "transform 0.22s cubic-bezier(0.16, 1, 0.3, 1)";
+
+    // Agar -65px se zyada swipe hua toh action button reveal rahega
+    if (currentDiffX < -65) {
+      activeTile.style.transform = "translateX(-85px)";
+    } else {
+      activeTile.style.transform = "";
+    }
+
+    activeWrapper = null;
+    activeTile = null;
+    isSwiping = false;
+  }, { passive: true });
+}
+
 window.addEventListener("DOMContentLoaded", () => {
   document.documentElement.style.overscrollBehaviorY = 'none'; 
   document.body.style.overscrollBehaviorY = 'none';
@@ -377,6 +459,7 @@ window.addEventListener("DOMContentLoaded", () => {
   initAuthSessionWatcher(); 
   setupMobileExamGestures();
   initAnalyticsCarousels();
+  initPlaylistSwipeGestures();
   initPlaylistSwipeGestures();
   window.addEventListener('resize', () => {
     const bottomNav = document.getElementById('mobileBottomNav');
