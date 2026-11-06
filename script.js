@@ -890,17 +890,16 @@ function applyTopicFilter(filter = currentFilter) {
     }
   });
 
-  // 🎯 Manage Subject Mistake Tile Visibility in Filters
-  const sTile = document.getElementById("subjectMistakeTile");
+  // 🎯 Manage Subject Mistake Vault Visibility in Filters
+  const sTile = document.getElementById("subjectMistakeVault");
   if (sTile) {
     const isClean = sTile.classList.contains("state-clean");
     if (searchQuery) {
       sTile.style.display = "none";
     } else if (filter === "mastered") {
-      sTile.style.display = isClean ? "flex" : "none";
+      sTile.style.display = isClean ? "" : "none";
     } else {
-      // All Sets, Unattempted, aur Revise (<70%) तीनों में विज़िबल रहेगा
-      sTile.style.display = isClean ? (filter === "all" ? "flex" : "none") : "flex";
+      sTile.style.display = isClean ? (filter === "all" ? "" : "none") : "";
     }
   }
 }
@@ -2402,19 +2401,57 @@ window.executeSwipeRemove = async function(pId, testId, pName, el) {
   }
 
   const wrapper = backdrop?.closest('.swipe-item-wrapper') || document.querySelector(`.swipe-item-wrapper[data-playlist-id="${pId}"][data-test-id="${testId}"]`);
+  lastRemovedPayload = { pId, testId, pName };
 
-  setTimeout(() => {
-    if (wrapper) {
-      wrapper.classList.add("removing");
-      setTimeout(async () => {
-        await togglePlaylistMembership(pId, testId, true);
-        showSelectionToast(`Removed from "${pName}"`);
-      }, 340);
-    } else {
-      togglePlaylistMembership(pId, testId, true);
-      showSelectionToast(`Removed from "${pName}"`);
-    }
-  }, 100);
+  const undoAction = async () => {
+    if (!lastRemovedPayload) return;
+    const { pId: undoPid, testId: undoTid, pName: undoPname } = lastRemovedPayload;
+    await togglePlaylistMembership(undoPid, undoTid, false);
+    showSelectionToast(`Restored to "${undoPname}"`);
+    lastRemovedPayload = null;
+  };
+
+  if (wrapper && wrapper.parentElement) {
+    const container = wrapper.parentElement;
+    const siblings = Array.from(container.children).filter(child => child !== wrapper && child.nodeType === 1);
+
+    const firstPositions = new Map();
+    siblings.forEach(child => {
+      firstPositions.set(child, child.getBoundingClientRect());
+    });
+
+    wrapper.style.display = 'none';
+
+    siblings.forEach(child => {
+      const firstRect = firstPositions.get(child);
+      const lastRect = child.getBoundingClientRect();
+      const deltaX = firstRect.left - lastRect.left;
+      const deltaY = firstRect.top - lastRect.top;
+
+      if (deltaX !== 0 || deltaY !== 0) {
+        child.style.transition = 'none';
+        child.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
+      }
+    });
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        siblings.forEach(child => {
+          child.style.transition = 'transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1)';
+          child.style.transform = '';
+        });
+      });
+    });
+
+    setTimeout(async () => {
+      siblings.forEach(child => { child.style.transition = ''; });
+      await togglePlaylistMembership(pId, testId, true);
+      showSelectionToast(`Removed from "${pName}"`, undoAction);
+    }, 280);
+  } else {
+    await togglePlaylistMembership(pId, testId, true);
+    showSelectionToast(`Removed from "${pName}"`, undoAction);
+  }
 };
 
 // ⭐ 1-TAP STAR SET CONTROLLER (Ensures Header Star Button Works)
@@ -2453,10 +2490,7 @@ function renderSecondaryPlaylistStream(playlistName, containerId, countPillId, c
   if (header) header.onclick = () => window.toggleSecondaryPlaylist(header);
 }
 
-// 🚀 SURGICAL STARRED CONTAINER RENDERER (NOW POWERED BY ATOMIC HELPER)
-function renderStarredPlaylistOnly() {
-  renderSecondaryPlaylistStream('Starred Sets', 'starredPlaylistContainer', 'starredCountPill', 'starredPlaylistCard', 'No starred sets yet. Click ☆ on any set to save here.');
-}
+
 
 async function renderHomePlaylists() {
   if (isRenderingPlaylists) {
@@ -2470,8 +2504,7 @@ async function renderHomePlaylists() {
           tomorrowContainer = document.getElementById("tomorrowPlaylistContainer"), 
           weekContainer = document.getElementById("weekPlaylistContainer"), 
           starredContainer = document.getElementById("starredPlaylistContainer"),
-          customContainer = document.getElementById("customPlaylistsContainer"),
-          revContainer = document.getElementById("dynamicRevisionTileContainer");
+          customContainer = document.getElementById("customPlaylistsContainer");
 
     if (!todayContainer || !tomorrowContainer || !weekContainer) return;
 
@@ -2484,7 +2517,6 @@ async function renderHomePlaylists() {
       starred: starredContainer ? starredContainer.scrollTop : 0
     };
 
-    if (revContainer) revContainer.innerHTML = "";
     todayContainer.innerHTML = ""; 
     tomorrowContainer.innerHTML = ""; 
     weekContainer.innerHTML = ""; 
@@ -2789,21 +2821,39 @@ async function renderHomePlaylists() {
 // 🚀 REFINED SELECTION MODE: FAST DOMAIN SCROLLER & FLOATING DOCK ENGINE
 // ==========================================================================
 let toastTimer = null;
-window.showSelectionToast = function(msg) {
+let lastRemovedPayload = null;
+window.showSelectionToast = function(msg, undoCallback = null) {
   const toast = document.getElementById("selectionToast");
   const msgEl = document.getElementById("selectionToastText");
+  const undoBtn = document.getElementById("btnToastUndo");
   if (!toast || !msgEl) return;
   msgEl.innerText = msg;
+
+  if (undoCallback && typeof undoCallback === "function") {
+    if (undoBtn) {
+      undoBtn.style.display = "inline-flex";
+      undoBtn.onclick = () => {
+        undoCallback();
+        toast.classList.remove("show");
+        setTimeout(() => { toast.style.display = "none"; }, 250);
+      };
+    }
+  } else if (undoBtn) {
+    undoBtn.style.display = "none";
+    undoBtn.onclick = null;
+  }
+
   toast.style.display = "block";
   void toast.offsetWidth;
   toast.classList.add("show");
+
   if (toastTimer) clearTimeout(toastTimer);
   toastTimer = setTimeout(() => {
     toast.classList.remove("show");
     setTimeout(() => {
       if (!toast.classList.contains("show")) toast.style.display = "none";
     }, 250);
-  }, 2200);
+  }, 3500);
 };
 
 function renderStagingDomainScroller() {
@@ -2945,7 +2995,6 @@ window.cancelLibrarySelectionMode = async function() {
   const targetName = targetPlaylistForSelection?.name || "Playlist";
   const targetId = targetPlaylistForSelection?.id;
   const stagedCount = userPlaylistItems.filter(pi => pi.playlist_id === targetId).length;
-
   librarySelectionMode = false; 
   targetPlaylistForSelection = null; 
 
@@ -2982,9 +3031,8 @@ window.toggleDirectStaging = async function(testId) {
   const pName = targetPlaylistForSelection.name;
   const roll = currentCandidate.roll_number;
 
-  const inTarget = userPlaylistItems.some(pi => pi.playlist_id === pId && String(pi.test_id) === String(testId));
+  const inTarget = userPlaylistItems.some(pi => String(pi.playlist_id) === String(pId) && String(pi.test_id) === String(testId));
   const btn = document.getElementById(`btnStage_${testId}`);
-
   if (inTarget) {
     userPlaylistItems = userPlaylistItems.filter(pi => !(pi.playlist_id === pId && String(pi.test_id) === String(testId)));
     if (btn) {
@@ -3106,10 +3154,7 @@ window.openPlaylistBottomSheet = function(testId) {
       </div>
     `;
   });
-  if (!document.querySelector(".bottom-sheet-footer")) {
-    html += `<button type="button" class="btn-create-playlist-trigger" style="margin-top:8px;" onclick="promptNewPlaylistFromSheet()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg><span>Create New Playlist</span></button>`;
-  }
-  opts.innerHTML = html; 
+  opts.innerHTML = html;
   overlay.style.display = "block"; 
   overlay.style.pointerEvents = "auto"; 
   overlay.classList.add("open"); 
@@ -3823,9 +3868,7 @@ window.launchSubjectMistakeMode = function(mode = 'quiz') {
   }
 };
 
-window.launchDailyMix = async function() {
-  await launchBoosterMode('exam');
-};
+
 
 window.launchAssessment = async function(testId) {
   isExamFinished = false; 
@@ -5579,17 +5622,7 @@ function renderReadUI() {
     container.appendChild(emptyNotice);
   }
 
-  const foot = document.createElement("div");
-  foot.className = "read-footer-actions";
-  foot.innerHTML = `
-    <button type="button" class="btn-scroll-top" onclick="scrollToTopOfPractice()" title="Back to Top">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <polyline points="18 15 12 9 6 15"></polyline>
-      </svg>
-    </button>
-  `;
-  container.appendChild(foot);
-}
+  }
 
 
 
@@ -6141,11 +6174,6 @@ window.setPracticeMode = function(modeKey) {
   scrollToTopOfPractice();
 };
 
-// 🔒 100% Backward-Compatible Wrappers
-function renderReadMode() { window.setPracticeMode("read"); }
-function renderInteractiveQuizMode() { window.setPracticeMode("quiz"); }
-function renderFlashcardMode() { window.setPracticeMode("flashcards"); }
-
 // 🔄 Flashcard Reset with Face Alignment
 window.resetFlashcardDeck = function() {
   flashcardDeck = [...practiceQuestions];
@@ -6154,9 +6182,6 @@ window.resetFlashcardDeck = function() {
   isFlashcardFlipped = false;
   renderFlashcardCardDOM();
 };
-
-// 🔒 Alias for Legacy Quiz Restart
-window.executeQuizRestart = window.triggerQuizRetake;
 
 // 🎛️ MODAL POPUP CONTROLLERS (ONLY ONCE)
 window.openPracticeModeSwitcher = function() {
