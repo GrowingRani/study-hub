@@ -380,17 +380,12 @@ function initPlaylistSwipeGestures() {
     isHorizontalGesture = null;
 
     if (shouldCommit) {
-      // 🚀 Threshold cross: Left throw -> instant display none -> smooth upward glide
-      tile.style.transition = "transform 0.14s ease-out";
-      tile.style.transform = `translateX(-${wrapperWidth + 20}px)`;
-
+      // 🚀 Threshold cross hone par card wahin ke wahin turant gayab ho jayega (No left sliding out)
       const pId = wrapper.getAttribute("data-playlist-id");
       const testId = wrapper.getAttribute("data-test-id");
       const pName = wrapper.closest(".mission-playlist-card")?.querySelector(".playlist-title")?.innerText || "Playlist";
 
-      setTimeout(() => {
-        window.executeSwipeRemove(pId, testId, pName, wrapper);
-      }, 120);
+      window.executeSwipeRemove(pId, testId, pName, wrapper);
 
     } else {
       // Safe snap back
