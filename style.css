@@ -738,7 +738,7 @@ body.dark-theme .theme-mistake-briefing #briefingStatusBadge { background: rgba(
 
 .swipe-item-wrapper .set-tile {
   margin-bottom: 0 !important;
-  touch-action: pan-y pan-x;
+  touch-action: pan-y !important;
   will-change: transform;
   user-select: none;
   -webkit-user-select: none;

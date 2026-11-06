@@ -282,39 +282,61 @@ function formatExplanation(exp) {
 }
 
 function initPlaylistSwipeGestures() {
-  let startX = 0, startY = 0, currentDiffX = 0;
+  let startX = 0, startY = 0;
   let activeWrapper = null, activeTile = null;
-  let gestureDirection = null; // 'horizontal' | 'vertical' | null
+  let initialOffsetX = 0;
+  let currentTranslateX = 0;
+  let isHorizontalGesture = null; // null | true | false
+  let preventNextClick = false;
+
+  // 1. Capture-phase click blocker: Swipe ke baad button ya modal trigger nahi hone dega
+  document.addEventListener("click", (e) => {
+    if (preventNextClick) {
+      e.preventDefault();
+      e.stopPropagation();
+      preventNextClick = false;
+    }
+  }, true);
 
   document.addEventListener("touchstart", (e) => {
     const wrapper = e.target.closest(".swipe-item-wrapper");
     if (!wrapper) {
+      // Bahar tap karne par khule hue cards smoothly close ho jayenge
       document.querySelectorAll(".swipe-item-wrapper .set-tile").forEach(t => {
-        t.style.transition = "transform 0.22s cubic-bezier(0.16, 1, 0.3, 1)";
-        t.style.transform = "";
+        if (t.style.transform && t.style.transform !== "translateX(0px)") {
+          t.style.transition = "transform 0.22s cubic-bezier(0.16, 1, 0.3, 1)";
+          t.style.transform = "translateX(0px)";
+        }
       });
       return;
     }
 
+    // Interactive buttons ya Remove backdrop par drag shuru na karein
     if (e.target.closest("button") || e.target.closest(".swipe-action-backdrop")) return;
 
     const tile = wrapper.querySelector(".set-tile");
     if (!tile) return;
 
-    // अगर कोई दूसरा कार्ड खुला है तो उसे बंद करें
+    // Dusre kisi card ka open swipe band karein
     document.querySelectorAll(".swipe-item-wrapper .set-tile").forEach(t => {
       if (t !== tile && t.style.transform && t.style.transform !== "translateX(0px)") {
         t.style.transition = "transform 0.22s cubic-bezier(0.16, 1, 0.3, 1)";
-        t.style.transform = "";
+        t.style.transform = "translateX(0px)";
       }
     });
 
     startX = e.touches[0].clientX;
     startY = e.touches[0].clientY;
-    currentDiffX = 0;
+
+    // Current offset read karein (taaki open card jump na kare)
+    const transformStyle = tile.style.transform || "";
+    const match = transformStyle.match(/translateX\(([-\d.]+)px\)/);
+    initialOffsetX = match ? parseFloat(match[1]) : 0;
+    currentTranslateX = initialOffsetX;
+
     activeWrapper = wrapper;
     activeTile = tile;
-    gestureDirection = null;
+    isHorizontalGesture = null;
   }, { passive: true });
 
   document.addEventListener("touchmove", (e) => {
@@ -324,60 +346,60 @@ function initPlaylistSwipeGestures() {
     const touchY = e.touches[0].clientY;
     const diffX = touchX - startX;
     const diffY = touchY - startY;
+    const absX = Math.abs(diffX);
+    const absY = Math.abs(diffY);
 
-    // 10px का डेडज़ोन: जब तक उंगली 10px न खिसके, दिशा तय न करें
-    if (!gestureDirection) {
-      if (Math.abs(diffX) > 10 || Math.abs(diffY) > 10) {
-        if (Math.abs(diffX) > Math.abs(diffY) * 1.1) {
-          gestureDirection = 'horizontal';
+    // Asymmetric Gesture Arbitration (Generous horizontal lock)
+    if (isHorizontalGesture === null) {
+      if (absX > 7 || absY > 7) {
+        if (absX >= absY) {
+          isHorizontalGesture = true;
         } else {
-          gestureDirection = 'vertical';
+          isHorizontalGesture = false; // Vertical page scroll ko chhod dein
         }
       }
     }
 
-    if (gestureDirection === 'vertical') {
-      return; // सामान्य पेज स्क्रॉल को बिना रुकावट चलने दें
+    if (!isHorizontalGesture) return;
+
+    // 1:1 Pure physics drag (Zero transition lag)
+    activeTile.style.transition = "none";
+    const targetX = initialOffsetX + diffX;
+
+    // Clamping: Right drag max 0px, Left drag max -110px (with rubber-band effect)
+    if (targetX <= 0) {
+      currentTranslateX = Math.max(-110, targetX);
+      activeTile.style.transform = `translateX(${currentTranslateX}px)`;
+    } else {
+      currentTranslateX = 0;
+      activeTile.style.transform = "translateX(0px)";
     }
 
-    if (gestureDirection === 'horizontal') {
-      // टच ड्रैग के दौरान CSS ट्रांज़िशन को पूरी तरह डिसेबल रखें ताकि उंगली के साथ 1:1 चले
-      activeTile.style.transition = "none";
-
-      if (diffX < 0) {
-        // लेफ्ट स्वाइप: रबर-बैंडिंग इफेक्ट के साथ मैक्स -110px तक
-        const clampedX = Math.max(-110, diffX);
-        currentDiffX = clampedX;
-        activeTile.style.transform = `translateX(${clampedX}px)`;
-      } else if (activeTile.style.transform && activeTile.style.transform !== "translateX(0px)") {
-        // अगर पहले से खुला था और वापस राइट खींच रहे हैं
-        const backX = Math.min(0, -85 + diffX);
-        currentDiffX = backX;
-        activeTile.style.transform = `translateX(${backX}px)`;
-      }
+    // Agar 10px se zyada khiskayein toh intentional swipe hai, synthetic click rok dein
+    if (absX > 10) {
+      preventNextClick = true;
     }
   }, { passive: true });
 
-  document.addEventListener("touchend", () => {
+  const endGesture = () => {
     if (!activeWrapper || !activeTile) return;
 
-    activeTile.style.transition = "transform 0.24s cubic-bezier(0.16, 1, 0.3, 1)";
+    activeTile.style.transition = "transform 0.22s cubic-bezier(0.16, 1, 0.3, 1)";
 
-    // -45px se zyada swipe par action button lock ho jayega
-    if (gestureDirection === 'horizontal' && currentDiffX < -45) {
+    // Snap points: Agar -40px se zyada left hai toh open (-85px), warna close (0px)
+    if (isHorizontalGesture && currentTranslateX < -40) {
       activeTile.style.transform = "translateX(-85px)";
-      // Swipe hone par click ko suppress karein taaki briefing modal na khule
-      const tileToLock = activeTile;
-      tileToLock.style.pointerEvents = "none";
-      setTimeout(() => { if (tileToLock) tileToLock.style.pointerEvents = ""; }, 250);
     } else {
       activeTile.style.transform = "translateX(0px)";
     }
 
     activeWrapper = null;
     activeTile = null;
-    gestureDirection = null;
-  }, { passive: true });
+    isHorizontalGesture = null;
+  };
+
+  document.addEventListener("touchend", endGesture, { passive: true });
+  document.addEventListener("touchcancel", endGesture, { passive: true });
 }
 
 window.addEventListener("DOMContentLoaded", () => {
