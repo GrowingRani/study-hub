@@ -680,13 +680,21 @@ body.dark-theme .theme-mistake-briefing #briefingStatusBadge { background: rgba(
 /* ==========================================================================
    7. RICH SET TILE CARD & ACTION FOOTER (🚨 ROOT CASCADE PROTECTED)
    ========================================================================== */
-   .swipe-item-wrapper {
+.swipe-item-wrapper {
   position: relative;
   overflow: hidden;
   border-radius: 8px;
   width: 100%;
+  display: flex;
+  flex-direction: column;
   box-sizing: border-box;
   transition: max-height 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.22s ease, margin 0.28s ease !important;
+}
+
+.swipe-item-wrapper .set-tile {
+  flex: 1;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .swipe-item-wrapper.removing {

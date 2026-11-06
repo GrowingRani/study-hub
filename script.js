@@ -363,88 +363,6 @@ function initPlaylistSwipeGestures() {
   }, { passive: true });
 }
 
-function initPlaylistSwipeGestures() {
-  let startX = 0, startY = 0, currentDiffX = 0;
-  let activeWrapper = null, activeTile = null;
-  let isSwiping = false;
-
-  document.addEventListener("touchstart", (e) => {
-    const wrapper = e.target.closest(".swipe-item-wrapper");
-    if (!wrapper) {
-      document.querySelectorAll(".swipe-item-wrapper .set-tile").forEach(t => {
-        t.style.transition = "transform 0.2s ease";
-        t.style.transform = "";
-      });
-      return;
-    }
-
-    // Buttons ya 3-dots tap karne par swipe activate nahi hoga
-    if (e.target.closest("button") || e.target.closest(".swipe-action-backdrop")) return;
-
-    const tile = wrapper.querySelector(".set-tile");
-    if (!tile) return;
-
-    // Dusre kisi tile ka open swipe band karein
-    document.querySelectorAll(".swipe-item-wrapper .set-tile").forEach(t => {
-      if (t !== tile && t.style.transform) {
-        t.style.transition = "transform 0.2s ease";
-        t.style.transform = "";
-      }
-    });
-
-    startX = e.touches[0].clientX;
-    startY = e.touches[0].clientY;
-    currentDiffX = 0;
-    activeWrapper = wrapper;
-    activeTile = tile;
-    isSwiping = false;
-  }, { passive: true });
-
-  document.addEventListener("touchmove", (e) => {
-    if (!activeWrapper || !activeTile) return;
-
-    const touchX = e.touches[0].clientX;
-    const touchY = e.touches[0].clientY;
-    const diffX = touchX - startX;
-    const diffY = touchY - startY;
-
-    // Vertical scroll ko priority dein taaki page scroll na atke
-    if (!isSwiping && Math.abs(diffY) > Math.abs(diffX)) {
-      activeWrapper = null;
-      activeTile = null;
-      return;
-    }
-
-    // Sirf left direction swipe (-X)
-    if (diffX < -8) {
-      isSwiping = true;
-      currentDiffX = Math.max(-95, diffX);
-      activeTile.style.transition = "none";
-      activeTile.style.transform = `translateX(${currentDiffX}px)`;
-    } else if (diffX > 0 && activeTile.style.transform) {
-      activeTile.style.transition = "none";
-      activeTile.style.transform = `translateX(${Math.min(0, diffX - 85)}px)`;
-    }
-  }, { passive: true });
-
-  document.addEventListener("touchend", (e) => {
-    if (!activeWrapper || !activeTile) return;
-
-    activeTile.style.transition = "transform 0.22s cubic-bezier(0.16, 1, 0.3, 1)";
-
-    // Agar -65px se zyada swipe hua toh action button reveal rahega
-    if (currentDiffX < -65) {
-      activeTile.style.transform = "translateX(-85px)";
-    } else {
-      activeTile.style.transform = "";
-    }
-
-    activeWrapper = null;
-    activeTile = null;
-    isSwiping = false;
-  }, { passive: true });
-}
-
 window.addEventListener("DOMContentLoaded", () => {
   document.documentElement.style.overscrollBehaviorY = 'none'; 
   document.body.style.overscrollBehaviorY = 'none';
@@ -459,7 +377,6 @@ window.addEventListener("DOMContentLoaded", () => {
   initAuthSessionWatcher(); 
   setupMobileExamGestures();
   initAnalyticsCarousels();
-  initPlaylistSwipeGestures();
   initPlaylistSwipeGestures();
   window.addEventListener('resize', () => {
     const bottomNav = document.getElementById('mobileBottomNav');
@@ -2019,15 +1936,7 @@ async function fetchPlaylistsAndCheckRollover() {
           uniqueSetsAttemptedToday.set(tid, attemptedInRun);
         }
       }
-      // 🚀 Restore Milestone Collapse State on Mount
-      const isHiddenSaved = appStorage.get("milestone_collapsed") === "true";
-      const card = document.getElementById("dailyMilestoneCard");
-      const arrow = document.getElementById("milestoneToggleArrow");
-      if (card && isHiddenSaved) {
-        card.classList.add("milestone-hidden");
-        if (arrow) arrow.style.transform = "rotate(-90deg)";
-  }
-  });
+    });
 
     const actualExamAttemptedToday = Array.from(uniqueSetsAttemptedToday.values()).reduce((sum, q) => sum + q, 0);
 
@@ -2102,10 +2011,10 @@ async function fetchPlaylistsAndCheckRollover() {
 
       if (todayList && tomorrowList) {
         const targetRolloverDate = serverLastRollover || getLocalDateString(new Date(Date.now() - 86400000));
-        const todayItems = userPlaylistItems.filter(pi => pi.playlist_id === todayList.id);
+        const todayItems = userPlaylistItems.filter(pi => String(pi.playlist_id) === String(todayList.id));
         const weekItemTestIds = new Set(
           userPlaylistItems
-            .filter(pi => weekList && pi.playlist_id === weekList.id)
+            .filter(pi => weekList && String(pi.playlist_id) === String(weekList.id))
             .map(pi => String(pi.test_id))
         );
 
@@ -2163,15 +2072,6 @@ async function fetchPlaylistsAndCheckRollover() {
     }
   } catch (error) { 
     console.error("Playlist Init Error:", error); 
-  }
-
-  // 🚀 Restore Milestone Collapse State on Mount
-  const isHiddenSaved = appStorage.get("milestone_collapsed") === "true";
-  const card = document.getElementById("dailyMilestoneCard");
-  const arrow = document.getElementById("milestoneToggleArrow");
-  if (card && isHiddenSaved) {
-    card.classList.add("milestone-hidden");
-    if (arrow) arrow.style.transform = "rotate(-90deg)";
   }
 }
 
@@ -3154,9 +3054,9 @@ window.togglePlaylistMembership = async function(pId, testId, inList) {
   if (!currentCandidate) return;
   const roll = currentCandidate.roll_number;
 
-  // 1. Instant 0ms Local Memory Toggle
+  // 1. Instant 0ms Local Memory Toggle (String-safe comparison)
   if (inList) {
-    userPlaylistItems = userPlaylistItems.filter(pi => !(pi.playlist_id === pId && String(pi.test_id) === String(testId)));
+    userPlaylistItems = userPlaylistItems.filter(pi => !(String(pi.playlist_id) === String(pId) && String(pi.test_id) === String(testId)));
   } else {
     userPlaylistItems.push({ playlist_id: pId, test_id: testId, student_roll: roll });
   }
@@ -3170,8 +3070,11 @@ window.togglePlaylistMembership = async function(pId, testId, inList) {
     });
   }
 
-  // 2. Instant DOM Re-render
-  openPlaylistBottomSheet(testId);
+  // 2. Instant DOM Re-render (Sirf tabhi bottom sheet update hogi agar wo pehle se khuli ho)
+  const overlay = document.getElementById("playlistBottomSheetOverlay");
+  if (overlay && overlay.classList.contains("open")) {
+    openPlaylistBottomSheet(testId);
+  }
   renderHomePlaylists();
 
   // 3. Background Cloud Sync
@@ -3181,16 +3084,19 @@ window.togglePlaylistMembership = async function(pId, testId, inList) {
     } else {
       await supabaseClient.from("playlist_items").insert({ playlist_id: pId, test_id: testId, student_roll: roll });
     }
-  } catch (err) {
-    console.error("Cloud playlist sync failed, reverting:", err);
-    if (inList) {
-      userPlaylistItems.push({ playlist_id: pId, test_id: testId, student_roll: roll });
-    } else {
-      userPlaylistItems = userPlaylistItems.filter(pi => !(pi.playlist_id === pId && String(pi.test_id) === String(testId)));
+  } catch (err) { 
+    console.error("Cloud playlist sync failed, reverting:", err); 
+    if (inList) { 
+      userPlaylistItems.push({ playlist_id: pId, test_id: testId, student_roll: roll }); 
+    } else { 
+      userPlaylistItems = userPlaylistItems.filter(pi => !(String(pi.playlist_id) === String(pId) && String(pi.test_id) === String(testId))); 
+    } 
+    const overlay = document.getElementById("playlistBottomSheetOverlay");
+    if (overlay && overlay.classList.contains("open")) {
+      openPlaylistBottomSheet(testId);
     }
-    openPlaylistBottomSheet(testId);
-    renderHomePlaylists();
-    showSelectionToast("Network sync failed. Changes reverted.");
+    renderHomePlaylists(); 
+    showSelectionToast("Network sync failed. Changes reverted."); 
   }
 };
 
@@ -4107,7 +4013,7 @@ function renderScorecard() {
 
     const tList = userPlaylists.find(p => p.playlist_name === 'Today');
     if (tList) {
-      userPlaylistItems = userPlaylistItems.filter(pi => !(pi.playlist_id === tList.id && String(pi.test_id) === String(activeTest.id)));
+      userPlaylistItems = userPlaylistItems.filter(pi => !(String(pi.playlist_id) === String(tList.id) && String(pi.test_id) === String(activeTest.id)));
     }
 
     appStorage.setJSON("cache_daily_perf_" + currentCandidate.roll_number, dailyPerf);
