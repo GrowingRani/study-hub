@@ -185,7 +185,7 @@ const MAIN_TABS = ['viewDashboard', 'viewLibrary', 'viewAnalytics', 'viewProfile
 
 let currentCandidate = null, catalogData = [], activeSubject = null, userAttemptHistory = [], userWeakQuestions = [], currentLang = "en", currentFilter = "all";
 let userPlaylists = [], userPlaylistItems = [], dailyPerf = { total_questions_attempted: 0, is_century_hit: false, streak_count: 0, id: null };
-let selectedTestForPlaylist = null, currentThreeDotsTestId = null, activePlaylistMenuTarget = null, pendingDeleteTarget = null;
+let selectedTestForPlaylist = null, currentThreeDotsTestId = null, activePlaylistMenuTarget = null, pendingDeleteTarget = null, activeSubjectMenuTarget = null;
 let librarySelectionMode = false, targetPlaylistForSelection = null;
 let activeTest = null, testQuestions = [], practiceQuestions = [], currentIndex = 0, flashcardIndex = 0, userResponses = {}, timeRemaining = 15 * 60, timerInterval = null, isExamFinished = false;
 let subjectRadarChartInstance = null, alertEngineStarted = false;
@@ -489,9 +489,10 @@ function closeAllOverlaysAndPopups() {
   };
 
   // Declarative Overlay Registry
-  const OVERLAYS = [
+const OVERLAYS = [
     { id: 'threeDotsMenuOverlay', action: closeThreeDotsMenu },
     { id: 'playlistActionMenuOverlay', action: closePlaylistActionMenu },
+    { id: 'subjectActionMenuOverlay', action: closeSubjectActionMenu },
     { id: 'playlistBottomSheetOverlay', action: closePlaylistBottomSheet },
     { id: 'missionBriefingModal', action: closeMissionBriefingModal },
     { id: 'appNoticeModal', action: closeAppNoticeModal },
@@ -501,7 +502,6 @@ function closeAllOverlaysAndPopups() {
     { id: 'abortExamModal', action: closeAbortExamModal },
     { id: 'practiceModeSwitcherSheet', action: closePracticeModeSwitcher }
   ];
-
   for (const item of OVERLAYS) {
     if (isVisible(item.id)) {
       item.action();
@@ -954,7 +954,9 @@ function setupAppEvents() {
     const pMenu = document.getElementById("playlistActionMenu");
     if (pMenu && pMenu.style.display !== "none" && !pMenu.contains(e.target) && !e.target.closest(".btn-playlist-dots")) closePlaylistActionMenu();
     const tMenu = document.getElementById("threeDotsMenu");
-    if (tMenu && tMenu.style.display !== "none" && !tMenu.contains(e.target) && !e.target.closest(".btn-three-dots")) closeThreeDotsMenu();
+    if (tMenu && tMenu.style.display !== "none" && !tMenu.contains(e.target) && !e.target.closest(".btn-three-dots:not(.btn-subject-dots)")) closeThreeDotsMenu();
+    const sMenu = document.getElementById("subjectActionMenu");
+    if (sMenu && sMenu.style.display !== "none" && !sMenu.contains(e.target) && !e.target.closest(".btn-subject-dots")) closeSubjectActionMenu();
   });
 
   const tomHeader = document.querySelector("#tomorrowPlaylistCard .playlist-header");
@@ -3384,23 +3386,140 @@ function getSubjectMasteryStats(subName) {
   return { subSets, totalSets, masteredCount, remaining, progPct, avgAcc, totalAtt };
 }
 
+// 🚀 SUBJECT 3-DOTS ACTION MENU CONTROLLER (PIN / UNPIN)
+window.openSubjectActionMenu = function(event, subName) {
+  if (event) { event.preventDefault(); event.stopPropagation(); }
+  closeAllOverlaysAndPopups();
+  activeSubjectMenuTarget = subName;
+
+  const menu = document.getElementById("subjectActionMenu");
+  const overlay = document.getElementById("subjectActionMenuOverlay");
+  const labelPin = document.getElementById("labelSubjectPin");
+  const iconPin = document.getElementById("iconSubjectPin");
+  if (!menu) return;
+
+  const roll = currentCandidate?.roll_number || "default";
+  const pinnedList = appStorage.getJSON("pinned_subjects_" + roll, []);
+  const isPinned = pinnedList.includes(subName);
+
+  if (labelPin) {
+    labelPin.innerText = isPinned ? "Unpin Subject" : "Pin to Top";
+  }
+  if (iconPin) {
+    iconPin.innerHTML = isPinned
+      ? `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="2" y1="2" x2="22" y2="22"></line><path d="M12 17v5"></path><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17h12"></path><path d="M15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v1"></path></svg>`
+      : `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"></line><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"></path></svg>`;
+  }
+
+  const btnRect = event.currentTarget.getBoundingClientRect();
+  menu.style.display = "block";
+  menu.style.zIndex = "3200";
+  if (overlay) {
+    overlay.style.display = "block";
+    overlay.style.zIndex = "3100";
+    overlay.style.pointerEvents = "auto";
+    overlay.classList.add("open");
+  }
+
+  // मेन्यू को स्क्रीन और कार्ड की सीमा के भीतर लॉक करना
+  const actualWidth = menu.offsetWidth || 140;
+  let leftPos = btnRect.right - actualWidth;
+  if (leftPos + actualWidth > window.innerWidth - 12) {
+    leftPos = window.innerWidth - actualWidth - 12;
+  }
+  if (leftPos < 12) leftPos = 12;
+
+  let topPos = btnRect.bottom + 4;
+  const menuHeight = menu.offsetHeight || 32;
+  if (topPos + menuHeight > window.innerHeight - 10) {
+    topPos = Math.max(10, btnRect.top - menuHeight - 4);
+  }
+  menu.style.top = `${topPos}px`;
+  menu.style.left = `${leftPos}px`;
+};
+
+window.closeSubjectActionMenu = function() {
+  const menu = document.getElementById("subjectActionMenu");
+  const overlay = document.getElementById("subjectActionMenuOverlay");
+  if (menu) menu.style.display = "none";
+  if (overlay) {
+    overlay.style.display = "none";
+    overlay.style.pointerEvents = "none";
+    overlay.classList.remove("open");
+  }
+  activeSubjectMenuTarget = null;
+};
+
+window.togglePinSubjectFromMenu = function() {
+  const subName = activeSubjectMenuTarget;
+  closeSubjectActionMenu();
+  if (!subName) return;
+
+  const roll = currentCandidate?.roll_number || "default";
+  const key = "pinned_subjects_" + roll;
+  let pinned = appStorage.getJSON(key, []);
+  const idx = pinned.indexOf(subName);
+
+  if (idx > -1) {
+    pinned.splice(idx, 1);
+    showSelectionToast(`Unpinned "${subName}"`);
+  } else {
+    pinned.unshift(subName);
+    showSelectionToast(`📌 Pinned "${subName}" to top`);
+  }
+
+  appStorage.setJSON(key, pinned);
+  renderSubjectHubGrid();
+};
+
 function renderSubjectHubGrid() {
   const container = document.getElementById("subjectHubContainer"); 
   if (!container) return; 
   container.innerHTML = "";
   
+  const roll = currentCandidate?.roll_number || "default";
+  const pinnedList = appStorage.getJSON("pinned_subjects_" + roll, []);
+  const pinnedSet = new Set(pinnedList);
+
   const subjects = Array.from(new Set(catalogData.map(r => (r.subject || "General Studies").trim())));
-  subjects.sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })).forEach(subName => {
+  
+  // 🚀 PIN-FIRST DUAL-SORT ENGINE: Pinned subjects on top (alphabetical), then unpinned (alphabetical)
+  subjects.sort((a, b) => {
+    const aPin = pinnedSet.has(a);
+    const bPin = pinnedSet.has(b);
+    if (aPin && !bPin) return -1;
+    if (!aPin && bPin) return 1;
+    return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+  }).forEach(subName => {
     const stats = getSubjectMasteryStats(subName);
+    const isPinned = pinnedSet.has(subName);
     
     let sClass = "pill-untested", sText = "Untested";
     if (stats.masteredCount === stats.totalSets && stats.totalSets > 0) { sClass = "pill-mastered"; sText = "Mastered"; }
     else if (stats.totalAtt > 0) { sClass = "pill-progress"; sText = `${stats.progPct}% Complete`; }
 
+    const pinIndicatorHtml = isPinned
+      ? `<span class="subject-pin-indicator" title="Pinned to top">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="#ef4444" stroke="#b91c1c" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 17v5"/>
+            <path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1z"/>
+          </svg>
+        </span>`
+      : '';
+
     const tile = document.createElement("div"); 
-    tile.className = "subject-mastery-tile";
+    tile.className = `subject-mastery-tile ${isPinned ? 'is-pinned-subject' : ''}`;
     tile.innerHTML = `
-      <div class="tile-top-row"><span class="tile-subject-title">${subName}</span><span class="tile-status-pill ${sClass}">${sText}</span></div>
+      <div class="tile-top-row">
+        <div class="tile-title-group">
+          ${pinIndicatorHtml}
+          <span class="tile-subject-title" title="${subName}">${subName}</span>
+        </div>
+        <div class="tile-top-actions">
+          <span class="tile-status-pill ${sClass}">${sText}</span>
+          <button type="button" class="btn-three-dots btn-subject-dots" onclick="openSubjectActionMenu(event, '${subName.replace(/'/g, "\\'")}')" title="Subject Options">⋮</button>
+        </div>
+      </div>
       <div class="tile-progress-container"><div class="tile-progress-labels"><span>Mastery Progress</span><span>${stats.progPct}%</span></div><div class="tile-progress-track"><div class="tile-progress-fill" style="width: ${stats.progPct}%;"></div></div></div>
       <div class="tile-metrics-grid">
         <div class="tile-metric-item"><span class="tile-metric-label">Mastered</span><span class="tile-metric-value" style="color:var(--success-dark);">${stats.masteredCount} <small style="font-size:10px; color:var(--text-muted);">/${stats.totalSets}</small></span></div>
@@ -3410,8 +3529,9 @@ function renderSubjectHubGrid() {
       <div class="tile-action-footer"><span style="color:var(--text-muted); font-size:11px; font-weight:600;">${stats.totalAtt} Attempts Logged</span><span>Explore Sets ➔</span></div>
     `;
 
-    // 🚀 TACTILE EVENT: टच करते ही पहले कार्ड दबेगा, फिर 90ms बाद नेविगेट होगा
+    // 🚀 TACTILE EVENT (3-dots क्लिक होने पर एक्सप्लोरर नहीं खुलेगा)
     tile.onclick = (e) => {
+      if (e.target.closest('.btn-subject-dots')) return;
       tile.classList.add("tile-touch-active");
       setTimeout(() => {
         tile.classList.remove("tile-touch-active");

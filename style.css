@@ -491,9 +491,72 @@ body.dark-theme .pill-tier-apex {
 .subject-hub-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; margin-bottom: 95px; }
 .subject-mastery-tile { background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 8px; padding: 16px 18px; cursor: pointer; display: flex; flex-direction: column; justify-content: space-between; transition: transform 0.2s ease, box-shadow 0.2s ease; position: relative; overflow: hidden; color: var(--text-main); }
 .subject-mastery-tile:hover { transform: translateY(-2px); border-color: var(--tcs-blue-accent); box-shadow: var(--shadow-md); }
-.tile-top-row { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
-.tile-subject-title { font-size: 15px; font-weight: 800; color: var(--text-main); letter-spacing: -0.2px; }
+.tile-top-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 8px; }
+.tile-title-group { display: flex; align-items: center; gap: 6px; min-width: 0; flex: 1; }
+.tile-subject-title { font-size: 15px; font-weight: 800; color: var(--text-main); letter-spacing: -0.2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tile-top-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 .tile-status-pill { font-size: 10px; font-weight: 800; padding: 2px 7px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.3px; }
+
+/* 📌 ELEGANT SUBJECT PIN INDICATOR & 3-DOTS */
+.subject-pin-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #ef4444;
+  line-height: 1;
+  flex-shrink: 0;
+}
+/* कार्ड के मूल लुक में कोई बदलाव नहीं */
+.subject-mastery-tile.is-pinned-subject {
+  border-top: 1px solid var(--border-color) !important;
+}
+#subjectActionMenu {
+  min-width: 125px !important;
+  width: max-content !important;
+  padding: 3px !important;
+  border-radius: 6px !important;
+  box-sizing: border-box !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18) !important;
+}
+
+#subjectActionMenu .btn-popup-action {
+  padding: 5px 8px !important;
+  font-size: 11.5px !important;
+  font-weight: 700 !important;
+  gap: 6px !important;
+  border-radius: 4px !important;
+  line-height: 1.2 !important;
+  height: 26px !important;
+}
+
+#subjectActionMenu .popup-action-icon {
+  width: 14px !important;
+  height: 14px !important;
+}
+
+#subjectActionMenu .popup-action-icon svg {
+  width: 13px !important;
+  height: 13px !important;
+}
+.btn-subject-dots {
+  background: transparent;
+  border: none;
+  font-size: 16px;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+.btn-subject-dots:hover {
+  background: var(--bg-surface-elevated);
+  color: var(--tcs-blue-accent);
+}
 .pill-mastered { background: var(--success-bg-subtle); color: var(--success-dark); border: 1px solid var(--success-border); }
 .pill-progress { background: var(--tcs-blue-bg-subtle); color: var(--tcs-blue-accent); border: 1px solid var(--tcs-blue-border-subtle); }
 .pill-untested { background: var(--bg-surface-elevated); color: var(--text-muted); border: 1px solid var(--border-color); }
