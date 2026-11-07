@@ -150,7 +150,7 @@ body.portal-body { font-family: var(--font-family); background-color: var(--bg-p
 
 .honest-pill-mastered,
 .honest-pill-overdrive {
-  border-radius: 8px !important; /* Pills ke corners container se match honge */
+  border-radius: 8px !important;
 }
 .multi-tier-track { position: relative; width: 100%; height: 10px; background: var(--bg-surface-hover) !important; border-radius: 6px; overflow: hidden; margin-top: 4px; border: 1px solid var(--border-color); }
 .century-fill { height: 100%; border-radius: 6px; transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
@@ -162,8 +162,8 @@ body.portal-body { font-family: var(--font-family); background-color: var(--bg-p
 .tier-dot-attempted, .tier-dot-error { background: #ef4444; } 
 .tier-dot-mastered { background: #16a34a; }
 .tier-dot-remaining { background: var(--border-hover); opacity: 0.6; }
-/* 🚀 DECOUPLED CENTURY BAROMETER: HYPERDRIVE LASER & SATELLITE TELEMETRY */
 .century-fill-capacity, .tier-legend-staged, .tier-dot-staged, .tier-legend-item:has(.tier-dot-staged) { display: none !important; }
+
 
 /* 🏎️ Physical Laser Beam running across the track (Zebra Stripes + Shimmer Flare) */
 .hyperdrive-physical-beam { 
@@ -506,9 +506,9 @@ body.dark-theme .pill-tier-apex {
   line-height: 1;
   flex-shrink: 0;
 }
-/* कार्ड के मूल लुक में कोई बदलाव नहीं */
+/* कार्ड का सामान्य बॉर्डर और स्मूथ 4-साइड होवर सुरक्षित रहेगा */
 .subject-mastery-tile.is-pinned-subject {
-  border-top: 1px solid var(--border-color) !important;
+  position: relative;
 }
 #subjectActionMenu {
   min-width: 125px !important;
@@ -735,16 +735,84 @@ body.dark-theme .theme-mistake-briefing #briefingStatusBadge { background: rgba(
 /* ==========================================================================
    7. RICH SET TILE CARD & ACTION FOOTER (🚨 ROOT CASCADE PROTECTED)
    ========================================================================== */
-.swipe-item-wrapper { position: relative; border-radius: 8px; width: 100%; display: flex; flex-direction: column; box-sizing: border-box; touch-action: pan-y !important; -webkit-touch-callout: none !important; will-change: transform; }
-.swipe-action-backdrop { position: absolute; inset: 0; background: var(--bg-surface-elevated); display: flex; align-items: center; justify-content: flex-end; padding-right: 20px; color: var(--text-muted); border-radius: 8px; z-index: 1; cursor: pointer; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; transition: background-color 0.18s ease, color 0.18s ease; }
-.swipe-action-backdrop.is-active-threshold { background: linear-gradient(135deg, #b91c1c, #dc2626) !important; color: #ffffff !important; }
-.swipe-action-backdrop.is-active-threshold .swipe-action-label { transform: scale(1.08); }
-.swipe-action-label { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 11px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; transition: transform 0.12s cubic-bezier(0.16, 1, 0.3, 1); will-change: transform; }
-.swipe-action-backdrop:active .swipe-action-label, .swipe-action-backdrop.is-pressed .swipe-action-label { transform: scale(0.88); }
-.set-tile { position: relative; z-index: 2; background: var(--bg-panel); border: 1px solid var(--border-color); padding: 14px 15px; display: flex; flex-direction: column; justify-content: space-between; border-left: 4px solid var(--tcs-blue-accent); border-radius: 8px; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; outline: none; transition: all 0.2s ease; min-width: 0; color: var(--text-main); }
-.swipe-item-wrapper .set-tile { flex: 1; width: 100%; box-sizing: border-box; margin-bottom: 0 !important; touch-action: pan-y !important; will-change: transform; user-select: none; -webkit-user-select: none; }
-
-   .set-tile:hover, .set-tile:active, .set-tile:focus { border-color: var(--tcs-blue-border-subtle) !important; border-left-color: var(--tcs-blue-accent) !important; box-shadow: var(--shadow-md); }
+.swipe-item-wrapper { 
+  position: relative; 
+  border-radius: 8px; 
+  width: 100%; 
+  display: flex; 
+  flex-direction: column; 
+  box-sizing: border-box; 
+  touch-action: pan-y !important; 
+  -webkit-touch-callout: none !important; 
+  will-change: transform; 
+}
+.swipe-item-wrapper.removing {
+  max-height: 0 !important;
+  opacity: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  pointer-events: none !important;
+}
+.swipe-action-backdrop { 
+  position: absolute; 
+  inset: 0; 
+  background: var(--danger-gradient, linear-gradient(135deg, #b91c1c, #dc2626)); 
+  display: flex; 
+  align-items: center; 
+  justify-content: flex-end; 
+  padding-right: 18px; 
+  color: #ffffff; 
+  border-radius: 8px; 
+  z-index: 1; 
+  cursor: pointer; 
+  user-select: none; 
+  -webkit-user-select: none; 
+  -webkit-tap-highlight-color: transparent; 
+}
+.swipe-action-label { 
+  display: inline-flex; 
+  align-items: center; 
+  gap: 6px; 
+  font-family: var(--font-mono); 
+  font-size: 11px; 
+  font-weight: 800; 
+  letter-spacing: 0.5px; 
+  text-transform: uppercase; 
+}
+.set-tile { 
+  position: relative; 
+  z-index: 2; 
+  background: var(--bg-panel); 
+  border: 1px solid var(--border-color); 
+  padding: 14px 15px; 
+  display: flex; 
+  flex-direction: column; 
+  justify-content: space-between; 
+  border-left: 4px solid var(--tcs-blue-accent); 
+  border-radius: 8px; 
+  user-select: none; 
+  -webkit-user-select: none; 
+  -webkit-touch-callout: none; 
+  outline: none; 
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease; 
+  min-width: 0; 
+  color: var(--text-main); 
+}
+.swipe-item-wrapper .set-tile { 
+  flex: 1; 
+  width: 100%; 
+  box-sizing: border-box; 
+  margin-bottom: 0 !important; 
+  touch-action: pan-y !important; 
+  will-change: transform; 
+  user-select: none; 
+  -webkit-user-select: none; 
+}
+.set-tile:hover, .set-tile:active, .set-tile:focus { 
+  border-color: var(--tcs-blue-border-subtle) !important; 
+  border-left-color: var(--tcs-blue-accent) !important; 
+  box-shadow: var(--shadow-md); 
+}
 
 /* Dynamic Bonus Booster Tile */
 .set-tile.dynamic-revision-tile { border-left-width: 5px !important; position: relative; overflow: hidden; }
@@ -1525,7 +1593,6 @@ body.dark-theme .box-fc { color: #c084fc; }
 
 .funnel-stage-pill .stage-sub { font-size: 9.5px !important; font-weight: 700 !important; color: var(--text-muted) !important; font-family: var(--font-mono) !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; line-height: 1.2 !important; }
 
-/* 🎯 FUNNEL VERDICT BOX (REPLACES PLAIN DASHED NOTE) */
 .funnel-verdict-box, .funnel-footer-note { padding: 9px 12px !important; font-size: 11px !important; color: var(--text-main) !important; line-height: 1.45 !important; background: var(--bg-surface-elevated) !important; border-radius: 8px !important; border: 1px solid var(--border-color) !important; border-left: 4px solid var(--tcs-blue-accent) !important; box-sizing: border-box !important; }
 
 @media screen and (max-width: 768px) {
