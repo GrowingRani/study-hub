@@ -197,6 +197,7 @@ let isAuthSessionInitializing = false;
 
 // 🚀 PRE-FLIGHT MISSION BRIEFING & SHUFFLE STATE (DEFAULT: ON)
 let activeBriefingTestId = null;
+let activeMistakeChunkIndex = 0;
 let isShuffleEnabled = true;
 
 // 🚀 IN-MEMORY CACHE FOR BOOSTER POOL (PREVENTS DUPLICATE RPC FETCHES)
@@ -1413,8 +1414,11 @@ window.confirmDeletePlaylist = async function() {
 // 7. PRE-FLIGHT MISSION BRIEFING CONTROLLER (SUNDAY CRUCIBLE & SPEEDBUMP INTEGRATED)
 // ==========================================================================
 
-window.openMissionBriefingModal = async function(testId, bypassSundayCheck = false) {
-  const isSun = typeof isSunday === 'function' ? isSunday() : (new Date().getDay() === 0);
+window.openMissionBriefingModal = async function(testId, bypassSundayCheck = false, chunkIndex = 0) {
+  if (testId === -3) {
+    activeMistakeChunkIndex = typeof chunkIndex === 'number' ? chunkIndex : 0;
+  }
+const isSun = typeof isSunday === 'function' ? isSunday() : (new Date().getDay() === 0);
 
   // 👑 Sunday Soft Friction: अनअटेम्प्टेड रेगुलर सेट्स पर जेंटल स्पीडबम्प (रिवीजन प्राथमिकता के लिए)
   if (isSun && testId > 0 && !bypassSundayCheck) {
@@ -1515,21 +1519,35 @@ window.openMissionBriefingModal = async function(testId, bypassSundayCheck = fal
     document.getElementById("briefingDurationMeta").innerText = `⏱️ ${durationMins}m`;
     document.getElementById("briefingQuestionsMeta").innerText = `📄 ${qCount} Questions`;
   } else if (testId === -3) {
-    // 🎯 DEDICATED SUBJECT MISTAKE BANK PRE-FLIGHT BRIEFING (POWERED BY TELEMETRY)
+    // 🎯 DEDICATED SUBJECT MISTAKE BANK PRE-FLIGHT BRIEFING (25-Q CHUNK SUPPORT)
     const telemetry = getSubjectMistakeTelemetry(activeSubject);
 
     if (telemetry.inReviewCount === 0) {
       return showAppNoticeModal("Notice", "Zero Leaks", `No active mistakes found in ${activeSubject}.`, "🛡️", "Dismiss");
     }
 
+    const isCaughtUp = (telemetry.dueCount === 0);
+    const pool = isCaughtUp ? telemetry.allMistakes : telemetry.dueMistakes;
+    const CHUNK_SIZE = 25;
+    const totalChunks = Math.max(1, Math.ceil(pool.length / CHUNK_SIZE));
+    const safeChunkIdx = Math.min(activeMistakeChunkIndex, totalChunks - 1);
+    const startIdx = safeChunkIdx * CHUNK_SIZE;
+    const chunkQs = pool.slice(startIdx, startIdx + CHUNK_SIZE);
+    const qCount = chunkQs.length;
+    const durationMins = Math.max(3, Math.ceil(qCount * 0.6));
+    const setNum = safeChunkIdx + 1;
+    const chunkTitle = totalChunks > 1 
+      ? `${activeSubject} Mistake Drill - Set ${setNum}` 
+      : `${activeSubject} Error Rehabilitation Node`;
+
     document.getElementById("briefingSubjectBadge").innerText = `${activeSubject.toUpperCase()} MISTAKE VAULT`;
     const statusBadge = document.getElementById("briefingStatusBadge");
     const examCard = modal.querySelector(".briefing-mode-card.mode-exam");
 
-    if (telemetry.dueCount > 0) {
+    if (!isCaughtUp) {
       statusBadge.className = "briefing-status-tag status-progress";
-      statusBadge.innerText = `${telemetry.dueCount} DUE`;
-      document.getElementById("briefingQuestionsMeta").innerText = `📄 ${telemetry.dueCount} Due (${telemetry.inReviewCount} In Pipeline)`;
+      statusBadge.innerText = `${qCount} DUE`;
+      document.getElementById("briefingQuestionsMeta").innerText = `📄 ${qCount} Questions (Set ${setNum} of ${totalChunks})`;
       document.getElementById("briefingScoreMeta").innerText = `4-Stage Spaced Repetition Loop`;
       if (examCard) {
         examCard.style.opacity = "1";
@@ -1542,7 +1560,7 @@ window.openMissionBriefingModal = async function(testId, bypassSundayCheck = fal
       // 🚀 EXAM MODE FREEZE (ONLY WHEN 0 DUE TODAY)
       statusBadge.className = "briefing-status-tag status-mastered";
       statusBadge.innerText = `0 DUE TODAY`;
-      document.getElementById("briefingQuestionsMeta").innerText = `📄 0 Due (${telemetry.inReviewCount} In Pipeline)`;
+      document.getElementById("briefingQuestionsMeta").innerText = `📄 ${qCount} In Review (Set ${setNum} of ${totalChunks})`;
       document.getElementById("briefingScoreMeta").innerText = `Today's quota completed • Practice modes active`;
       if (examCard) {
         examCard.style.opacity = "0.45";
@@ -1553,8 +1571,8 @@ window.openMissionBriefingModal = async function(testId, bypassSundayCheck = fal
       }
     }
 
-    document.getElementById("briefingSetTitle").innerText = `${activeSubject} Error Rehabilitation Node`;
-    document.getElementById("briefingDurationMeta").innerText = `⏱️ ${telemetry.durationMins}m`;
+    document.getElementById("briefingSetTitle").innerText = chunkTitle;
+    document.getElementById("briefingDurationMeta").innerText = `⏱️ ${durationMins}m`;
   } else {
     // 📁 REGULAR CATALOG QUESTION SET
     const setCat = catalogData.find(c => String(c.test_id) === String(testId));
@@ -3622,7 +3640,7 @@ function renderTopicSets() {
   
   updateStagingDockUI();
 
-  // 🎯 CYBER-VAULT ACCORDION (100% WIDTH STRIP + BALANCED 2-COLUMN BENTO ON PC)
+  // 🎯 CYBER-VAULT ACCORDION (TOP LEITNER HUD + 25-Q CHUNK PARTITIONING)
   const mbContainer = document.getElementById("subjectMistakeTileContainer") || document.getElementById("subjectMistakeBankContainer");
   if (mbContainer) {
     if (librarySelectionMode) {
@@ -3633,6 +3651,100 @@ function renderTopicSets() {
       // 🚀 VAULT ALWAYS EXPANDS IF MISTAKES EXIST OR WERE CLEARED
       if (tel.inReviewCount > 0 || tel.clearedCount > 0) {
         const isCaughtUp = (tel.dueCount === 0);
+        const pool = isCaughtUp ? tel.allMistakes : tel.dueMistakes;
+        const CHUNK_SIZE = 25;
+        const totalChunks = Math.max(1, Math.ceil(pool.length / CHUNK_SIZE));
+
+        // 🚀 25-Q Chunk Tiles Generation
+        let chunkTilesHtml = "";
+        if (pool.length === 0) {
+          chunkTilesHtml = `
+            <div class="set-tile vault-set-tile" data-status="mastered" style="border-left-color: var(--success) !important; background: linear-gradient(135deg, rgba(34, 197, 94, 0.08) 0%, var(--bg-surface-elevated) 100%) !important;">
+              <div class="set-tile-header">
+                <div class="set-tile-title-group">
+                  <div class="set-tile-title">Comprehensive Mistake Drill</div>
+                </div>
+                <div class="set-status-badge status-mastered" style="background:var(--success-bg-subtle); color:var(--success-dark); border:1px solid var(--success-border);">0 Due • Clear</div>
+              </div>
+              <div class="set-tile-meta">
+                <span>${clockSvg} 0m</span>
+                <span>${docSvg} 0 Qs</span>
+                <span style="font-size:10px; color:var(--success-dark); font-weight:700;">(All Cleared)</span>
+              </div>
+              <div class="set-score-info"><span style="color:var(--success-dark); font-weight:600;">✓ Zero doubts pending for this subject!</span></div>
+              <div class="set-action-footer">
+                <button type="button" class="btn-launch-set" disabled style="opacity:0.6; cursor:default;"><span>🛡️</span> <span>All Caught Up</span></button>
+              </div>
+            </div>
+          `;
+        } else {
+          for (let i = 0; i < totalChunks; i++) {
+            const startIdx = i * CHUNK_SIZE;
+            const chunkQs = pool.slice(startIdx, startIdx + CHUNK_SIZE);
+            const chunkQCount = chunkQs.length;
+            const chunkDuration = Math.max(3, Math.ceil(chunkQCount * 0.6));
+            const setNum = i + 1;
+            const setLabel = totalChunks > 1 ? `Mistake Drill - Set ${setNum}` : `Comprehensive Mistake Drill`;
+            const rangeStr = totalChunks > 1 ? `(Q.${startIdx + 1}–${startIdx + chunkQCount})` : `(4-Stage Loop)`;
+
+            if (isCaughtUp) {
+              chunkTilesHtml += `
+                <div class="set-tile vault-set-tile" data-status="mastered" style="border-left-color: var(--success) !important; background: linear-gradient(135deg, rgba(34, 197, 94, 0.08) 0%, var(--bg-surface-elevated) 100%) !important;">
+                  <div class="set-tile-header">
+                    <div class="set-tile-title-group">
+                      <div class="set-tile-title">${setLabel}</div>
+                    </div>
+                    <div class="set-status-badge status-mastered" style="background:var(--success-bg-subtle); color:var(--success-dark); border:1px solid var(--success-border);">
+                      0 Due • Review
+                    </div>
+                  </div>
+                  <div class="set-tile-meta">
+                    <span>${clockSvg} ${chunkDuration}m</span>
+                    <span>${docSvg} ${chunkQCount} Qs</span>
+                    <span style="font-size:10px; color:var(--success-dark); font-weight:700;">${rangeStr}</span>
+                  </div>
+                  <div class="set-score-info">
+                    <span style="color:var(--success-dark); font-weight:600;">✓ Quota complete! (${chunkQCount} in pipeline)</span>
+                  </div>
+                  <div class="set-action-footer">
+                    <button type="button" class="btn-launch-set" style="background: linear-gradient(135deg, #15803d, #16a34a) !important; box-shadow: 0 2px 8px var(--success-bg-subtle);" onclick="openMissionBriefingModal(-3, false, ${i})">
+                      <span>📖</span> <span>Review & Practice</span>
+                    </button>
+                  </div>
+                </div>
+              `;
+            } else {
+              const chunkFresh = chunkQs.filter(q => (q.mastery_streak || 0) === 0).length;
+              const chunkLoop = chunkQCount - chunkFresh;
+
+              chunkTilesHtml += `
+                <div class="set-tile vault-set-tile" data-status="unattempted">
+                  <div class="set-tile-header">
+                    <div class="set-tile-title-group">
+                      <div class="set-tile-title">${setLabel}</div>
+                    </div>
+                    <div class="set-status-badge status-progress" style="background:var(--danger-bg-subtle); color:var(--danger-dark); border:1px solid var(--danger-border);">
+                      ${chunkQCount} Due
+                    </div>
+                  </div>
+                  <div class="set-tile-meta">
+                    <span>${clockSvg} ${chunkDuration}m</span>
+                    <span>${docSvg} ${chunkQCount} Qs</span>
+                    <span style="font-size:10px; color:var(--danger-dark); font-weight:700;">${rangeStr}</span>
+                  </div>
+                  <div class="set-score-info">
+                    <span style="color:var(--danger-dark); font-weight:600;">⚠️ ${chunkFresh} Fresh • ${chunkLoop} In Review</span>
+                  </div>
+                  <div class="set-action-footer">
+                    <button type="button" class="btn-launch-set" onclick="openMissionBriefingModal(-3, false, ${i})">
+                      <span>▶</span> <span>Launch Session</span>
+                    </button>
+                  </div>
+                </div>
+              `;
+            }
+          }
+        }
 
         mbContainer.innerHTML = `
           <div class="mistake-vault-card ${isCaughtUp ? 'state-clean' : ''}" id="subjectMistakeVault" data-status="${isCaughtUp ? 'mastered' : 'unattempted'}">
@@ -3652,7 +3764,7 @@ function renderTopicSets() {
               <div class="vault-header-right">
                 <div class="vault-telemetry-pill" style="${isCaughtUp ? 'border-color: var(--success-border); color: var(--success-dark);' : ''}">
                   <span class="vault-radar-dot" style="${isCaughtUp ? 'background: var(--success); box-shadow: 0 0 8px var(--success);' : ''}"></span>
-                  <span>${tel.dueCount > 0 ? `${tel.dueCount} DUE` : `0 DUE (${tel.inReviewCount} In Review)`}</span>
+                  <span>${tel.dueCount > 0 ? `${tel.dueCount} DUE (${totalChunks} ${totalChunks > 1 ? 'Sets' : 'Set'})` : `0 DUE (${tel.inReviewCount} In Review)`}</span>
                 </div>
                 <div class="vault-chevron-bubble">
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
@@ -3664,57 +3776,8 @@ function renderTopicSets() {
 
             <div class="vault-body">
               <div class="vault-natural-grid">
-                
-                ${isCaughtUp ? `
-                <div class="set-tile vault-set-tile" data-status="mastered" style="border-left-color: var(--success) !important; background: linear-gradient(135deg, rgba(34, 197, 94, 0.08) 0%, var(--bg-surface-elevated) 100%) !important;">
-                  <div class="set-tile-header">
-                    <div class="set-tile-title-group">
-                      <div class="set-tile-title">Comprehensive Mistake Drill</div>
-                    </div>
-                    <div class="set-status-badge status-mastered" style="background:var(--success-bg-subtle); color:var(--success-dark); border:1px solid var(--success-border);">
-                      0 Due • Done
-                    </div>
-                  </div>
-                  <div class="set-tile-meta">
-                    <span>${clockSvg} Done Today</span>
-                    <span>${docSvg} ${tel.inReviewCount} In Pipeline</span>
-                    <span style="font-size:10px; color:var(--success-dark); font-weight:700;">(4-Stage Loop)</span>
-                  </div>
-                  <div class="set-score-info">
-                    <span style="color:var(--success-dark); font-weight:600;">✓ Today's quota attempted! (${tel.inReviewCount} in review)</span>
-                  </div>
-                  <div class="set-action-footer">
-                    <button type="button" class="btn-launch-set" style="background: linear-gradient(135deg, #15803d, #16a34a) !important; box-shadow: 0 2px 8px var(--success-bg-subtle);" onclick="openMissionBriefingModal(-3)">
-                      <span>📖</span> <span>Review & Practice</span>
-                    </button>
-                  </div>
-                </div>
-                ` : `
-                <div class="set-tile vault-set-tile" data-status="unattempted">
-                  <div class="set-tile-header">
-                    <div class="set-tile-title-group">
-                      <div class="set-tile-title">Comprehensive Mistake Drill</div>
-                    </div>
-                    <div class="set-status-badge status-progress" style="background:var(--danger-bg-subtle); color:var(--danger-dark); border:1px solid var(--danger-border);">
-                      ${tel.dueCount} Due
-                    </div>
-                  </div>
-                  <div class="set-tile-meta">
-                    <span>${clockSvg} ${tel.durationMins}m</span>
-                    <span>${docSvg} ${tel.dueCount} Qs</span>
-                    <span style="font-size:10px; color:var(--danger-dark); font-weight:700;">(4-Stage Loop)</span>
-                  </div>
-                  <div class="set-score-info">
-                    <span style="color:var(--danger-dark); font-weight:600;">⚠️ ${tel.freshCount} Fresh • ${tel.loopCount} In Review</span>
-                  </div>
-                  <div class="set-action-footer">
-                    <button type="button" class="btn-launch-set" onclick="openMissionBriefingModal(-3)">
-                      <span>▶</span> <span>Launch Session</span>
-                    </button>
-                  </div>
-                </div>
-                `}
 
+                <!-- 🔝 1. Retention Loops Leitner HUD Tile (Grid Card #1) -->
                 <div class="vault-status-hud">
                   <div class="hud-header">
                     <span class="hud-title">Retention Loops</span>
@@ -3738,6 +3801,9 @@ function renderTopicSets() {
                     🛡️ Clear 4 consecutive spaced intervals to permanently master weak questions into long-term recall.
                   </div>
                 </div>
+
+                <!-- 📦 2. 25-Question Chunk Sets (Grid Cards #2, #3, ...) -->
+                ${chunkTilesHtml}
 
               </div>
             </div>
@@ -3947,7 +4013,16 @@ window.launchSubjectMistakeMode = function(mode = 'quiz') {
   }
 
   // 🚀 Exam drills only due questions. Practice/Quiz/Read/Flashcards allow drilling all pipeline questions anytime!
-  const targetList = (mode === 'exam') ? telemetry.dueMistakes : telemetry.allMistakes;
+  const isCaughtUp = (telemetry.dueCount === 0);
+  const fullList = (mode === 'exam' || !isCaughtUp) ? telemetry.dueMistakes : telemetry.allMistakes;
+
+  // 🚀 25-Question Chunk Partitioning
+  const CHUNK_SIZE = 25;
+  const totalChunks = Math.max(1, Math.ceil(fullList.length / CHUNK_SIZE));
+  const safeChunkIdx = Math.min(activeMistakeChunkIndex, totalChunks - 1);
+  const targetList = fullList.slice(safeChunkIdx * CHUNK_SIZE, (safeChunkIdx + 1) * CHUNK_SIZE);
+  const setNum = safeChunkIdx + 1;
+  const setSuffix = totalChunks > 1 ? ` - Set ${setNum}` : "";
 
   let qList = targetList.map((item, i) => {
     const qData = item.question_data || {};
@@ -3973,7 +4048,7 @@ window.launchSubjectMistakeMode = function(mode = 'quiz') {
   if (mode === 'exam') {
     mountExamSession({
       id: -3,
-      title: `${activeSubject} Mistake Exam`,
+      title: `${activeSubject} Mistake Exam${setSuffix}`,
       subject: activeSubject,
       total_duration_minutes: Math.max(3, Math.ceil(qCount * 0.6))
     }, qList, 'Weak Area Clearance');
@@ -3983,14 +4058,14 @@ window.launchSubjectMistakeMode = function(mode = 'quiz') {
 
     const tEl = document.getElementById("practiceSetTitle");
     const subEl = document.getElementById("practiceMetaSub");
-    const mbTitle = `${activeSubject} Mistake Bank`;
+    const mbTitle = `${activeSubject} Mistake Bank${setSuffix}`;
 
     if (tEl) {
       tEl.innerText = mbTitle;
       tEl.title = mbTitle;
     }
     if (subEl) {
-      subEl.innerText = `${activeSubject} • ${qCount} Questions`;
+      subEl.innerText = `${activeSubject} • ${qCount} Questions (Set ${setNum} of ${totalChunks})`;
     }
 
     switchView("viewPractice", true);

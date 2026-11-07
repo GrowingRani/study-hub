@@ -676,20 +676,35 @@ body.dark-theme .vault-radar-dot { background: #f43f5e; box-shadow: 0 0 10px #f4
 body.dark-theme .vault-chevron-bubble { background: var(--bg-panel); border-color: var(--border-color); }
 body.dark-theme .mistake-vault-card.open .vault-chevron-bubble { color: #fda4af; }
 
-/* 2. EXPANDED INTERIOR (SMOOTH 0fr -> 1fr TRANSITION & 270px LOCKED TILES) */
+/* 2. EXPANDED INTERIOR (SMOOTH 0fr -> 1fr TRANSITION & UNIFIED NATURAL GRID) */
 .vault-body { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.32s cubic-bezier(0.16, 1, 0.3, 1), padding 0.32s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease, border-color 0.25s ease; padding: 0 16px; opacity: 0; overflow: hidden; background: var(--bg-panel); border-top: 1px solid transparent; }
 .mistake-vault-card.open .vault-body { grid-template-rows: 1fr; padding: 14px 16px; opacity: 1; border-top-color: var(--border-color); }
 .mistake-vault-card:not(.open) .vault-body { grid-template-rows: 0fr !important; padding-top: 0 !important; padding-bottom: 0 !important; opacity: 0 !important; border-top-color: transparent !important; }
 .vault-body > .vault-natural-grid { min-height: 0; overflow: hidden; }
-.vault-natural-grid { display: flex; flex-wrap: wrap; gap: 12px; align-items: stretch; }
-.vault-natural-grid .set-tile.vault-set-tile, .vault-natural-grid .vault-status-hud { width: 100%; max-width: 310px; box-sizing: border-box; }
+
+/* 📦 UNIFIED 4-COLUMN GRID (EXACT SAME SIZE AS TOPIC SETS) */
+.vault-natural-grid { 
+  display: grid !important; 
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important; 
+  gap: 14px !important; 
+  width: 100% !important; 
+  box-sizing: border-box !important; 
+}
+.vault-natural-grid .set-tile.vault-set-tile, 
+.vault-natural-grid .vault-status-hud { 
+  width: 100% !important; 
+  max-width: none !important; 
+  min-width: 0 !important;
+  box-sizing: border-box !important; 
+}
 /* Action Set Tile */
 .set-tile.vault-set-tile { border-left-width: 4.5px !important; border-left-color: var(--danger-dark) !important; background: var(--bg-surface-elevated) !important; display: flex; flex-direction: column; justify-content: space-between; }
 .set-tile.vault-set-tile:hover { border-color: var(--danger-border) !important; border-left-color: var(--danger-dark) !important; }
 .vault-set-tile .btn-launch-set { background: var(--danger-gradient) !important; box-shadow: 0 2px 8px var(--danger-bg-subtle); }
 
-/* Compact Retention HUD Card */
+/* Compact Retention HUD Card (Grid Item #1) */
 .vault-status-hud { background: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-left: 4.5px solid var(--warning-dark); border-radius: 8px; padding: 12px 14px; display: flex; flex-direction: column; justify-content: space-between; gap: 8px; }
+
 .hud-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed var(--border-color); padding-bottom: 6px; }
 .hud-title { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; color: var(--danger-dark); font-family: var(--font-mono); }
 .hud-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
@@ -720,7 +735,15 @@ body.dark-theme .theme-mistake-briefing #briefingStatusBadge { background: rgba(
   .vault-header { padding: 8px 12px !important; min-height: 44px !important; gap: 8px !important; }
   .vault-title-text { font-size: 13px !important; max-width: none !important; white-space: nowrap !important; }
   .vault-telemetry-pill { font-size: 10px !important; padding: 2.5px 7px !important; }
-  .vault-natural-grid .set-tile.vault-set-tile, .vault-natural-grid .vault-status-hud { max-width: 100% !important; }
+  .vault-natural-grid {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+  .vault-natural-grid .set-tile.vault-set-tile, 
+  .vault-natural-grid .vault-status-hud { 
+    width: 100% !important;
+    max-width: 100% !important; 
+  }
   .topic-accordion-card.open .topic-accordion-body { padding: 12px 10px !important; }
 }
 
