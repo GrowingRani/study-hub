@@ -702,8 +702,8 @@ body.dark-theme .mistake-vault-card.open .vault-chevron-bubble { color: #fda4af;
 .set-tile.vault-set-tile:hover { border-color: var(--danger-border) !important; border-left-color: var(--danger-dark) !important; }
 .vault-set-tile .btn-launch-set { background: var(--danger-gradient) !important; box-shadow: 0 2px 8px var(--danger-bg-subtle); }
 
-/* Compact Retention HUD Card (Grid Item #1) */
-.vault-status-hud { background: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-left: 4.5px solid var(--warning-dark); border-radius: 8px; padding: 12px 14px; display: flex; flex-direction: column; justify-content: space-between; gap: 8px; }
+/* Compact Retention HUD Card (Grid Item #1 - Height Balanced) */
+.vault-status-hud { background: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-left: 4.5px solid var(--warning-dark); border-radius: 8px; padding: 12px 14px; display: flex; flex-direction: column; justify-content: space-between; gap: 8px; min-height: 130px; box-sizing: border-box; }
 
 .hud-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed var(--border-color); padding-bottom: 6px; }
 .hud-title { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; color: var(--danger-dark); font-family: var(--font-mono); }
@@ -716,7 +716,12 @@ body.dark-theme .mistake-vault-card.open .vault-chevron-bubble { color: #fda4af;
 .hud-val { font-size: 13.5px; font-weight: 800; font-family: var(--font-mono); color: var(--text-main); margin-top: 1px; }
 .hud-note { font-size: 10.5px; color: var(--text-muted); line-height: 1.35; }
 
-.mistake-vault-card.state-clean { border-left-color: var(--success) !important; }
+/* 🛡️ STATE-CLEAN COMPLETE THEME (0 DUE / ALL CAUGHT UP) */
+.mistake-vault-card.state-clean { border-color: rgba(22, 163, 74, 0.3) !important; border-left: 4px solid var(--success) !important; background: radial-gradient(ellipse 380px 100% at 0% 50%, rgba(34, 197, 94, 0.10), rgba(34, 197, 94, 0.02) 65%, transparent 85%), linear-gradient(180deg, #f0fdf4 0%, #ffffff 100%) !important; box-shadow: 0 3px 12px rgba(22, 163, 74, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.9) !important; }
+body.dark-theme .mistake-vault-card.state-clean { border-color: rgba(34, 197, 94, 0.32) !important; border-left-color: var(--success) !important; background: radial-gradient(ellipse 360px 100% at 0% 50%, rgba(34, 197, 94, 0.12), transparent 80%), linear-gradient(180deg, rgba(20, 36, 28, 0.85) 0%, rgba(15, 23, 42, 0.95) 100%) !important; box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.07) !important; }
+.mistake-vault-card.state-clean:hover { border-color: rgba(22, 163, 74, 0.45) !important; box-shadow: 0 6px 20px rgba(22, 163, 74, 0.12), inset 0 1px 0 #ffffff !important; }
+body.dark-theme .mistake-vault-card.state-clean:hover { border-color: rgba(74, 222, 128, 0.45) !important; box-shadow: 0 8px 28px rgba(22, 163, 74, 0.18) !important; }
+.mistake-vault-card.state-clean.open .vault-chevron-bubble { background: var(--success-bg-subtle) !important; color: var(--success-dark) !important; border-color: var(--success-border) !important; }
 
 /* 3. REFINED ELEGANT SEAMLESS MISTAKE BRIEFING STYLING (ZERO DRAG-BAR GAP) */
 .mission-briefing-sheet.theme-mistake-briefing { background-image: linear-gradient(180deg, rgba(225, 29, 72, 0.05) 0%, rgba(225, 29, 72, 0.015) 120px, transparent 180px) !important; }
