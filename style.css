@@ -763,84 +763,15 @@ body.dark-theme .theme-mistake-briefing #briefingStatusBadge { background: rgba(
 /* ==========================================================================
    7. RICH SET TILE CARD & ACTION FOOTER (🚨 ROOT CASCADE PROTECTED)
    ========================================================================== */
-.swipe-item-wrapper { 
-  position: relative; 
-  border-radius: 8px; 
-  width: 100%; 
-  display: flex; 
-  flex-direction: column; 
-  box-sizing: border-box; 
-  touch-action: pan-y !important; 
-  -webkit-touch-callout: none !important; 
-  will-change: transform; 
-}
-.swipe-item-wrapper.removing {
-  max-height: 0 !important;
-  opacity: 0 !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  pointer-events: none !important;
-}
-.swipe-action-backdrop { 
-  position: absolute; 
-  inset: 0; 
-  background: var(--danger-gradient, linear-gradient(135deg, #b91c1c, #dc2626)); 
-  display: flex; 
-  align-items: center; 
-  justify-content: flex-end; 
-  padding-right: 18px; 
-  color: #ffffff; 
-  border-radius: 8px; 
-  z-index: 1; 
-  cursor: pointer; 
-  user-select: none; 
-  -webkit-user-select: none; 
-  -webkit-tap-highlight-color: transparent; 
-}
-.swipe-action-label { 
-  display: inline-flex; 
-  align-items: center; 
-  gap: 6px; 
-  font-family: var(--font-mono); 
-  font-size: 11px; 
-  font-weight: 800; 
-  letter-spacing: 0.5px; 
-  text-transform: uppercase; 
-}
-.set-tile { 
-  position: relative; 
-  z-index: 2; 
-  background: var(--bg-panel); 
-  border: 1px solid var(--border-color); 
-  padding: 14px 15px; 
-  display: flex; 
-  flex-direction: column; 
-  justify-content: space-between; 
-  border-left: 4px solid var(--tcs-blue-accent); 
-  border-radius: 8px; 
-  user-select: none; 
-  -webkit-user-select: none; 
-  -webkit-touch-callout: none; 
-  outline: none; 
-  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease; 
-  min-width: 0; 
-  color: var(--text-main); 
-}
-.swipe-item-wrapper .set-tile { 
-  flex: 1; 
-  width: 100%; 
-  box-sizing: border-box; 
-  margin-bottom: 0 !important; 
-  touch-action: pan-y !important; 
-  will-change: transform; 
-  user-select: none; 
-  -webkit-user-select: none; 
-}
-.set-tile:hover, .set-tile:active, .set-tile:focus { 
-  border-color: var(--tcs-blue-border-subtle) !important; 
-  border-left-color: var(--tcs-blue-accent) !important; 
-  box-shadow: var(--shadow-md); 
-}
+.swipe-item-wrapper { position: relative; border-radius: 8px; width: 100%; display: flex; flex-direction: column; box-sizing: border-box; touch-action: pan-y !important; -webkit-touch-callout: none !important; will-change: transform; }
+.swipe-item-wrapper.removing { max-height: 0 !important; opacity: 0 !important; margin: 0 !important; padding: 0 !important; pointer-events: none !important; }
+.swipe-action-backdrop { position: absolute; inset: 0; background: var(--bg-surface-elevated); display: flex; align-items: center; justify-content: flex-end; padding-right: 18px; color: var(--text-muted); border-radius: 8px; z-index: 1; cursor: pointer; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; transition: background 0.18s ease, color 0.18s ease; }
+.swipe-action-backdrop.is-active-threshold { background: var(--danger-gradient, linear-gradient(135deg, #b91c1c, #dc2626)) !important; color: #ffffff !important; }
+.swipe-action-backdrop.is-active-threshold .swipe-action-label { transform: scale(1.08); }
+.swipe-action-label { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 11px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; transition: transform 0.12s cubic-bezier(0.16, 1, 0.3, 1); will-change: transform; }
+.set-tile { position: relative; z-index: 2; background: var(--bg-panel); border: 1px solid var(--border-color); padding: 14px 15px; display: flex; flex-direction: column; justify-content: space-between; border-left: 4px solid var(--tcs-blue-accent); border-radius: 8px; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; outline: none; transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease; min-width: 0; color: var(--text-main); }
+.swipe-item-wrapper .set-tile { flex: 1; width: 100%; box-sizing: border-box; margin-bottom: 0 !important; touch-action: pan-y !important; will-change: transform; user-select: none; -webkit-user-select: none; }
+.set-tile:hover, .set-tile:active, .set-tile:focus { border-color: var(--tcs-blue-border-subtle) !important; border-left-color: var(--tcs-blue-accent) !important; box-shadow: var(--shadow-md); }
 
 /* Dynamic Bonus Booster Tile */
 .set-tile.dynamic-revision-tile { border-left-width: 5px !important; position: relative; overflow: hidden; }
