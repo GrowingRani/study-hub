@@ -1427,7 +1427,7 @@ const isSun = typeof isSunday === 'function' ? isSunday() : (new Date().getDay()
       return showAppNoticeModal(
         "Revision Day Alert",
         "Sunday Revision Protocol",
-        "Today is dedicated to Sunday Crucible Revision! Are you sure you want to tackle new territory before clearing your weekly backlog?",
+        "Today is dedicated to Sunday Crucible Revision! Are you sure you want to tackle new territory before completing your weekly review?",
         "👑",
         "Back to Crucible",
         () => switchView("viewDashboard"),
@@ -1457,7 +1457,7 @@ const isSun = typeof isSunday === 'function' ? isSunday() : (new Date().getDay()
     const todayStr = getLocalDateString();
     const isBoosterAttempted = userAttemptHistory.some(a => Number(a.test_id) === -1 && getAttemptLocalDate(a.attempt_date) === todayStr);
     const poolLimit = isSun ? 100 : 25;
-    const boosterQuestions = await compileMasteryBoosterPool(poolLimit, false, isBoosterAttempted);
+    const boosterQuestions = await compileMasteryBoosterPool(poolLimit, true, isSun || isBoosterAttempted);
     const qCount = boosterQuestions.length;
 
     if (qCount === 0) {
@@ -1515,7 +1515,7 @@ const isSun = typeof isSunday === 'function' ? isSunday() : (new Date().getDay()
       }
     }
     
-    document.getElementById("briefingSetTitle").innerText = isSun ? "Weekly Backlog & Mastery Crucible" : "Mistakes & Active Retention Booster";
+    document.getElementById("briefingSetTitle").innerText = isSun ? "Weekly Mastery & Retention Crucible" : "Mistakes & Active Retention Booster";
     document.getElementById("briefingDurationMeta").innerText = `⏱️ ${durationMins}m`;
     document.getElementById("briefingQuestionsMeta").innerText = `📄 ${qCount} Questions`;
   } else if (testId === -3) {
@@ -2120,7 +2120,10 @@ async function fetchPlaylistsAndCheckRollover() {
 
 // 🚀 REVISION & MISTAKE POOL COMPILER (CLOSED-LOOP SPACED RECALL PRIORITY QUEUE)
 async function compileMasteryBoosterPool(maxLimit = 25, forceRefresh = false, allowAllWeak = false) {
-  if (!forceRefresh && cachedBoosterPool && (Date.now() - lastBoosterFetchTime < 15000)) {
+  const isSun = typeof isSunday === 'function' ? isSunday() : (new Date().getDay() === 0);
+  const shouldAllowAll = allowAllWeak || isSun; // संडे को सभी एक्टिव गलतियाँ शामिल होंगी
+
+  if (!forceRefresh && cachedBoosterPool && cachedBoosterPool.length >= maxLimit && (Date.now() - lastBoosterFetchTime < 15000)) {
     return cachedBoosterPool;
   }
 
@@ -2128,12 +2131,13 @@ async function compileMasteryBoosterPool(maxLimit = 25, forceRefresh = false, al
   const seenIds = new Set();
   const now = new Date();
 
-  // 1. केवल वही गलतियाँ जो आज के लिए ड्यू (Due) हैं
+  // 1. संडे को सभी अन-मास्टर्ड गलतियाँ, बाकी दिन सिर्फ आज के लिए ड्यू गलतियाँ
   const mistakePool = userWeakQuestions.filter(q => 
     q.times_wrong > 0 && 
     (q.mastery_streak || 0) < 4 && 
-    (allowAllWeak || !q.next_review_at || new Date(q.next_review_at) <= now)
+    (shouldAllowAll || !q.next_review_at || new Date(q.next_review_at) <= now)
   );
+
 
   // 🎯 INTELLIGENT SRS PRIORITY SORTING:
   // Priority 1: ताज़ा गलतियाँ (Streak 0) सबसे पहले (Newest Errors First)
@@ -2236,7 +2240,7 @@ window.launchBoosterMode = async function(mode = 'exam') {
     );
   }
 
-  let boosterQuestions = await compileMasteryBoosterPool(isSun ? 100 : 25, true, isBoosterAttempted);
+  let boosterQuestions = await compileMasteryBoosterPool(isSun ? 100 : 25, true, isSun || isBoosterAttempted);
   if (!boosterQuestions.length) {
     return showAppNoticeModal("Notice", "No Pending Reviews", "You have no pending mistakes or review questions right now.", "⚪", "Dismiss");
   }
@@ -2258,7 +2262,7 @@ window.launchBoosterMode = async function(mode = 'exam') {
       title: isSun ? "Sunday Crucible Exam" : "Bonus Mastery Booster",
       subject: isSun ? "Sunday Crucible" : "Bonus Booster",
       total_duration_minutes: boosterDuration
-    }, boosterQuestions, isSun ? 'Weekly Backlog Clearance' : 'Active Review');
+    }, boosterQuestions, isSun ? 'Comprehensive Weekly Review' : 'Active Review');
   } else {
     // 🚀 Record active context for one-way exam switcher routing
     currentPracticeContext = { type: 'booster' };
@@ -2273,7 +2277,7 @@ window.launchBoosterMode = async function(mode = 'exam') {
       tEl.title = boosterTitle;
     }
     if (subEl) {
-      subEl.innerText = `${isSun ? 'Weekly Backlog' : 'Mistakes & Recall'} • ${qCount} Questions`;
+      subEl.innerText = `${isSun ? 'Weekly Review' : 'Mistakes & Recall'} • ${qCount} Questions`;
     }
 
     switchView("viewPractice", true);
@@ -2616,7 +2620,7 @@ async function renderHomePlaylists() {
           <div class="set-tile-meta">
             <span>${clockSvg} ${durationMins}m</span>
             <span>${docSvg} ${qCount} Qs</span>
-            <span style="font-size:10px; color:var(--warning); font-weight:700;">(${isSun ? 'Weekly Backlog Clearance' : 'Bonus • Excluded from 100-Q Target'})</span>
+            <span style="font-size:10px; color:var(--warning); font-weight:700;">(${isSun ? 'Comprehensive Weekly Review' : 'Bonus • Excluded from 100-Q Target'})</span>
           </div>
           <div class="set-score-info" style="display: block !important; overflow: visible !important; white-space: normal !important; line-height: 1.55 !important; padding-top: 4px !important; margin-bottom: 12px !important;">
             <span style="color:var(--warning-dark); font-weight:700; display: inline-block;">⚡ ${poolDetail}</span>
@@ -4345,7 +4349,7 @@ function renderScorecard() {
             showAppNoticeModal(
               "Sunday Crucible",
               "Crucible Milestone Met! 👑",
-              `Weekly Backlog cleared (${actuallyAttemptedThisExam}/${testQuestions.length} Qs attempted • Min target was ${requiredSundayAttempts}). Streak +1 secured!`,
+              `Sunday Crucible completed (${actuallyAttemptedThisExam}/${testQuestions.length} Qs attempted • Min target was ${requiredSundayAttempts}). Streak +1 secured!`,
               "🎉",
               "View Dashboard"
             );
