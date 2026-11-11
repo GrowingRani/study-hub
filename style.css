@@ -142,16 +142,6 @@ body.portal-body { font-family: var(--font-family); background-color: var(--bg-p
   border: 1px solid var(--border-color);
 }
 
-.honest-satellite-cluster {
-  display: inline-flex !important;
-  align-items: center !important;
-  gap: 6px !important;
-}
-
-.honest-pill-mastered,
-.honest-pill-overdrive {
-  border-radius: 8px !important;
-}
 .multi-tier-track { position: relative; width: 100%; height: 10px; background: var(--bg-surface-hover) !important; border-radius: 6px; overflow: hidden; margin-top: 4px; border: 1px solid var(--border-color); }
 .century-fill { height: 100%; border-radius: 6px; transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
 .century-fill-attempted { position: absolute; left: 0; top: 0; height: 100%; background: linear-gradient(90deg, #dc2626, #ef4444); z-index: 2; }
@@ -1527,48 +1517,6 @@ body.dark-theme .box-fc { color: #c084fc; }
 .custom-heatmap-tooltip { position: fixed; background: var(--bg-glass); backdrop-filter: blur(10px); color: var(--text-main); padding: 8px 12px; border-radius: 8px; font-size: 11px; font-family: var(--font-family); pointer-events: none; z-index: 99999; opacity: 0; transform: translate(-50%, 8px); transition: opacity 0.15s ease, transform 0.15s ease; border: 1px solid var(--tcs-blue-border-subtle); box-shadow: var(--shadow-lg); text-align: center; min-width: 130px; max-width: 220px; white-space: nowrap; }
 .custom-heatmap-tooltip.show { opacity: 1; transform: translate(-50%, -8px); }
 
-/* ==========================================================================
-   🚀 RESPONSIVE MISTAKE REHABILITATION FUNNEL ENGINE
-   ========================================================================== */
-.funnel-card-header { display: flex !important; justify-content: space-between !important; align-items: flex-start !important; gap: 10px !important; margin-bottom: 8px !important; }
-.funnel-title-group { display: flex !important; flex-direction: column !important; min-width: 0 !important; flex: 1 !important; }
-.funnel-title { font-size: 15px !important; font-weight: 800 !important; color: var(--tcs-blue-header) !important; margin: 0 0 4px 0 !important; line-height: 1.25 !important; }
-.funnel-subtitle { font-size: 11.5px !important; color: var(--text-muted) !important; margin: 0 !important; line-height: 1.4 !important; }
-.funnel-rate-pill { font-size: 10.5px !important; font-weight: 800 !important; font-family: var(--font-mono) !important; background: var(--tcs-blue-bg-subtle) !important; color: var(--tcs-blue-accent) !important; border: 1.5px solid var(--tcs-blue-border-subtle) !important; padding: 3px 9px !important; border-radius: 6px !important; white-space: nowrap !important; flex-shrink: 0 !important; letter-spacing: 0.3px !important; }
-
-.funnel-track-wrapper { margin: 10px 0 14px 0 !important; }
-.funnel-progress-track { position: relative !important; width: 100% !important; height: 7px !important; background: var(--bg-surface-hover) !important; border-radius: 6px !important; overflow: hidden !important; border: 1px solid var(--border-color) !important; }
-.funnel-fill-active { position: absolute !important; left: 0 !important; top: 0 !important; height: 100% !important; background: linear-gradient(90deg, #f59e0b, #fbbf24) !important; border-radius: 6px !important; transition: width 0.4s ease !important; z-index: 1 !important; }
-.funnel-fill-mastered { position: absolute !important; left: 0 !important; top: 0 !important; height: 100% !important; background: linear-gradient(90deg, #16a34a, #22c55e) !important; border-radius: 6px !important; transition: width 0.4s ease !important; z-index: 2 !important; }
-
-.funnel-stage-grid { display: grid !important; grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 8px !important; margin-bottom: 12px !important; width: 100% !important; box-sizing: border-box !important; }
-.funnel-stage-pill { background: var(--bg-surface-elevated) !important; border: 1px solid var(--border-color) !important; padding: 9px 5px !important; border-radius: 8px !important; text-align: center !important; display: flex !important; flex-direction: column !important; justify-content: space-between !important; min-width: 0 !important; box-sizing: border-box !important; gap: 2px !important; }
-.funnel-stage-pill.stage-unaddressed { border-bottom: 3px solid var(--danger-dark) !important; }
-.funnel-stage-pill.stage-loop { border-bottom: 3px solid var(--warning-dark) !important; }
-.funnel-stage-pill.stage-cleared { border-bottom: 3px solid var(--success-dark) !important; }
-
-.funnel-stage-pill .stage-label { font-size: 9.5px !important; font-weight: 800 !important; color: var(--text-muted) !important; text-transform: uppercase !important; letter-spacing: 0.3px !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; line-height: 1.2 !important; }
-.funnel-stage-pill .stage-val { font-size: 16px !important; font-weight: 800 !important; font-family: var(--font-mono) !important; color: var(--text-main) !important; line-height: 1.15 !important; margin: 2px 0 !important; }
-.stage-unaddressed .stage-val { color: var(--danger-dark) !important; }
-.stage-loop .stage-val { color: var(--warning-dark) !important; }
-.stage-cleared .stage-val { color: var(--success-dark) !important; }
-
-.funnel-stage-pill .stage-sub { font-size: 9.5px !important; font-weight: 700 !important; color: var(--text-muted) !important; font-family: var(--font-mono) !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; line-height: 1.2 !important; }
-
-.funnel-verdict-box, .funnel-footer-note { padding: 9px 12px !important; font-size: 11px !important; color: var(--text-main) !important; line-height: 1.45 !important; background: var(--bg-surface-elevated) !important; border-radius: 8px !important; border: 1px solid var(--border-color) !important; border-left: 4px solid var(--tcs-blue-accent) !important; box-sizing: border-box !important; }
-
-@media screen and (max-width: 768px) {
-  .funnel-card-header { gap: 6px !important; }
-  .funnel-title { font-size: 13.5px !important; }
-  .funnel-subtitle { font-size: 10px !important; }
-  .funnel-rate-pill { font-size: 9px !important; padding: 2px 6px !important; }
-  .funnel-stage-grid { gap: 6px !important; }
-  .funnel-stage-pill { padding: 6px 3px !important; }
-  .funnel-stage-pill .stage-label { font-size: 8.5px !important; }
-  .funnel-stage-pill .stage-val { font-size: 14px !important; }
-  .funnel-stage-pill .stage-sub { font-size: 8.5px !important; }
-  .funnel-verdict-box { font-size: 10px !important; padding: 8px 10px !important; }
-}
 
 /* ==========================================================================
    🚀 SYMMETRICAL AUDIT & RETENTION ENGINE (UNIFIED & SWIPE-READY)
@@ -1662,11 +1610,8 @@ body.dark-theme .box-fc { color: #c084fc; }
 .verdict-body { font-size: 11px !important; line-height: 1.4 !important; color: var(--text-main) !important; }
 
 /* 7. DESKTOP GRID & MOBILE SWITCHER */
-@media screen and (min-width: 769px) {
-  .advanced-analytics-grid { align-items: stretch !important; }
-}
-
 .analytics-mobile-switcher { display: none; }
+
 @media screen and (max-width: 768px) {
   .analytics-mobile-switcher { display: flex !important; background: var(--bg-surface-elevated); padding: 4px; border-radius: 10px; border: 1px solid var(--border-color); gap: 4px; margin-bottom: 14px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08); }
   .analytics-seg-btn { flex: 1; height: 36px; border: none; background: transparent; color: var(--text-muted); font-size: 11.5px; font-weight: 700; border-radius: 7px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1); outline: none; padding: 0 4px; -webkit-tap-highlight-color: transparent; }

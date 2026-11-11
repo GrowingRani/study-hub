@@ -1801,7 +1801,7 @@ async function mountDashboard(isInitialLoad = false) {
   if (cTitle) cTitle.innerText = isSun ? "Sunday Revision Target" : "Daily Milestone";
   if (cSub) {
     if (isSun) {
-      cSub.innerText = "Weekly Backlog & Mastery Crucible";
+      cSub.innerText = "Weekly Review & Mastery Crucible";
     } else if (cachedCount >= 100) {
       cSub.innerText = `Scale: Total Attempted (${cachedCount} Qs) • Overdrive Active`;
     } else {
@@ -2762,7 +2762,7 @@ async function renderHomePlaylists() {
     // (B) Dynamic Subtitle Scale Indicator
     if (subText) {
       if (isSun) {
-        subText.innerText = "Weekly Backlog & Mastery Crucible";
+        subText.innerText = "Weekly Review & Mastery Crucible";
       } else if (actualAttemptedCount >= 100) {
         subText.innerText = `Scale: Total Attempted (${actualAttemptedCount} Qs) • Overdrive Active`;
       } else {
