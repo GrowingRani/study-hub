@@ -834,11 +834,11 @@ body.dark-theme .theme-mistake-briefing #briefingStatusBadge { background: rgba(
 /* ==========================================================================
    8. UNIVERSAL POPUPS & BOTTOM SHEETS
    ========================================================================== */
-.three-dots-floating-popup { position: fixed; background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 8px; box-shadow: var(--shadow-lg); z-index: 3200 !important; padding: 6px; min-width: 220px; animation: modalFadeIn 0.15s ease-out; }
-.btn-popup-action { width: 100%; text-align: left; background: transparent; border: none; padding: 10px 14px; font-size: 13px; font-weight: 600; color: var(--text-main); cursor: pointer; border-radius: 6px; display: flex; align-items: center; gap: 10px; transition: background 0.15s ease; white-space: nowrap; }
+.three-dots-floating-popup { position: fixed; background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 7px; box-shadow: var(--shadow-lg); z-index: 3200 !important; padding: 4px; min-width: 150px; max-width: calc(100vw - 24px); box-sizing: border-box; animation: modalFadeIn 0.15s ease-out; }
+.btn-popup-action { width: 100%; text-align: left; background: transparent; border: none; padding: 7px 10px; font-size: 12px; font-weight: 600; color: var(--text-main); cursor: pointer; border-radius: 5px; display: flex; align-items: center; gap: 8px; transition: background 0.15s ease; white-space: nowrap; }
 .btn-popup-action:hover { background: var(--bg-surface-elevated); }
-.popup-action-icon { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; flex-shrink: 0; }
-.popup-action-icon svg { width: 16px; height: 16px; stroke-width: 2.2; }
+.popup-action-icon { display: inline-flex; align-items: center; justify-content: center; width: 15px; height: 15px; flex-shrink: 0; }
+.popup-action-icon svg { width: 14px; height: 14px; stroke-width: 2.2; }
 .btn-popup-action.danger-action { color: var(--danger-dark) !important; }
 .btn-popup-action.danger-action:hover { background: var(--danger-bg-subtle) !important; color: var(--danger) !important; }
 

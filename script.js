@@ -1290,12 +1290,15 @@ window.openPlaylistActionMenu = function(event, playlistId, playlistName, isSyst
     overlay.style.pointerEvents = "auto"; 
     overlay.classList.add("open"); 
   }
-  const menuWidth = 180; 
-  let leftPos = btnRect.right - menuWidth; 
-  if (leftPos < 10) leftPos = 10;
-  let topPos = btnRect.bottom + 6; 
-  if (topPos + 120 > window.innerHeight) topPos = Math.max(10, btnRect.top - 120);
-  menu.style.top = `${topPos}px`; 
+  const actualWidth = menu.offsetWidth || 160;
+  let leftPos = btnRect.right - actualWidth;
+  if (leftPos + actualWidth > window.innerWidth - 12) leftPos = window.innerWidth - actualWidth - 12;
+  if (leftPos < 12) leftPos = 12;
+
+  const actualHeight = menu.offsetHeight || 100;
+  let topPos = btnRect.bottom + 5;
+  if (topPos + actualHeight > window.innerHeight - 12) topPos = Math.max(12, btnRect.top - actualHeight - 5);
+  menu.style.top = `${topPos}px`;
   menu.style.left = `${leftPos}px`;
 };
 
@@ -1457,7 +1460,7 @@ const isSun = typeof isSunday === 'function' ? isSunday() : (new Date().getDay()
     const todayStr = getLocalDateString();
     const isBoosterAttempted = userAttemptHistory.some(a => Number(a.test_id) === -1 && getAttemptLocalDate(a.attempt_date) === todayStr);
     const poolLimit = isSun ? 100 : 25;
-    const boosterQuestions = await compileMasteryBoosterPool(poolLimit, true, isSun || isBoosterAttempted);
+    const boosterQuestions = await compileMasteryBoosterPool(poolLimit, true, isSun);
     const qCount = boosterQuestions.length;
 
     if (qCount === 0) {
@@ -2121,10 +2124,10 @@ async function fetchPlaylistsAndCheckRollover() {
 // 🚀 REVISION & MISTAKE POOL COMPILER (CLOSED-LOOP SPACED RECALL PRIORITY QUEUE)
 async function compileMasteryBoosterPool(maxLimit = 25, forceRefresh = false, allowAllWeak = false) {
   const isSun = typeof isSunday === 'function' ? isSunday() : (new Date().getDay() === 0);
-  const shouldAllowAll = allowAllWeak || isSun; // संडे को सभी एक्टिव गलतियाँ शामिल होंगी
+  const shouldAllowAll = isSun ? true : Boolean(allowAllWeak);
 
   if (!forceRefresh && cachedBoosterPool && cachedBoosterPool.length >= maxLimit && (Date.now() - lastBoosterFetchTime < 15000)) {
-    return cachedBoosterPool;
+    return cachedBoosterPool.slice(0, maxLimit);
   }
 
   let assembled = [];
@@ -2240,7 +2243,7 @@ window.launchBoosterMode = async function(mode = 'exam') {
     );
   }
 
-  let boosterQuestions = await compileMasteryBoosterPool(isSun ? 100 : 25, true, isSun || isBoosterAttempted);
+  let boosterQuestions = await compileMasteryBoosterPool(isSun ? 100 : 25, true, isSun);
   if (!boosterQuestions.length) {
     return showAppNoticeModal("Notice", "No Pending Reviews", "You have no pending mistakes or review questions right now.", "⚪", "Dismiss");
   }
@@ -2540,7 +2543,7 @@ async function renderHomePlaylists() {
     const todayStr = getLocalDateString();
     const boosterAttemptedToday = userAttemptHistory.some(a => Number(a.test_id) === -1 && getAttemptLocalDate(a.attempt_date) === todayStr);
     const boosterLimit = isSun ? 100 : 25;
-    const boosterQuestions = await compileMasteryBoosterPool(boosterLimit, false, boosterAttemptedToday);
+    const boosterQuestions = await compileMasteryBoosterPool(boosterLimit, false, isSun);
     const qCount = boosterQuestions.length;
     const tileTitle = isSun ? "Sunday Crucible Exam" : "Bonus Mastery Booster";
     const tileThemeClass = isSun ? "sunday-crucible-tile" : "";
@@ -3097,10 +3100,16 @@ window.openThreeDotsMenu = function(event, testId, playlistId = null, playlistNa
   const btnRect = event.currentTarget.getBoundingClientRect();
   menu.style.display = "block"; menu.style.zIndex = "3200"; 
   if (overlay) { overlay.style.display = "block"; overlay.style.zIndex = "3100"; overlay.style.pointerEvents = "auto"; overlay.classList.add("open"); }
-  const menuWidth = 230; 
-  let leftPos = Math.max(10, btnRect.right - menuWidth), estHeight = currentThreeDotsPlaylistContext ? 92 : 48;
-  let topPos = (btnRect.bottom + 6 + estHeight > window.innerHeight) ? Math.max(10, btnRect.top - estHeight) : btnRect.bottom + 6;
-  menu.style.top = `${topPos}px`; menu.style.left = `${leftPos}px`;
+  const actualWidth = menu.offsetWidth || 190;
+  let leftPos = btnRect.right - actualWidth;
+  if (leftPos + actualWidth > window.innerWidth - 12) leftPos = window.innerWidth - actualWidth - 12;
+  if (leftPos < 12) leftPos = 12;
+
+  const actualHeight = menu.offsetHeight || (currentThreeDotsPlaylistContext ? 76 : 42);
+  let topPos = btnRect.bottom + 5;
+  if (topPos + actualHeight > window.innerHeight - 12) topPos = Math.max(12, btnRect.top - actualHeight - 5);
+  menu.style.top = `${topPos}px`;
+  menu.style.left = `${leftPos}px`;
 };
 
 window.closeThreeDotsMenu = function() {
