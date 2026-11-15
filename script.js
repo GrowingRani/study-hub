@@ -203,6 +203,7 @@ let isShuffleEnabled = true;
 // 🚀 IN-MEMORY CACHE FOR BOOSTER POOL (PREVENTS DUPLICATE RPC FETCHES)
 let cachedBoosterPool = null;
 let lastBoosterFetchTime = 0;
+let hasLoadedWeakQuestions = false;
  
 let isExitingApp = false;
 let activeTacticalDate = null;
@@ -1460,7 +1461,7 @@ const isSun = typeof isSunday === 'function' ? isSunday() : (new Date().getDay()
     const todayStr = getLocalDateString();
     const isBoosterAttempted = userAttemptHistory.some(a => Number(a.test_id) === -1 && getAttemptLocalDate(a.attempt_date) === todayStr);
     const poolLimit = isSun ? 100 : 25;
-    const boosterQuestions = await compileMasteryBoosterPool(poolLimit, true, isSun);
+    const boosterQuestions = await compileMasteryBoosterPool(poolLimit, false, isSun);
     const qCount = boosterQuestions.length;
 
     if (qCount === 0) {
@@ -1482,12 +1483,20 @@ const isSun = typeof isSunday === 'function' ? isSunday() : (new Date().getDay()
     // 🎯 APPROACH 2: DYNAMIC 70% THRESHOLD (MAX 50 Qs)
     const poolSize = qCount;
     const requiredThreshold = Math.min(50, Math.ceil(poolSize * 0.70));
+    const sundayBestAtt = isSun
+      ? userAttemptHistory
+          .filter(a => Number(a.test_id) === -1 && getAttemptLocalDate(a.attempt_date) === todayStr)
+          .reduce((max, a) => Math.max(max, (a.total_correct || 0) + (a.total_incorrect || 0)), 0)
+      : 0;
+    const isQuotaCompleted = isSun
+      ? Boolean(dailyPerf?.is_century_hit || (requiredThreshold > 0 && sundayBestAtt >= requiredThreshold))
+      : isBoosterAttempted;
 
     document.getElementById("briefingSubjectBadge").innerText = isSun ? "SUNDAY CRUCIBLE EXAM" : "BONUS MASTERY BOOSTER";
     const statusBadge = document.getElementById("briefingStatusBadge");
     const examCard = modal.querySelector(".briefing-mode-card.mode-exam");
 
-    if (isBoosterAttempted) {
+    if (isQuotaCompleted) {
       statusBadge.className = "briefing-status-tag status-mastered";
       statusBadge.innerText = isSun ? "CRUCIBLE CONQUERED" : "COMPLETED TODAY";
       document.getElementById("briefingScoreMeta").innerText = "Today's quota completed • Practice modes active";
@@ -1500,11 +1509,13 @@ const isSun = typeof isSunday === 'function' ? isSunday() : (new Date().getDay()
       }
     } else {
       statusBadge.className = "briefing-status-tag status-progress";
-      statusBadge.innerText = `${qCount} DUE`;
+      statusBadge.innerText = (isSun && sundayBestAtt > 0) ? `${sundayBestAtt}/${requiredThreshold} TARGET` : `${qCount} DUE`;
       
       // 🎯 Display clear target in briefing modal
       if (isSun) {
-        document.getElementById("briefingScoreMeta").innerText = `Target: Min ${requiredThreshold} of ${poolSize} Qs for Streak`;
+        document.getElementById("briefingScoreMeta").innerText = sundayBestAtt > 0
+          ? `Best: ${sundayBestAtt}/${requiredThreshold} Qs • Retry Exam to secure Streak`
+          : `Target: Min ${requiredThreshold} of ${poolSize} Qs for Streak`;
       } else {
         document.getElementById("briefingScoreMeta").innerText = `${mistakeCount} Mistakes • ${recallCount} Recall`;
       }
@@ -1823,7 +1834,14 @@ async function mountDashboard(isInitialLoad = false) {
   if (capFillInit) capFillInit.style.display = "none";
 
   if (attFillInit && masFillInit) {
-    if (cachedCount >= 100) {
+    if (isSun) {
+      const savedSunPool = roll ? appStorage.getJSON(`sunday_crucible_pool_${roll}_${getLocalDateString()}`, []) : [];
+      const sunTargetInit = savedSunPool.length > 0 ? Math.min(50, Math.ceil(savedSunPool.length * 0.70)) : 50;
+      const sunAttPct = sunTargetInit > 0 ? Math.min(100, Math.round((cachedCount / sunTargetInit) * 100)) : 0;
+      const sunMasPct = cachedCount > 0 ? Math.round((cachedCorrect / cachedCount) * sunAttPct) : 0;
+      attFillInit.style.width = sunAttPct + "%";
+      masFillInit.style.width = sunMasPct + "%";
+    } else if (cachedCount >= 100) {
       attFillInit.style.width = "100%";
       const masInitPct = cachedCount > 0 ? Math.min(100, Math.round((cachedCorrect / cachedCount) * 100)) : 0;
       masFillInit.style.width = masInitPct + "%";
@@ -1994,9 +2012,12 @@ async function fetchPlaylistsAndCheckRollover() {
       .maybeSingle();
 
     const isSun = isSunday();
+    const savedSunPool = isSun ? appStorage.getJSON(`sunday_crucible_pool_${roll}_${todayStr}`, []) : [];
+    const sunReq = savedSunPool.length > 0 ? Math.min(50, Math.ceil(savedSunPool.length * 0.70)) : 0;
+    const sunCrucibleAtt = uniqueSetsAttemptedToday.get(-1) || 0;
 
     const targetHitToday = isSun 
-      ? Boolean(dpData?.is_century_hit) 
+      ? Boolean(dpData?.is_century_hit || (dailyPerf?.target_date === todayStr && dailyPerf?.is_century_hit) || (sunReq > 0 && sunCrucibleAtt >= sunReq))
       : (actualExamAttemptedToday >= 100);
 
     const yesterday = getLocalDateString(new Date(Date.now() - 86400000));
@@ -2125,6 +2146,18 @@ async function fetchPlaylistsAndCheckRollover() {
 async function compileMasteryBoosterPool(maxLimit = 25, forceRefresh = false, allowAllWeak = false) {
   const isSun = typeof isSunday === 'function' ? isSunday() : (new Date().getDay() === 0);
   const shouldAllowAll = isSun ? true : Boolean(allowAllWeak);
+  const roll = currentCandidate?.roll_number;
+  const sunCacheKey = (isSun && roll) ? `sunday_crucible_pool_${roll}_${getLocalDateString()}` : null;
+
+  // 👑 Sunday Lock: पूरे रविवार एक ही सेट लॉक रहेगा (Exam, Review, Practice व Refresh सभी में समान)
+  if (sunCacheKey) {
+    const lockedSundayPool = appStorage.getJSON(sunCacheKey, null);
+    if (Array.isArray(lockedSundayPool) && lockedSundayPool.length > 0) {
+      cachedBoosterPool = lockedSundayPool;
+      lastBoosterFetchTime = Date.now();
+      return lockedSundayPool.slice(0, maxLimit);
+    }
+  }
 
   if (!forceRefresh && cachedBoosterPool && cachedBoosterPool.length >= maxLimit && (Date.now() - lastBoosterFetchTime < 15000)) {
     return cachedBoosterPool.slice(0, maxLimit);
@@ -2225,6 +2258,17 @@ async function compileMasteryBoosterPool(maxLimit = 25, forceRefresh = false, al
   const result = assembled.map((q, idx) => ({ ...q, qNum: idx + 1 }));
   cachedBoosterPool = result;
   lastBoosterFetchTime = Date.now();
+
+  if (sunCacheKey && result.length > 0 && hasLoadedWeakQuestions) {
+    try {
+      const prefix = `sunday_crucible_pool_${roll}_`;
+      Object.keys(localStorage).forEach(k => {
+        if (k.startsWith(prefix) && k !== sunCacheKey) localStorage.removeItem(k);
+      });
+    } catch (e) {}
+    appStorage.setJSON(sunCacheKey, result);
+  }
+
   return result;
 }
 
@@ -2233,19 +2277,31 @@ window.launchBoosterMode = async function(mode = 'exam') {
   const todayStr = getLocalDateString();
   const isBoosterAttempted = userAttemptHistory.some(a => Number(a.test_id) === -1 && getAttemptLocalDate(a.attempt_date) === todayStr);
 
-  if (mode === 'exam' && isBoosterAttempted) {
+  let boosterQuestions = await compileMasteryBoosterPool(isSun ? 100 : 25, false, isSun);
+  if (!boosterQuestions.length) {
+    return showAppNoticeModal("Notice", "No Pending Reviews", "You have no pending mistakes or review questions right now.", "⚪", "Dismiss");
+  }
+
+  const sunReqThreshold = isSun ? Math.min(50, Math.ceil(boosterQuestions.length * 0.70)) : 0;
+  const sunBestAtt = isSun
+    ? userAttemptHistory
+        .filter(a => Number(a.test_id) === -1 && getAttemptLocalDate(a.attempt_date) === todayStr)
+        .reduce((max, a) => Math.max(max, (a.total_correct || 0) + (a.total_incorrect || 0)), 0)
+    : 0;
+  const isQuotaCompleted = isSun
+    ? Boolean(dailyPerf?.is_century_hit || (sunReqThreshold > 0 && sunBestAtt >= sunReqThreshold))
+    : isBoosterAttempted;
+
+  if (mode === 'exam' && isQuotaCompleted) {
     return showAppNoticeModal(
       "Exam Mode Locked",
-      "Completed for Today",
-      "You have already completed today's official Booster Exam session. You can continue practicing in Quiz, Flashcard, or Read mode!",
+      isSun ? "Crucible Conquered" : "Completed for Today",
+      isSun
+        ? "You have already conquered today's Sunday Crucible Exam! You can continue practicing in Quiz, Flashcard, or Read mode."
+        : "You have already completed today's official Booster Exam session. You can continue practicing in Quiz, Flashcard, or Read mode!",
       "🛡️",
       "Dismiss"
     );
-  }
-
-  let boosterQuestions = await compileMasteryBoosterPool(isSun ? 100 : 25, true, isSun);
-  if (!boosterQuestions.length) {
-    return showAppNoticeModal("Notice", "No Pending Reviews", "You have no pending mistakes or review questions right now.", "⚪", "Dismiss");
   }
 
   if (isShuffleEnabled) {
@@ -2548,7 +2604,17 @@ async function renderHomePlaylists() {
     const tileTitle = isSun ? "Sunday Crucible Exam" : "Bonus Mastery Booster";
     const tileThemeClass = isSun ? "sunday-crucible-tile" : "";
 
-    if (boosterAttemptedToday) {
+    const sunTargetPre = isSun ? (qCount > 0 ? Math.min(50, Math.ceil(qCount * 0.70)) : 0) : 100;
+    const sunBestPre = isSun
+      ? userAttemptHistory
+          .filter(a => Number(a.test_id) === -1 && getAttemptLocalDate(a.attempt_date) === todayStr)
+          .reduce((max, a) => Math.max(max, (a.total_correct || 0) + (a.total_incorrect || 0)), 0)
+      : 0;
+    const isTileCompleted = isSun
+      ? Boolean(dailyPerf?.is_century_hit || (sunTargetPre > 0 && sunBestPre >= sunTargetPre))
+      : boosterAttemptedToday;
+
+    if (isTileCompleted) {
       boosterTileHtml = `
         <div class="set-tile dynamic-revision-tile ${tileThemeClass} state-clean">
           <div class="set-tile-header">
@@ -2626,11 +2692,11 @@ async function renderHomePlaylists() {
             <span style="font-size:10px; color:var(--warning); font-weight:700;">(${isSun ? 'Comprehensive Weekly Review' : 'Bonus • Excluded from 100-Q Target'})</span>
           </div>
           <div class="set-score-info" style="display: block !important; overflow: visible !important; white-space: normal !important; line-height: 1.55 !important; padding-top: 4px !important; margin-bottom: 12px !important;">
-            <span style="color:var(--warning-dark); font-weight:700; display: inline-block;">⚡ ${poolDetail}</span>
+            <span style="color:var(--warning-dark); font-weight:700; display: inline-block;">⚡ ${(isSun && sunBestPre > 0) ? `Target Incomplete (${sunBestPre}/${sunTargetPre} Qs solved)` : poolDetail}</span>
           </div>
           <div class="set-action-footer">
             <button type="button" class="btn-launch-set" onclick="openMissionBriefingModal(-1)">
-              <span>${isSun ? '⚔️' : '▶'}</span> <span>${isSun ? 'Launch Sunday Crucible' : 'Start Booster Session'}</span>
+              <span>${isSun ? '⚔️' : '▶'}</span> <span>${isSun ? (sunBestPre > 0 ? 'Retry Sunday Crucible' : 'Launch Sunday Crucible') : 'Start Booster Session'}</span>
             </button>
           </div>
         </div>
@@ -2703,7 +2769,6 @@ async function renderHomePlaylists() {
     }
 
     // 🎯 6. DECOUPLED CENTURY BAROMETER TELEMETRY (PURE UNIQUE ATTEMPTS & HONEST MASTERY)
-    const targetQ = 100;
     const actualAttemptedCount = dailyPerf.total_questions_attempted || 0;
     const todayAttempts = userAttemptHistory.filter(a => getAttemptLocalDate(a.attempt_date) === todayStr && (Number(a.test_id) > 0 || (Number(a.test_id) === -1 && isSunday())));
 
@@ -2731,15 +2796,22 @@ async function renderHomePlaylists() {
 
     const todayMasteredQ = Array.from(uniqueMasteredSets.values()).reduce((sum, q) => sum + q, 0);
 
-    const isSunHit = isSun && dailyPerf.is_century_hit;
+    const sundayCrucibleAtts = todayAttempts.filter(a => Number(a.test_id) === -1);
+    const crucibleAttemptedQ = sundayCrucibleAtts.reduce((max, a) => Math.max(max, (a.total_correct || 0) + (a.total_incorrect || 0)), 0);
+    const crucibleCorrectQ = sundayCrucibleAtts.reduce((max, a) => Math.max(max, (a.total_correct || 0)), 0);
+
+    const sundayTargetQ = isSun ? (qCount > 0 ? Math.min(50, Math.ceil(qCount * 0.70)) : 0) : 100;
+    const isSunHit = isSun && (dailyPerf.is_century_hit || (sundayTargetQ > 0 && crucibleAttemptedQ >= sundayTargetQ));
     const isOverdrive = !isSun && actualAttemptedCount >= 100;
 
     let attPct = 0;
     let masPct = 0;
 
-    if (isSunHit) {
-      attPct = 100;
-      masPct = 100;
+    if (isSun) {
+      if (sundayTargetQ > 0) {
+        attPct = Math.min(100, Math.round((crucibleAttemptedQ / sundayTargetQ) * 100));
+        masPct = crucibleAttemptedQ > 0 ? Math.min(attPct, Math.round((crucibleCorrectQ / crucibleAttemptedQ) * attPct)) : 0;
+      }
     } else if (actualAttemptedCount >= 100) {
       // 🚀 OVERDRIVE MODE: Scale represents total attempted questions (100% full bar)
       attPct = 100;
@@ -2765,7 +2837,9 @@ async function renderHomePlaylists() {
     // (B) Dynamic Subtitle Scale Indicator
     if (subText) {
       if (isSun) {
-        subText.innerText = "Weekly Review & Mastery Crucible";
+        subText.innerText = qCount > 0
+          ? `Crucible Target: Min ${sundayTargetQ} of ${qCount} Qs • Weekly Review`
+          : "Weekly Review & Mastery Crucible";
       } else if (actualAttemptedCount >= 100) {
         subText.innerText = `Scale: Total Attempted (${actualAttemptedCount} Qs) • Overdrive Active`;
       } else {
@@ -2777,7 +2851,17 @@ async function renderHomePlaylists() {
     const legendEl = document.querySelector(".century-tier-legend");
     if (legendEl) {
       const todayErrors = Math.max(0, actualAttemptedCount - todayMasteredQ);
-      if (actualAttemptedCount >= 100) {
+      if (isSun) {
+        const sunErrors = Math.max(0, crucibleAttemptedQ - crucibleCorrectQ);
+        const sunRem = Math.max(0, sundayTargetQ - crucibleAttemptedQ);
+        legendEl.innerHTML = `
+          <span class="tier-legend-item"><span class="tier-dot tier-dot-mastered"></span> Correct (${crucibleCorrectQ})</span>
+          <span class="tier-legend-item"><span class="tier-dot tier-dot-error"></span> Errors (${sunErrors})</span>
+          ${isSunHit
+            ? `<span class="tier-legend-item" style="color:var(--warning-dark); font-family:var(--font-mono); font-weight:800;">👑 Crucible Target Met</span>`
+            : `<span class="tier-legend-item"><span class="tier-dot tier-dot-remaining"></span> Target Left (${sunRem})</span>`}
+        `;
+      } else if (actualAttemptedCount >= 100) {
         legendEl.innerHTML = `
           <span class="tier-legend-item"><span class="tier-dot tier-dot-mastered"></span> Correct (${todayMasteredQ})</span>
           <span class="tier-legend-item"><span class="tier-dot tier-dot-error"></span> Errors (${todayErrors})</span>
@@ -2809,15 +2893,18 @@ async function renderHomePlaylists() {
       }
     }
 
-    // (C) 🛰️ Dedicated Slot mein Beacon update karein
+    // (E) 🛰️ Dedicated Slot mein Beacon update karein
     const beaconSlot = document.getElementById("milestoneBeaconSlot");
     if (beaconSlot) {
-      beaconSlot.innerHTML = getMilestoneBeaconHtml(actualAttemptedCount);
+      const beaconScore = isSun ? (isSunHit ? Math.max(100, actualAttemptedCount) : 0) : actualAttemptedCount;
+      beaconSlot.innerHTML = getMilestoneBeaconHtml(beaconScore);
     }
 
     // 🎯 cMeter mein 4-Tier Crisp Telemetry Pills rahengi
     if (meterText) {
-      meterText.innerHTML = getMilestoneTelemetryHtml(actualAttemptedCount, todayMasteredQ, isSun, isSunHit);
+      meterText.innerHTML = isSun
+        ? getMilestoneTelemetryHtml(crucibleAttemptedQ, crucibleCorrectQ, true, isSunHit)
+        : getMilestoneTelemetryHtml(actualAttemptedCount, todayMasteredQ, false, false);
     }
 
     if (currentCandidate?.roll_number) {
@@ -3262,10 +3349,12 @@ async function fetchWeakQuestions() {
       const { data: fresh } = await supabaseClient.from('questions').select('id, content, options, correct_answer, explanation').in('id', qIds);
       if (fresh) { 
         userWeakQuestions = weakQs.map(wq => ({ ...wq, question_data: fresh.find(f => String(f.id) === String(wq.question_id)) || wq.question_data })); 
+        hasLoadedWeakQuestions = true;
         return; 
       }
     }
     userWeakQuestions = weakQs;
+    hasLoadedWeakQuestions = true;
   } catch (err) { 
     console.error("Mistake Bank Load Error:", err); 
   }
@@ -4216,7 +4305,7 @@ function renderScorecard() {
 
     if (!uAns) { 
       unattempted++; 
-      statsPayload.push({ student_roll: currentCandidate.roll_number, subject: qSubj, question_id: q.id, question_data: q, isCorrect: false }); 
+      // ⏭️ Skipped सवालों को Mistake Bank में नहीं भेजेंगे (Zero Flood & Streak Safe)
     } else if (isOptionMatching(uAns, q.correctAnswer)) { 
       correct++; 
       statsPayload.push({ student_roll: currentCandidate.roll_number, subject: qSubj, question_id: q.id, question_data: q, isCorrect: st !== 4 }); 
@@ -5312,7 +5401,7 @@ window.fetchStudentAnalytics = async function(isSilent = false) {
         accTrends.push(Math.max(0, Math.round(((a.total_correct || 0) / qInAttempt) * 100)));
       }
 
-      const dStr = (a.attempt_date || "").split("T")[0];
+      const dStr = getAttemptLocalDate(a.attempt_date);
       if (dStr && (Number(a.test_id) > 0 || Number(a.test_id) === -1)) {
         dailyQuestionsMap[dStr] = (dailyQuestionsMap[dStr] || 0) + qInAttempt;
       }
