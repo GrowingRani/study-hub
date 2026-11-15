@@ -2859,7 +2859,7 @@ async function renderHomePlaylists() {
         legendEl.innerHTML = `
           <span class="tier-legend-item"><span class="tier-dot tier-dot-mastered"></span> Correct (${crucibleCorrectQ})</span>
           <span class="tier-legend-item"><span class="tier-dot tier-dot-error"></span> Errors (${sunErrors})</span>
-          <span class="tier-legend-item"><span class="tier-dot tier-dot-remaining"></span> Remaining (${sunRemaining})</span>
+          <span class="tier-legend-item"><span class="tier-dot tier-dot-remaining"></span> Rem (${sunRemaining})</span>
           ${isSunHit ? `<span class="tier-legend-item" style="color:var(--warning-dark); font-family:var(--font-mono); font-weight:800;">👑 Target Met</span>` : ''}
         `;
       } else if (actualAttemptedCount >= 100) {
