@@ -1075,7 +1075,24 @@ body.dark-theme .theme-mistake-briefing #briefingStatusBadge { background: rgba(
 .sol-filter-btn.active.btn-priority .filter-badge { background: rgba(255, 255, 255, 0.25); color: #ffffff; }
 .sol-filter-btn.active.btn-wrong { background: linear-gradient(135deg, #dc2626, #ef4444) !important; color: #ffffff !important; border-color: #ef4444 !important; box-shadow: 0 2px 8px rgba(239, 68, 68, 0.25); }
 .sol-filter-btn.active.btn-wrong .filter-badge { background: rgba(255, 255, 255, 0.25); color: #ffffff; }
+/* 🟣 Marked Filter Pill Active State */
+.sol-filter-btn.btn-marked.active {
+  background: var(--c-review, #7c3aed);
+  color: #ffffff;
+  border-color: var(--c-review, #7c3aed);
+  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.28);
+}
 
+.sol-filter-btn.btn-marked.active .filter-badge {
+  background: rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+}
+
+body.dark-theme .sol-filter-btn.btn-marked.active {
+  background: #8b5cf6;
+  border-color: #8b5cf6;
+  color: #ffffff;
+}
 #viewSolutions .practice-viewport { padding-top: 14px !important; }
 @media screen and (max-width: 768px) { .solutions-filter-strip { padding: 8px 12px !important; } }
 

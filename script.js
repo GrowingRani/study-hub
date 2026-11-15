@@ -888,9 +888,9 @@ function applyTopicFilter(filter = currentFilter) {
 
     if (visibleCount > 0) {
       card.style.display = "block";
+      if (body) body.style.display = "";
       if (searchQuery) {
         card.classList.add("open");
-        if (body) body.style.display = "block";
       }
     } else {
       card.style.display = "none";
@@ -917,7 +917,7 @@ function filterAccordionCards(query) {
     document.querySelectorAll(".topic-accordion-card").forEach(card => {
       card.classList.remove("open");
       const body = card.querySelector(".topic-accordion-body");
-      if (body) body.style.display = "none";
+      if (body) body.style.display = "";
     });
   }
 }
@@ -1147,17 +1147,39 @@ function setupAppEvents() {
   });
 }
 
+
 function start5PMEngine() {
   if (alertEngineStarted) return; 
   alertEngineStarted = true;
   setInterval(() => {
     if (!currentCandidate) return; 
     const d = new Date(), dateStr = d.toDateString();
+    // 👑 शनिवार शाम 5 बजे अगले दिन रविवार (Sunday Crucible) है, इसलिए Tomorrow Queue अलर्ट स्किप करें
+    if (d.getDay() === 6) return;
+
     if (d.getHours() === 17 && !appStorage.get("5pm_alert_" + dateStr)) {
       const tomLoad = parseInt(appStorage.get("tomorrow_load_" + currentCandidate.roll_number, "0"));
-      if (tomLoad === 0) showAppNoticeModal("Tomorrow's Queue", "Target Queue Empty", "Tomorrow's Playlist has no sets staged. Add sets before you sleep to maintain your Century Streak!", "⏳", "Explore Library");
-      else if (tomLoad < 100) showAppNoticeModal("Tomorrow's Queue", "Target Load Incomplete", `Tomorrow has only ${tomLoad} questions staged (Target is 100). Add more sets!`, "⚠️", "Add Sets");
-      else showAppNoticeModal("Tomorrow's Queue", "Target Locked", `Tomorrow's payload is locked & ready (${tomLoad} Questions).`, "🎯", "Dismiss");
+      const tomList = userPlaylists.find(p => p.playlist_name === 'Tomorrow');
+      const openTomorrowStaging = tomList ? () => enableLibrarySelectionMode(tomList.id, 'Tomorrow') : null;
+
+      if (tomLoad === 0) {
+        showAppNoticeModal("Tomorrow's Queue", "Target Queue Empty", "Tomorrow's Playlist has no sets staged. Add sets before you sleep to maintain your Century Streak!", "⏳", "Stage Sets", openTomorrowStaging);
+      } else if (tomLoad < 100) {
+        showAppNoticeModal("Tomorrow's Queue", "Target Load Incomplete", `Tomorrow has only ${tomLoad} questions staged (Target is 100). Add more sets!`, "⚠️", "Add More Sets", openTomorrowStaging);
+      } else {
+        showAppNoticeModal(
+          "Tomorrow's Queue",
+          "Target Locked",
+          `Tomorrow's payload is locked & ready (${tomLoad} Questions).`,
+          "🎯",
+          "View Queue",
+          () => {
+            switchView("viewDashboard");
+            autoExpandPlaylistCard("Tomorrow");
+          },
+          "Got It"
+        );
+      }
       appStorage.set("5pm_alert_" + dateStr, "true");
     }
   }, 60000);
@@ -1834,7 +1856,7 @@ async function mountDashboard(isInitialLoad = false) {
   // Decouple Staging fill permanently
   if (capFillInit) capFillInit.style.display = "none";
 
-  const savedSunPoolInit = (isSun && roll) ? appStorage.getJSON(`sunday_crucible_pool_${roll}_${getLocalDateString()}`, []) : [];
+  const savedSunPoolInit = (isSun && roll) ? appStorage.getJSON(`daily_booster_pool_${roll}_${getLocalDateString()}`, []) : [];
   const sunPoolTotalInit = savedSunPoolInit.length;
 
   if (attFillInit && masFillInit) {
@@ -2014,7 +2036,7 @@ async function fetchPlaylistsAndCheckRollover() {
       .maybeSingle();
 
     const isSun = isSunday();
-    const savedSunPool = isSun ? appStorage.getJSON(`sunday_crucible_pool_${roll}_${todayStr}`, []) : [];
+    const savedSunPool = isSun ? appStorage.getJSON(`daily_booster_pool_${roll}_${todayStr}`, []) : [];
     const sunReq = savedSunPool.length > 0 ? Math.min(50, Math.ceil(savedSunPool.length * 0.70)) : 0;
     const sunCrucibleAtt = uniqueSetsAttemptedToday.get(-1) || 0;
 
@@ -2144,134 +2166,70 @@ async function fetchPlaylistsAndCheckRollover() {
   }
 }
 
-// 🚀 REVISION & MISTAKE POOL COMPILER (CLOSED-LOOP SPACED RECALL PRIORITY QUEUE)
+// 🚀 UNIFIED CROSS-DEVICE BOOSTER & SUNDAY CRUCIBLE POOL COMPILER (ATOMIC RPC)
 async function compileMasteryBoosterPool(maxLimit = 25, forceRefresh = false, allowAllWeak = false) {
   const isSun = typeof isSunday === 'function' ? isSunday() : (new Date().getDay() === 0);
-  const shouldAllowAll = isSun ? true : Boolean(allowAllWeak);
   const roll = currentCandidate?.roll_number;
-  const sunCacheKey = (isSun && roll) ? `sunday_crucible_pool_${roll}_${getLocalDateString()}` : null;
+  if (!roll) return [];
 
-  // 👑 Sunday Lock: पूरे रविवार एक ही सेट लॉक रहेगा (Exam, Review, Practice व Refresh सभी में समान)
-  if (sunCacheKey) {
-    const lockedSundayPool = appStorage.getJSON(sunCacheKey, null);
-    if (Array.isArray(lockedSundayPool) && lockedSundayPool.length > 0) {
-      cachedBoosterPool = lockedSundayPool;
+  const todayStr = getLocalDateString();
+  const dailyCacheKey = `daily_booster_pool_${roll}_${todayStr}`;
+
+  // 1. 0ms Local Device Cache (Mon-Sat 25 Qs & Sunday 100 Qs दोनों के लिए)
+  const lockedDailyPool = appStorage.getJSON(dailyCacheKey, null);
+  if (Array.isArray(lockedDailyPool) && lockedDailyPool.length > 0) {
+    cachedBoosterPool = lockedDailyPool;
+    lastBoosterFetchTime = Date.now();
+    return lockedDailyPool.slice(0, maxLimit);
+  }
+
+  // 2. Single Atomic PostgreSQL RPC Call (Mobile <-> PC 100% Synced)
+  try {
+    const { data: poolRows, error: rpcErr } = await supabaseClient.rpc('get_daily_booster_pool', {
+      p_roll: roll,
+      p_date: todayStr,
+      p_is_sunday: isSun,
+      p_limit: maxLimit
+    });
+    if (rpcErr) throw rpcErr;
+
+    if (Array.isArray(poolRows) && poolRows.length > 0) {
+      const result = poolRows.map((q, idx) => {
+        const opts = parseQuestionOptions(q.options);
+        return {
+          qNum: idx + 1,
+          id: String(q.id),
+          subject: q.subject || "General Studies",
+          content: q.content,
+          options: opts,
+          correctAnswer: getNormalizedCorrectAnswerId(q.correct_answer, opts),
+          explanation: q.explanation,
+          isMistake: Boolean(q.is_mistake)
+        };
+      });
+
+      cachedBoosterPool = result;
       lastBoosterFetchTime = Date.now();
-      return lockedSundayPool.slice(0, maxLimit);
-    }
-  }
 
-  if (!forceRefresh && cachedBoosterPool && cachedBoosterPool.length >= maxLimit && (Date.now() - lastBoosterFetchTime < 15000)) {
-    return cachedBoosterPool.slice(0, maxLimit);
-  }
-
-  let assembled = [];
-  const seenIds = new Set();
-  const now = new Date();
-
-  // 1. संडे को सभी अन-मास्टर्ड गलतियाँ, बाकी दिन सिर्फ आज के लिए ड्यू गलतियाँ
-  const mistakePool = userWeakQuestions.filter(q => 
-    q.times_wrong > 0 && 
-    (q.mastery_streak || 0) < 4 && 
-    (shouldAllowAll || !q.next_review_at || new Date(q.next_review_at) <= now)
-  );
-
-
-  // 🎯 INTELLIGENT SRS PRIORITY SORTING:
-  // Priority 1: ताज़ा गलतियाँ (Streak 0) सबसे पहले (Newest Errors First)
-  // Priority 2: पाइपलाइन रिव्यु (Streak 1-3) - छोटा स्ट्रीक पहले, फिर Overdue तारीख
-  // Priority 3: टाइम्स रॉन्ग टाई-ब्रेकर
-  mistakePool.sort((a, b) => {
-    const streakA = a.mastery_streak || 0;
-    const streakB = b.mastery_streak || 0;
-
-    // Fresh Mistakes (Streak 0) को सर्वोच्च प्राथमिकता
-    if (streakA === 0 && streakB !== 0) return -1;
-    if (streakB === 0 && streakA !== 0) return 1;
-
-    // दोनों Fresh हैं तो जो सबसे ताज़ा है वो पहले आएगा
-    if (streakA === 0 && streakB === 0) {
-      const dateA = new Date(a.last_attempt_date || 0);
-      const dateB = new Date(b.last_attempt_date || 0);
-      return dateB - dateA;
-    }
-
-    // दोनों पाइपलाइन में हैं: Streak 1 पहले, फिर Streak 2, फिर 3
-    if (streakA !== streakB) return streakA - streakB;
-    const revA = new Date(a.next_review_at || 0);
-    const revB = new Date(b.next_review_at || 0);
-    if (revA.getTime() !== revB.getTime()) return revA - revB;
-
-    return (b.times_wrong || 0) - (a.times_wrong || 0);
-  });
-
-  mistakePool.slice(0, maxLimit).forEach(item => {
-    const qd = item.question_data || {};
-    const qid = String(item.question_id || qd.id);
-    if (!seenIds.has(qid)) {
-      seenIds.add(qid);
-      const opts = parseQuestionOptions(qd.options);
-      assembled.push({
-        id: qid,
-        subject: item.subject || qd.subject || "General Studies",
-        content: qd.content,
-        options: opts,
-        correctAnswer: getNormalizedCorrectAnswerId(qd.correct_answer || qd.correctAnswer, opts),
-        explanation: qd.explanation,
-        isMistake: true
-      });
-    }
-  });
-
-  // 2. यदि गलतियाँ 25 से कम हैं, तो बचे हुए स्लॉट एक्टिव रिकॉल से भरेंगे
-  const remainingNeeded = maxLimit - assembled.length;
-  if (remainingNeeded > 0 && currentCandidate?.roll_number) {
-    try {
-      const { data: recallRows, error: rpcErr } = await supabaseClient.rpc('get_retention_pool', {
-        p_roll: currentCandidate.roll_number,
-        p_needed: remainingNeeded
-      });
-
-      if (rpcErr) throw rpcErr;
-
-      if (recallRows && recallRows.length > 0) {
-        recallRows.forEach(q => {
-          const qid = String(q.id);
-          if (!seenIds.has(qid)) {
-            seenIds.add(qid);
-            const opts = parseQuestionOptions(q.options);
-            assembled.push({
-              id: qid,
-              subject: q.subject || "General Studies",
-              content: q.content,
-              options: opts,
-              correctAnswer: getNormalizedCorrectAnswerId(q.correct_answer, opts),
-              explanation: q.explanation,
-              isMistake: false
-            });
-          }
+      try {
+        const prefix = `daily_booster_pool_${roll}_`;
+        Object.keys(localStorage).forEach(k => {
+          if (k.startsWith(prefix) && k !== dailyCacheKey) localStorage.removeItem(k);
         });
-      }
-    } catch (err) {
-      console.error("Database retention pool RPC error:", err);
+        // पुराने sunday_crucible_pool_ कीज़ साफ़ करें
+        Object.keys(localStorage).forEach(k => {
+          if (k.startsWith(`sunday_crucible_pool_${roll}_`)) localStorage.removeItem(k);
+        });
+      } catch (e) {}
+
+      appStorage.setJSON(dailyCacheKey, result);
+      return result.slice(0, maxLimit);
     }
+    return [];
+  } catch (err) {
+    console.error("Daily Booster RPC error:", err);
+    return [];
   }
-
-  const result = assembled.map((q, idx) => ({ ...q, qNum: idx + 1 }));
-  cachedBoosterPool = result;
-  lastBoosterFetchTime = Date.now();
-
-  if (sunCacheKey && result.length > 0 && hasLoadedWeakQuestions) {
-    try {
-      const prefix = `sunday_crucible_pool_${roll}_`;
-      Object.keys(localStorage).forEach(k => {
-        if (k.startsWith(prefix) && k !== sunCacheKey) localStorage.removeItem(k);
-      });
-    } catch (e) {}
-    appStorage.setJSON(sunCacheKey, result);
-  }
-
-  return result;
 }
 
 window.launchBoosterMode = async function(mode = 'exam') {
@@ -2526,7 +2484,7 @@ window.executeSwipeRemove = async function(pId, testId, pName, el) {
     lastRemovedPayload = null;
   };
 
-  if (wrapper) {
+  if (wrapper && wrapper.offsetParent !== null) {
     animateAndRemoveWrapper(wrapper, async () => {
       await togglePlaylistMembership(pId, testId, true);
       showSelectionToast(`Removed from "${pName}"`, undoAction);
@@ -2537,13 +2495,19 @@ window.executeSwipeRemove = async function(pId, testId, pName, el) {
   }
 };
 
-// ⭐ 1-TAP STAR SET CONTROLLER (Ensures Header Star Button Works)
+// ⭐ 1-TAP STAR SET CONTROLLER (Unified Toast, Undo & Smooth FLIP Sync)
 window.toggleStarSet = async function(event, testId) {
   if (event) { event.preventDefault(); event.stopPropagation(); }
   const starredList = userPlaylists.find(p => p.playlist_name === 'Starred Sets');
   if (!starredList || !currentCandidate) return;
-  const inList = userPlaylistItems.some(pi => pi.playlist_id === starredList.id && String(pi.test_id) === String(testId));
-  await togglePlaylistMembership(starredList.id, testId, inList);
+  const inList = userPlaylistItems.some(pi => String(pi.playlist_id) === String(starredList.id) && String(pi.test_id) === String(testId));
+
+  if (inList) {
+    await window.executeSwipeRemove(starredList.id, testId, 'Starred Sets', null);
+  } else {
+    await togglePlaylistMembership(starredList.id, testId, false);
+    showSelectionToast(`Added to "Starred Sets"`);
+  }
 };
 
 function getPlaylistAddBtnHtml(pId, pName) {
@@ -2859,7 +2823,7 @@ async function renderHomePlaylists() {
         legendEl.innerHTML = `
           <span class="tier-legend-item"><span class="tier-dot tier-dot-mastered"></span> Correct (${crucibleCorrectQ})</span>
           <span class="tier-legend-item"><span class="tier-dot tier-dot-error"></span> Errors (${sunErrors})</span>
-          <span class="tier-legend-item"><span class="tier-dot tier-dot-remaining"></span> Rem (${sunRemaining})</span>
+          <span class="tier-legend-item"><span class="tier-dot tier-dot-remaining"></span> Left (${sunRemaining})</span>
           ${isSunHit ? `<span class="tier-legend-item" style="color:var(--warning-dark); font-family:var(--font-mono); font-weight:800;">👑 Target Met</span>` : ''}
         `;
       } else if (actualAttemptedCount >= 100) {
@@ -4593,21 +4557,24 @@ function renderSolutionsUI() {
   const totalCount = testQuestions.length;
   let wrongCount = 0;
   let skippedCount = 0;
+  let markedCount = 0;
+  let priorityCount = 0;
 
-  // 1. Calculate Mistakes & Skipped Counts
+  // 1. Calculate Mistakes, Skipped, Marked & Unified Priority Counts (No Double Counting)
   testQuestions.forEach((q, idx) => {
     const resp = userResponses[idx];
     const uAns = resp ? resp.selected : null;
-    if (!uAns) {
-      skippedCount++;
-    } else if (!isOptionMatching(uAns, q.correctAnswer)) {
-      wrongCount++;
-    }
+    const isMarked = Boolean(resp && (resp.status === 3 || resp.status === 4));
+    const isWrong = Boolean(uAns && !isOptionMatching(uAns, q.correctAnswer));
+    const isSkipped = Boolean(!uAns);
+
+    if (isWrong) wrongCount++;
+    if (isSkipped) skippedCount++;
+    if (isMarked) markedCount++;
+    if (isWrong || isSkipped || isMarked) priorityCount++;
   });
 
-  const priorityCount = wrongCount + skippedCount;
-
-  // 2. Fixed Sub-Header Dock (Scroll Container ke Bahar Place Hoga)
+  // 2. Fixed Sub-Header Dock (4 Compact Pills fit smoothly in 1 row)
   let filterToolbar = document.getElementById("solutionsFixedFilterBar");
   if (!filterToolbar) {
     filterToolbar = document.createElement("div");
@@ -4616,19 +4583,22 @@ function renderSolutionsUI() {
     container.parentNode.insertBefore(filterToolbar, container);
   }
 
-  // 🚀 "All Questions" ko compact "All" kiya gaya taaki teeno pills 1 line me fit hon
   filterToolbar.innerHTML = `
     <button type="button" class="sol-filter-btn btn-all ${currentSolutionsFilter === 'all' ? 'active' : ''}" onclick="filterSolutionsView('all')">
       <span>All</span>
       <span class="filter-badge">${totalCount}</span>
     </button>
-    <button type="button" class="sol-filter-btn btn-priority ${currentSolutionsFilter === 'priority' ? 'active' : ''}" onclick="filterSolutionsView('priority')" title="Mistakes & Skipped Questions">
+    <button type="button" class="sol-filter-btn btn-priority ${currentSolutionsFilter === 'priority' ? 'active' : ''}" onclick="filterSolutionsView('priority')" title="Mistakes, Skipped & Marked for Review">
       <span>⚡ Priority</span>
       <span class="filter-badge">${priorityCount}</span>
     </button>
     <button type="button" class="sol-filter-btn btn-wrong ${currentSolutionsFilter === 'wrong' ? 'active' : ''}" onclick="filterSolutionsView('wrong')" title="Incorrect Answers Only">
       <span>❌ Mistakes</span>
       <span class="filter-badge">${wrongCount}</span>
+    </button>
+    <button type="button" class="sol-filter-btn btn-marked ${currentSolutionsFilter === 'marked' ? 'active' : ''}" onclick="filterSolutionsView('marked')" title="Questions Marked for Review">
+      <span>🟣 Marked</span>
+      <span class="filter-badge">${markedCount}</span>
     </button>
   `;
 
@@ -4646,9 +4616,11 @@ function renderSolutionsUI() {
     const uAns = resp ? resp.selected : null;
     const isWrong = Boolean(uAns && !isOptionMatching(uAns, q.correctAnswer));
     const isSkipped = Boolean(!uAns);
+    const isMarked = Boolean(resp && (resp.status === 3 || resp.status === 4));
 
     if (currentSolutionsFilter === 'wrong' && !isWrong) return;
-    if (currentSolutionsFilter === 'priority' && !(isWrong || isSkipped)) return;
+    if (currentSolutionsFilter === 'marked' && !isMarked) return;
+    if (currentSolutionsFilter === 'priority' && !(isWrong || isSkipped || isMarked)) return;
 
     visibleCount++;
     const card = buildQuestionCardDOM(q, idx, 'review', mockReviewState, false);
@@ -4665,11 +4637,17 @@ function renderSolutionsUI() {
         <strong style="color:var(--success-dark); font-size:15px; display:block;">Zero Mistakes!</strong>
         <p style="margin-top:4px; font-weight:500; font-size:12.5px;">You answered every attempted question correctly in this session.</p>
       `;
+    } else if (currentSolutionsFilter === 'marked') {
+      emptyNotice.innerHTML = `
+        <div style="font-size:32px; margin-bottom:10px;">🟣</div>
+        <strong style="color:var(--c-review); font-size:15px; display:block;">No Marked Questions!</strong>
+        <p style="margin-top:4px; font-weight:500; font-size:12.5px;">You did not mark any questions for review during this exam.</p>
+      `;
     } else if (currentSolutionsFilter === 'priority') {
       emptyNotice.innerHTML = `
         <div style="font-size:32px; margin-bottom:10px;">🏆</div>
         <strong style="color:var(--success-dark); font-size:15px; display:block;">Flawless Execution!</strong>
-        <p style="margin-top:4px; font-weight:500; font-size:12.5px;">All questions were attempted accurately with zero skips and zero errors.</p>
+        <p style="margin-top:4px; font-weight:500; font-size:12.5px;">Zero mistakes, zero skips, and zero doubtful marked questions.</p>
       `;
     }
     container.appendChild(emptyNotice);
@@ -6507,7 +6485,11 @@ function buildQuestionCardDOM(q, idx, mode, stateObj, isMB = false) {
     const isUserCorrect = uAns && isOptionMatching(uAns, q.correctAnswer);
     const sText = uAns ? (isUserCorrect ? "Right" : "Wrong") : "Skipped";
     const sClass = uAns ? (isUserCorrect ? "sol-status-correct" : "sol-status-incorrect") : "sol-status-unattempted";
-    badgeHtml = `<span class="sol-status-badge ${sClass}">${sText}</span>`;
+    const isMarkedReview = sAns && (sAns.status === 3 || sAns.status === 4);
+    const markedPill = isMarkedReview
+      ? `<span class="sol-status-badge" style="background:rgba(124, 58, 237, 0.12); color:#6d28d9; border:1px solid rgba(124, 58, 237, 0.3);">🟣 Marked</span>`
+      : "";
+    badgeHtml = `<span class="sol-status-badge ${sClass}">${sText}</span>${markedPill}`;
     showExp = true;
   } else if (isQuiz) {
     if (sAns) {
