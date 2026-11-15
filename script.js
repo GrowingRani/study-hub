@@ -1691,7 +1691,7 @@ function getMilestoneBeaconHtml(count) {
   return "";
 }
 
-function getMilestoneTelemetryHtml(attemptedCount = 0, masteredCount = 0, isSundayMode = false, isSundayHit = false) {
+function getMilestoneTelemetryHtml(attemptedCount = 0, masteredCount = 0, isSundayMode = false, isSundayHit = false, poolTotal = 0) {
   const count = Number(attemptedCount) || 0;
   const mastered = Number(masteredCount) || 0;
 
@@ -1705,9 +1705,10 @@ function getMilestoneTelemetryHtml(attemptedCount = 0, masteredCount = 0, isSund
   const svgStar = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>`;
 
   if (isSundayMode) {
+    const ratioLabel = poolTotal > 0 ? `${count} / ${poolTotal} Qs` : `${count} Qs`;
     return `
       <div class="honest-satellite-cluster">
-        <span class="telemetry-pill pill-tier-crucible">${svgTarget} ${count} Qs</span>
+        <span class="telemetry-pill pill-tier-crucible">${svgTarget} ${ratioLabel}</span>
         <span class="telemetry-pill pill-tier-crucible">${isSundayHit ? svgShield : svgFlag} ${isSundayHit ? 'CONQUERED' : 'CRUCIBLE'}</span>
       </div>
     `;
@@ -1833,12 +1834,13 @@ async function mountDashboard(isInitialLoad = false) {
   // Decouple Staging fill permanently
   if (capFillInit) capFillInit.style.display = "none";
 
+  const savedSunPoolInit = (isSun && roll) ? appStorage.getJSON(`sunday_crucible_pool_${roll}_${getLocalDateString()}`, []) : [];
+  const sunPoolTotalInit = savedSunPoolInit.length;
+
   if (attFillInit && masFillInit) {
     if (isSun) {
-      const savedSunPool = roll ? appStorage.getJSON(`sunday_crucible_pool_${roll}_${getLocalDateString()}`, []) : [];
-      const sunTargetInit = savedSunPool.length > 0 ? Math.min(50, Math.ceil(savedSunPool.length * 0.70)) : 50;
-      const sunAttPct = sunTargetInit > 0 ? Math.min(100, Math.round((cachedCount / sunTargetInit) * 100)) : 0;
-      const sunMasPct = cachedCount > 0 ? Math.round((cachedCorrect / cachedCount) * sunAttPct) : 0;
+      const sunAttPct = sunPoolTotalInit > 0 ? Math.min(100, Math.round((cachedCount / sunPoolTotalInit) * 100)) : 0;
+      const sunMasPct = sunPoolTotalInit > 0 ? Math.min(sunAttPct, Math.round((cachedCorrect / sunPoolTotalInit) * 100)) : 0;
       attFillInit.style.width = sunAttPct + "%";
       masFillInit.style.width = sunMasPct + "%";
     } else if (cachedCount >= 100) {
@@ -1874,9 +1876,9 @@ async function mountDashboard(isInitialLoad = false) {
   }
 
   // 🎯 2. cMeter mein 4-Tier Crisp Telemetry Pills rahengi
-  if (cMeter) {
-    cMeter.innerHTML = getMilestoneTelemetryHtml(cachedCount, dailyPerf?.total_correct || 0, isSun, dailyPerf?.is_century_hit);
-  }
+    if (cMeter) {
+      cMeter.innerHTML = getMilestoneTelemetryHtml(cachedCount, dailyPerf?.total_correct || 0, isSun, dailyPerf?.is_century_hit, sunPoolTotalInit);
+    }
 
   // 🚀 स्ट्रीक बैज को 0ms पर सही संख्या के साथ पेंट करें
   updateHeaderBadges();
@@ -2808,9 +2810,9 @@ async function renderHomePlaylists() {
     let masPct = 0;
 
     if (isSun) {
-      if (sundayTargetQ > 0) {
-        attPct = Math.min(100, Math.round((crucibleAttemptedQ / sundayTargetQ) * 100));
-        masPct = crucibleAttemptedQ > 0 ? Math.min(attPct, Math.round((crucibleCorrectQ / crucibleAttemptedQ) * attPct)) : 0;
+      if (qCount > 0) {
+        attPct = Math.min(100, Math.round((crucibleAttemptedQ / qCount) * 100));
+        masPct = Math.min(attPct, Math.round((crucibleCorrectQ / qCount) * 100));
       }
     } else if (actualAttemptedCount >= 100) {
       // 🚀 OVERDRIVE MODE: Scale represents total attempted questions (100% full bar)
@@ -2838,7 +2840,7 @@ async function renderHomePlaylists() {
     if (subText) {
       if (isSun) {
         subText.innerText = qCount > 0
-          ? `Crucible Target: Min ${sundayTargetQ} of ${qCount} Qs • Weekly Review`
+          ? `Pool: ${qCount} Qs • Streak Target: ${sundayTargetQ} Qs`
           : "Weekly Review & Mastery Crucible";
       } else if (actualAttemptedCount >= 100) {
         subText.innerText = `Scale: Total Attempted (${actualAttemptedCount} Qs) • Overdrive Active`;
@@ -2853,13 +2855,12 @@ async function renderHomePlaylists() {
       const todayErrors = Math.max(0, actualAttemptedCount - todayMasteredQ);
       if (isSun) {
         const sunErrors = Math.max(0, crucibleAttemptedQ - crucibleCorrectQ);
-        const sunRem = Math.max(0, sundayTargetQ - crucibleAttemptedQ);
+        const sunRemaining = Math.max(0, qCount - crucibleAttemptedQ);
         legendEl.innerHTML = `
           <span class="tier-legend-item"><span class="tier-dot tier-dot-mastered"></span> Correct (${crucibleCorrectQ})</span>
           <span class="tier-legend-item"><span class="tier-dot tier-dot-error"></span> Errors (${sunErrors})</span>
-          ${isSunHit
-            ? `<span class="tier-legend-item" style="color:var(--warning-dark); font-family:var(--font-mono); font-weight:800;">👑 Crucible Target Met</span>`
-            : `<span class="tier-legend-item"><span class="tier-dot tier-dot-remaining"></span> Target Left (${sunRem})</span>`}
+          <span class="tier-legend-item"><span class="tier-dot tier-dot-remaining"></span> Remaining (${sunRemaining})</span>
+          ${isSunHit ? `<span class="tier-legend-item" style="color:var(--warning-dark); font-family:var(--font-mono); font-weight:800;">👑 Target Met</span>` : ''}
         `;
       } else if (actualAttemptedCount >= 100) {
         legendEl.innerHTML = `
@@ -2877,8 +2878,9 @@ async function renderHomePlaylists() {
       }
     }
 
-    // (D) 🚀 Zebra Crossing Laser Beam + Shimmer Sweep (Active when >= 100 Qs)
+    // (D) 🚀 Zebra Crossing Laser Beam + Sunday Target Milestone Marker
     if (trackElement) {
+      trackElement.style.position = "relative";
       trackElement.classList.toggle("hyperdrive-active-track", isOverdrive);
       const existingBeam = trackElement.querySelector(".hyperdrive-physical-beam");
       if (isOverdrive) {
@@ -2890,6 +2892,21 @@ async function renderHomePlaylists() {
         }
       } else if (existingBeam) {
         existingBeam.remove();
+      }
+
+      // 👑 Sunday Streak Target Vertical Marker Line on Full-Pool Track
+      let targetMarker = trackElement.querySelector(".sunday-target-marker");
+      const markerPct = (isSun && qCount > 0) ? Math.min(100, Math.round((sundayTargetQ / qCount) * 100)) : 0;
+      if (isSun && markerPct > 0 && markerPct < 100) {
+        if (!targetMarker) {
+          targetMarker = document.createElement("div");
+          targetMarker.className = "sunday-target-marker";
+          trackElement.appendChild(targetMarker);
+        }
+        targetMarker.title = `Streak Target: ${sundayTargetQ} Qs`;
+        targetMarker.style.cssText = `position:absolute; top:-2px; bottom:-2px; left:${markerPct}%; width:2px; background:${isSunHit ? '#15803d' : '#b45309'}; box-shadow:0 0 0 1px rgba(255,255,255,0.85); z-index:4; pointer-events:none; border-radius:2px; transform:translateX(-50%);`;
+      } else if (targetMarker) {
+        targetMarker.remove();
       }
     }
 
@@ -2903,8 +2920,8 @@ async function renderHomePlaylists() {
     // 🎯 cMeter mein 4-Tier Crisp Telemetry Pills rahengi
     if (meterText) {
       meterText.innerHTML = isSun
-        ? getMilestoneTelemetryHtml(crucibleAttemptedQ, crucibleCorrectQ, true, isSunHit)
-        : getMilestoneTelemetryHtml(actualAttemptedCount, todayMasteredQ, false, false);
+        ? getMilestoneTelemetryHtml(crucibleAttemptedQ, crucibleCorrectQ, true, isSunHit, qCount)
+        : getMilestoneTelemetryHtml(actualAttemptedCount, todayMasteredQ, false, false, 0);
     }
 
     if (currentCandidate?.roll_number) {
@@ -3350,11 +3367,15 @@ async function fetchWeakQuestions() {
       if (fresh) { 
         userWeakQuestions = weakQs.map(wq => ({ ...wq, question_data: fresh.find(f => String(f.id) === String(wq.question_id)) || wq.question_data })); 
         hasLoadedWeakQuestions = true;
+        cachedBoosterPool = null;
+        lastBoosterFetchTime = 0;
         return; 
       }
     }
     userWeakQuestions = weakQs;
     hasLoadedWeakQuestions = true;
+    cachedBoosterPool = null;
+    lastBoosterFetchTime = 0;
   } catch (err) { 
     console.error("Mistake Bank Load Error:", err); 
   }
