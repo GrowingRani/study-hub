@@ -778,13 +778,15 @@ body.dark-theme .theme-mistake-briefing #briefingStatusBadge { background: rgba(
 .btn-bookmark-stage.saved { background: var(--tcs-blue-bg-subtle) !important; border-color: var(--tcs-blue-accent) !important; color: var(--tcs-blue-accent) !important; box-shadow: 0 0 12px var(--tcs-blue-bg-subtle); }
 .btn-bookmark-stage.saved svg { fill: currentColor; transform: scale(1.08); }
 
-.selection-toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--bg-glass); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1.5px solid var(--border-color); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25); border-radius: 30px; padding: 8px 14px 8px 18px; z-index: 3500; opacity: 0; pointer-events: none; transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1), transform 0.25s cubic-bezier(0.16, 1, 0.3, 1); max-width: 92vw; box-sizing: border-box; }
+.selection-toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px); background: #1e293b; border: 1px solid rgba(255, 255, 255, 0.12); box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35); border-radius: 10px; padding: 10px 16px; z-index: 4500; opacity: 0; pointer-events: none; transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1), transform 0.25s cubic-bezier(0.16, 1, 0.3, 1); width: max-content; max-width: min(92vw, 420px); box-sizing: border-box; }
 .selection-toast.show { opacity: 1; pointer-events: auto; transform: translateX(-50%) translateY(0); }
-.selection-toast-content { display: flex; align-items: center; gap: 12px; color: var(--text-main); font-family: var(--font-family); font-size: 13px; font-weight: 700; white-space: nowrap; }
-.toast-bookmark-icon { display: inline-flex; align-items: center; justify-content: center; color: var(--tcs-blue-accent); flex-shrink: 0; }
-.toast-message { color: inherit; overflow: hidden; text-overflow: ellipsis; max-width: 260px; }
-.btn-toast-undo { background: var(--tcs-blue-bg-subtle) !important; border: 1px solid var(--tcs-blue-border-subtle) !important; color: var(--tcs-blue-accent) !important; font-family: var(--font-mono) !important; font-size: 11.5px !important; font-weight: 800 !important; letter-spacing: 0.5px !important; text-transform: uppercase !important; padding: 4px 10px !important; border-radius: 20px !important; cursor: pointer !important; outline: none !important; transition: all 0.15s ease !important; }
-.btn-toast-undo:active { transform: scale(0.92) !important; }
+.selection-toast-content { display: flex; align-items: center; justify-content: flex-start; gap: 10px; width: 100%; color: #f8fafc; font-family: var(--font-family); font-size: 13px; font-weight: 600; white-space: nowrap; }
+.toast-bookmark-icon { display: inline-flex; align-items: center; justify-content: center; color: #38bdf8; flex-shrink: 0; }
+.toast-message { text-align: left; color: inherit; overflow: hidden; text-overflow: ellipsis; max-width: 260px; }
+.btn-toast-undo { margin-left: auto; flex-shrink: 0; background: transparent !important; border: none !important; color: #38bdf8 !important; font-family: var(--font-family) !important; font-size: 13px !important; font-weight: 800 !important; letter-spacing: 0.4px !important; text-transform: uppercase !important; padding: 4px 6px !important; border-radius: 6px !important; cursor: pointer !important; outline: none !important; transition: opacity 0.15s ease, transform 0.15s ease !important; }
+.btn-toast-undo:hover { background: rgba(56, 189, 248, 0.12) !important; }
+.btn-toast-undo:active { transform: scale(0.94) !important; opacity: 0.8 !important; }
+
 
 /* ==========================================================================
    8. UNIVERSAL POPUPS & BOTTOM SHEETS
@@ -1075,24 +1077,8 @@ body.dark-theme .theme-mistake-briefing #briefingStatusBadge { background: rgba(
 .sol-filter-btn.active.btn-priority .filter-badge { background: rgba(255, 255, 255, 0.25); color: #ffffff; }
 .sol-filter-btn.active.btn-wrong { background: linear-gradient(135deg, #dc2626, #ef4444) !important; color: #ffffff !important; border-color: #ef4444 !important; box-shadow: 0 2px 8px rgba(239, 68, 68, 0.25); }
 .sol-filter-btn.active.btn-wrong .filter-badge { background: rgba(255, 255, 255, 0.25); color: #ffffff; }
-/* 🟣 Marked Filter Pill Active State */
-.sol-filter-btn.btn-marked.active {
-  background: var(--c-review, #7c3aed);
-  color: #ffffff;
-  border-color: var(--c-review, #7c3aed);
-  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.28);
-}
-
-.sol-filter-btn.btn-marked.active .filter-badge {
-  background: rgba(255, 255, 255, 0.22);
-  color: #ffffff;
-}
-
-body.dark-theme .sol-filter-btn.btn-marked.active {
-  background: #8b5cf6;
-  border-color: #8b5cf6;
-  color: #ffffff;
-}
+.sol-filter-btn.active.btn-marked { background: linear-gradient(135deg, #6d28d9, #7c3aed) !important; color: #ffffff !important; border-color: #7c3aed !important; box-shadow: 0 2px 8px rgba(124, 58, 237, 0.28) !important; }
+.sol-filter-btn.active.btn-marked .filter-badge { background: rgba(255, 255, 255, 0.25) !important; color: #ffffff !important; }
 #viewSolutions .practice-viewport { padding-top: 14px !important; }
 @media screen and (max-width: 768px) { .solutions-filter-strip { padding: 8px 12px !important; } }
 

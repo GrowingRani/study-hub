@@ -2472,26 +2472,27 @@ function animateAndRemoveWrapper(wrapper, onComplete) {
   }, 280);
 }
 
-window.executeSwipeRemove = async function(pId, testId, pName, el) {
-  const wrapper = el?.closest('.swipe-item-wrapper') || document.querySelector(`.swipe-item-wrapper[data-playlist-id="${pId}"][data-test-id="${testId}"]`);
-  lastRemovedPayload = { pId, testId, pName };
+window.triggerUndoPlaylistRemove = async function() {
+  if (!lastRemovedPayload) return;
+  const { pId, testId, pName } = lastRemovedPayload;
+  lastRemovedPayload = null;
+  await togglePlaylistMembership(pId, Number(testId) || testId, false);
+  showSelectionToast(`Restored to "${pName}"`);
+};
 
-  const undoAction = async () => {
-    if (!lastRemovedPayload) return;
-    const { pId: undoPid, testId: undoTid, pName: undoPname } = lastRemovedPayload;
-    await togglePlaylistMembership(undoPid, undoTid, false);
-    showSelectionToast(`Restored to "${undoPname}"`);
-    lastRemovedPayload = null;
-  };
+window.executeSwipeRemove = async function(pId, testId, pName, el) {
+  const numericTestId = Number(testId) || testId;
+  const wrapper = el?.closest('.swipe-item-wrapper') || document.querySelector(`.swipe-item-wrapper[data-playlist-id="${pId}"][data-test-id="${numericTestId}"]`);
+  lastRemovedPayload = { pId, testId: numericTestId, pName };
 
   if (wrapper && wrapper.offsetParent !== null) {
     animateAndRemoveWrapper(wrapper, async () => {
-      await togglePlaylistMembership(pId, testId, true);
-      showSelectionToast(`Removed from "${pName}"`, undoAction);
+      await togglePlaylistMembership(pId, numericTestId, true);
+      showSelectionToast(`Removed from "${pName}"`, window.triggerUndoPlaylistRemove);
     });
   } else {
-    await togglePlaylistMembership(pId, testId, true);
-    showSelectionToast(`Removed from "${pName}"`, undoAction);
+    await togglePlaylistMembership(pId, numericTestId, true);
+    showSelectionToast(`Removed from "${pName}"`, window.triggerUndoPlaylistRemove);
   }
 };
 
@@ -2907,26 +2908,49 @@ let toastTimer = null;
 let lastRemovedPayload = null;
 window.showSelectionToast = function(msg, undoCallback = null) {
   const toast = document.getElementById("selectionToast");
-  const msgEl = document.getElementById("selectionToastText");
-  const undoBtn = document.getElementById("btnToastUndo");
-  if (!toast || !msgEl) return;
+  if (!toast) return;
+
+  let contentWrap = toast.querySelector(".selection-toast-content");
+  if (!contentWrap) {
+    contentWrap = document.createElement("div");
+    contentWrap.className = "selection-toast-content";
+    toast.appendChild(contentWrap);
+  }
+
+  let msgEl = document.getElementById("selectionToastText") || contentWrap.querySelector(".toast-message");
+  if (!msgEl) {
+    msgEl = document.createElement("span");
+    msgEl.id = "selectionToastText";
+    msgEl.className = "toast-message";
+    contentWrap.appendChild(msgEl);
+  }
   msgEl.innerText = msg;
 
+  let undoBtn = document.getElementById("btnToastUndo") || contentWrap.querySelector(".btn-toast-undo");
+  if (!undoBtn) {
+    undoBtn = document.createElement("button");
+    undoBtn.type = "button";
+    undoBtn.id = "btnToastUndo";
+    undoBtn.className = "btn-toast-undo";
+    undoBtn.innerText = "UNDO";
+    contentWrap.appendChild(undoBtn);
+  }
+
   if (undoCallback && typeof undoCallback === "function") {
-    if (undoBtn) {
-      undoBtn.style.display = "inline-flex";
-      undoBtn.onclick = () => {
-        undoCallback();
-        toast.classList.remove("show");
-        setTimeout(() => { toast.style.display = "none"; }, 250);
-      };
-    }
-  } else if (undoBtn) {
-    undoBtn.style.display = "none";
+    undoBtn.style.setProperty("display", "inline-flex", "important");
+    undoBtn.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      undoCallback();
+      toast.classList.remove("show");
+      setTimeout(() => { toast.style.display = "none"; }, 250);
+    };
+  } else {
+    undoBtn.style.setProperty("display", "none", "important");
     undoBtn.onclick = null;
   }
 
-  toast.style.display = "block";
+  toast.style.setProperty("display", "flex", "important");
   void toast.offsetWidth;
   toast.classList.add("show");
 
@@ -2934,9 +2958,9 @@ window.showSelectionToast = function(msg, undoCallback = null) {
   toastTimer = setTimeout(() => {
     toast.classList.remove("show");
     setTimeout(() => {
-      if (!toast.classList.contains("show")) toast.style.display = "none";
+      if (!toast.classList.contains("show")) toast.style.setProperty("display", "none", "important");
     }, 250);
-  }, 3500);
+  }, 4000);
 };
 
 function renderStagingDomainScroller() {
@@ -3267,6 +3291,14 @@ window.togglePlaylistMembership = async function(pId, testId, inList) {
   const overlay = document.getElementById("playlistBottomSheetOverlay");
   if (overlay && overlay.classList.contains("open")) {
     openPlaylistBottomSheet(testId);
+    const plObj = userPlaylists.find(p => String(p.id) === String(pId));
+    const plName = plObj ? plObj.playlist_name : "Playlist";
+    if (inList) {
+      lastRemovedPayload = { pId, testId: Number(testId) || testId, pName: plName };
+      showSelectionToast(`Removed from "${plName}"`, window.triggerUndoPlaylistRemove);
+    } else {
+      showSelectionToast(`Added to "${plName}"`);
+    }
   }
   renderHomePlaylists();
 
