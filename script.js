@@ -1408,15 +1408,65 @@ window.openDeletePlaylistModal = function(pId, pName, isClearOnly) {
   toggleModalDOM("deletePlaylistConfirmModal", true);
 };
 
+let lastDeletedPlaylistSnapshot = null;
+
 window.closeDeletePlaylistModal = function() { 
   toggleModalDOM("deletePlaylistConfirmModal", false);
   pendingDeleteTarget = null; 
 };
 
+window.triggerUndoPlaylistDelete = async function() {
+  if (!lastDeletedPlaylistSnapshot || !currentCandidate) return;
+  const snap = lastDeletedPlaylistSnapshot;
+  lastDeletedPlaylistSnapshot = null;
+  const roll = currentCandidate.roll_number;
+
+  try {
+    let targetPlaylistId = snap.playlist.id;
+    if (!snap.isClearOnly) {
+      const { data: restoredPl, error: plErr } = await supabaseClient
+        .from("playlists")
+        .insert({
+          student_roll: roll,
+          playlist_name: snap.playlist.playlist_name,
+          is_system_playlist: Boolean(snap.playlist.is_system_playlist),
+          display_order: snap.playlist.display_order ?? 10
+        })
+        .select()
+        .single();
+      if (plErr) throw plErr;
+      targetPlaylistId = restoredPl.id;
+    }
+
+    if (snap.items.length > 0) {
+      const rowsToInsert = snap.items.map(it => ({
+        playlist_id: targetPlaylistId,
+        test_id: it.test_id,
+        student_roll: roll,
+        is_rollover: Boolean(it.is_rollover)
+      }));
+      const { error: itemsErr } = await supabaseClient.from("playlist_items").insert(rowsToInsert);
+      if (itemsErr) throw itemsErr;
+    }
+
+    await fetchPlaylistsAndCheckRollover();
+    await renderHomePlaylists();
+    autoExpandPlaylistCard(snap.playlist.playlist_name);
+    showSelectionToast(`Restored "${snap.playlist.playlist_name}"`);
+  } catch (err) {
+    console.error("Undo playlist delete failed:", err);
+    showSelectionToast("Could not restore playlist.");
+  }
+};
+
 window.confirmDeletePlaylist = async function() {
   if (!pendingDeleteTarget) return; 
-  const { id, isClearOnly } = pendingDeleteTarget, btn = document.getElementById("btnConfirmDeletePlaylist");
+  const { id, name, isClearOnly } = pendingDeleteTarget, btn = document.getElementById("btnConfirmDeletePlaylist");
   if (btn) { btn.innerText = "Processing..."; btn.disabled = true; }
+
+  const playlistObj = userPlaylists.find(p => String(p.id) === String(id)) || { id, playlist_name: name, is_system_playlist: false, display_order: 10 };
+  const itemsBackup = userPlaylistItems.filter(pi => String(pi.playlist_id) === String(id)).map(pi => ({ ...pi }));
+
   try { 
     if (isClearOnly) { 
       const { error } = await supabaseClient.from("playlist_items").delete().eq("playlist_id", id).eq("student_roll", currentCandidate.roll_number); 
@@ -1426,9 +1476,14 @@ window.confirmDeletePlaylist = async function() {
       const { error } = await supabaseClient.from("playlists").delete().eq("id", id); 
       if (error) throw error; 
     }
+    lastDeletedPlaylistSnapshot = { playlist: { ...playlistObj }, items: itemsBackup, isClearOnly };
     closeDeletePlaylistModal(); 
     await fetchPlaylistsAndCheckRollover(); 
     await renderHomePlaylists(); 
+    showSelectionToast(
+      isClearOnly ? `Cleared "${name}"` : `Deleted "${name}"`,
+      window.triggerUndoPlaylistDelete
+    );
   } catch (err) { 
     showAppNoticeModal("Error", "Action Failed", err.message, "⚠️", "Dismiss"); 
   } finally { 
@@ -2960,9 +3015,8 @@ window.showSelectionToast = function(msg, undoCallback = null) {
     setTimeout(() => {
       if (!toast.classList.contains("show")) toast.style.setProperty("display", "none", "important");
     }, 250);
-  }, 4000);
+  }, 5000);
 };
-
 function renderStagingDomainScroller() {
   const scroller = document.getElementById("stagingDomainScroller");
   if (!scroller) return;

@@ -154,275 +154,69 @@ body.portal-body { font-family: var(--font-family); background-color: var(--bg-p
 .tier-dot-remaining { background: var(--border-hover); opacity: 0.6; }
 .century-fill-capacity, .tier-legend-staged, .tier-dot-staged, .tier-legend-item:has(.tier-dot-staged) { display: none !important; }
 
-
 /* 🏎️ Physical Laser Beam running across the track (Zebra Stripes + Shimmer Flare) */
-.hyperdrive-physical-beam { 
-  position: absolute !important; 
-  top: 0 !important; 
-  left: 0 !important; 
-  width: 100% !important; 
-  height: 100% !important; 
-  pointer-events: none !important; 
-  z-index: 50 !important; 
-  background: repeating-linear-gradient(-45deg, rgba(255, 255, 255, 0.28) 0px, rgba(255, 255, 255, 0.28) 8px, transparent 8px, transparent 16px) !important; 
-  background-size: 200% 100% !important; 
-  animation: hyperdriveStream 1.2s linear infinite !important; 
-}
-.hyperdrive-flare-head { 
-  position: absolute !important; 
-  top: 0 !important; 
-  bottom: 0 !important; 
-  width: 45px !important; 
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.95), transparent) !important; 
-  filter: drop-shadow(0 0 8px #ffffff) !important; 
-  animation: flareSweep 1.8s cubic-bezier(0.4, 0, 0.2, 1) infinite !important; 
-}
+.hyperdrive-physical-beam { position: absolute !important; top: 0 !important; left: 0 !important; width: 100% !important; height: 100% !important; pointer-events: none !important; z-index: 50 !important; background: repeating-linear-gradient(-45deg, rgba(255, 255, 255, 0.28) 0px, rgba(255, 255, 255, 0.28) 8px, transparent 8px, transparent 16px) !important; background-size: 200% 100% !important; animation: hyperdriveStream 1.2s linear infinite !important; }
+.hyperdrive-flare-head { position: absolute !important; top: 0 !important; bottom: 0 !important; width: 45px !important; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.95), transparent) !important; filter: drop-shadow(0 0 8px #ffffff) !important; animation: flareSweep 1.8s cubic-bezier(0.4, 0, 0.2, 1) infinite !important; }
 @keyframes hyperdriveStream { 0% { background-position: 0 0; } 100% { background-position: 32px 0; } }
 @keyframes flareSweep { 0% { left: -10%; opacity: 0; } 15% { opacity: 1; } 85% { opacity: 1; } 100% { left: 110%; opacity: 0; } }
 
 /* 🛰️ 4-TIER CRISP TELEMETRY HUD PILLS */
-.honest-satellite-cluster { 
-  display: inline-flex !important; 
-  align-items: center !important; 
-  gap: 6px !important; 
-  width: auto;
-  box-sizing: border-box;
-}
-
-.telemetry-pill {
-  display: inline-flex !important;
-  align-items: center !important;
-  gap: 4px !important;
-  padding: 3.5px 8px !important;
-  border-radius: 6px !important;
-  font-family: var(--font-mono) !important;
-  font-size: 10.5px !important;
-  font-weight: 800 !important;
-  letter-spacing: 0.3px !important;
-  white-space: nowrap !important;
-  box-sizing: border-box !important;
-  user-select: none !important;
-  line-height: 1 !important;
-  transition: all 0.2s ease !important;
-}
-
-.telemetry-pill svg {
-  width: 11px !important;
-  height: 11px !important;
-  flex-shrink: 0 !important;
-  display: block !important;
-}
+.honest-satellite-cluster { display: inline-flex !important; align-items: center !important; gap: 6px !important; width: auto; box-sizing: border-box; }
+.telemetry-pill { display: inline-flex !important; align-items: center !important; gap: 4px !important; padding: 3.5px 8px !important; border-radius: 6px !important; font-family: var(--font-mono) !important; font-size: 10.5px !important; font-weight: 800 !important; letter-spacing: 0.3px !important; white-space: nowrap !important; box-sizing: border-box !important; user-select: none !important; line-height: 1 !important; transition: all 0.2s ease !important; }
+.telemetry-pill svg { width: 11px !important; height: 11px !important; flex-shrink: 0 !important; display: block !important; }
 
 /* Tier 0: < 100 Qs (Target Standby & Ascent) */
-.pill-tier-ascent {
-  background: var(--bg-surface-elevated) !important;
-  border: 1px solid var(--border-color) !important;
-  color: var(--text-main) !important;
-}
-
-.pill-tier-deficit {
-  background: var(--tcs-blue-bg-subtle) !important;
-  border: 1px solid var(--tcs-blue-border-subtle) !important;
-  color: var(--tcs-blue-accent) !important;
-}
+.pill-tier-ascent { background: var(--bg-surface-elevated) !important; border: 1px solid var(--border-color) !important; color: var(--text-main) !important; }
+.pill-tier-deficit { background: var(--tcs-blue-bg-subtle) !important; border: 1px solid var(--tcs-blue-border-subtle) !important; color: var(--tcs-blue-accent) !important; }
 
 /* Tier 1: 100 - 199 Qs (Baseline Target Secured) */
-.pill-tier-secured {
-  background: var(--success-bg-subtle) !important;
-  border: 1px solid var(--success-border) !important;
-  color: var(--success-dark) !important;
-}
+.pill-tier-secured { background: var(--success-bg-subtle) !important; border: 1px solid var(--success-border) !important; color: var(--success-dark) !important; }
 
 /* Tier 2: 200 - 299 Qs (Overdrive Matrix) */
-.pill-tier-overdrive {
-  background: var(--warning-bg-subtle) !important;
-  border: 1px solid var(--warning-border) !important;
-  color: var(--warning-dark) !important;
-}
+.pill-tier-overdrive { background: var(--warning-bg-subtle) !important; border: 1px solid var(--warning-border) !important; color: var(--warning-dark) !important; }
 
 /* Tier 3: 300+ Qs (Apex Peak Load) */
-.pill-tier-apex {
-  background: rgba(251, 191, 36, 0.16) !important;
-  border: 1px solid rgba(251, 191, 36, 0.5) !important;
-  color: #b45309 !important;
-}
-body.dark-theme .pill-tier-apex {
-  background: rgba(251, 191, 36, 0.14) !important;
-  border-color: rgba(251, 191, 36, 0.45) !important;
-  color: #fde047 !important;
-}
+.pill-tier-apex { background: rgba(251, 191, 36, 0.16) !important; border: 1px solid rgba(251, 191, 36, 0.5) !important; color: #b45309 !important; }
+body.dark-theme .pill-tier-apex { background: rgba(251, 191, 36, 0.14) !important; border-color: rgba(251, 191, 36, 0.45) !important; color: #fde047 !important; }
 
 /* Sunday Revision Protocol */
-.pill-tier-crucible {
-  background: var(--warning-bg-subtle) !important;
-  border: 1px solid var(--warning-border) !important;
-  color: var(--warning-dark) !important;
-}
+.pill-tier-crucible { background: var(--warning-bg-subtle) !important; border: 1px solid var(--warning-border) !important; color: var(--warning-dark) !important; }
 
 /* 🚀 DYNAMIC MILESTONE TIER PULSING BEACONS */
-.century-meter-card {
-  position: relative !important;
-}
-
-.milestone-beacon-pip {
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  width: 24px !important;
-  height: 24px !important;
-  border-radius: 50% !important;
-  font-size: 12px !important;
-  line-height: 1 !important;
-  flex-shrink: 0 !important;
-  box-sizing: border-box !important;
-  user-select: none !important;
-}
+.century-meter-card { position: relative !important; }
+.milestone-beacon-pip { display: inline-flex !important; align-items: center !important; justify-content: center !important; width: 24px !important; height: 24px !important; border-radius: 50% !important; font-size: 12px !important; line-height: 1 !important; flex-shrink: 0 !important; box-sizing: border-box !important; user-select: none !important; }
 
 /* 100+ Emerald Heartbeat */
-.beacon-tier-100 {
-  background: rgba(34, 197, 94, 0.14) !important;
-  border: 1.5px solid rgba(34, 197, 94, 0.6) !important;
-  color: #22c55e !important;
-  box-shadow: 0 0 10px rgba(34, 197, 94, 0.35) !important;
-  animation: beaconPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite !important;
-}
+.beacon-tier-100 { background: rgba(34, 197, 94, 0.14) !important; border: 1.5px solid rgba(34, 197, 94, 0.6) !important; color: #22c55e !important; box-shadow: 0 0 10px rgba(34, 197, 94, 0.35) !important; animation: beaconPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite !important; }
 
 /* 200+ Amber Starburst */
-.beacon-tier-200 {
-  background: rgba(245, 158, 11, 0.16) !important;
-  border: 1.5px solid rgba(245, 158, 11, 0.75) !important;
-  color: #f59e0b !important;
-  box-shadow: 0 0 12px rgba(245, 158, 11, 0.45) !important;
-  animation: beaconPulse 1.6s cubic-bezier(0.4, 0, 0.6, 1) infinite !important;
-}
+.beacon-tier-200 { background: rgba(245, 158, 11, 0.16) !important; border: 1.5px solid rgba(245, 158, 11, 0.75) !important; color: #f59e0b !important; box-shadow: 0 0 12px rgba(245, 158, 11, 0.45) !important; animation: beaconPulse 1.6s cubic-bezier(0.4, 0, 0.6, 1) infinite !important; }
 
 /* 300+ Apex Crisp Imperial Gold Crown */
-.beacon-tier-300 {
-  background: rgba(251, 191, 36, 0.18) !important;
-  border: 1.5px solid #fbbf24 !important;
-  color: #fde047 !important;
-  box-shadow: 0 0 14px rgba(251, 191, 36, 0.55), inset 0 0 4px rgba(251, 191, 36, 0.25) !important;
-  animation: beaconPulse 1.2s cubic-bezier(0.4, 0, 0.6, 1) infinite !important;
-}
+.beacon-tier-300 { background: rgba(251, 191, 36, 0.18) !important; border: 1.5px solid #fbbf24 !important; color: #fde047 !important; box-shadow: 0 0 14px rgba(251, 191, 36, 0.55), inset 0 0 4px rgba(251, 191, 36, 0.25) !important; animation: beaconPulse 1.2s cubic-bezier(0.4, 0, 0.6, 1) infinite !important; }
 
-@keyframes beaconPulse {
-  0% { transform: scale(0.94); box-shadow: 0 0 6px currentColor; }
-  50% { transform: scale(1.08); box-shadow: 0 0 14px currentColor; }
-  100% { transform: scale(0.94); box-shadow: 0 0 6px currentColor; }
-}
+@keyframes beaconPulse { 0% { transform: scale(0.94); box-shadow: 0 0 6px currentColor; } 50% { transform: scale(1.08); box-shadow: 0 0 14px currentColor; } 100% { transform: scale(0.94); box-shadow: 0 0 6px currentColor; } }
 
 /* 🚀 DEDICATED BEACON SLOT & TELEMETRY WRAPPER */
-.century-header-status-wrap {
-  display: flex !important;
-  align-items: center !important;
-  gap: 10px !important;
-  flex-shrink: 0 !important;
-}
-
-.milestone-beacon-slot {
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  min-width: 24px !important;
-  height: 24px !important;
-  flex-shrink: 0 !important;
-}
-
-.milestone-beacon-slot:empty {
-  display: none !important;
-}
+.century-header-status-wrap { display: flex !important; align-items: center !important; gap: 10px !important; flex-shrink: 0 !important; }
+.milestone-beacon-slot { display: flex !important; align-items: center !important; justify-content: center !important; min-width: 24px !important; height: 24px !important; flex-shrink: 0 !important; }
+.milestone-beacon-slot:empty { display: none !important; }
 
 /* 📱 MOBILE RESPONSIVE TUNING (ICON LOCKED TO TOP-RIGHT) */
 @media screen and (max-width: 768px) {
-  #dailyMilestoneCard {
-    position: relative !important;
-    padding: 10px 12px !important;
-  }
-
-  /* हेडर फुल विड्थ रहेगा, पैडिंग केवल टाइटल लेबल पर लगेगी */
-  .century-meter-header {
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: flex-start !important;
-    padding-right: 0 !important;
-    margin-bottom: 0 !important;
-    gap: 0 !important;
-  }
-
-  .century-meter-label {
-    width: 100% !important;
-    min-width: 0 !important;
-    display: flex !important;
-    align-items: center !important;
-    gap: 8px !important;
-    padding-right: 38px !important;
-    box-sizing: border-box !important;
-  }
-
-  .century-title-stack {
-    min-width: 0 !important;
-    flex: 1 !important;
-  }
-
-  .century-title {
-    font-size: 13px !important;
-    line-height: 1.2 !important;
-    white-space: nowrap !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-  }
-
-  /* सबटाइटल दोनों मोड (खुले और बंद) में हमेशा दिखेगी */
-  .century-subtitle {
-    display: block !important;
-    font-size: 9.5px !important;
-    color: var(--text-muted) !important;
-    line-height: 1.25 !important;
-    margin-top: 1px !important;
-    white-space: nowrap !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-  }
-
-  /* 🚀 बीकन आइकन परमानेंटली Top-Right कोने में लॉक (कभी नीचे नहीं गिरेगा) */
-  .milestone-beacon-slot {
-    position: absolute !important;
-    top: 10px !important;
-    right: 12px !important;
-    z-index: 10 !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-  }
-
-  .century-header-status-wrap {
-    width: 100% !important;
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-  }
-
-  #centuryLoadText {
-    width: 100% !important;
-    display: flex !important;
-    justify-content: center !important;
-    align-items: center !important;
-    text-align: center !important;
-  }
-
-  .honest-satellite-cluster {
-    width: auto !important;
-    display: inline-flex !important;
-    justify-content: center !important;
-    align-items: center !important;
-    gap: 8px !important;
-    margin: 0 auto !important;
-  }
-
-  .honest-satellite-cluster > * {
-    flex: initial !important;
-  }
+  #dailyMilestoneCard { position: relative !important; padding: 10px 12px !important; }
+  .century-meter-header { display: flex !important; flex-direction: column !important; align-items: flex-start !important; padding-right: 0 !important; margin-bottom: 0 !important; gap: 0 !important; }
+  .century-meter-label { width: 100% !important; min-width: 0 !important; display: flex !important; align-items: center !important; gap: 8px !important; padding-right: 38px !important; box-sizing: border-box !important; }
+  .century-title-stack { min-width: 0 !important; flex: 1 !important; }
+  .century-title { font-size: 13px !important; line-height: 1.2 !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; }
+  .century-subtitle { display: block !important; font-size: 9.5px !important; color: var(--text-muted) !important; line-height: 1.25 !important; margin-top: 1px !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; }
+  .milestone-beacon-slot { position: absolute !important; top: 10px !important; right: 12px !important; z-index: 10 !important; display: flex !important; align-items: center !important; justify-content: center !important; }
+  .century-header-status-wrap { width: 100% !important; display: flex !important; flex-direction: column !important; align-items: center !important; }
+  #centuryLoadText { width: 100% !important; display: flex !important; justify-content: center !important; align-items: center !important; text-align: center !important; }
+  .honest-satellite-cluster { width: auto !important; display: inline-flex !important; justify-content: center !important; align-items: center !important; gap: 8px !important; margin: 0 auto !important; }
+  .honest-satellite-cluster > * { flex: initial !important; }
 }
+
 .mission-deck-container.balanced-split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; align-items: start; width: 100%; }
 .mission-column-primary, .mission-column-secondary { display: flex; flex-direction: column; gap: 14px; min-width: 0; width: 100%; }
 .mission-playlist-card { background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 12px; overflow: hidden; box-shadow: var(--shadow-sm); transition: border-color 0.2s ease, box-shadow 0.2s ease; width: 100%; position: relative; }
@@ -1707,81 +1501,19 @@ body.dark-theme .box-fc { color: #c084fc; }
 @keyframes coreBreathe { 0% { transform: scale(0.8); opacity: 0.7; } 100% { transform: scale(1.25); opacity: 1; } }
 @keyframes progressSweep { 0% { transform: translateX(-100%); } 100% { transform: translateX(250%); } }
 
-
 /* 🎯 MILESTONE CARD: ULTRA-CLEAN CYBER ACCORDION ENGINE */
-#dailyMilestoneCard {
-  transition: padding 0.32s cubic-bezier(0.16, 1, 0.3, 1), 
-              margin 0.32s cubic-bezier(0.16, 1, 0.3, 1), 
-              border-color 0.25s ease !important;
-  cursor: pointer;
-}
-
-/* 🌊 BUTTERY SMOOTH BODY ACCORDION */
-.century-body {
-  max-height: 90px;
-  opacity: 1;
-  overflow: hidden;
-  transform: translateY(0);
-  transition: max-height 0.35s cubic-bezier(0.16, 1, 0.3, 1), 
-              opacity 0.25s ease, 
-              transform 0.32s cubic-bezier(0.16, 1, 0.3, 1),
-              margin-top 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
-  margin-top: 8px !important;
-}
-
-/* 🌊 BUTTERY SMOOTH DATA PILLS TRANSITION */
-#centuryLoadText {
-  transition: max-height 0.32s cubic-bezier(0.16, 1, 0.3, 1),
-              opacity 0.22s ease,
-              transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
-              margin-top 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
-  overflow: hidden !important;
-}
+#dailyMilestoneCard { transition: padding 0.32s cubic-bezier(0.16, 1, 0.3, 1), margin 0.32s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s ease !important; cursor: pointer; }
+.century-body { max-height: 90px; opacity: 1; overflow: hidden; transform: translateY(0); transition: max-height 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease, transform 0.32s cubic-bezier(0.16, 1, 0.3, 1), margin-top 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important; margin-top: 8px !important; }
+#centuryLoadText { transition: max-height 0.32s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.22s ease, transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), margin-top 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important; overflow: hidden !important; }
 
 /* Collapsed State (Desktop) */
-#dailyMilestoneCard.milestone-collapsed {
-  padding-top: 10px !important;
-  padding-bottom: 10px !important;
-  margin-bottom: 14px !important;
-}
-
-#dailyMilestoneCard.milestone-collapsed .century-meter-header {
-  margin-bottom: 0 !important;
-}
-
-#dailyMilestoneCard.milestone-collapsed .century-body {
-  max-height: 0 !important;
-  opacity: 0 !important;
-  margin-top: 0 !important;
-  transform: translateY(-4px) !important;
-  pointer-events: none !important;
-}
+#dailyMilestoneCard.milestone-collapsed { padding-top: 10px !important; padding-bottom: 10px !important; margin-bottom: 14px !important; }
+#dailyMilestoneCard.milestone-collapsed .century-meter-header { margin-bottom: 0 !important; }
+#dailyMilestoneCard.milestone-collapsed .century-body { max-height: 0 !important; opacity: 0 !important; margin-top: 0 !important; transform: translateY(-4px) !important; pointer-events: none !important; }
 
 /* 📱 MOBILE STRICT BUTTERY ACCORDION (<768px) */
 @media screen and (max-width: 768px) {
-  /* कार्ड खुला हो: पिल्स टाइटल के नीचे मक्खन की तरह स्लाइड होंगी */
-  #dailyMilestoneCard:not(.milestone-collapsed) #centuryLoadText {
-    max-height: 40px !important;
-    opacity: 1 !important;
-    margin-top: 8px !important;
-    transform: translateY(0) !important;
-  }
-
-  /* कार्ड बंद हो: पिल्स बिना किसी झटके के फेड-आउट होकर बंद होंगी */
-  #dailyMilestoneCard.milestone-collapsed #centuryLoadText {
-    max-height: 0 !important;
-    opacity: 0 !important;
-    margin-top: 0 !important;
-    padding: 0 !important;
-    border: none !important;
-    transform: translateY(-4px) !important;
-    pointer-events: none !important;
-  }
-
-  /* कार्ड बंद होने पर कार्ड की हाइट स्लिम (~46px) रहेगी */
-  #dailyMilestoneCard.milestone-collapsed {
-    padding-top: 10px !important;
-    padding-bottom: 10px !important;
-    margin-bottom: 12px !important;
-  }
+  #dailyMilestoneCard:not(.milestone-collapsed) #centuryLoadText { max-height: 40px !important; opacity: 1 !important; margin-top: 8px !important; transform: translateY(0) !important; }
+  #dailyMilestoneCard.milestone-collapsed #centuryLoadText { max-height: 0 !important; opacity: 0 !important; margin-top: 0 !important; padding: 0 !important; border: none !important; transform: translateY(-4px) !important; pointer-events: none !important; }
+  #dailyMilestoneCard.milestone-collapsed { padding-top: 10px !important; padding-bottom: 10px !important; margin-bottom: 12px !important; }
 }
