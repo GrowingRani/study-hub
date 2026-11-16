@@ -143,13 +143,19 @@ function getLocalDateString(d = new Date()) {
   return new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split("T")[0];
 }
 
-// 🎯 UNIVERSAL ATTEMPT DATE RESOLVER (CONVERTS UTC TO CANDIDATE LOCAL DATE)
+// 🎯 UNIVERSAL ATTEMPT DATE RESOLVER (MEMOIZED FOR ZERO-CPU OVERHEAD)
+const _attemptDateCache = new Map();
 function getAttemptLocalDate(dateVal) {
   if (!dateVal) return "";
+  const key = String(dateVal);
+  if (_attemptDateCache.has(key)) return _attemptDateCache.get(key);
   try {
     const d = new Date(dateVal);
     if (isNaN(d.getTime())) return "";
-    return getLocalDateString(d);
+    const resolved = getLocalDateString(d);
+    if (_attemptDateCache.size > 2000) _attemptDateCache.clear();
+    _attemptDateCache.set(key, resolved);
+    return resolved;
   } catch (e) {
     return "";
   }
@@ -200,10 +206,26 @@ let activeBriefingTestId = null;
 let activeMistakeChunkIndex = 0;
 let isShuffleEnabled = true;
 
-// 🚀 IN-MEMORY CACHE FOR BOOSTER POOL (PREVENTS DUPLICATE RPC FETCHES)
+// 🚀 IN-MEMORY CACHE & O(1) INDEXES (PREVENTS DUPLICATE RPC & LINEAR SCANS)
 let cachedBoosterPool = null;
 let lastBoosterFetchTime = 0;
 let hasLoadedWeakQuestions = false;
+let catalogMap = new Map();
+let attemptsByTestMap = new Map();
+let _attemptHistoryPromise = null;
+let _lastAttemptFetchTime = 0;
+let _activeScoreSyncPromise = null;
+
+function rebuildDataIndexes() {
+  catalogMap = new Map((catalogData || []).map(item => [String(item.test_id), item]));
+  const grouped = new Map();
+  (userAttemptHistory || []).forEach(att => {
+    const tid = String(att.test_id);
+    if (!grouped.has(tid)) grouped.set(tid, []);
+    grouped.get(tid).push(att);
+  });
+  attemptsByTestMap = grouped;
+}
  
 let isExitingApp = false;
 let activeTacticalDate = null;
@@ -991,12 +1013,32 @@ function setupAppEvents() {
     tabIn?.classList.remove("active"); 
     if (fReg) fReg.style.display = "block"; 
     const st = document.getElementById("regFieldsStep"), sc = document.getElementById("regSuccessCard"); 
-    if (st) st.style.display = "none"; 
-    if (sc) sc.style.display = "block"; 
+    if (st) st.style.display = "block"; 
+    if (sc) sc.style.display = "none"; 
     if (fIn) fIn.style.display = "none"; 
     if (fForgot) fForgot.style.display = "none"; 
     if (fReset) fReset.style.display = "none"; 
     if (aErr) aErr.style.display = "none"; 
+  });
+
+  fForgot?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const email = document.getElementById("inputForgotEmail")?.value.trim().toLowerCase();
+    const btn = document.getElementById("btnSendResetLink");
+    if (!email) return showAuthNotice("Please enter your registered email.");
+    if (aErr) aErr.style.display = "none";
+    if (btn) { btn.innerText = "Sending..."; btn.disabled = true; }
+    try {
+      const { error } = await supabaseClient.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin });
+      if (error) throw error;
+      const em = document.getElementById("forgotEmailStep"), su = document.getElementById("forgotSuccessStep");
+      if (em) em.style.display = "none";
+      if (su) su.style.display = "block";
+    } catch (err) {
+      showAuthNotice(err.message || "Failed to send reset link.");
+    } finally {
+      if (btn) { btn.innerText = "Send Recovery Link"; btn.disabled = false; }
+    }
   });
 
   document.getElementById("btnOpenForgot")?.addEventListener("click", () => { 
@@ -1870,6 +1912,7 @@ async function mountDashboard(isInitialLoad = false) {
     userPlaylists = appStorage.getJSON("cache_playlists_" + roll, userPlaylists);
     userPlaylistItems = appStorage.getJSON("cache_playlist_items_" + roll, userPlaylistItems);
     catalogData = appStorage.getJSON("cache_catalog_data", catalogData);
+    rebuildDataIndexes();
   }
 
   // 👑 Sunday Golden UI & Header Sync (Immediate 0ms UI Swap)
@@ -1996,6 +2039,37 @@ async function mountDashboard(isInitialLoad = false) {
   }
 }
 
+// 🚀 SINGLE-FLIGHT ATTEMPT HISTORY SYNC (ELIMINATES 3x DUPLICATE NETWORK CALLS)
+async function syncAttemptHistory(forceRefresh = false) {
+  if (!currentCandidate?.roll_number) return [];
+  if (!forceRefresh && userAttemptHistory.length > 0 && (Date.now() - _lastAttemptFetchTime < 10000)) {
+    return userAttemptHistory;
+  }
+  if (_attemptHistoryPromise) return _attemptHistoryPromise;
+
+  const roll = currentCandidate.roll_number;
+  _attemptHistoryPromise = (async () => {
+    try {
+      const { data: hist, error } = await supabaseClient
+        .from("test_attempts")
+        .select("test_id, score, total_correct, total_incorrect, attempt_date, time_spent_seconds")
+        .eq("student_roll", roll)
+        .order("attempt_date", { ascending: false });
+      if (!error && Array.isArray(hist)) {
+        userAttemptHistory = hist;
+        _lastAttemptFetchTime = Date.now();
+        rebuildDataIndexes();
+      }
+      return userAttemptHistory;
+    } finally {
+      _attemptHistoryPromise = null;
+    }
+  })();
+
+  return _attemptHistoryPromise;
+}
+
+
 async function fetchPlaylistsAndCheckRollover() {
   if (!currentCandidate) return; 
   const roll = currentCandidate.roll_number;
@@ -2060,12 +2134,7 @@ async function fetchPlaylistsAndCheckRollover() {
     userPlaylistItems = uniqueItems;
 
     const todayStr = getLocalDateString();
-    
-    // 🚀 Sirf candidate ke attempts query honge
-    const { data: todayAttRows } = await supabaseClient
-      .from("test_attempts")
-      .select("test_id, total_correct, total_incorrect, attempt_date")
-      .eq("student_roll", roll);
+    const todayAttRows = await syncAttemptHistory(false);
 
     // 🚀 FIX: getAttemptLocalDate ensures local date match (No timezone drop)
     const uniqueSetsAttemptedToday = new Map();
@@ -2359,15 +2428,16 @@ window.launchBoosterMode = async function(mode = 'exam') {
   }
 };
 
-// 🚀 1. PURE SET SCORE & TELEMETRY CALCULATOR (SINGLE SOURCE OF TRUTH)
+// 🚀 1. PURE O(1) SET SCORE & TELEMETRY CALCULATOR (SINGLE SOURCE OF TRUTH)
 function getSetScoreMeta(testId, defaultQuestions = 10) {
-  const c = catalogData.find(x => String(x.test_id) === String(testId));
+  const tidStr = String(testId);
+  const c = catalogMap.get(tidStr) || catalogData.find(x => String(x.test_id) === tidStr);
   const qCount = c ? (c.total_questions || defaultQuestions) : defaultQuestions;
   const maxMarks = qCount * 2;
   const duration = c ? (c.total_duration_minutes || 15) : 15;
   const title = c ? c.test_title : "Question Set";
 
-  const attempts = userAttemptHistory.filter(a => String(a.test_id) === String(testId));
+  const attempts = attemptsByTestMap.get(tidStr) || [];
   const isAtt = attempts.length > 0;
   const bestScore = isAtt ? Math.max(...attempts.map(a => parseFloat(a.score))) : 0;
   const bestPct = (maxMarks > 0 && isAtt) ? (bestScore / maxMarks) * 100 : 0;
@@ -2791,7 +2861,7 @@ async function renderHomePlaylists() {
     }
 
     // 🎯 6. DECOUPLED CENTURY BAROMETER TELEMETRY (PURE UNIQUE ATTEMPTS & HONEST MASTERY)
-    const actualAttemptedCount = dailyPerf.total_questions_attempted || 0;
+    const actualAttemptedCount = dailyPerf?.total_questions_attempted || 0;
     const todayAttempts = userAttemptHistory.filter(a => getAttemptLocalDate(a.attempt_date) === todayStr && (Number(a.test_id) > 0 || (Number(a.test_id) === -1 && isSunday())));
 
     // Unique test_id ke hisab se best mastered count calculate karein (No Double Counting)
@@ -2800,7 +2870,7 @@ async function renderHomePlaylists() {
       const tid = Number(a.test_id);
       let qc = 10;
       if (tid > 0) {
-        const c = catalogData.find(x => String(x.test_id) === String(tid));
+        const c = catalogMap.get(String(tid));
         qc = c ? (c.total_questions || 10) : 10;
       } else {
         qc = (a.total_correct || 0) + (a.total_incorrect || 0) || 100;
@@ -3200,23 +3270,35 @@ window.toggleDirectStaging = async function(testId) {
       btn.classList.remove("saved");
       btn.innerHTML = `${bookmarkOutlineSvg} <span class="stage-label">Save to playlist</span>`;
     }
+    appStorage.setJSON("cache_playlist_items_" + roll, userPlaylistItems);
     showSelectionToast(`Removed from "${pName}"`);
     try {
-      await supabaseClient.from("playlist_items").delete().eq("playlist_id", pId).eq("test_id", testId).eq("student_roll", roll);
+      const { error } = await supabaseClient.from("playlist_items").delete().eq("playlist_id", pId).eq("test_id", testId).eq("student_roll", roll);
+      if (error) throw error;
     } catch (err) {
       console.error("Remove from playlist error:", err);
+      userPlaylistItems.push({ playlist_id: pId, test_id: testId, student_roll: roll });
+      appStorage.setJSON("cache_playlist_items_" + roll, userPlaylistItems);
+      updateStagingDockUI();
+      showSelectionToast("Network sync failed. Reverted.");
     }
   } else {
     userPlaylistItems.push({ playlist_id: pId, test_id: testId, student_roll: roll });
+    appStorage.setJSON("cache_playlist_items_" + roll, userPlaylistItems);
     if (btn) {
       btn.classList.add("saved");
       btn.innerHTML = `${bookmarkFilledSvg} <span class="stage-label">Saved to playlist</span>`;
     }
     showSelectionToast(`Added to "${pName}"`);
     try {
-      await supabaseClient.from("playlist_items").insert({ playlist_id: pId, test_id: testId, student_roll: roll });
+      const { error } = await supabaseClient.from("playlist_items").insert({ playlist_id: pId, test_id: testId, student_roll: roll });
+      if (error) throw error;
     } catch (err) {
       console.error("Add to playlist error:", err);
+      userPlaylistItems = userPlaylistItems.filter(pi => !(String(pi.playlist_id) === String(pId) && String(pi.test_id) === String(testId)));
+      appStorage.setJSON("cache_playlist_items_" + roll, userPlaylistItems);
+      updateStagingDockUI();
+      showSelectionToast("Network sync failed. Reverted.");
     }
   }
 
@@ -3501,8 +3583,8 @@ async function fetchTestCatalog() {
   });
   catalogData = unique;
   appStorage.setJSON("cache_catalog_data", catalogData);
-  const { data: hist } = await supabaseClient.from("test_attempts").select("test_id, score, total_correct, total_incorrect, attempt_date, time_spent_seconds").eq("student_roll", currentCandidate.roll_number).order("attempt_date", { ascending: false });
-  userAttemptHistory = hist || []; 
+  await syncAttemptHistory(false);
+  rebuildDataIndexes();
   renderSubjectHubGrid();
 }
 
@@ -4168,11 +4250,13 @@ window.launchAssessment = async function(testId) {
   if (rEl) rEl.innerText = currentCandidate?.roll_number || "---";
 
   try { 
-    const { data: tInfo, error: tErr } = await supabaseClient.from("tests").select("id, title, total_duration_minutes").eq("id", testId).maybeSingle(); 
-    if (tErr || !tInfo) throw new Error("Test details missing.");
-    
-    // 🎯 Catalog से सही सब्जेक्ट निकालें ताकि गलती 'General' में न जाए
-    const setCat = catalogData.find(c => String(c.test_id) === String(testId));
+    const setCat = catalogMap.get(String(testId)) || catalogData.find(c => String(c.test_id) === String(testId));
+    let tInfo = setCat ? { id: testId, title: setCat.test_title, total_duration_minutes: setCat.total_duration_minutes } : null;
+    if (!tInfo) {
+      const { data: fetchedTest, error: tErr } = await supabaseClient.from("tests").select("id, title, total_duration_minutes").eq("id", testId).maybeSingle();
+      if (tErr || !fetchedTest) throw new Error("Test details missing.");
+      tInfo = fetchedTest;
+    }
     const testSubject = (setCat?.subject || activeSubject || "General Studies").trim();
 
     activeTest = { ...tInfo, subject: testSubject }; 
@@ -4401,6 +4485,7 @@ function renderScorecard() {
     attempt_date: nowIso
   };
   userAttemptHistory.unshift(localAttemptRecord);
+  rebuildDataIndexes();
 
   const isSun = isSunday();
   const isCrucible = (activeTest.id === -1);
@@ -4492,10 +4577,10 @@ function renderScorecard() {
       </div>
     </div>`;
 
-  (async () => {
+  _activeScoreSyncPromise = (async () => {
     try {
       // 🚀 FIX: attempt_date explicitly passed to Supabase
-      const { error: insErr } = await supabaseClient.from("test_attempts").insert({ 
+      const { error: insErr } = await supabaseClient.from("test_attempts").insert({
         student_roll: currentCandidate.roll_number, 
         test_id: activeTest.id, 
         score, 
@@ -4592,16 +4677,14 @@ window.closeExamAndReload = function() {
   if (activeSubject) renderTopicSets(); 
   switchView('viewDashboard'); 
 
-  // 2. बैकग्राउंड में फ्रेश डेटा सिंक करें (Non-blocking)
+  // 2. बैकग्राउंड में फ्रेश डेटा सिंक करें (पहले पेंडिंग स्कोर राइट पूरा होने का इंतज़ार करें)
   (async () => {
     try {
-      const { data: hist } = await supabaseClient
-        .from("test_attempts")
-        .select("test_id, score, total_correct, total_incorrect, attempt_date, time_spent_seconds")
-        .eq("student_roll", currentCandidate.roll_number)
-        .order("attempt_date", { ascending: false });
-      if (hist && hist.length > 0) userAttemptHistory = hist;
-
+      if (_activeScoreSyncPromise) {
+        await _activeScoreSyncPromise;
+        _activeScoreSyncPromise = null;
+      }
+      await syncAttemptHistory(true);
       await fetchPlaylistsAndCheckRollover();
       await renderHomePlaylists();
       
@@ -5452,20 +5535,16 @@ window.fetchStudentAnalytics = async function(isSilent = false) {
   try {
     const todayStr = getLocalDateString();
 
-    // 1. Parallel Database Retrieval (Waterfall Eliminated)
-    const [attemptsRes, attendanceRes] = await Promise.all([
-      supabaseClient
-        .from("test_attempts")
-        .select("test_id, score, total_correct, total_incorrect, attempt_date, time_spent_seconds")
-        .eq("student_roll", currentCandidate.roll_number)
-        .order("attempt_date", { ascending: true }),
+    // 1. Parallel Database Retrieval (Reuses Deduplicated Attempt Stream)
+    const [histDesc, attendanceRes] = await Promise.all([
+      syncAttemptHistory(false),
       supabaseClient
         .from("daily_attendance")
         .select("study_date, total_minutes_spent")
         .eq("student_roll", currentCandidate.roll_number)
     ]);
 
-    const atts = attemptsRes.data || [];
+    const atts = [...(histDesc || [])].reverse();
     const attnd = attendanceRes.data || [];
 
     // 2. Telemetry Aggregation
@@ -5906,13 +5985,13 @@ function renderReadUI() {
   `;
 
   let renderedCount = 0;
+  const frag = document.createDocumentFragment();
   practiceQuestions.forEach((q, idx) => {
     if (localReadState.filter === 'starred' && !localReadState.starred.has(idx)) return;
     renderedCount++;
-
-    const card = buildQuestionCardDOM(q, idx, 'read', localReadState, false);
-    container.appendChild(card);
+    frag.appendChild(buildQuestionCardDOM(q, idx, 'read', localReadState, false));
   });
+  container.appendChild(frag);
 
   if (renderedCount === 0 && localReadState.filter === 'starred') {
     const emptyNotice = document.createElement("div");
@@ -6040,6 +6119,7 @@ function renderQuizUI() {
     container.appendChild(banner);
   }
 
+  const quizFrag = document.createDocumentFragment();
   practiceQuestions.forEach((q, idx) => {
     const isAns = localQuizState.answers[idx] !== undefined;
     const isWr = isAns && !localQuizState.answers[idx].isCorrect;
@@ -6053,9 +6133,9 @@ function renderQuizUI() {
     }
 
     // 🚀 USE UNIVERSAL CARD BUILDER
-    const card = buildQuestionCardDOM(q, idx, 'quiz', localQuizState, isMB);
-    container.appendChild(card);
+    quizFrag.appendChild(buildQuestionCardDOM(q, idx, 'quiz', localQuizState, isMB));
   });
+  container.appendChild(quizFrag);
 
   if (!localQuizState.isFinished) {
     const f = document.createElement("div");
