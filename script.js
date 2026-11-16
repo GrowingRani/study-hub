@@ -121,6 +121,9 @@ function mountExamSession(testMeta, questionsList, sectionName = "General") {
   const mobileTitleEl = document.getElementById("mobileExamTitle");
   if (mobileTitleEl) mobileTitleEl.innerText = activeTest.title;
 
+  const rollEl = document.getElementById("examCandidateRoll");
+  if (rollEl) rollEl.innerText = currentCandidate?.roll_number || "---";
+
   const sectionTabsEl = document.getElementById("sectionTabs");
   if (sectionTabsEl) {
     sectionTabsEl.innerHTML = `<button type="button" class="section-tab">Section 1: ${sectionName} (${questionsList.length} Qs)</button>`;
@@ -193,7 +196,7 @@ let currentCandidate = null, catalogData = [], activeSubject = null, userAttempt
 let userPlaylists = [], userPlaylistItems = [], dailyPerf = { total_questions_attempted: 0, is_century_hit: false, streak_count: 0, id: null };
 let selectedTestForPlaylist = null, currentThreeDotsTestId = null, activePlaylistMenuTarget = null, pendingDeleteTarget = null, activeSubjectMenuTarget = null;
 let librarySelectionMode = false, targetPlaylistForSelection = null;
-let activeTest = null, testQuestions = [], practiceQuestions = [], currentIndex = 0, flashcardIndex = 0, userResponses = {}, timeRemaining = 15 * 60, timerInterval = null, isExamFinished = false;
+let activeTest = null, testQuestions = [], practiceQuestions = [], currentIndex = 0, userResponses = {}, timeRemaining = 15 * 60, timerInterval = null, isExamFinished = false;
 let subjectRadarChartInstance = null, alertEngineStarted = false;
 
 // 🚀 RENDER LOCKS & DEBOUNCING FOR PLAYLIST / AUTH ENGINE
@@ -2852,7 +2855,7 @@ async function renderHomePlaylists() {
 
     // 🎯 6. DECOUPLED CENTURY BAROMETER TELEMETRY (PURE UNIQUE ATTEMPTS & HONEST MASTERY)
     const actualAttemptedCount = dailyPerf?.total_questions_attempted || 0;
-    const todayAttempts = userAttemptHistory.filter(a => getAttemptLocalDate(a.attempt_date) === todayStr && (Number(a.test_id) > 0 || (Number(a.test_id) === -1 && isSunday())));
+    const todayAttempts = userAttemptHistory.filter(a => getAttemptLocalDate(a.attempt_date) === todayStr && (Number(a.test_id) > 0 || (Number(a.test_id) === -1 && isSun)));
 
     // Unique test_id ke hisab se best mastered count calculate karein (No Double Counting)
     const uniqueMasteredSets = new Map();
@@ -3269,6 +3272,10 @@ window.toggleDirectStaging = async function(testId) {
       console.error("Remove from playlist error:", err);
       userPlaylistItems.push({ playlist_id: pId, test_id: testId, student_roll: roll });
       appStorage.setJSON("cache_playlist_items_" + roll, userPlaylistItems);
+      if (btn) {
+        btn.classList.add("saved");
+        btn.innerHTML = `${bookmarkFilledSvg} <span class="stage-label">Saved to playlist</span>`;
+      }
       updateStagingDockUI();
       showSelectionToast("Network sync failed. Reverted.");
     }
@@ -3287,6 +3294,10 @@ window.toggleDirectStaging = async function(testId) {
       console.error("Add to playlist error:", err);
       userPlaylistItems = userPlaylistItems.filter(pi => !(String(pi.playlist_id) === String(pId) && String(pi.test_id) === String(testId)));
       appStorage.setJSON("cache_playlist_items_" + roll, userPlaylistItems);
+      if (btn) {
+        btn.classList.remove("saved");
+        btn.innerHTML = `${bookmarkOutlineSvg} <span class="stage-label">Save to playlist</span>`;
+      }
       updateStagingDockUI();
       showSelectionToast("Network sync failed. Reverted.");
     }
@@ -4231,63 +4242,68 @@ window.launchSubjectMistakeMode = function(mode = 'quiz') {
 
 
 
+// 🚀 UNIFIED QUESTION SET LOADER (SHARED BY EXAM & PRACTICE ENGINES)
+async function fetchTestQuestionsPayload(testId) {
+  const setCat = catalogMap.get(String(testId)) || catalogData.find(c => String(c.test_id) === String(testId));
+  let tInfo = setCat ? { id: testId, title: setCat.test_title, total_duration_minutes: setCat.total_duration_minutes } : null;
+  if (!tInfo) {
+    const { data: fetchedTest, error: tErr } = await supabaseClient.from("tests").select("id, title, total_duration_minutes").eq("id", testId).maybeSingle();
+    if (tErr || !fetchedTest) throw new Error("Test details missing.");
+    tInfo = fetchedTest;
+  }
+
+  const testSubject = (setCat?.subject || activeSubject || "General Studies").trim();
+  const { data: sections, error: sErr } = await supabaseClient.from("test_sections").select("id, section_name").eq("test_id", testId).limit(1);
+  if (sErr || !sections?.length) throw new Error("Sections not configured.");
+
+  const { data: qData, error: qErr } = await supabaseClient
+    .from("test_section_questions")
+    .select(`question_number, questions (id, content, options, correct_answer, explanation)`)
+    .eq("section_id", sections[0].id)
+    .order("question_number", { ascending: true });
+  if (qErr || !qData?.length) throw new Error("Questions payload empty.");
+
+  let questions = qData.map(item => {
+    const q = Array.isArray(item.questions) ? item.questions[0] : item.questions;
+    if (!q) return null;
+    const opts = parseQuestionOptions(q.options);
+    return {
+      qNum: item.question_number,
+      id: q.id,
+      subject: testSubject,
+      content: q.content,
+      options: opts,
+      correctAnswer: getNormalizedCorrectAnswerId(q.correct_answer, opts),
+      explanation: q.explanation
+    };
+  }).filter(Boolean);
+
+  if (isShuffleEnabled) {
+    questions = shuffleArray(questions);
+    questions.forEach((q, idx) => { q.qNum = idx + 1; });
+  }
+
+  return { testInfo: tInfo, subject: testSubject, sectionName: sections[0].section_name || "General", questions };
+}
+
 window.launchAssessment = async function(testId) {
-  isExamFinished = false; 
+  isExamFinished = false;
   switchView("viewExam", true);
   const pLine = document.getElementById("examProgressLine"), cBox = document.getElementById("questionContent"), rEl = document.getElementById("examCandidateRoll");
-  if (pLine) pLine.style.width = "0%"; 
-  if (cBox) cBox.innerText = "Configuring assessment runtime..."; 
+  if (pLine) pLine.style.width = "0%";
+  if (cBox) cBox.innerText = "Configuring assessment runtime...";
   if (rEl) rEl.innerText = currentCandidate?.roll_number || "---";
 
-  try { 
-    const setCat = catalogMap.get(String(testId)) || catalogData.find(c => String(c.test_id) === String(testId));
-    let tInfo = setCat ? { id: testId, title: setCat.test_title, total_duration_minutes: setCat.total_duration_minutes } : null;
-    if (!tInfo) {
-      const { data: fetchedTest, error: tErr } = await supabaseClient.from("tests").select("id, title, total_duration_minutes").eq("id", testId).maybeSingle();
-      if (tErr || !fetchedTest) throw new Error("Test details missing.");
-      tInfo = fetchedTest;
-    }
-    const testSubject = (setCat?.subject || activeSubject || "General Studies").trim();
-
-    activeTest = { ...tInfo, subject: testSubject }; 
-    document.getElementById("examTitle").innerText = activeTest.title || "Assessment"; 
-    document.getElementById("subjectLabelBreadcrumb").innerText = testSubject;
-    
-    const mTitle = document.getElementById("mobileExamTitle");
-    if (mTitle) mTitle.innerText = activeTest.title || "Assessment";
-
-    timeRemaining = (activeTest.total_duration_minutes || 15) * 60;
-    
-    const { data: sections, error: sErr } = await supabaseClient.from("test_sections").select("id, section_name").eq("test_id", testId).limit(1); 
-    if (sErr || !sections?.length) throw new Error("No sections configured.");
-    document.getElementById("sectionTabs").innerHTML = `<button type="button" class="section-tab">Section 1: ${sections[0].section_name || "General"}</button>`;
-    
-    const { data: qData, error: qErr } = await supabaseClient.from("test_section_questions").select(`question_number, questions (id, content, options, correct_answer, explanation)`).eq("section_id", sections[0].id).order("question_number", { ascending: true });
-    if (qErr || !qData?.length) throw new Error("Questions failed to load.");
-
-    testQuestions = qData.map(item => {
-      const q = Array.isArray(item.questions) ? item.questions[0] : item.questions; 
-      if (!q) return null;
-      const opts = parseQuestionOptions(q.options);
-      return { 
-        qNum: item.question_number, 
-        id: q.id, 
-        subject: testSubject,
-        content: q.content, 
-        options: opts, 
-        correctAnswer: getNormalizedCorrectAnswerId(q.correct_answer, opts), 
-        explanation: q.explanation 
-      };
-    }).filter(Boolean);
-
-    if (isShuffleEnabled) {
-      testQuestions = shuffleArray(testQuestions);
-      testQuestions.forEach((q, idx) => { q.qNum = idx + 1; });
-    }
-
-    mountExamSession(activeTest, testQuestions, sections[0].section_name || "General");
-  } catch (err) { 
-    showAppNoticeModal("Assessment Error", "Cannot Launch Exam", err.message, "⚠️", "Back to Home", () => switchView("viewDashboard")); 
+  try {
+    const payload = await fetchTestQuestionsPayload(testId);
+    mountExamSession({
+      id: payload.testInfo.id,
+      title: payload.testInfo.title || "Assessment",
+      subject: payload.subject,
+      total_duration_minutes: payload.testInfo.total_duration_minutes || 15
+    }, payload.questions, payload.sectionName);
+  } catch (err) {
+    showAppNoticeModal("Assessment Error", "Cannot Launch Exam", err.message, "⚠️", "Back to Home", () => switchView("viewDashboard"));
   }
 };
 
@@ -4443,9 +4459,10 @@ window.confirmAndFinishExam = function() {
 
 // 🚀 CRITICAL FIX: INSTANT IN-MEMORY TELEMETRY RECORDING & ZERO-LAG UNIQUE ATTEMPT SYNC
 function renderScorecard() {
+  isExamFinished = true;
   let correct = 0, incorrect = 0, unattempted = 0, statsPayload = [];
   testQuestions.forEach((q, idx) => {
-    const uAns = userResponses[idx].selected, st = userResponses[idx].status;
+    const uAns = userResponses[idx]?.selected, st = userResponses[idx]?.status;
     const qSubj = q.subject || activeTest?.subject || activeSubject || "General Studies";
 
     if (!uAns) { 
@@ -4730,7 +4747,7 @@ function renderSolutionsUI() {
     if (isMarked) markedCount++;
     if (isWrong || isSkipped || isMarked) priorityCount++;
   });
-  
+
   // 2. Fixed Sub-Header Dock (4 Compact Pills fit smoothly in 1 row)
   let filterToolbar = document.getElementById("solutionsFixedFilterBar");
   if (!filterToolbar) {
@@ -5607,7 +5624,6 @@ window.fetchStudentAnalytics = async function(isSilent = false) {
     if (currentCandidate?.roll_number) appStorage.set("cache_accuracy_" + currentCandidate.roll_number, accVal);
 
     // 5. Attendance & Past 7 Days Mapping
-    let todayMins = 0;
     const attMap = {};
     const past7 = [];
     for (let i = 0; i < 7; i++) { 
@@ -5616,9 +5632,7 @@ window.fetchStudentAnalytics = async function(isSilent = false) {
       past7.push(getLocalDateString(dt)); 
     }
     attnd.forEach(r => { 
-      const m = r.total_minutes_spent || 0; 
-      attMap[r.study_date] = m; 
-      if (r.study_date === todayStr) todayMins = m; 
+      attMap[r.study_date] = r.total_minutes_spent || 0; 
     });
 
     const streak = dailyPerf?.streak_count || 0;
@@ -5829,54 +5843,16 @@ window.launchPracticeMode = async function(testId, mode) {
   }
 
   try {
-    const setCat = catalogMap.get(String(testId)) || catalogData.find(c => String(c.test_id) === String(testId));
-    let resolvedTitle = setCat?.test_title || "";
-    if (!resolvedTitle) {
-      const { data: tInfo } = await supabaseClient.from("tests").select("title").eq("id", testId).maybeSingle();
-      resolvedTitle = tInfo?.title || "Practice Set";
-    }
+    const payload = await fetchTestQuestionsPayload(testId);
+    practiceQuestions = payload.questions;
 
-    const { data: sections } = await supabaseClient.from("test_sections").select("id").eq("test_id", testId).limit(1); 
-    if (!sections?.length) throw new Error("Sections not configured");
-
-    const { data: qData, error: qErr } = await supabaseClient
-      .from("test_section_questions")
-      .select(`question_number, questions (id, content, options, correct_answer, explanation)`)
-      .eq("section_id", sections[0].id)
-      .order("question_number", { ascending: true });
-
-    if (qErr || !qData?.length) throw new Error("Questions payload empty");
-
-    practiceQuestions = qData.map(item => {
-      const q = Array.isArray(item.questions) ? item.questions[0] : item.questions; 
-      if (!q) return null;
-      const opts = parseQuestionOptions(q.options);
-      return { 
-        qNum: item.question_number, 
-        id: q.id, 
-        content: q.content, 
-        options: opts, 
-        correctAnswer: getNormalizedCorrectAnswerId(q.correct_answer, opts), 
-        explanation: q.explanation 
-      };
-    }).filter(Boolean);
-
-    if (isShuffleEnabled) {
-      practiceQuestions = shuffleArray(practiceQuestions);
-      practiceQuestions.forEach((q, idx) => { q.qNum = idx + 1; });
-    }
-
-    // 🚀 TWO-TIER METADATA POPULATION
-    const subjName = (setCat?.subject || activeSubject || "General Studies").trim();
-    const qCount = practiceQuestions.length;
-    const setTitle = resolvedTitle;
-
+    const setTitle = payload.testInfo.title || "Practice Set";
     if (tEl) {
       tEl.innerText = setTitle;
       tEl.title = setTitle;
     }
     if (subEl) {
-      subEl.innerText = `${subjName} • ${qCount} Questions`;
+      subEl.innerText = `${payload.subject} • ${practiceQuestions.length} Questions`;
     }
 
     window.setPracticeMode(mode);
@@ -6489,7 +6465,6 @@ window.setPracticeMode = function(modeKey) {
     flashcardDeck = (practiceQuestions && practiceQuestions.length) ? [...practiceQuestions] : [];
     flashcardOriginalCount = flashcardDeck.length;
     flashcardMasteredCount = 0;
-    flashcardIndex = 0;
     isFlashcardFlipped = false;
     setupFlashcardKeyboardShortcuts();
     renderFlashcardCardDOM();
