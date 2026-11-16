@@ -1696,16 +1696,11 @@ const isSun = typeof isSunday === 'function' ? isSunday() : (new Date().getDay()
     document.getElementById("briefingDurationMeta").innerText = `⏱️ ${durationMins}m`;
   } else {
     // 📁 REGULAR CATALOG QUESTION SET
-    const setCat = catalogData.find(c => String(c.test_id) === String(testId));
+    const meta = getSetScoreMeta(testId);
+    const setCat = meta.setCat;
     if (!setCat) return;
 
-    const qCount = setCat.total_questions || 10;
-    const durationMins = setCat.total_duration_minutes || 15;
-    const attempts = userAttemptHistory.filter(a => String(a.test_id) === String(testId));
-    const isAtt = attempts.length > 0;
-    const bestScore = isAtt ? Math.max(...attempts.map(a => parseFloat(a.score))) : 0;
-    const maxMarks = qCount * 2;
-    const pct = (maxMarks > 0 && isAtt) ? (bestScore / maxMarks) * 100 : 0;
+    const { qCount, duration: durationMins, attempts, isAtt, bestScore, maxMarks, bestPct: pct } = meta;
 
     document.getElementById("briefingSubjectBadge").innerText = (setCat.subject || activeSubject || "GENERAL STUDIES").toUpperCase();
     
@@ -2796,7 +2791,7 @@ async function renderHomePlaylists() {
     }
 
     // 🚀 3. RENDER TODAY'S PAYLOAD DIRECTLY
-    let todayLoad = 0, tomorrowLoad = 0;
+    let tomorrowLoad = 0;
     const todayList = userPlaylists.find(p => p.playlist_name === 'Today'), 
           tomorrowList = userPlaylists.find(p => p.playlist_name === 'Tomorrow'), 
           weekList = userPlaylists.find(p => p.playlist_name === 'This Week'),
@@ -2804,11 +2799,6 @@ async function renderHomePlaylists() {
 
     if (todayList) {
       const items = userPlaylistItems.filter(pi => pi.playlist_id === todayList.id);
-      items.forEach(i => {
-        const c = catalogData.find(x => String(x.test_id) === String(i.test_id));
-        todayLoad += c ? (c.total_questions || 10) : 10;
-      });
-      
       const setsHtml = items.length > 0 
         ? items.map(i => renderPlaylistSetTileHtml(i, 'Today')).join("") 
         : `<div style="text-align:center; padding:18px; color:var(--text-muted); font-size:12.5px; font-weight:600; grid-column:1 / -1;">No sets queued for today yet.</div>`;
@@ -2823,7 +2813,7 @@ async function renderHomePlaylists() {
     if (tomorrowList) {
       const items = userPlaylistItems.filter(pi => pi.playlist_id === tomorrowList.id);
       items.forEach(i => {
-        const c = catalogData.find(x => String(x.test_id) === String(i.test_id));
+        const c = catalogMap.get(String(i.test_id));
         tomorrowLoad += c ? (c.total_questions || 10) : 10;
       });
       renderSecondaryPlaylistStream('Tomorrow', 'tomorrowPlaylistContainer', 'tomorrowCountPill', 'tomorrowPlaylistCard', 'Queue is empty.', scrollMap.tomorrow);
@@ -3155,7 +3145,7 @@ function updateStagingDockUI() {
   const stagedItems = userPlaylistItems.filter(pi => pi.playlist_id === targetPlaylistForSelection.id);
   let totalQs = 0;
   stagedItems.forEach(item => {
-    const c = catalogData.find(x => String(x.test_id) === String(item.test_id));
+    const c = catalogMap.get(String(item.test_id));
     totalQs += c ? (c.total_questions || 10) : 10;
   });
 
@@ -4725,7 +4715,6 @@ function renderSolutionsUI() {
 
   const totalCount = testQuestions.length;
   let wrongCount = 0;
-  let skippedCount = 0;
   let markedCount = 0;
   let priorityCount = 0;
 
@@ -4738,11 +4727,10 @@ function renderSolutionsUI() {
     const isSkipped = Boolean(!uAns);
 
     if (isWrong) wrongCount++;
-    if (isSkipped) skippedCount++;
     if (isMarked) markedCount++;
     if (isWrong || isSkipped || isMarked) priorityCount++;
   });
-
+  
   // 2. Fixed Sub-Header Dock (4 Compact Pills fit smoothly in 1 row)
   let filterToolbar = document.getElementById("solutionsFixedFilterBar");
   if (!filterToolbar) {
@@ -4904,7 +4892,7 @@ function getTacticalStatsForDate(d, atts = [], attMap = {}) {
       dSecs += (a.time_spent_seconds || 0);
 
       if (Number(a.test_id) > 0) {
-        const cat = catalogData.find(item => String(item.test_id) === String(a.test_id));
+        const cat = catalogMap.get(String(a.test_id));
         const tQs = cat ? (cat.total_questions || 10) : ((a.total_correct || 0) + (a.total_incorrect || 0) || 10);
         const maxM = tQs * 2;
         const pct = maxM > 0 ? (parseFloat(a.score || 0) / maxM) * 100 : 0;
@@ -5588,7 +5576,7 @@ window.fetchStudentAnalytics = async function(isSilent = false) {
     Object.values(bestMap).forEach(a => {
       if (Number(a.test_id) <= 0) return;
 
-      const cat = catalogData.find(item => String(item.test_id) === String(a.test_id));
+      const cat = catalogMap.get(String(a.test_id));
       const subj = (cat?.subject || a.subject || "General Studies").trim();
       const tQs = cat ? (cat.total_questions || 10) : ((a.total_correct || 0) + (a.total_incorrect || 0) || 10);
       const maxM = tQs * 2;
@@ -5612,58 +5600,6 @@ window.fetchStudentAnalytics = async function(isSilent = false) {
       portfolioCorrect += cCount;
       portfolioIncorrect += iCount;
     });
-
-    // 4. Today's Tactical Filters & Deep Telemetry
-    const todayMasteredTests = new Set();
-    let todayCorr = 0;
-    let todayIncorr = 0;
-    let todaySecs = 0;
-
-    atts.forEach(a => {
-      const attDate = getAttemptLocalDate(a.attempt_date);
-      if (attDate === todayStr) {
-        todayCorr += (a.total_correct || 0);
-        todayIncorr += (a.total_incorrect || 0);
-        todaySecs += (a.time_spent_seconds || 0);
-
-        if (Number(a.test_id) > 0) {
-          const cat = catalogData.find(item => String(item.test_id) === String(a.test_id));
-          const tQs = cat ? (cat.total_questions || 10) : ((a.total_correct || 0) + (a.total_incorrect || 0) || 10);
-          const maxM = tQs * 2;
-          const pct = maxM > 0 ? (parseFloat(a.score || 0) / maxM) * 100 : 0;
-          if (pct >= 100) todayMasteredTests.add(String(a.test_id));
-        }
-      }
-    });
-
-    const todayQAttempted = todayCorr + todayIncorr;
-    const todayGross = todayCorr * 2.0;
-    const todayBleed = Math.round(todayIncorr * 0.5 * 100) / 100;
-    const todayNet = Math.round((todayGross - todayBleed) * 100) / 100;
-    const todayAcc = todayQAttempted > 0 ? Math.round((todayCorr / todayQAttempted) * 100) : 0;
-    const todayAvgPace = todayQAttempted > 0 ? Math.round(todaySecs / todayQAttempted) : 0;
-
-    let todayPromoted = 0;
-    let todayFreshErrors = 0;
-    (userWeakQuestions || []).forEach(q => {
-      if (getAttemptLocalDate(q.last_attempt_date) === todayStr) {
-        if ((q.mastery_streak || 0) > 0) todayPromoted++;
-        else if ((q.times_wrong || 0) > 0) todayFreshErrors++;
-      }
-    });
-
-    const todayStats = {
-      todayCorr,
-      todayIncorr,
-      todayQAttempted,
-      todayGross,
-      todayBleed,
-      todayNet,
-      todayAcc,
-      todayAvgPace,
-      todayPromoted,
-      todayFreshErrors
-    };
 
     const totalQ = nCorr + nIncorr;
     const accVal = totalQ > 0 ? ((nCorr / totalQ) * 100).toFixed(1) : "0.0";
@@ -5893,7 +5829,13 @@ window.launchPracticeMode = async function(testId, mode) {
   }
 
   try {
-    const { data: tInfo } = await supabaseClient.from("tests").select("id, title").eq("id", testId).single();
+    const setCat = catalogMap.get(String(testId)) || catalogData.find(c => String(c.test_id) === String(testId));
+    let resolvedTitle = setCat?.test_title || "";
+    if (!resolvedTitle) {
+      const { data: tInfo } = await supabaseClient.from("tests").select("title").eq("id", testId).maybeSingle();
+      resolvedTitle = tInfo?.title || "Practice Set";
+    }
+
     const { data: sections } = await supabaseClient.from("test_sections").select("id").eq("test_id", testId).limit(1); 
     if (!sections?.length) throw new Error("Sections not configured");
 
@@ -5925,10 +5867,9 @@ window.launchPracticeMode = async function(testId, mode) {
     }
 
     // 🚀 TWO-TIER METADATA POPULATION
-    const setCat = catalogData.find(c => String(c.test_id) === String(testId));
     const subjName = (setCat?.subject || activeSubject || "General Studies").trim();
     const qCount = practiceQuestions.length;
-    const setTitle = tInfo ? tInfo.title : (setCat?.test_title || "Practice Set");
+    const setTitle = resolvedTitle;
 
     if (tEl) {
       tEl.innerText = setTitle;

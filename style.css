@@ -120,27 +120,11 @@ body.portal-body { font-family: var(--font-family); background-color: var(--bg-p
 .century-title-stack { display: flex; flex-direction: column; }
 .century-title { font-size: 14.5px; font-weight: 800; color: var(--tcs-blue-header); letter-spacing: -0.2px; }
 .century-subtitle { font-size: 11px; color: var(--text-muted); font-weight: 600; }
-/* 🎯 CLEAN SQUIRCLE BADGE (NO AWKWARD CAPSULE CLASH) */
-.century-count-badge {
-  font-size: 12px;
-  font-weight: 800;
-  font-family: var(--font-mono);
-  color: var(--text-main);
-  background: transparent;
-  padding: 0;
-  border: none;
-  white-space: nowrap;
-  display: inline-flex;
-  align-items: center;
-}
 
-/* Jab simple text ho (jaise 0 / 100 Qs) tabhi subtle border aayega */
-.century-count-badge:not(:has(.honest-satellite-cluster)) {
-  background: var(--bg-surface-elevated);
-  padding: 4px 10px;
-  border-radius: 8px;
-  border: 1px solid var(--border-color);
-}
+/* 🎯 CLEAN SQUIRCLE BADGE (NO AWKWARD CAPSULE CLASH) */
+.century-count-badge { font-size: 12px; font-weight: 800; font-family: var(--font-mono); color: var(--text-main); background: transparent; padding: 0; border: none; white-space: nowrap; display: inline-flex; align-items: center; }
+.century-count-badge:not(:has(.honest-satellite-cluster)) { background: var(--bg-surface-elevated); padding: 4px 10px; border-radius: 8px; border: 1px solid var(--border-color); }
+
 
 .multi-tier-track { position: relative; width: 100%; height: 10px; background: var(--bg-surface-hover) !important; border-radius: 6px; overflow: hidden; margin-top: 4px; border: 1px solid var(--border-color); }
 .century-fill { height: 100%; border-radius: 6px; transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
@@ -421,20 +405,9 @@ body.dark-theme .mistake-vault-card.open .vault-chevron-bubble { color: #fda4af;
 .vault-body > .vault-natural-grid { min-height: 0; overflow: hidden; }
 
 /* 📦 UNIFIED 4-COLUMN GRID (EXACT SAME SIZE AS TOPIC SETS) */
-.vault-natural-grid { 
-  display: grid !important; 
-  grid-template-columns: repeat(4, minmax(0, 1fr)) !important; 
-  gap: 14px !important; 
-  width: 100% !important; 
-  box-sizing: border-box !important; 
-}
-.vault-natural-grid .set-tile.vault-set-tile, 
-.vault-natural-grid .vault-status-hud { 
-  width: 100% !important; 
-  max-width: none !important; 
-  min-width: 0 !important;
-  box-sizing: border-box !important; 
-}
+.vault-natural-grid { display: grid !important; grid-template-columns: repeat(4, minmax(0, 1fr)) !important; gap: 14px !important; width: 100% !important; box-sizing: border-box !important; }
+.vault-natural-grid .set-tile.vault-set-tile, .vault-natural-grid .vault-status-hud { width: 100% !important; max-width: none !important; min-width: 0 !important; box-sizing: border-box !important; }
+
 /* Action Set Tile */
 .set-tile.vault-set-tile { border-left-width: 4.5px !important; border-left-color: var(--danger-dark) !important; background: var(--bg-surface-elevated) !important; display: flex; flex-direction: column; justify-content: space-between; }
 .set-tile.vault-set-tile:hover { border-color: var(--danger-border) !important; border-left-color: var(--danger-dark) !important; }
