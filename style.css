@@ -42,7 +42,7 @@ body.dark-theme.sunday-mode { --tcs-blue-header: #fbbf24; --tcs-blue-accent: #f5
 * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent !important; }
 html, body { max-width: 100vw; width: 100%; overflow-x: hidden; overscroll-behavior-y: none; touch-action: pan-x pan-y; }
 body.portal-body { font-family: var(--font-family); background-color: var(--bg-primary); color: var(--text-main); height: 100vh; overflow: hidden; }
-.view-screen { width: 100vw; height: 100vh; height: 100dvh; display: flex; flex-direction: column; max-width: 100vw; overflow-x: hidden; }
+.view-screen { width: 100vw; height: 100vh; height: 100dvh; display: flex; flex-direction: column; max-width: 100vw; overflow-x: hidden; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior-y: contain; }
 
 /* ==========================================================================
    3. TOP HEADER & DESKTOP NAVIGATION BAR
@@ -225,7 +225,7 @@ body.dark-theme .pill-tier-apex { background: rgba(251, 191, 36, 0.14) !importan
 .playlist-accordion-card.collapsed .playlist-count-pill { opacity: 0.85; }
 .playlist-accordion-card.expanded .playlist-count-pill { color: var(--tcs-blue-accent); font-weight: 800; }
 
-.playlist-body > .playlist-sets-stream { min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; padding: 0 4px 0 0; scrollbar-width: thin; scrollbar-color: var(--border-color) transparent; }
+.playlist-body > .playlist-sets-stream { min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior-y: auto; scrollbar-gutter: stable; padding: 0 4px 0 0; scrollbar-width: thin; scrollbar-color: var(--border-color) transparent; }
 .btn-playlist-dots { background: transparent; border: none; font-size: 18px; color: var(--text-muted); cursor: pointer; padding: 4px 6px; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; transition: all 0.2s ease; line-height: 1; flex-shrink: 0; }
 .btn-playlist-dots:hover { background: var(--bg-surface-elevated); color: var(--tcs-blue-accent); }
 
@@ -241,7 +241,7 @@ body.dark-theme .pill-tier-apex { background: rgba(251, 191, 36, 0.14) !importan
    🚀 DESKTOP PLAYLIST GRID CAPACITY LOCK (TODAY: 6 SETS | OTHERS: 4 SETS)
    ========================================================================== */
 @media (min-width: 769px) {
-  .mission-playlist-card .playlist-sets-stream.sets-card-grid { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 12px !important; overflow-y: auto !important; overscroll-behavior: contain; scrollbar-gutter: stable; padding: 0 4px 0 0; scrollbar-width: thin; scrollbar-color: var(--border-color) transparent; }
+  .mission-playlist-card .playlist-sets-stream.sets-card-grid { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 12px !important; overflow-y: auto !important; overscroll-behavior-y: auto; scrollbar-gutter: stable; padding: 0 4px 0 0; scrollbar-width: thin; scrollbar-color: var(--border-color) transparent; }
   .mission-playlist-card .playlist-sets-stream.sets-card-grid::-webkit-scrollbar { width: 5px; }
   .mission-playlist-card .playlist-sets-stream.sets-card-grid::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
   .mission-playlist-card .playlist-sets-stream.sets-card-grid::-webkit-scrollbar-thumb:hover { background: var(--border-hover); }
@@ -349,7 +349,7 @@ body.dark-theme .pill-tier-apex { background: rgba(251, 191, 36, 0.14) !importan
 .topic-accordion-body { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.20s cubic-bezier(0.4, 0, 0.2, 1), padding 0.20s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.16s ease; padding: 0 16px; opacity: 0; overflow: hidden; background: var(--bg-panel); color: var(--text-main); border-radius: 0 0 6px 6px; }
 .topic-accordion-card.open .topic-accordion-body { grid-template-rows: 1fr; padding: 14px 16px; opacity: 1; transition: grid-template-rows 0.30s cubic-bezier(0.16, 1, 0.3, 1), padding 0.30s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease; }
 .topic-accordion-card:not(.open) .topic-accordion-body { grid-template-rows: 0fr !important; padding-top: 0 !important; padding-bottom: 0 !important; opacity: 0 !important; }
-.topic-accordion-body > .sets-card-grid { min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; scrollbar-width: thin; scrollbar-color: var(--border-color) transparent; }
+.topic-accordion-body > .sets-card-grid { min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior-y: auto; scrollbar-gutter: stable; scrollbar-width: thin; scrollbar-color: var(--border-color) transparent; }
 .sets-card-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
 
 /* 💻 PC VIEW: EXACT 3 ROWS (12 SETS) SCROLL LOCK */
@@ -1345,7 +1345,7 @@ body.dark-theme .box-fc { color: #c084fc; }
   .playlist-count-pill { font-size: 10px !important; padding: 2px 7px !important; }
   .mission-playlist-card.expanded > .playlist-body { padding: 10px !important; }
   
-  .playlist-sets-stream { max-height: 315px !important; overflow-y: auto !important; overscroll-behavior: contain; scrollbar-gutter: stable; padding: 0 4px 0 0 !important; scrollbar-width: thin; scrollbar-color: var(--border-color) transparent; }
+  .playlist-sets-stream { max-height: 315px !important; overflow-y: auto !important; -webkit-overflow-scrolling: touch !important; overscroll-behavior-y: auto !important; scrollbar-gutter: stable; padding: 0 4px 0 0 !important; scrollbar-width: thin; scrollbar-color: var(--border-color) transparent; }
   .today-payload-card .playlist-sets-stream { max-height: 315px !important; }
   .dynamic-revision-tile { width: 100% !important; min-height: auto !important; height: auto !important; display: flex !important; flex-direction: column !important; margin-bottom: 10px !important; overflow: visible !important; } .dynamic-revision-tile .set-score-info { display: block !important; overflow: visible !important; white-space: normal !important; line-height: 1.45 !important; padding-top: 4px !important; margin-bottom: 14px !important; min-height: auto !important; } 
   .dynamic-revision-tile .set-action-footer { display: flex !important; width: 100% !important; margin-top: auto !important; padding-bottom: 2px !important; } .dynamic-revision-tile .set-action-footer button { height: 36px !important; width: 100% !important; }
@@ -1358,7 +1358,7 @@ body.dark-theme .box-fc { color: #c084fc; }
   /* 📱 MOBILE LIBRARY TOPIC BODY: EXACT 3 VERTICAL SETS (~440px) + SMOOTH TOUCH SCROLL */
   .topic-accordion-body { max-height: none !important; overflow: hidden !important; }
   .topic-accordion-card.open .topic-accordion-body { padding: 12px 10px !important; }
-  .topic-accordion-body > .sets-card-grid { display: grid !important; grid-template-columns: 1fr !important; gap: 10px !important; max-height: 440px !important; overflow-y: auto !important; -webkit-overflow-scrolling: touch !important; overscroll-behavior: contain; scrollbar-gutter: stable; padding: 0 4px 0 0 !important; scrollbar-width: thin; scrollbar-color: var(--border-color) transparent; }
+  .topic-accordion-body > .sets-card-grid { display: grid !important; grid-template-columns: 1fr !important; gap: 10px !important; max-height: 440px !important; overflow-y: auto !important; -webkit-overflow-scrolling: touch !important; overscroll-behavior-y: auto !important; scrollbar-gutter: stable; padding: 0 4px 0 0 !important; scrollbar-width: thin; scrollbar-color: var(--border-color) transparent; }
   .topic-accordion-card.open .topic-accordion-body > .sets-card-grid::-webkit-scrollbar { width: 4px; }
   .topic-accordion-card.open .topic-accordion-body > .sets-card-grid::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
 

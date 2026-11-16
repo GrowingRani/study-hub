@@ -355,9 +355,9 @@ function initPlaylistSwipeGestures() {
     const absY = Math.abs(diffY);
 
     if (isHorizontalGesture === null) {
-      if (absX > 6 && absX >= absY) {
+      if (absX > 10 && absX > absY * 1.35) {
         isHorizontalGesture = true;
-      } else if (absY > 12 && absY > absX * 1.5) {
+      } else if (absY > 8 && absY >= absX) {
         isHorizontalGesture = false;
       }
     }
