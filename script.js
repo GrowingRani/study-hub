@@ -2615,31 +2615,41 @@ window.triggerUndoPlaylistRemove = async function() {
 
 window.executeSwipeRemove = async function(pId, testId, pName, el) {
   const numericTestId = Number(testId) || testId;
-  const wrapper = el?.closest('.swipe-item-wrapper') || document.querySelector(`.swipe-item-wrapper[data-playlist-id="${pId}"][data-test-id="${numericTestId}"]`);
+  const isViewingThisPlaylist = String(activeDashboardPlaylistId) === String(pId);
+  const wrapper = el?.closest('.swipe-item-wrapper') || (isViewingThisPlaylist ? document.querySelector(`.yt-playlist-stage .swipe-item-wrapper[data-playlist-id="${pId}"][data-test-id="${numericTestId}"]`) : null);
   lastRemovedPayload = { pId, testId: numericTestId, pName };
 
   if (wrapper && wrapper.offsetParent !== null) {
     animateAndRemoveWrapper(wrapper, async () => {
-      await togglePlaylistMembership(pId, numericTestId, true);
+      wrapper.remove();
+      await togglePlaylistMembership(pId, numericTestId, true, true);
       showSelectionToast(`Removed from "${pName}"`, window.triggerUndoPlaylistRemove);
     });
   } else {
-    await togglePlaylistMembership(pId, numericTestId, true);
+    await togglePlaylistMembership(pId, numericTestId, true, true);
     showSelectionToast(`Removed from "${pName}"`, window.triggerUndoPlaylistRemove);
   }
 };
 
-// ⭐ 1-TAP STAR SET CONTROLLER (Unified Toast, Undo & Smooth FLIP Sync)
+// ⭐ 1-TAP STAR SET CONTROLLER (ZERO-BLINK IN-PLACE SYNC)
 window.toggleStarSet = async function(event, testId) {
   if (event) { event.preventDefault(); event.stopPropagation(); }
+  const btnEl = event?.currentTarget;
+  if (btnEl) btnEl.blur();
+
   const starredList = userPlaylists.find(p => p.playlist_name === 'Starred Sets');
   if (!starredList || !currentCandidate) return;
+
+  if (typeof navigator !== "undefined" && navigator.vibrate) {
+    try { navigator.vibrate(10); } catch (e) {}
+  }
+
   const inList = userPlaylistItems.some(pi => String(pi.playlist_id) === String(starredList.id) && String(pi.test_id) === String(testId));
 
   if (inList) {
     await window.executeSwipeRemove(starredList.id, testId, 'Starred Sets', null);
   } else {
-    await togglePlaylistMembership(starredList.id, testId, false);
+    await togglePlaylistMembership(starredList.id, testId, false, true);
     showSelectionToast(`Added to "Starred Sets"`);
   }
 };
@@ -3390,7 +3400,9 @@ window.moveSetToToday = async function(event, fromPlaylistId, testId) {
     userPlaylistItems.push({ playlist_id: todayList.id, test_id: numTestId, student_roll: roll, is_rollover: false });
   }
   appStorage.setJSON("cache_playlist_items_" + roll, userPlaylistItems);
-  renderHomePlaylists();
+
+  syncPlaylistTelemetryInPlace(fromPlaylistId, true, numTestId);
+  syncPlaylistTelemetryInPlace(todayList.id, false, numTestId);
 
   showSelectionToast(`Moved to "Today's Payload"`, async () => {
     userPlaylistItems = backupItems;
@@ -3664,7 +3676,83 @@ window.closePlaylistBottomSheet = function() {
   }
 };
 
-window.togglePlaylistMembership = async function(pId, testId, inList) {
+function syncStarButtonsVisual(testId, isStarred, animatePop = false) {
+  document.querySelectorAll(`.btn-star-set[data-test-id="${testId}"]`).forEach(btn => {
+    btn.classList.toggle("starred", isStarred);
+    btn.title = isStarred ? "Unstar set" : "Star set";
+    if (animatePop) {
+      btn.classList.remove("star-just-toggled");
+      void btn.offsetWidth;
+      btn.classList.add("star-just-toggled");
+      setTimeout(() => btn.classList.remove("star-just-toggled"), 460);
+    }
+  });
+}
+
+function syncPlaylistTelemetryInPlace(pId, wasRemoved, testId = null) {
+  const pl = userPlaylists.find(p => String(p.id) === String(pId));
+  if (!pl) return false;
+
+  const items = userPlaylistItems.filter(pi => String(pi.playlist_id) === String(pId));
+  let totalQs = 0;
+  let unattCnt = 0, revCnt = 0, mastCnt = 0;
+  items.forEach(i => {
+    const m = getSetScoreMeta(i.test_id);
+    totalQs += m.qCount;
+    if (!m.isAtt) unattCnt++;
+    else if (m.status === "mastered") mastCnt++;
+    else revCnt++;
+  });
+
+  // 1. Update Left Rail Folder Row in-place (No DOM destruction)
+  const railRow = document.querySelector(`.yt-playlists-rail .yt-folder-row[onclick*="'${pId}'"]`);
+  if (railRow) {
+    const badge = railRow.querySelector(".yt-thumb-badge");
+    if (badge) badge.innerText = `${items.length} ${items.length === 1 ? "set" : "sets"}`;
+    const metaEl = railRow.querySelector(".yt-folder-meta");
+    if (metaEl) metaEl.innerText = `${items.length} Sets • ${totalQs} Qs`;
+  }
+
+  // 2. If this playlist is NOT currently open on stage, no stage rebuild needed
+  const isStageOpenForThis = String(activeDashboardPlaylistId) === String(pId);
+  if (!isStageOpenForThis) return true;
+
+  // 3. If it IS currently open on stage and an item was removed, remove card (if still in DOM) & update counts in-place
+  if (wasRemoved) {
+    if (testId !== null) {
+      const leftoverCard = document.querySelector(`.yt-playlist-stage .swipe-item-wrapper[data-playlist-id="${pId}"][data-test-id="${testId}"]`);
+      if (leftoverCard) {
+        animateAndRemoveWrapper(leftoverCard, () => leftoverCard.remove());
+      }
+    }
+
+    const stageSub = document.querySelector(".yt-playlist-stage .yt-stage-sub");
+    if (stageSub) stageSub.innerText = `${items.length} Sets • ${totalQs} Questions`;
+
+    const chips = document.querySelectorAll(".yt-playlist-stage .yt-stage-filter-bar .yt-chip");
+    if (chips.length >= 4) {
+      chips[0].innerText = `All (${items.length})`;
+      chips[1].innerText = `Unattempted (${unattCnt})`;
+      chips[2].innerText = `Revise (${revCnt})`;
+      chips[3].innerText = `Mastered (${mastCnt})`;
+    }
+
+    const stageGrid = document.querySelector(".yt-playlist-stage .yt-stage-grid");
+    if (stageGrid && items.length === 0 && !stageGrid.querySelector(".yt-empty-stage-msg")) {
+      const vis = getPlaylistVisualTheme(pl.playlist_name);
+      const emptyDiv = document.createElement("div");
+      emptyDiv.className = "yt-empty-stage-msg";
+      emptyDiv.style.cssText = "text-align:center; padding:28px 16px; color:var(--text-muted); font-size:12.5px; font-weight:600; grid-column:1 / -1;";
+      emptyDiv.innerHTML = `No sets in "${vis.label}" yet. Tap <strong>+</strong> to stage sets from Library.`;
+      stageGrid.insertBefore(emptyDiv, stageGrid.querySelector(".btn-create-playlist-trigger") || null);
+    }
+    return true;
+  }
+
+  return false;
+}
+
+window.togglePlaylistMembership = async function(pId, testId, inList, skipFullRerender = false) {
   if (!currentCandidate) return;
   const roll = currentCandidate.roll_number;
 
@@ -3677,19 +3765,15 @@ window.togglePlaylistMembership = async function(pId, testId, inList) {
     userPlaylistItems.push({ playlist_id: pId, test_id: testId, student_roll: roll });
   }
 
-  // 0ms Cache Sync (Taaki page refresh hone par instant update barkarar rahe)
   appStorage.setJSON("cache_playlist_items_" + roll, userPlaylistItems);
 
-  // 2. Star Icon State Sync (Agar toggled playlist 'Starred Sets' hai)
+  // 2. Star Icon State Sync
   const starredList = userPlaylists.find(p => p.playlist_name === 'Starred Sets');
   if (starredList && String(starredList.id) === String(pId)) {
-    document.querySelectorAll(`.btn-star-set[data-test-id="${testId}"]`).forEach(btn => {
-      btn.classList.toggle("starred", !inList);
-      btn.title = !inList ? "Unstar set" : "Star set";
-    });
+    syncStarButtonsVisual(testId, !inList, true);
   }
 
-  // 3. Instant UI Re-render (Modal sirf tabhi refresh hoga jab pehle se screen par open ho)
+  // 3. Bottom Sheet Sync
   const overlay = document.getElementById("playlistBottomSheetOverlay");
   if (overlay && overlay.classList.contains("open")) {
     openPlaylistBottomSheet(testId);
@@ -3702,7 +3786,11 @@ window.togglePlaylistMembership = async function(pId, testId, inList) {
       showSelectionToast(`Added to "${plName}"`);
     }
   }
-  renderHomePlaylists();
+
+  const handledInPlace = syncPlaylistTelemetryInPlace(pId, inList, testId);
+  if (!handledInPlace && !skipFullRerender) {
+    renderHomePlaylists();
+  }
 
   // 4. Background Cloud Sync with Revert Handling
   try {
@@ -3723,7 +3811,6 @@ window.togglePlaylistMembership = async function(pId, testId, inList) {
   } catch (err) { 
     console.error("Cloud playlist sync failed, reverting:", err); 
     
-    // Fail hone par exact state revert karein
     if (inList) { 
       userPlaylistItems.push({ playlist_id: pId, test_id: testId, student_roll: roll }); 
     } else { 
@@ -3732,21 +3819,18 @@ window.togglePlaylistMembership = async function(pId, testId, inList) {
       ); 
     } 
 
-    // Cache revert sync
     appStorage.setJSON("cache_playlist_items_" + roll, userPlaylistItems);
 
-    // Star icon revert sync
     if (starredList && String(starredList.id) === String(pId)) {
-      document.querySelectorAll(`.btn-star-set[data-test-id="${testId}"]`).forEach(btn => {
-        btn.classList.toggle("starred", inList);
-        btn.title = inList ? "Unstar set" : "Star set";
-      });
+      syncStarButtonsVisual(testId, inList, false);
     }
 
     if (overlay && overlay.classList.contains("open")) {
       openPlaylistBottomSheet(testId);
     }
-    renderHomePlaylists(); 
+    if (!syncPlaylistTelemetryInPlace(pId, !inList, testId)) {
+      renderHomePlaylists();
+    }
     showSelectionToast("Network sync failed. Changes reverted."); 
   }
 };
@@ -6614,8 +6698,8 @@ function renderQuizUI() {
   }
 }
 
-// 🚀 UNIFIED QUESTION STAR CONTROLLER (READ & QUIZ MODES - ZERO LOGIC LOSS)
-window.toggleQuestionStar = function(mode, idx) {
+// 🚀 UNIFIED QUESTION STAR CONTROLLER (READ & QUIZ MODES + DOUBLE-TAP BURST)
+window.toggleQuestionStar = function(mode, idx, showBurst = false) {
   const isRead = mode === 'read';
   const stateObj = isRead ? localReadState : localQuizState;
   
@@ -6627,6 +6711,10 @@ window.toggleQuestionStar = function(mode, idx) {
   }
   const nowStarred = stateObj.starred.has(idx);
 
+  if (typeof navigator !== "undefined" && navigator.vibrate) {
+    try { navigator.vibrate(12); } catch (e) {}
+  }
+
   // 2. Common DOM Sync (Card & Star Button)
   const card = document.getElementById(`${mode}Card_${idx}`);
   if (card) {
@@ -6635,7 +6723,20 @@ window.toggleQuestionStar = function(mode, idx) {
     if (btn) {
       btn.classList.toggle("starred", nowStarred);
       btn.title = nowStarred ? "Unstar Question" : "Star for Revision";
-      btn.blur(); // 📱 Mobile tap focus turant clear karega (prevents sticky highlight)
+      btn.classList.remove("star-just-toggled");
+      void btn.offsetWidth;
+      btn.classList.add("star-just-toggled");
+      setTimeout(() => btn.classList.remove("star-just-toggled"), 460);
+      btn.blur(); // 📱 Mobile tap focus turant clear karega
+    }
+
+    if (showBurst) {
+      card.querySelector(".star-doubletap-burst")?.remove();
+      const burst = document.createElement("div");
+      burst.className = `star-doubletap-burst ${nowStarred ? "is-starred" : "is-unstarred"}`;
+      burst.innerHTML = starIconSvg;
+      card.appendChild(burst);
+      setTimeout(() => burst.remove(), 580);
     }
   }
 
@@ -7259,6 +7360,37 @@ function buildQuestionCardDOM(q, idx, mode, stateObj, isMB = false) {
 
       };
     });
+  }
+
+  // 📱 MOBILE DOUBLE-TAP TO STAR (Read Mode: Full Card | Quiz Mode: Question & Revealed Explanation Only)
+  if ((isRead || isQuiz) && window.innerWidth <= 768) {
+    let lastTapTime = 0;
+    let lastTapX = 0;
+    let lastTapY = 0;
+
+    card.addEventListener("touchend", (e) => {
+      if (e.touches.length > 0 || e.changedTouches.length !== 1) return;
+      if (e.target.closest("button")) return;
+
+      // Quiz Mode में ऑप्शंस वाले एरिया पर डबल-टैप इग्नोर करें
+      if (isQuiz && e.target.closest(`#${mode}Opts_${idx}`)) return;
+
+      const touch = e.changedTouches[0];
+      const now = Date.now();
+      const dt = now - lastTapTime;
+      const dx = Math.abs(touch.clientX - lastTapX);
+      const dy = Math.abs(touch.clientY - lastTapY);
+
+      if (dt > 0 && dt < 320 && dx < 28 && dy < 28) {
+        lastTapTime = 0;
+        if (e.cancelable) e.preventDefault();
+        window.toggleQuestionStar(mode, idx, true);
+      } else {
+        lastTapTime = now;
+        lastTapX = touch.clientX;
+        lastTapY = touch.clientY;
+      }
+    }, { passive: false });
   }
 
   return card;
