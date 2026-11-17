@@ -206,6 +206,7 @@ let isAuthSessionInitializing = false;
 let activeDashboardPlaylistId = null;
 let isMobilePlaylistStageOpen = false;
 let ytPlaylistFilter = "all";
+let ytStageFilter = "all";
 
 // 🚀 PRE-FLIGHT MISSION BRIEFING & SHUFFLE STATE (DEFAULT: ON)
 let activeBriefingTestId = null;
@@ -582,6 +583,11 @@ window.switchView = function(viewId, pushHistory = true) {
   closeAllOverlaysAndPopups();
   const currentActiveView = Array.from(document.querySelectorAll('.view-screen')).find(v => v.style.display === 'flex')?.id;
   if (currentActiveView === viewId) return;
+
+  if (viewId !== 'viewDashboard') {
+    isMobilePlaylistStageOpen = false;
+    document.body.classList.remove("mobile-playlist-active");
+  }
 
   // 🧹 DOCKED FILTER STRIP CLEANUP (Prevents ghost bars when switching away from Practice)
   if (viewId !== 'viewPractice') {
@@ -2815,11 +2821,11 @@ function getPlaylistAddBtnHtml(pId, pName) {
 
 function getPlaylistVisualTheme(pName) {
   const n = (pName || "").trim().toLowerCase();
-  if (n === "today") return { theme: "theme-today", icon: "🔥", label: "Today's Payload", tag: "PRIMARY EXECUTION" };
-  if (n === "tomorrow") return { theme: "theme-tomorrow", icon: "⏳", label: "Tomorrow's Queue", tag: "NEXT DAY TARGET" };
-  if (n === "this week") return { theme: "theme-week", icon: "📅", label: "This Week Backlog", tag: "ROLLOVER & WEEKLY" };
-  if (n === "starred sets") return { theme: "theme-starred", icon: "⭐", label: "Starred Sets", tag: "VIP BOOKMARKS" };
-  return { theme: "theme-custom", icon: "📁", label: pName, tag: "CUSTOM PLAYLIST" };
+  if (n === "today") return { theme: "theme-today", category: "execution", icon: "🔥", label: "Today's Payload", tag: "PRIMARY EXECUTION", artBg: "linear-gradient(135deg, #1e3a8a, #2563eb)" };
+  if (n === "tomorrow") return { theme: "theme-tomorrow", category: "staging", icon: "⏳", label: "Tomorrow's Queue", tag: "NEXT DAY STAGING", artBg: "linear-gradient(135deg, #0c4a6e, #0284c7)" };
+  if (n === "this week") return { theme: "theme-week", category: "staging", icon: "📅", label: "This Week Backlog", tag: "ROLLOVER & WEEKLY", artBg: "linear-gradient(135deg, #78350f, #d97706)" };
+  if (n === "starred sets") return { theme: "theme-starred", category: "curated", icon: "⭐", label: "Starred Sets", tag: "VIP BOOKMARKS", artBg: "linear-gradient(135deg, #92400e, #f59e0b)" };
+  return { theme: "theme-custom", category: "curated", icon: "📁", label: pName, tag: "CUSTOM COLLECTION", artBg: "linear-gradient(135deg, #4c1d95, #7c3aed)" };
 }
 
 async function renderHomePlaylists() {
@@ -2833,16 +2839,14 @@ async function renderHomePlaylists() {
     const deckContainer = document.querySelector("#viewDashboard .mission-deck-container");
     if (!deckContainer) return;
 
-    // 🚀 1. COMPILE BOOSTER TILE HTML
-    let boosterTileHtml = "";
+    // 🚀 1. COMPILE PINNED BOOSTER STRIP HTML (ABOVE TODAY'S GRID)
     const isSun = isSunday();
     const todayStr = getLocalDateString();
     const boosterAttemptedToday = userAttemptHistory.some(a => Number(a.test_id) === -1 && getAttemptLocalDate(a.attempt_date) === todayStr);
     const boosterLimit = isSun ? 100 : 25;
     const boosterQuestions = await compileMasteryBoosterPool(boosterLimit, false, isSun);
     const qCount = boosterQuestions.length;
-    const tileTitle = isSun ? "Sunday Crucible Exam" : "Bonus Mastery Booster";
-    const tileThemeClass = isSun ? "sunday-crucible-tile" : "";
+    const stripTitle = isSun ? "Sunday Crucible Exam" : "Bonus Mastery Booster";
 
     const sunTargetPre = isSun ? (qCount > 0 ? Math.min(50, Math.ceil(qCount * 0.70)) : 0) : 100;
     const sunBestPre = isSun
@@ -2854,46 +2858,36 @@ async function renderHomePlaylists() {
       ? Boolean(dailyPerf?.is_century_hit || (sunTargetPre > 0 && sunBestPre >= sunTargetPre))
       : boosterAttemptedToday;
 
+    let boosterStripHtml = "";
     if (isTileCompleted) {
-      boosterTileHtml = `
-        <div class="set-tile dynamic-revision-tile ${tileThemeClass} state-clean">
-          <div class="set-tile-header">
-            <div class="set-tile-title-group"><div class="set-tile-title">${tileTitle}</div></div>
-            <div style="display:flex; gap: 6px; align-items: center; flex-shrink: 0;">
-              <span class="set-status-badge status-mastered" style="background:var(--success-bg-subtle); color:var(--success-dark); border:1px solid var(--success-border); font-weight:800;">${isSun ? 'Crucible Done 👑' : 'Quota Met ✓'}</span>
+      boosterStripHtml = `
+        <div class="yt-booster-strip is-clean">
+          <div class="yt-booster-strip-left">
+            <span class="yt-booster-strip-icon">${isSun ? "👑" : "✅"}</span>
+            <div class="yt-booster-strip-text">
+              <div class="yt-booster-strip-title">${stripTitle} • Quota Met</div>
+              <div class="yt-booster-strip-sub">${qCount} Qs completed • Practice & flashcards unlocked</div>
             </div>
           </div>
-          <div class="set-tile-meta"><span>${clockSvg} Done</span><span>${docSvg} ${qCount} Qs</span><span style="font-size:10px; color:var(--success); font-weight:700;">(Spaced Recall)</span></div>
-          <div class="set-score-info" style="display: block !important; overflow: visible !important; white-space: normal !important; line-height: 1.55 !important; padding-top: 4px !important; margin-bottom: 12px !important; min-height: auto !important;"><span style="color:var(--success); font-weight:600; display: inline-block;">✓ Today's quota completed!</span></div>
-          <div class="set-action-footer"><button type="button" class="btn-launch-set btn-booster-review" style="background: linear-gradient(135deg, #15803d, #16a34a) !important; color: #ffffff !important; box-shadow: 0 2px 8px rgba(22, 163, 74, 0.3) !important;" onclick="openMissionBriefingModal(-1)"><span>📖</span> <span style="color:#ffffff !important; font-weight:700;">Review & Practice</span></button></div>
+          <button type="button" class="btn-yt-booster-go" onclick="openMissionBriefingModal(-1)">Review →</button>
         </div>
       `;
-    } else if (qCount === 0) {
-      boosterTileHtml = `
-        <div class="set-tile dynamic-revision-tile ${tileThemeClass} state-clean">
-          <div class="set-tile-header">
-            <div class="set-tile-title-group"><div class="set-tile-title">${tileTitle}</div></div>
-            <div style="display:flex; gap: 6px; align-items: center; flex-shrink: 0;"><span class="clean-slate-pill">0 Due • All Clear</span></div>
-          </div>
-          <div class="set-tile-meta"><span>${clockSvg} 0m</span><span>${docSvg} 0 Qs</span><span style="font-size:10px; color:var(--success-dark); font-weight:700;">(100% Spaced Review Sync)</span></div>
-          <div class="set-score-info" style="display: block !important; overflow: visible !important; white-space: normal !important; line-height: 1.55 !important; padding-top: 4px !important; margin-bottom: 12px !important;"><span style="color:var(--success-dark); font-weight:600; display: inline-block;">✓ Mistake Bank Cleared • Zero Reviews Due</span></div>
-          <div class="set-action-footer"><button type="button" class="btn-launch-set" disabled title="All reviews optimal. Attempt new questions from Library."><span>🛡️</span> <span>System Optimal</span></button></div>
-        </div>
-      `;
-    } else {
-      const durationMins = Math.max(3, Math.ceil(qCount * 0.6));
+    } else if (qCount > 0) {
       const mistakeCount = boosterQuestions.filter(q => q.isMistake).length;
       const recallCount = qCount - mistakeCount;
-      const poolDetail = mistakeCount > 0 && recallCount > 0 ? `${mistakeCount} Mistakes • ${recallCount} Active Recall` : (mistakeCount > 0 ? `${mistakeCount} Mistakes for Review` : `${recallCount} Active Recall Questions`);
-      boosterTileHtml = `
-        <div class="set-tile dynamic-revision-tile ${tileThemeClass} state-active">
-          <div class="set-tile-header">
-            <div class="set-tile-title-group"><div class="set-tile-title">${tileTitle}</div></div>
-            <div style="display:flex; gap: 6px; align-items: center; flex-shrink: 0;"><div class="set-status-badge status-progress" style="background:var(--warning-bg-subtle); color:var(--warning-dark); border:1px solid var(--warning-border);">${qCount} Due</div></div>
+      const subText = (isSun && sunBestPre > 0)
+        ? `Incomplete (${sunBestPre}/${sunTargetPre} Qs solved)`
+        : `${qCount} Due (${mistakeCount} Mistakes • ${recallCount} Recall)`;
+      boosterStripHtml = `
+        <div class="yt-booster-strip">
+          <div class="yt-booster-strip-left">
+            <span class="yt-booster-strip-icon">${isSun ? "⚔️" : "⚡"}</span>
+            <div class="yt-booster-strip-text">
+              <div class="yt-booster-strip-title">${stripTitle}</div>
+              <div class="yt-booster-strip-sub">${subText}</div>
+            </div>
           </div>
-          <div class="set-tile-meta"><span>${clockSvg} ${durationMins}m</span><span>${docSvg} ${qCount} Qs</span><span style="font-size:10px; color:var(--warning); font-weight:700;">(${isSun ? 'Comprehensive Weekly Review' : 'Bonus • Excluded from 100-Q Target'})</span></div>
-          <div class="set-score-info" style="display: block !important; overflow: visible !important; white-space: normal !important; line-height: 1.55 !important; padding-top: 4px !important; margin-bottom: 12px !important;"><span style="color:var(--warning-dark); font-weight:700; display: inline-block;">⚡ ${(isSun && sunBestPre > 0) ? `Target Incomplete (${sunBestPre}/${sunTargetPre} Qs solved)` : poolDetail}</span></div>
-          <div class="set-action-footer"><button type="button" class="btn-launch-set" onclick="openMissionBriefingModal(-1)"><span>${isSun ? '⚔️' : '▶'}</span> <span>${isSun ? (sunBestPre > 0 ? 'Retry Sunday Crucible' : 'Launch Sunday Crucible') : 'Start Booster Session'}</span></button></div>
+          <button type="button" class="btn-yt-booster-go" onclick="openMissionBriefingModal(-1)">Start Booster →</button>
         </div>
       `;
     }
@@ -2924,7 +2918,7 @@ async function renderHomePlaylists() {
       return true;
     });
 
-    // 🚀 3. RENDER YOUTUBE STACKED FOLDER RAIL (LEFT / MOBILE OVERVIEW)
+    // 🚀 3. RENDER YOUTUBE STACKED FOLDER RAIL
     const folderRowsHtml = visibleRailPlaylists.map(pl => {
       const items = userPlaylistItems.filter(pi => String(pi.playlist_id) === String(pl.id));
       let totalQs = 0;
@@ -2957,50 +2951,103 @@ async function renderHomePlaylists() {
       `;
     }).join("");
 
-    // 🚀 4. RENDER SELECTED PLAYLIST STAGE (RIGHT / MOBILE FULL-SCREEN)
+    // 🚀 4. RENDER SELECTED PLAYLIST STAGE (3-CATEGORY YOUTUBE ARCHITECTURE)
     const activePl = orderedPlaylists.find(p => String(p.id) === String(activeDashboardPlaylistId)) || orderedPlaylists[0];
     let stageHtml = "";
     if (activePl) {
       const vis = getPlaylistVisualTheme(activePl.playlist_name);
       const isSys = Boolean(activePl.is_system_playlist || ["Today", "Tomorrow", "This Week", "Starred Sets"].includes(activePl.playlist_name));
-      const isToday = activePl.playlist_name === "Today";
+      const isToday = vis.category === "execution";
+      const isCurated = vis.category === "curated";
+      const isStaging = vis.category === "staging";
       const items = userPlaylistItems.filter(pi => String(pi.playlist_id) === String(activePl.id));
       let stageQs = 0;
+      let unattCnt = 0, revCnt = 0, mastCnt = 0;
       items.forEach(i => {
-        const c = catalogMap.get(String(i.test_id));
-        stageQs += c ? (c.total_questions || 10) : 10;
+        const m = getSetScoreMeta(i.test_id);
+        stageQs += m.qCount;
+        if (!m.isAtt) unattCnt++;
+        else if (m.status === "mastered") mastCnt++;
+        else revCnt++;
       });
 
-      const setsHtml = items.length > 0
-        ? items.map(i => renderPlaylistSetTileHtml(i, activePl.playlist_name)).join("")
-        : `<div style="text-align:center; padding:28px 16px; color:var(--text-muted); font-size:12.5px; font-weight:600; grid-column:1 / -1;">No sets in "${vis.label}" yet. Tap <strong>+ Add Sets</strong> to stage sets from Library.</div>`;
+      const filteredStageItems = items.filter(i => ytStageFilter === "all" || getSetScoreMeta(i.test_id).status === ytStageFilter);
 
-      stageHtml = `
-        <div class="yt-stage-hero">
-          <div class="yt-stage-hero-left">
-            <button type="button" class="btn-yt-stage-back" onclick="closeMobilePlaylistStage()" title="Back to Playlists">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
-            </button>
-            <div class="yt-stage-title-stack">
-              <span class="yt-stage-eyebrow">${vis.tag}</span>
-              <h3 class="yt-stage-title">${vis.icon} ${vis.label}</h3>
-              <span class="yt-stage-sub">${items.length} Sets • ${stageQs} Questions</span>
+      const pNameEsc = activePl.playlist_name.replace(/'/g, "\\'");
+      const backBtnHtml = `
+        <button type="button" class="btn-yt-stage-back" onclick="closeMobilePlaylistStage()" title="Back to Playlists">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        </button>
+      `;
+
+      const stageFilterBarHtml = `
+        <div class="yt-stage-filter-bar">
+          <button type="button" class="yt-chip ${ytStageFilter === "all" ? "active" : ""}" onclick="setYtStageFilter('all')">All (${items.length})</button>
+          <button type="button" class="yt-chip ${ytStageFilter === "unattempted" ? "active" : ""}" onclick="setYtStageFilter('unattempted')">Unattempted (${unattCnt})</button>
+          <button type="button" class="yt-chip ${ytStageFilter === "revise" ? "active" : ""}" onclick="setYtStageFilter('revise')">Revise (${revCnt})</button>
+          <button type="button" class="yt-chip ${ytStageFilter === "mastered" ? "active" : ""}" onclick="setYtStageFilter('mastered')">Mastered (${mastCnt})</button>
+        </div>
+      `;
+
+      let stageHeaderHtml = "";
+      if (isCurated) {
+        stageHeaderHtml = `
+          <div class="yt-watchlater-hero ${activePl.playlist_name === "Starred Sets" ? "hero-starred" : ""}">
+            <div class="yt-stage-hero-left">
+              ${backBtnHtml}
+              <div class="yt-hero-artwork" style="background:${vis.artBg};">${vis.icon}</div>
+              <div class="yt-stage-title-stack">
+                <span class="yt-stage-eyebrow">${vis.tag}</span>
+                <h3 class="yt-stage-title">${vis.label}</h3>
+                <span class="yt-stage-sub">${items.length} Sets • ${stageQs} Questions</span>
+              </div>
+            </div>
+            <div class="yt-stage-actions">
+              <button type="button" class="btn-yt-play-all" onclick="startNextInPlaylist('${activePl.id}')">▶ Start Next</button>
+              <button type="button" class="btn-yt-circle-add" onclick="enableLibrarySelectionMode('${activePl.id}', '${pNameEsc}')" title="Add Sets">+</button>
+              <button type="button" class="btn-playlist-dots" onclick="openPlaylistActionMenu(event, '${activePl.id}', '${pNameEsc}', ${isSys})" title="Playlist Options">⋮</button>
             </div>
           </div>
-          <div class="yt-stage-actions">
-            <button type="button" class="btn-yt-add-sets" onclick="enableLibrarySelectionMode('${activePl.id}', '${activePl.playlist_name.replace(/'/g, "\\'")}')">+ Add Sets</button>
-            <button type="button" class="btn-playlist-dots" onclick="openPlaylistActionMenu(event, '${activePl.id}', '${activePl.playlist_name.replace(/'/g, "\\'")}', ${isSys})" title="Playlist Options">⋮</button>
+          ${stageFilterBarHtml}
+        `;
+      } else {
+        stageHeaderHtml = `
+          <div class="yt-stage-hero">
+            <div class="yt-stage-hero-left">
+              ${backBtnHtml}
+              <div class="yt-stage-title-stack">
+                <span class="yt-stage-eyebrow">${vis.tag}</span>
+                <h3 class="yt-stage-title">${vis.icon} ${vis.label}</h3>
+                <span class="yt-stage-sub">${items.length} Sets • ${stageQs} Questions</span>
+              </div>
+            </div>
+            <div class="yt-stage-actions">
+              ${items.length > 0 ? `<button type="button" class="btn-yt-play-all" onclick="startNextInPlaylist('${activePl.id}')">▶ Continue Next</button>` : ""}
+              <button type="button" class="btn-yt-add-sets" onclick="enableLibrarySelectionMode('${activePl.id}', '${pNameEsc}')">+ Add Sets</button>
+              <button type="button" class="btn-playlist-dots" onclick="openPlaylistActionMenu(event, '${activePl.id}', '${pNameEsc}', ${isSys})" title="Playlist Options">⋮</button>
+            </div>
           </div>
-        </div>
+          ${stageFilterBarHtml}
+        `;
+      }
+
+      const setsHtml = filteredStageItems.length > 0
+        ? filteredStageItems.map(i => renderStageSetCardHtml(i, activePl.playlist_name, isStaging)).join("")
+        : `<div style="text-align:center; padding:28px 16px; color:var(--text-muted); font-size:12.5px; font-weight:600; grid-column:1 / -1;">${items.length > 0 ? "No sets match this filter." : `No sets in "${vis.label}" yet. Tap <strong>+ Add Sets</strong> to stage sets from Library.`}</div>`;
+
+      stageHtml = `
+        ${stageHeaderHtml}
+        ${isToday ? boosterStripHtml : ""}
         <div class="yt-stage-grid sets-card-grid">
-          ${isToday ? boosterTileHtml : ""}
           ${setsHtml}
           ${getPlaylistAddBtnHtml(activePl.id, activePl.playlist_name)}
         </div>
       `;
     }
 
-    deckContainer.classList.toggle("mobile-stage-open", isMobilePlaylistStageOpen && window.innerWidth <= 768);
+    const isMobileStageNow = isMobilePlaylistStageOpen && window.innerWidth <= 768;
+    deckContainer.classList.toggle("mobile-stage-open", isMobileStageNow);
+    document.body.classList.toggle("mobile-playlist-active", isMobileStageNow);
     deckContainer.innerHTML = `
       <aside class="yt-playlists-rail">
         <div class="yt-rail-header">
@@ -3365,7 +3412,13 @@ window.setYtPlaylistFilter = function(filterKey) {
   renderHomePlaylists();
 };
 
+window.setYtStageFilter = function(filterKey) {
+  ytStageFilter = filterKey || "all";
+  renderHomePlaylists();
+};
+
 window.selectDashboardPlaylist = function(pId) {
+  if (String(activeDashboardPlaylistId) !== String(pId)) ytStageFilter = "all";
   activeDashboardPlaylistId = String(pId);
   if (window.innerWidth <= 768) {
     openMobilePlaylistStage(pId, true);
@@ -3375,11 +3428,14 @@ window.selectDashboardPlaylist = function(pId) {
 };
 
 window.openMobilePlaylistStage = function(pId, pushHistory = true) {
+  if (String(activeDashboardPlaylistId) !== String(pId)) ytStageFilter = "all";
   activeDashboardPlaylistId = String(pId);
   isMobilePlaylistStageOpen = true;
+  document.body.classList.add("mobile-playlist-active");
   renderHomePlaylists();
   const deck = document.querySelector("#viewDashboard .mission-deck-container");
   if (deck) deck.classList.add("mobile-stage-open");
+  window.scrollTo({ top: 0, behavior: "instant" });
   if (pushHistory) {
     history.pushState({ page: "playlist-detail", view: "viewDashboard", playlistId: String(pId) }, "", "#playlist_" + encodeURIComponent(String(pId)));
   }
@@ -3390,10 +3446,130 @@ window.closeMobilePlaylistStage = function(fromPopState = false) {
     return history.back();
   }
   isMobilePlaylistStageOpen = false;
+  document.body.classList.remove("mobile-playlist-active");
   const deck = document.querySelector("#viewDashboard .mission-deck-container");
   if (deck) deck.classList.remove("mobile-stage-open");
   renderHomePlaylists();
 };
+
+window.startNextInPlaylist = function(pId) {
+  const pl = userPlaylists.find(p => String(p.id) === String(pId));
+  if (!pl) return;
+  const items = userPlaylistItems.filter(pi => String(pi.playlist_id) === String(pId));
+  if (!items.length) {
+    return enableLibrarySelectionMode(pl.id, pl.playlist_name);
+  }
+  const filtered = items.filter(it => ytStageFilter === "all" || getSetScoreMeta(it.test_id).status === ytStageFilter);
+  const pool = filtered.length ? filtered : items;
+  const nextItem = pool.find(it => !getSetScoreMeta(it.test_id).isAtt) || pool[0];
+  openMissionBriefingModal(nextItem.test_id);
+};
+
+window.moveSetToToday = async function(event, fromPlaylistId, testId) {
+  if (event) { event.preventDefault(); event.stopPropagation(); }
+  if (!currentCandidate) return;
+  const roll = currentCandidate.roll_number;
+  const todayList = userPlaylists.find(p => p.playlist_name === "Today");
+  if (!todayList || String(todayList.id) === String(fromPlaylistId)) return;
+
+  const numTestId = Number(testId) || testId;
+  const alreadyInToday = userPlaylistItems.some(pi => String(pi.playlist_id) === String(todayList.id) && String(pi.test_id) === String(numTestId));
+  const backupItems = userPlaylistItems.map(pi => ({ ...pi }));
+
+  userPlaylistItems = userPlaylistItems.filter(pi => !(String(pi.playlist_id) === String(fromPlaylistId) && String(pi.test_id) === String(numTestId)));
+  if (!alreadyInToday) {
+    userPlaylistItems.push({ playlist_id: todayList.id, test_id: numTestId, student_roll: roll, is_rollover: false });
+  }
+  appStorage.setJSON("cache_playlist_items_" + roll, userPlaylistItems);
+  renderHomePlaylists();
+
+  showSelectionToast(`Moved to "Today's Payload"`, async () => {
+    userPlaylistItems = backupItems;
+    appStorage.setJSON("cache_playlist_items_" + roll, userPlaylistItems);
+    renderHomePlaylists();
+    await supabaseClient.from("playlist_items").upsert({ playlist_id: fromPlaylistId, test_id: numTestId, student_roll: roll });
+    if (!alreadyInToday) {
+      await supabaseClient.from("playlist_items").delete().match({ playlist_id: todayList.id, test_id: numTestId, student_roll: roll });
+    }
+    showSelectionToast("Move undone");
+  });
+
+  try {
+    await supabaseClient.from("playlist_items").delete().match({ playlist_id: fromPlaylistId, test_id: numTestId, student_roll: roll });
+    if (!alreadyInToday) {
+      await supabaseClient.from("playlist_items").insert({ playlist_id: todayList.id, test_id: numTestId, student_roll: roll });
+    }
+  } catch (err) {
+    console.error("Move to Today sync failed:", err);
+  }
+};
+
+function renderStageSetCardHtml(item, pName, isStagingQueue = false) {
+  const testId = item.test_id;
+  const meta = getSetScoreMeta(testId);
+  if (!meta.setCat) return "";
+
+  const subj = (meta.setCat.subject || "GEN").trim();
+  const subCode = subj.substring(0, 4).toUpperCase();
+  const isRoll = item.is_rollover ? `<span class="set-rollover-tag">⚠️ ROLLOVER</span>` : "";
+
+  let badgeHtml = "";
+  let scoreLine = `<span style="color:var(--text-muted);">${meta.duration}m • Untested</span>`;
+  if (meta.isAtt && meta.attempts.length > 0) {
+    const latestScore = parseFloat(meta.attempts[0].score);
+    const latestPct = meta.maxMarks > 0 ? (latestScore / meta.maxMarks) * 100 : 0;
+    const fmtLatest = Number.isInteger(latestScore) ? latestScore : latestScore.toFixed(1);
+    const fmtBest = Number.isInteger(meta.bestScore) ? meta.bestScore : meta.bestScore.toFixed(1);
+    let badgeStyle = "background:var(--warning-bg-subtle); color:var(--warning-dark); border:1px solid var(--warning-border);";
+    if (latestPct >= 100) badgeStyle = "background:var(--success-bg-subtle); color:var(--success-dark); border:1px solid var(--success-border);";
+    else if (latestPct < 50) badgeStyle = "background:var(--danger-bg-subtle); color:var(--danger-dark); border:1px solid var(--danger-border);";
+    badgeHtml = `<div class="set-status-badge" style="${badgeStyle}">${fmtLatest}/${meta.maxMarks}</div>`;
+    scoreLine = `<span style="color:${meta.bestPct >= 100 ? 'var(--success-dark)' : 'var(--warning-dark)'}; font-weight:700;">★ ${fmtBest}/${meta.maxMarks} (${Math.round(meta.bestPct)}%)</span>`;
+  }
+
+  const starredPl = userPlaylists.find(p => p.playlist_name === "Starred Sets");
+  const isStarred = starredPl && userPlaylistItems.some(pi => pi.playlist_id === starredPl.id && String(pi.test_id) === String(testId));
+  const pNameSafe = pName.replace(/'/g, "\\'");
+
+  const footerRight = isStagingQueue
+    ? `<button type="button" class="btn-move-today" onclick="moveSetToToday(event, '${item.playlist_id}', ${testId})">Move to Today ➔</button>`
+    : `<span class="yt-quiet-cta">${meta.isAtt ? "Retake →" : "Start →"}</span>`;
+
+  return `
+    <div class="swipe-item-wrapper" data-test-id="${testId}" data-playlist-id="${item.playlist_id}">
+      <div class="swipe-action-backdrop" onclick="executeSwipeRemove('${item.playlist_id}', ${testId}, '${pNameSafe}', this)">
+        <span class="swipe-action-label">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg>
+          <span>Remove</span>
+        </span>
+      </div>
+      <div class="set-tile yt-stage-card" data-test-id="${testId}" data-status="${meta.status}" onclick="if(!event.target.closest('button')) openMissionBriefingModal(${testId})">
+        <div class="yt-media-thumb">
+          <span class="yt-media-sub-code">${subCode}</span>
+          <span class="yt-media-q-pill">${meta.qCount} Qs</span>
+        </div>
+        <div class="yt-stage-card-body">
+          <div class="set-tile-header">
+            <div class="set-tile-title-group">
+              ${isRoll}
+              <div class="set-tile-title">${meta.title}</div>
+            </div>
+            <div style="display:flex; gap:4px; align-items:center; flex-shrink:0;">
+              ${badgeHtml}
+              <button type="button" class="btn-star-set ${isStarred ? "starred" : ""}" data-test-id="${testId}" onclick="toggleStarSet(event, ${testId})" title="${isStarred ? "Unstar set" : "Star set"}">${starIconSvg}</button>
+              <button type="button" class="btn-three-dots" onclick="openThreeDotsMenu(event, ${testId}, '${item.playlist_id}', '${pNameSafe}')" title="Options">⋮</button>
+            </div>
+          </div>
+          <div class="set-tile-meta"><span>${clockSvg} ${meta.duration}m</span><span>${docSvg} ${meta.qCount} Qs</span></div>
+          <div class="yt-quiet-footer">
+            <div class="set-score-info" style="margin:0;">${scoreLine}</div>
+            ${footerRight}
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
 
 window.cancelLibrarySelectionMode = async function() { 
   const targetName = targetPlaylistForSelection?.name || "Playlist";

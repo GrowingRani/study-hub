@@ -201,15 +201,15 @@ body.dark-theme .pill-tier-apex { background: rgba(251, 191, 36, 0.14) !importan
   .honest-satellite-cluster > * { flex: initial !important; }
 }
 
-/* 🎬 YOUTUBE-STYLE MASTER-DETAIL & STACKED FOLDER DECK ENGINE */
-.mission-deck-container.balanced-split { display: grid; grid-template-columns: 330px minmax(0, 1fr); gap: 22px; align-items: start; width: 100%; }
-.yt-playlists-rail { display: flex; flex-direction: column; gap: 10px; min-width: 0; width: 100%; }
+/* 🎬 YOUTUBE-STYLE 3-CATEGORY MASTER-DETAIL & QUIET CARD ENGINE */
+.mission-deck-container.balanced-split { display: grid; grid-template-columns: 310px minmax(0, 1fr); gap: 22px; align-items: start; width: 100%; }
+.yt-playlists-rail { display: flex; flex-direction: column; gap: 10px; min-width: 0; width: 100%; position: sticky; top: 72px; }
 .yt-rail-header { display: flex; justify-content: space-between; align-items: center; padding: 0 2px; gap: 8px; }
 .yt-rail-title { font-size: 15px; font-weight: 800; color: var(--tcs-blue-header); margin: 0; letter-spacing: -0.2px; }
 .btn-yt-new-playlist { display: inline-flex; align-items: center; gap: 5px; height: 28px; padding: 0 11px; border-radius: 16px; background: var(--bg-panel); border: 1px solid var(--border-color); color: var(--text-main); font-size: 11.5px; font-weight: 700; cursor: pointer; transition: all 0.18s ease; }
 .btn-yt-new-playlist:hover { border-color: var(--tcs-blue-accent); color: var(--tcs-blue-accent); background: var(--tcs-blue-bg-subtle); }
 
-/* Filter Chips (Recents | Queues | Custom) */
+/* Rail Filter Chips */
 .yt-filter-chips { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding: 2px 0; }
 .yt-filter-chips::-webkit-scrollbar { display: none; }
 .yt-chip { padding: 5px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-surface-elevated); color: var(--text-muted); font-size: 11.5px; font-weight: 700; cursor: pointer; white-space: nowrap; transition: all 0.15s ease; }
@@ -221,11 +221,10 @@ body.dark-theme .pill-tier-apex { background: rgba(251, 191, 36, 0.14) !importan
 .yt-folder-row { display: flex; align-items: center; gap: 12px; padding: 8px 10px; border-radius: 11px; background: var(--bg-panel); border: 1px solid var(--border-color); cursor: pointer; transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1); position: relative; user-select: none; }
 .yt-folder-row:hover { background: var(--bg-surface-elevated); border-color: var(--border-hover); transform: translateX(2px); }
 .yt-folder-row.active-yt-playlist { background: var(--tcs-blue-bg-subtle); border-color: var(--tcs-blue-accent); box-shadow: var(--shadow-sm); }
-
-.yt-thumb-stack { position: relative; width: 88px; height: 52px; margin-top: 6px; flex-shrink: 0; }
+.yt-thumb-stack { position: relative; width: 84px; height: 50px; margin-top: 6px; flex-shrink: 0; }
 .yt-stack-tab-1 { position: absolute; top: -6px; left: 8px; right: 8px; height: 8px; border-radius: 6px 6px 0 0; opacity: 0.45; }
 .yt-stack-tab-2 { position: absolute; top: -3px; left: 4px; right: 4px; height: 8px; border-radius: 6px 6px 0 0; opacity: 0.72; }
-.yt-thumb-cover { position: relative; z-index: 2; width: 100%; height: 100%; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 20px; border: 1px solid rgba(255, 255, 255, 0.15); overflow: hidden; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12); }
+.yt-thumb-cover { position: relative; z-index: 2; width: 100%; height: 100%; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 19px; border: 1px solid rgba(255, 255, 255, 0.15); overflow: hidden; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12); }
 .yt-thumb-badge { position: absolute; bottom: 4px; right: 4px; background: rgba(15, 23, 42, 0.84); color: #ffffff; font-family: var(--font-mono); font-size: 9px; font-weight: 800; padding: 1.5px 5px; border-radius: 4px; line-height: 1.1; }
 
 /* Folder Theme Palettes */
@@ -247,20 +246,57 @@ body.dark-theme .pill-tier-apex { background: rgba(251, 191, 36, 0.14) !importan
 .btn-playlist-dots { background: transparent; border: none; font-size: 18px; color: var(--text-muted); cursor: pointer; padding: 4px 6px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; transition: all 0.15s ease; line-height: 1; flex-shrink: 0; }
 .btn-playlist-dots:hover { background: var(--bg-surface-hover); color: var(--tcs-blue-accent); }
 
-/* Right Main Stage (Desktop Detail / Mobile Full-Screen Stage) */
+/* Right Main Stage Container */
 .yt-playlist-stage { background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 14px; padding: 18px 20px; box-shadow: var(--shadow-sm); min-width: 0; width: 100%; box-sizing: border-box; }
-.yt-stage-hero { display: flex; justify-content: space-between; align-items: center; gap: 14px; padding-bottom: 14px; margin-bottom: 16px; border-bottom: 1px solid var(--border-color); flex-wrap: wrap; }
-.yt-stage-hero-left { display: flex; align-items: center; gap: 12px; min-width: 0; flex: 1; }
 .btn-yt-stage-back { display: none; width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--border-color); background: var(--bg-surface-elevated); color: var(--text-main); align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; }
-.yt-stage-title-stack { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
+
+/* Category A & C: Clean Execution / Staging Header */
+.yt-stage-hero { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding-bottom: 14px; margin-bottom: 16px; border-bottom: 1px solid var(--border-color); flex-wrap: wrap; }
+.yt-stage-hero-left { display: flex; align-items: center; gap: 12px; min-width: 0; flex: 1; }
+.yt-stage-title-stack { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
 .yt-stage-eyebrow { font-size: 9.5px; font-weight: 800; font-family: var(--font-mono); color: var(--tcs-blue-accent); text-transform: uppercase; letter-spacing: 0.5px; }
-.yt-stage-title { font-size: 17px; font-weight: 800; color: var(--text-main); margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.yt-stage-title { font-size: 17.5px; font-weight: 800; color: var(--text-main); margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .yt-stage-sub { font-size: 11.5px; font-weight: 600; color: var(--text-muted); font-family: var(--font-mono); }
 .yt-stage-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-.btn-yt-add-sets { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 14px; border-radius: 18px; background: var(--tcs-blue-accent); color: #ffffff; border: none; font-size: 12px; font-weight: 700; cursor: pointer; transition: background 0.15s ease; }
-.btn-yt-add-sets:hover { background: var(--tcs-blue-accent-hover); }
-.yt-stage-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; width: 100%; }
-.btn-create-playlist-trigger { width: 100%; padding: 12px 16px; background: transparent; border: 1.5px dashed var(--border-color); border-radius: 8px; color: var(--text-muted); font-size: 12.5px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s ease; margin-top: 0; }
+.btn-yt-play-all { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 16px; border-radius: 20px; background: var(--text-main); color: var(--bg-panel); border: none; font-size: 12px; font-weight: 800; cursor: pointer; transition: opacity 0.15s ease, transform 0.15s ease; white-space: nowrap; }
+.btn-yt-play-all:hover { opacity: 0.9; transform: translateY(-1px); }
+.btn-yt-add-sets { display: inline-flex; align-items: center; gap: 5px; height: 34px; padding: 0 13px; border-radius: 20px; background: var(--bg-surface-elevated); color: var(--text-main); border: 1px solid var(--border-color); font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.15s ease; white-space: nowrap; }
+.btn-yt-add-sets:hover { border-color: var(--tcs-blue-accent); color: var(--tcs-blue-accent); background: var(--tcs-blue-bg-subtle); }
+.btn-yt-circle-add { width: 34px; height: 34px; border-radius: 50%; background: var(--bg-surface-elevated); color: var(--text-main); border: 1px solid var(--border-color); display: inline-flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 600; cursor: pointer; transition: all 0.15s ease; flex-shrink: 0; }
+.btn-yt-circle-add:hover { border-color: var(--tcs-blue-accent); color: var(--tcs-blue-accent); background: var(--tcs-blue-bg-subtle); }
+
+/* Category B: YouTube Watch Later / Starred Gradient Hero Banner */
+.yt-watchlater-hero { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 18px; border-radius: 12px; margin-bottom: 14px; border: 1px solid var(--border-color); background: linear-gradient(135deg, rgba(124, 58, 237, 0.12) 0%, var(--bg-surface-elevated) 60%, var(--bg-panel) 100%); flex-wrap: wrap; }
+.yt-watchlater-hero.hero-starred { background: linear-gradient(135deg, rgba(245, 158, 11, 0.14) 0%, var(--bg-surface-elevated) 60%, var(--bg-panel) 100%); border-color: var(--warning-border); }
+.yt-hero-artwork { width: 58px; height: 58px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 26px; flex-shrink: 0; box-shadow: var(--shadow-md); border: 1px solid rgba(255, 255, 255, 0.18); }
+.yt-stage-filter-bar { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding-bottom: 12px; margin-bottom: 14px; border-bottom: 1px solid var(--border-color); }
+.yt-stage-filter-bar::-webkit-scrollbar { display: none; }
+
+/* Pinned Horizontal Booster Strip (Above Today's Grid) */
+.yt-booster-strip { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 14px; border-radius: 10px; margin-bottom: 16px; background: var(--booster-active-bg); border: 1px solid var(--booster-active-border); border-left: 4px solid var(--warning); box-shadow: var(--shadow-sm); flex-wrap: wrap; }
+.yt-booster-strip.is-clean { background: var(--booster-clean-bg); border-color: var(--booster-clean-border); border-left-color: var(--success); }
+.yt-booster-strip-left { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; }
+.yt-booster-strip-icon { font-size: 20px; line-height: 1; flex-shrink: 0; }
+.yt-booster-strip-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.yt-booster-strip-title { font-size: 13px; font-weight: 800; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.yt-booster-strip-sub { font-size: 11px; font-weight: 600; color: var(--text-muted); }
+.btn-yt-booster-go { height: 30px; padding: 0 13px; border-radius: 16px; border: none; background: linear-gradient(135deg, var(--warning-dark), var(--warning)); color: #ffffff; font-size: 11.5px; font-weight: 800; cursor: pointer; white-space: nowrap; flex-shrink: 0; box-shadow: var(--shadow-sm); }
+.yt-booster-strip.is-clean .btn-yt-booster-go { background: linear-gradient(135deg, #15803d, #16a34a); }
+
+/* PC Airy 3-Column Grid & Quiet Card Design (Overrides .sets-card-grid) */
+.yt-playlist-stage .yt-stage-grid { display: grid !important; grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 14px !important; width: 100% !important; }
+@media (min-width: 769px) and (max-width: 1140px) { .yt-playlist-stage .yt-stage-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; } }
+
+.yt-stage-card { cursor: pointer; padding: 13px 14px !important; gap: 8px; }
+.yt-stage-card:hover { transform: translateY(-2px); border-color: var(--tcs-blue-accent) !important; }
+.yt-media-thumb { display: none; }
+.yt-stage-card-body { display: flex; flex-direction: column; justify-content: space-between; flex: 1; min-width: 0; gap: 7px; }
+.yt-quiet-footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-top: 8px; margin-top: auto; border-top: 1px dashed var(--border-color); font-size: 11px; }
+.yt-quiet-cta { font-size: 11px; font-weight: 800; color: var(--tcs-blue-accent); display: inline-flex; align-items: center; gap: 3px; transition: transform 0.15s ease; }
+.yt-stage-card:hover .yt-quiet-cta { transform: translateX(2px); }
+.btn-move-today { height: 24px; padding: 0 9px; border-radius: 6px; border: 1px solid var(--tcs-blue-border-subtle); background: var(--tcs-blue-bg-subtle); color: var(--tcs-blue-accent); font-size: 10.5px; font-weight: 800; cursor: pointer; white-space: nowrap; transition: all 0.15s ease; }
+.btn-move-today:hover { background: var(--tcs-blue-accent); color: #ffffff; }
+.btn-create-playlist-trigger { width: 100%; padding: 11px 16px; background: transparent; border: 1.5px dashed var(--border-color); border-radius: 8px; color: var(--text-muted); font-size: 12.5px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s ease; margin-top: 0; }
 .btn-create-playlist-trigger:hover { border-color: var(--tcs-blue-accent); color: var(--tcs-blue-accent); background: var(--tcs-blue-bg-subtle); }
 
 /* 🕒 YOUTUBE-STYLE HORIZONTAL RECENT HISTORY SHELF */
@@ -1391,6 +1427,9 @@ body.dark-theme .box-fc { color: #c084fc; }
   .history-mini-card { flex: 0 0 232px !important; padding: 9px 11px !important; gap: 6px !important; }
   .history-card-title { font-size: 12px !important; min-height: 32px !important; }
   
+  body.mobile-playlist-active #dailyMilestoneCard, body.mobile-playlist-active #recentHistorySection { display: none !important; }
+  body.mobile-playlist-active .mission-viewport { padding-top: 8px !important; }
+  .yt-playlists-rail { position: static !important; }
   .yt-folder-row { padding: 8px 9px !important; gap: 10px !important; }
   .yt-folder-row.active-yt-playlist { background: var(--bg-panel) !important; border-color: var(--border-color) !important; }
   .yt-thumb-stack { width: 82px !important; height: 48px !important; }
@@ -1398,12 +1437,26 @@ body.dark-theme .box-fc { color: #c084fc; }
   .mission-deck-container.mobile-stage-open .yt-playlists-rail { display: none !important; }
   .mission-deck-container.mobile-stage-open .yt-playlist-stage { display: block !important; animation: libraryStageSlideIn 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
   .btn-yt-stage-back { display: inline-flex !important; }
-  .yt-stage-title { font-size: 15px !important; }
-  .yt-stage-grid, .sets-card-grid { display: grid !important; grid-template-columns: 1fr !important; gap: 10px !important; }
-  .dynamic-revision-tile { width: 100% !important; min-height: auto !important; height: auto !important; display: flex !important; flex-direction: column !important; margin-bottom: 10px !important; overflow: visible !important; }
-  .dynamic-revision-tile .set-score-info { display: block !important; overflow: visible !important; white-space: normal !important; line-height: 1.45 !important; padding-top: 4px !important; margin-bottom: 14px !important; min-height: auto !important; }
-  .dynamic-revision-tile .set-action-footer { display: flex !important; width: 100% !important; margin-top: auto !important; padding-bottom: 2px !important; }
-  .dynamic-revision-tile .set-action-footer button { height: 36px !important; width: 100% !important; }
+  .yt-watchlater-hero, .yt-stage-hero { flex-direction: column !important; align-items: stretch !important; padding: 12px !important; gap: 12px !important; }
+  .yt-stage-hero-left { width: 100% !important; gap: 10px !important; }
+  .yt-hero-artwork { width: 46px !important; height: 46px !important; font-size: 21px !important; border-radius: 10px !important; }
+  .yt-stage-title { font-size: 16px !important; white-space: normal !important; overflow: visible !important; text-overflow: clip !important; line-height: 1.25 !important; }
+  .yt-stage-sub { font-size: 11px !important; white-space: nowrap !important; }
+  .yt-stage-actions { width: 100% !important; justify-content: flex-start !important; gap: 8px !important; }
+  .btn-yt-play-all { flex: 1 !important; justify-content: center !important; height: 36px !important; font-size: 12.5px !important; }
+  .btn-yt-add-sets { height: 36px !important; }
+  .btn-yt-circle-add { width: 36px !important; height: 36px !important; }
+  .yt-stage-filter-bar { padding-bottom: 10px !important; margin-bottom: 10px !important; }
+  .yt-playlist-stage .yt-stage-grid, .sets-card-grid { display: grid !important; grid-template-columns: 1fr !important; gap: 9px !important; }
+  .yt-stage-card { flex-direction: row !important; align-items: center !important; padding: 9px 10px !important; gap: 11px !important; }
+  .yt-media-thumb { display: flex !important; flex-direction: column; align-items: center; justify-content: center; position: relative; width: 80px; height: 52px; border-radius: 8px; background: linear-gradient(135deg, var(--bg-surface-elevated), var(--bg-surface-hover)); border: 1px solid var(--border-color); flex-shrink: 0; }
+  .yt-media-sub-code { font-family: var(--font-mono); font-size: 11px; font-weight: 800; color: var(--tcs-blue-accent); letter-spacing: 0.4px; }
+  .yt-media-q-pill { position: absolute; bottom: 3px; right: 3px; background: rgba(15, 23, 42, 0.85); color: #ffffff; font-family: var(--font-mono); font-size: 8.5px; font-weight: 800; padding: 1px 4.5px; border-radius: 3px; }
+  .yt-stage-card .set-tile-meta, .yt-stage-card .yt-quiet-cta { display: none !important; }
+  .yt-stage-card .set-tile-header { margin-bottom: 2px !important; }
+  .yt-stage-card .set-tile-title { font-size: 12.5px !important; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .yt-stage-card .set-score-info { margin-bottom: 0 !important; font-size: 10.5px !important; }
+  .yt-stage-card .yt-quiet-footer { border-top: none !important; padding-top: 2px !important; }
   .subject-hub-grid { grid-template-columns: 1fr !important; gap: 12px !important; margin-bottom: 85px !important; }
   .catalog-viewport { padding: 12px 10px 85px 10px !important; width: 100% !important; box-sizing: border-box !important; }
   
