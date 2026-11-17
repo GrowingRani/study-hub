@@ -1881,6 +1881,171 @@ window.toggleMilestoneVisibility = function() {
   appStorage.set("milestone_collapsed", isCollapsed ? "true" : "false");
 };
 
+// ==========================================================================
+// 🕒 YOUTUBE-STYLE RECENT HISTORY ENGINE (LRU 12-SET HORIZONTAL SHELF)
+// ==========================================================================
+const MAX_RECENT_HISTORY = 12;
+
+function getRecentHistoryList() {
+  const roll = currentCandidate?.roll_number;
+  if (!roll) return [];
+  const raw = appStorage.getJSON("recent_history_" + roll, []);
+  if (!Array.isArray(raw)) return [];
+  if (catalogData.length > 0) {
+    return raw.filter(item => catalogMap.has(String(item.test_id)));
+  }
+  return raw;
+}
+
+function formatHistoryTimeAgo(ts) {
+  if (!ts) return "";
+  const diffMins = Math.max(0, Math.floor((Date.now() - Number(ts)) / 60000));
+  if (diffMins < 1) return "Just now";
+  if (diffMins < 60) return `${diffMins}m ago`;
+  const diffHrs = Math.floor(diffMins / 60);
+  if (diffHrs < 24) return `${diffHrs}h ago`;
+  const diffDays = Math.floor(diffHrs / 24);
+  if (diffDays === 1) return "Yesterday";
+  return `${diffDays}d ago`;
+}
+
+window.recordSetHistory = function(testId, mode = "read") {
+  const roll = currentCandidate?.roll_number;
+  const numId = Number(testId);
+  if (!roll || !numId || numId <= 0) return;
+
+  let normMode = String(mode || "read").toLowerCase();
+  if (normMode === "flashcard") normMode = "flashcards";
+  if (!["read", "quiz", "flashcards", "exam"].includes(normMode)) normMode = "read";
+
+  const key = "recent_history_" + roll;
+  const existing = appStorage.getJSON(key, []);
+  const filtered = (Array.isArray(existing) ? existing : []).filter(item => String(item.test_id) !== String(numId));
+  filtered.unshift({ test_id: numId, mode: normMode, timestamp: Date.now() });
+
+  appStorage.setJSON(key, filtered.slice(0, MAX_RECENT_HISTORY));
+  renderRecentHistoryShelf();
+};
+
+window.resumeFromHistory = function(testId, mode = "read") {
+  const numId = Number(testId) || testId;
+  if (mode === "exam") {
+    launchAssessment(numId);
+  } else {
+    launchPracticeMode(numId, mode);
+  }
+};
+
+window.removeRecentHistoryItem = function(event, testId) {
+  if (event) { event.preventDefault(); event.stopPropagation(); }
+  const roll = currentCandidate?.roll_number;
+  if (!roll) return;
+
+  const key = "recent_history_" + roll;
+  const prevList = appStorage.getJSON(key, []);
+  const nextList = prevList.filter(item => String(item.test_id) !== String(testId));
+  appStorage.setJSON(key, nextList);
+  renderRecentHistoryShelf();
+
+  showSelectionToast("Removed from history", () => {
+    appStorage.setJSON(key, prevList);
+    renderRecentHistoryShelf();
+    showSelectionToast("History item restored");
+  });
+};
+
+window.clearAllRecentHistory = function() {
+  const roll = currentCandidate?.roll_number;
+  if (!roll) return;
+
+  const key = "recent_history_" + roll;
+  const prevList = appStorage.getJSON(key, []);
+  if (!prevList.length) return;
+
+  appStorage.setJSON(key, []);
+  renderRecentHistoryShelf();
+
+  showSelectionToast("Recent history cleared", () => {
+    appStorage.setJSON(key, prevList);
+    renderRecentHistoryShelf();
+    showSelectionToast("Recent history restored");
+  });
+};
+
+function renderRecentHistoryShelf() {
+  const milestoneCard = document.getElementById("dailyMilestoneCard");
+  if (!milestoneCard) return;
+
+  let section = document.getElementById("recentHistorySection");
+  if (!section) {
+    section = document.createElement("section");
+    section.id = "recentHistorySection";
+    section.className = "recent-history-section";
+    milestoneCard.insertAdjacentElement("afterend", section);
+  }
+
+  const list = getRecentHistoryList();
+  if (!list.length || !catalogData.length) {
+    section.style.display = "none";
+    section.innerHTML = "";
+    return;
+  }
+
+  const modeLabels = {
+    read: "📖 Read",
+    quiz: "⚡ Quiz",
+    flashcards: "🗂️ Cards",
+    exam: "🎯 Exam"
+  };
+
+  const cardsHtml = list.map(item => {
+    const meta = getSetScoreMeta(item.test_id);
+    if (!meta.setCat) return "";
+
+    const subj = (meta.setCat.subject || "General").trim();
+    const timeAgo = formatHistoryTimeAgo(item.timestamp);
+    const modeKey = item.mode || "read";
+    const resumeLabel = modeLabels[modeKey] || "▶ Resume";
+    const scoreText = meta.isAtt
+      ? `★ ${Number.isInteger(meta.bestScore) ? meta.bestScore : meta.bestScore.toFixed(1)}/${meta.maxMarks}`
+      : `${meta.qCount} Qs`;
+
+    return `
+      <div class="history-mini-card mode-${modeKey}" onclick="openMissionBriefingModal(${item.test_id})" title="Tap for options or click Resume">
+        <div class="history-card-top">
+          <div class="history-meta-left">
+            <span class="history-sub-pill">${subj}</span>
+            <span class="history-time-ago">• ${timeAgo}</span>
+          </div>
+          <button type="button" class="btn-remove-history" onclick="removeRecentHistoryItem(event, ${item.test_id})" title="Remove">✕</button>
+        </div>
+        <div class="history-card-title">${meta.title}</div>
+        <div class="history-card-footer">
+          <span class="history-score-tag">${scoreText}</span>
+          <button type="button" class="btn-history-resume" onclick="event.stopPropagation(); resumeFromHistory(${item.test_id}, '${modeKey}')">${resumeLabel}</button>
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  if (!cardsHtml.trim()) {
+    section.style.display = "none";
+    return;
+  }
+
+  section.style.display = "block";
+  section.innerHTML = `
+    <div class="recent-history-header">
+      <div class="recent-history-title-wrap">
+        <h4 class="recent-history-title">🕒 Recently Viewed</h4>
+        <span class="recent-history-count">${list.length}</span>
+      </div>
+      <button type="button" class="btn-clear-history" onclick="clearAllRecentHistory()">Clear</button>
+    </div>
+    <div class="recent-history-track">${cardsHtml}</div>
+  `;
+}
+
 async function mountDashboard(isInitialLoad = false) {
   const cName = document.getElementById("dashCandidateName"); 
   if (cName) cName.innerText = currentCandidate?.full_name || "Candidate";
@@ -2003,6 +2168,7 @@ async function mountDashboard(isInitialLoad = false) {
   
   // स्क्रीन तुरंत बिना किसी लोडर के दिखेगी
   renderViewDOM('viewDashboard');
+  renderRecentHistoryShelf();
   if (catalogData.length > 0 && userPlaylists.length > 0) {
     renderHomePlaylists();
   }
@@ -2018,6 +2184,7 @@ async function mountDashboard(isInitialLoad = false) {
     fetchTestCatalog()
   ]);
 
+  renderRecentHistoryShelf();
   await renderHomePlaylists();
 
   const todayCard = document.getElementById("todayPayloadCard");
@@ -4287,6 +4454,7 @@ async function fetchTestQuestionsPayload(testId) {
 }
 
 window.launchAssessment = async function(testId) {
+  recordSetHistory(testId, "exam");
   isExamFinished = false;
   switchView("viewExam", true);
   const pLine = document.getElementById("examProgressLine"), cBox = document.getElementById("questionContent"), rEl = document.getElementById("examCandidateRoll");
@@ -4679,8 +4847,9 @@ window.closeExamAndReload = function() {
 
   // 1. 0ms पर तुरंत डैशबोर्ड खोलें (User को कोई लैग फील नहीं होगा)
   updateHeaderBadges();
+  renderRecentHistoryShelf();
   renderHomePlaylists(); 
-  renderSubjectHubGrid(); 
+  renderSubjectHubGrid();
   if (activeSubject) renderTopicSets(); 
   switchView('viewDashboard'); 
 
@@ -5808,6 +5977,7 @@ if (document.readyState === "loading") {
 }
 
 window.launchPracticeMode = async function(testId, mode) {
+  recordSetHistory(testId, mode);
   // 🚀 Record active context for one-way exam switcher routing
   currentPracticeContext = { type: 'test', id: testId };
 
@@ -6540,7 +6710,10 @@ window.switchActivePracticeMode = function(targetMode) {
   }
   practiceQuestions.forEach((q, idx) => { q.qNum = idx + 1; });
 
-  // 3. Dispatch
+  // 3. Dispatch & Update History Mode
+  if (currentPracticeContext?.type === "test" && currentPracticeContext.id > 0) {
+    recordSetHistory(currentPracticeContext.id, targetMode);
+  }
   window.setPracticeMode(targetMode);
 };
 
