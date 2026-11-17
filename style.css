@@ -429,98 +429,32 @@ body.dark-theme .pill-tier-apex { background: rgba(251, 191, 36, 0.14) !importan
 .btn-dock-finish { display: inline-flex; align-items: center; gap: 6px; height: 38px; padding: 0 18px; border-radius: 20px; background: linear-gradient(135deg, #16a34a, #22c55e); color: #ffffff; border: none; font-family: var(--font-family); font-size: 13px; font-weight: 800; cursor: pointer; box-shadow: var(--shadow-md); transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1); flex-shrink: 0; }
 .btn-dock-finish:hover { background: linear-gradient(135deg, #15803d, #16a34a); transform: scale(1.03); box-shadow: var(--shadow-lg); }
 
-.micro-segmented-bar { display: flex; gap: 6px; margin-bottom: 14px; overflow-x: auto; padding: 2px 0 6px 0; scrollbar-width: none; }
-.micro-segmented-bar::-webkit-scrollbar { display: none; }
-.segment-tab-btn { background: var(--bg-surface-elevated); border: 1px solid var(--border-color); color: var(--text-muted); padding: 5px 12px; border-radius: 6px; font-size: 11.5px; font-weight: 700; cursor: pointer; transition: all 0.15s ease; white-space: nowrap; }
-.segment-tab-btn:hover { background: var(--bg-surface-hover); color: var(--text-main); }
-.segment-tab-btn.active { background: var(--tcs-blue-bg-subtle); color: var(--tcs-blue-accent); border-color: var(--tcs-blue-accent); }
-.topics-grid { display: flex; flex-direction: column; gap: 10px; margin-bottom: 85px; }
+/* 📚 YOUTUBE-STYLE LIBRARY SUB-TOPICS & MISTAKE VAULT ENGINE */
+#setsExplorerStage > .micro-segmented-bar, #setsExplorerStage .filter-chips-scroller, #subjectMistakeTileContainer { display: none !important; }
+.topics-grid { display: block !important; width: 100%; margin-bottom: 85px; }
+.yt-lib-deck { display: grid; grid-template-columns: 310px minmax(0, 1fr); gap: 22px; align-items: start; width: 100%; }
+.yt-lib-rail { display: flex; flex-direction: column; gap: 8px; min-width: 0; width: 100%; position: sticky; top: 12px; }
+.yt-lib-rail-meta { display: flex; justify-content: space-between; align-items: center; padding: 0 2px 2px 2px; font-size: 11.5px; font-weight: 800; color: var(--text-muted); font-family: var(--font-mono); text-transform: uppercase; }
+.yt-lib-topic-progress { width: 100%; height: 4px; background: var(--bg-surface-hover); border-radius: 4px; overflow: hidden; margin-top: 3px; }
+.yt-lib-topic-fill { height: 100%; background: linear-gradient(90deg, var(--tcs-blue-accent), var(--success)); border-radius: 4px; transition: width 0.3s ease; }
+.theme-topic .yt-stack-tab-1, .theme-topic .yt-stack-tab-2 { background: #2563eb; }
+.theme-topic .yt-thumb-cover { background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%); color: #ffffff; }
+.theme-topic-done .yt-stack-tab-1, .theme-topic-done .yt-stack-tab-2 { background: #16a34a; }
+.theme-topic-done .yt-thumb-cover { background: linear-gradient(135deg, #14532d 0%, #16a34a 100%); color: #ffffff; }
+.theme-vault .yt-stack-tab-1, .theme-vault .yt-stack-tab-2 { background: #e11d48; }
+.theme-vault .yt-thumb-cover { background: linear-gradient(135deg, #881337 0%, #e11d48 100%); color: #ffffff; }
+.yt-folder-row.vault-folder-row { border-left: 3.5px solid #e11d48; }
+.yt-folder-row.vault-folder-row.is-clean { border-left-color: var(--success); }
+.yt-watchlater-hero.hero-topic { background: linear-gradient(135deg, rgba(37, 99, 235, 0.14) 0%, var(--bg-surface-elevated) 62%, var(--bg-panel) 100%); border-color: var(--tcs-blue-border-subtle); }
+.yt-watchlater-hero.hero-topic-done { background: linear-gradient(135deg, rgba(22, 163, 74, 0.15) 0%, var(--bg-surface-elevated) 62%, var(--bg-panel) 100%); border-color: var(--success-border); }
+.yt-watchlater-hero.hero-vault { background: linear-gradient(135deg, rgba(225, 29, 72, 0.14) 0%, var(--bg-surface-elevated) 62%, var(--bg-panel) 100%); border-color: rgba(225, 29, 72, 0.3); }
+.yt-watchlater-hero.hero-vault.is-clean { background: linear-gradient(135deg, rgba(22, 163, 74, 0.14) 0%, var(--bg-surface-elevated) 62%, var(--bg-panel) 100%); border-color: var(--success-border); }
 
-.topic-accordion-card { background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 6px; box-shadow: var(--shadow-sm); overflow: hidden; transition: border-color 0.2s ease; position: relative; }
-.topic-accordion-header { background: var(--bg-surface-elevated); padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; position: relative; top: 0; z-index: 15; backdrop-filter: blur(8px); border-bottom: 1px solid transparent; transition: background 0.15s ease, border-color 0.2s ease; color: var(--text-main); border-radius: 6px 6px 0 0; }
-.topic-accordion-header:hover { background: var(--bg-surface-hover); }
-.topic-accordion-card.open .topic-accordion-header { border-bottom-color: var(--border-color); box-shadow: var(--shadow-sm); }
-.acc-progress-track { position: absolute; bottom: 0; left: 0; height: 3px; background: var(--bg-surface-hover); width: 100%; overflow: hidden; }
-.acc-progress-fill { height: 100%; background: var(--tcs-blue-accent); transition: width 0.5s ease; }
-.header-left, .topic-title { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; color: inherit; }
-.header-right { display: flex !important; align-items: center !important; gap: 10px !important; }
-.subtopic-tag { font-size: 11px !important; font-weight: 700 !important; font-family: var(--font-mono) !important; color: var(--tcs-blue-accent) !important; background: var(--tcs-blue-bg-subtle) !important; border: 1px solid var(--tcs-blue-border-subtle) !important; padding: 3px 8px !important; border-radius: 12px !important; white-space: nowrap !important; }
-.toggle-icon { color: var(--text-muted) !important; transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important; display: flex; align-items: center; justify-content: center; flex-shrink: 0; opacity: 0.85; }
-.topic-accordion-card.open .toggle-icon { transform: rotate(180deg) !important; color: var(--tcs-blue-accent) !important; opacity: 1; }
-
-.topic-accordion-body { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.20s cubic-bezier(0.4, 0, 0.2, 1), padding 0.20s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.16s ease; padding: 0 16px; opacity: 0; overflow: hidden; background: var(--bg-panel); color: var(--text-main); border-radius: 0 0 6px 6px; }
-.topic-accordion-card.open .topic-accordion-body { grid-template-rows: 1fr; padding: 14px 16px; opacity: 1; transition: grid-template-rows 0.30s cubic-bezier(0.16, 1, 0.3, 1), padding 0.30s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease; }
-.topic-accordion-card:not(.open) .topic-accordion-body { grid-template-rows: 0fr !important; padding-top: 0 !important; padding-bottom: 0 !important; opacity: 0 !important; }
-.topic-accordion-body > .sets-card-grid { min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior-y: auto; scrollbar-gutter: stable; scrollbar-width: thin; scrollbar-color: var(--border-color) transparent; }
-.sets-card-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
-
-/* 💻 PC VIEW: EXACT 3 ROWS (12 SETS) SCROLL LOCK */
-@media (min-width: 769px) {
-  .topic-accordion-body > .sets-card-grid { max-height: 520px; padding-right: 4px; }
-  .topic-accordion-body > .sets-card-grid::-webkit-scrollbar { width: 5px; }
-  .topic-accordion-body > .sets-card-grid::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
-  .topic-accordion-body > .sets-card-grid::-webkit-scrollbar-thumb:hover { background: var(--border-hover); }
-}
-/* ==========================================================================
-   🚀 CYBER-VAULT ACCORDION & NATURAL TILES (VISIBLE AMBIENT LIGHT & DARK)
-   ========================================================================== */
-.mistake-vault-card { width: 100% !important; max-width: 100% !important; box-sizing: border-box; background: radial-gradient(ellipse 380px 100% at 0% 50%, rgba(225, 29, 72, 0.12), rgba(244, 63, 94, 0.04) 65%, transparent 85%), linear-gradient(180deg, #fff7f8 0%, #fef2f4 100%); border: 1px solid rgba(225, 29, 72, 0.22); border-left: 4px solid #e11d48 !important; border-radius: 9px; margin-bottom: 14px; overflow: hidden; box-shadow: 0 3px 12px rgba(225, 29, 72, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.9); transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1); position: relative; }
-body.dark-theme .mistake-vault-card { background: radial-gradient(ellipse 360px 100% at 0% 50%, rgba(225, 29, 72, 0.16), transparent 80%), linear-gradient(180deg, rgba(26, 32, 44, 0.85) 0%, rgba(15, 23, 42, 0.95) 100%); border-color: rgba(244, 63, 94, 0.22); border-left-color: #f43f5e !important; box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.07); }
-.mistake-vault-card:hover { border-color: rgba(225, 29, 72, 0.36); box-shadow: 0 6px 20px rgba(225, 29, 72, 0.1), inset 0 1px 0 #ffffff; }
-body.dark-theme .mistake-vault-card:hover { background: radial-gradient(ellipse 420px 100% at 0% 50%, rgba(225, 29, 72, 0.22), transparent 85%), linear-gradient(180deg, rgba(30, 41, 59, 0.88) 0%, rgba(15, 23, 42, 0.96) 100%); border-color: rgba(244, 63, 94, 0.38); box-shadow: 0 8px 28px rgba(225, 29, 72, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.1); }
-
-/* 1. SLIM TACTILE CYBER STRIP (~48px) */
-.vault-header { padding: 9px 16px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none; background: transparent; position: relative; gap: 12px; min-height: 48px; box-sizing: border-box; transition: background 0.15s ease; backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
-.vault-header:hover { background: rgba(225, 29, 72, 0.03); }
-body.dark-theme .vault-header:hover { background: rgba(244, 63, 94, 0.035); }
-.vault-header::after { content: ""; position: absolute; bottom: 0; left: 0; right: 0; height: 1.5px; background: linear-gradient(90deg, #e11d48 0%, rgba(245, 158, 11, 0.6) 25%, transparent 70%); opacity: 0.8; }
-.mistake-vault-card.state-clean .vault-header::after { background: linear-gradient(90deg, var(--success) 0%, transparent 100%); }
-
-.vault-header-left { display: flex; align-items: center; gap: 11px; min-width: 0; flex: 1; }
-.vault-glyph-box { width: 28px; height: 28px; border-radius: 7px; background: rgba(225, 29, 72, 0.11); border: 1px solid rgba(225, 29, 72, 0.3); color: #e11d48; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 0 12px rgba(225, 29, 72, 0.15); transition: transform 0.2s ease, box-shadow 0.2s ease; }
-body.dark-theme .vault-glyph-box { background: rgba(244, 63, 94, 0.14); border-color: rgba(244, 63, 94, 0.38); color: #fb7185; box-shadow: 0 0 16px rgba(244, 63, 94, 0.26); }
-.vault-header:hover .vault-glyph-box { transform: scale(1.05); }
-.vault-glyph-box svg { width: 14px; height: 14px; stroke-width: 2.2; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.12)); }
-.mistake-vault-card.state-clean .vault-glyph-box { background: var(--success-bg-subtle); border-color: var(--success-border); color: var(--success-dark); box-shadow: none; }
-
-.vault-title-group { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.vault-title-text { font-size: 13.5px; font-weight: 800; color: var(--text-main); letter-spacing: -0.15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.vault-tag-pill { font-size: 8px; font-weight: 800; font-family: var(--font-mono); letter-spacing: 0.6px; background: rgba(225, 29, 72, 0.1); color: #be123c; border: 1px solid rgba(225, 29, 72, 0.25); padding: 1.5px 6px; border-radius: 4px; text-transform: uppercase; flex-shrink: 0; }
-body.dark-theme .vault-tag-pill { background: rgba(244, 63, 94, 0.12); color: #fda4af; border-color: rgba(244, 63, 94, 0.28); }
-
-.vault-header-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; margin-left: auto; }
-.vault-telemetry-pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 20px; background: #ffffff; border: 1px solid rgba(225, 29, 72, 0.25); font-family: var(--font-mono); font-size: 10.5px; font-weight: 800; color: #be123c; box-shadow: 0 1px 6px rgba(225, 29, 72, 0.08); }
-body.dark-theme .vault-telemetry-pill { background: rgba(15, 23, 42, 0.75); border-color: rgba(244, 63, 94, 0.32); color: #fda4af; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25); }
-.vault-radar-dot { width: 6px; height: 6px; border-radius: 50%; background: #e11d48; box-shadow: 0 0 8px #e11d48; animation: pulseDot 1.8s infinite cubic-bezier(0.4, 0, 0.6, 1); }
-body.dark-theme .vault-radar-dot { background: #f43f5e; box-shadow: 0 0 10px #f43f5e; }
-@keyframes pulseDot { 0%, 100% { transform: scale(0.85); opacity: 0.7; } 50% { transform: scale(1.3); opacity: 1; } }
-
-.vault-chevron-bubble { width: 24px; height: 24px; border-radius: 50%; background: #ffffff; border: 1px solid rgba(225, 29, 72, 0.18); display: flex; align-items: center; justify-content: center; color: var(--text-muted); transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), background 0.15s ease, color 0.15s ease; }
-.mistake-vault-card.open .vault-chevron-bubble { transform: rotate(180deg); background: rgba(225, 29, 72, 0.12); color: #e11d48; border-color: rgba(225, 29, 72, 0.3); }
-body.dark-theme .vault-chevron-bubble { background: var(--bg-panel); border-color: var(--border-color); }
-body.dark-theme .mistake-vault-card.open .vault-chevron-bubble { color: #fda4af; }
-
-/* 2. EXPANDED INTERIOR (SMOOTH 0fr -> 1fr TRANSITION & UNIFIED NATURAL GRID) */
-.vault-body { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.32s cubic-bezier(0.16, 1, 0.3, 1), padding 0.32s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease, border-color 0.25s ease; padding: 0 16px; opacity: 0; overflow: hidden; background: var(--bg-panel); border-top: 1px solid transparent; }
-.mistake-vault-card.open .vault-body { grid-template-rows: 1fr; padding: 14px 16px; opacity: 1; border-top-color: var(--border-color); }
-.mistake-vault-card:not(.open) .vault-body { grid-template-rows: 0fr !important; padding-top: 0 !important; padding-bottom: 0 !important; opacity: 0 !important; border-top-color: transparent !important; }
-.vault-body > .vault-natural-grid { min-height: 0; overflow: hidden; }
-
-/* 📦 UNIFIED 4-COLUMN GRID (EXACT SAME SIZE AS TOPIC SETS) */
-.vault-natural-grid { display: grid !important; grid-template-columns: repeat(4, minmax(0, 1fr)) !important; gap: 14px !important; width: 100% !important; box-sizing: border-box !important; }
-.vault-natural-grid .set-tile.vault-set-tile, .vault-natural-grid .vault-status-hud { width: 100% !important; max-width: none !important; min-width: 0 !important; box-sizing: border-box !important; }
-
-/* Action Set Tile */
-.set-tile.vault-set-tile { border-left-width: 4.5px !important; border-left-color: var(--danger-dark) !important; background: var(--bg-surface-elevated) !important; display: flex; flex-direction: column; justify-content: space-between; }
-.set-tile.vault-set-tile:hover { border-color: var(--danger-border) !important; border-left-color: var(--danger-dark) !important; }
-.vault-set-tile .btn-launch-set { background: var(--danger-gradient) !important; box-shadow: 0 2px 8px var(--danger-bg-subtle); }
-
-/* Compact Retention HUD Card (Grid Item #1 - Height Balanced) */
-.vault-status-hud { background: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-left: 4.5px solid var(--warning-dark); border-radius: 8px; padding: 12px 14px; display: flex; flex-direction: column; justify-content: space-between; gap: 8px; min-height: 130px; box-sizing: border-box; }
-
+/* Leitner Retention HUD & Vault Tiles */
+.vault-status-hud { background: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-left: 4px solid var(--warning-dark); border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; justify-content: space-between; gap: 8px; margin-bottom: 14px; box-sizing: border-box; }
 .hud-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed var(--border-color); padding-bottom: 6px; }
 .hud-title { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; color: var(--danger-dark); font-family: var(--font-mono); }
-.hud-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+.hud-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
 .hud-cell { background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 6px; padding: 6px 4px; text-align: center; }
 .hud-cell.cell-fresh { border-bottom: 2px solid var(--danger-dark); }
 .hud-cell.cell-loop { border-bottom: 2px solid var(--warning-dark); }
@@ -528,18 +462,12 @@ body.dark-theme .mistake-vault-card.open .vault-chevron-bubble { color: #fda4af;
 .hud-label { font-size: 8.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; }
 .hud-val { font-size: 13.5px; font-weight: 800; font-family: var(--font-mono); color: var(--text-main); margin-top: 1px; }
 .hud-note { font-size: 10.5px; color: var(--text-muted); line-height: 1.35; }
+.set-tile.vault-set-tile { border-left-color: var(--danger-dark) !important; }
+.yt-lib-search-group { margin-bottom: 14px; }
+.yt-lib-search-group-title { font-size: 11.5px; font-weight: 800; font-family: var(--font-mono); color: var(--tcs-blue-accent); text-transform: uppercase; margin: 0 0 8px 2px; letter-spacing: 0.4px; }
+.sets-card-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
 
-/* 🛡️ STATE-CLEAN COMPLETE THEME (0 DUE / ALL CAUGHT UP) */
-.mistake-vault-card.state-clean { border-color: rgba(22, 163, 74, 0.3) !important; border-left: 4px solid var(--success) !important; background: radial-gradient(ellipse 380px 100% at 0% 50%, rgba(34, 197, 94, 0.10), rgba(34, 197, 94, 0.02) 65%, transparent 85%), linear-gradient(180deg, #f0fdf4 0%, #ffffff 100%) !important; box-shadow: 0 3px 12px rgba(22, 163, 74, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.9) !important; }
-body.dark-theme .mistake-vault-card.state-clean { border-color: rgba(34, 197, 94, 0.32) !important; border-left-color: var(--success) !important; background: radial-gradient(ellipse 360px 100% at 0% 50%, rgba(34, 197, 94, 0.12), transparent 80%), linear-gradient(180deg, rgba(20, 36, 28, 0.85) 0%, rgba(15, 23, 42, 0.95) 100%) !important; box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.07) !important; }
-.mistake-vault-card.state-clean:hover { border-color: rgba(22, 163, 74, 0.45) !important; box-shadow: 0 6px 20px rgba(22, 163, 74, 0.12), inset 0 1px 0 #ffffff !important; }
-body.dark-theme .mistake-vault-card.state-clean:hover { border-color: rgba(74, 222, 128, 0.45) !important; box-shadow: 0 8px 28px rgba(22, 163, 74, 0.18) !important; }
-.mistake-vault-card.state-clean .vault-chevron-bubble { border-color: var(--success-border) !important; color: var(--success-dark) !important; }
-body.dark-theme .mistake-vault-card.state-clean .vault-chevron-bubble { border-color: var(--success-border) !important; color: var(--success) !important; }
-.mistake-vault-card.state-clean.open .vault-chevron-bubble { background: var(--success-bg-subtle) !important; color: var(--success-dark) !important; border-color: var(--success-border) !important; }
-body.dark-theme .mistake-vault-card.state-clean.open .vault-chevron-bubble { color: var(--success) !important; background: var(--success-bg-subtle) !important; border-color: var(--success-border) !important; }
-
-/* 3. REFINED ELEGANT SEAMLESS MISTAKE BRIEFING STYLING (ZERO DRAG-BAR GAP) */
+/* Mistake Briefing Theme */
 .mission-briefing-sheet.theme-mistake-briefing { background-image: linear-gradient(180deg, rgba(225, 29, 72, 0.05) 0%, rgba(225, 29, 72, 0.015) 120px, transparent 180px) !important; }
 body.dark-theme .mission-briefing-sheet.theme-mistake-briefing { background-image: linear-gradient(180deg, rgba(225, 29, 72, 0.14) 0%, rgba(225, 29, 72, 0.03) 120px, transparent 180px) !important; }
 .theme-mistake-briefing .briefing-header { background: transparent !important; border-bottom: 1px solid rgba(225, 29, 72, 0.12) !important; position: relative; }
@@ -549,24 +477,6 @@ body.dark-theme .theme-mistake-briefing #briefingSubjectBadge { background: rgba
 .theme-mistake-briefing #briefingStatusBadge { background: rgba(245, 158, 11, 0.1) !important; color: #d97706 !important; border: 1px solid rgba(245, 158, 11, 0.25) !important; font-family: var(--font-mono); font-weight: 800 !important; }
 body.dark-theme .theme-mistake-briefing #briefingStatusBadge { background: rgba(245, 158, 11, 0.14) !important; color: #fbbf24 !important; border-color: rgba(245, 158, 11, 0.22) !important; }
 .theme-mistake-briefing #briefingSetTitle { letter-spacing: -0.2px; }
-
-/* 4. MOBILE RESPONSIVE TUNING */
-@media screen and (max-width: 768px) {
-  .vault-tag-pill { display: none !important; }
-  .vault-header { padding: 8px 12px !important; min-height: 44px !important; gap: 8px !important; }
-  .vault-title-text { font-size: 13px !important; max-width: none !important; white-space: nowrap !important; }
-  .vault-telemetry-pill { font-size: 10px !important; padding: 2.5px 7px !important; }
-  .vault-natural-grid {
-    grid-template-columns: 1fr !important;
-    gap: 10px !important;
-  }
-  .vault-natural-grid .set-tile.vault-set-tile, 
-  .vault-natural-grid .vault-status-hud { 
-    width: 100% !important;
-    max-width: 100% !important; 
-  }
-  .topic-accordion-card.open .topic-accordion-body { padding: 12px 10px !important; }
-}
 
 /* ⚡ LIGHTNING-FAST TACTILE PRESS (ISOLATED FROM 3-DOTS) */
 .subject-mastery-tile { -webkit-tap-highlight-color: transparent !important; transition: transform 0.12s cubic-bezier(0.2, 0, 0, 1), background-color 0.12s ease, border-color 0.12s ease, box-shadow 0.18s ease !important; will-change: transform; }

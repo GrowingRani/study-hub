@@ -209,6 +209,11 @@ let ytPlaylistFilter = "all";
 let ytStageFilter = "all";
 let ytStageSearchQuery = "";
 let isYtStageSearchOpen = false;
+let activeLibTopicKey = null;
+let isMobileLibTopicOpen = false;
+let libStageFilter = "all";
+let libTopicSearchQuery = "";
+let isLibTopicSearchOpen = false;
 
 // 🚀 PRE-FLIGHT MISSION BRIEFING & SHUFFLE STATE (DEFAULT: ON)
 let activeBriefingTestId = null;
@@ -590,6 +595,10 @@ window.switchView = function(viewId, pushHistory = true) {
     isMobilePlaylistStageOpen = false;
     document.body.classList.remove("mobile-playlist-active");
   }
+  if (viewId !== 'viewLibrary') {
+    isMobileLibTopicOpen = false;
+    document.body.classList.remove("mobile-lib-topic-active");
+  }
 
   // 🧹 DOCKED FILTER STRIP CLEANUP (Prevents ghost bars when switching away from Practice)
   if (viewId !== 'viewPractice') {
@@ -676,6 +685,15 @@ window.addEventListener("popstate", function(e) {
   }
 
   if (currentActiveView === 'viewLibrary') {
+    if (isLibTopicSearchOpen) {
+      toggleLibTopicSearch(false);
+      history.pushState(e.state || { page: "lib-topic", view: "viewLibrary" }, "", window.location.hash);
+      return;
+    }
+    if (isMobileLibTopicOpen) {
+      closeMobileLibTopicStage(true);
+      return;
+    }
     const setsExp = document.getElementById("setsExplorerStage");
     if (setsExp && setsExp.style.display === "block") {
       returnToSubjectHub(true);
@@ -903,69 +921,14 @@ function showAuthNotice(msg, isError = true) {
 // ==========================================================================
 function applyTopicFilter(filter = currentFilter) {
   currentFilter = filter;
-  const searchInput = document.getElementById("topicSearchInput");
-  const searchQuery = (searchInput?.value || "").trim().toLowerCase();
-
-  document.querySelectorAll(".topic-accordion-card").forEach(card => {
-    let visibleCount = 0;
-    const body = card.querySelector(".topic-accordion-body");
-    const tiles = card.querySelectorAll(".set-tile:not(.mistake-bank-tile)");
-    const hTitle = card.querySelector(".topic-title")?.innerText.toLowerCase() || "";
-    const headerMatchesSearch = searchQuery ? hTitle.includes(searchQuery) : false;
-
-    tiles.forEach(tile => {
-      const tileStatus = tile.getAttribute("data-status") || "unattempted";
-      const matchesFilter = (filter === "all" || tileStatus === filter);
-
-      let matchesSearch = true;
-      if (searchQuery) {
-        if (!headerMatchesSearch) {
-          const sTitle = tile.querySelector(".set-tile-title")?.innerText.toLowerCase() || "";
-          matchesSearch = sTitle.includes(searchQuery);
-        }
-      }
-
-      if (matchesFilter && matchesSearch) {
-        tile.style.display = "";
-        visibleCount++;
-      } else {
-        tile.style.display = "none";
-      }
-    });
-
-    if (visibleCount > 0) {
-      card.style.display = "block";
-      if (body) body.style.display = "";
-      if (searchQuery) {
-        card.classList.add("open");
-      }
-    } else {
-      card.style.display = "none";
-    }
-  });
-
-  // 🎯 Manage Subject Mistake Vault Visibility in Filters
-  const sTile = document.getElementById("subjectMistakeVault");
-  if (sTile) {
-    const isClean = sTile.classList.contains("state-clean");
-    if (searchQuery) {
-      sTile.style.display = "none";
-    } else if (filter === "mastered") {
-      sTile.style.display = isClean ? "" : "none";
-    } else {
-      sTile.style.display = isClean ? (filter === "all" ? "" : "none") : "";
-    }
+  if (document.getElementById("setsExplorerStage")?.style.display === "block") {
+    renderTopicSets();
   }
 }
 
 function filterAccordionCards(query) {
-  applyTopicFilter(currentFilter);
-  if (!query) {
-    document.querySelectorAll(".topic-accordion-card").forEach(card => {
-      card.classList.remove("open");
-      const body = card.querySelector(".topic-accordion-body");
-      if (body) body.style.display = "";
-    });
+  if (document.getElementById("setsExplorerStage")?.style.display === "block") {
+    renderTopicSets();
   }
 }
 
@@ -4229,289 +4192,543 @@ window.toggleMastheadSearch = function(isOpen) {
   }
 };
 
+window.selectLibTopic = function(topicKey) {
+  if (activeLibTopicKey !== topicKey) {
+    libStageFilter = "all";
+    libTopicSearchQuery = "";
+    isLibTopicSearchOpen = false;
+  }
+  activeLibTopicKey = topicKey;
+  if (window.innerWidth <= 768) {
+    openMobileLibTopicStage(topicKey, true);
+  } else {
+    renderTopicSets();
+  }
+};
+
+window.openMobileLibTopicStage = function(topicKey, pushHistory = true) {
+  if (activeLibTopicKey !== topicKey) {
+    libStageFilter = "all";
+    libTopicSearchQuery = "";
+    isLibTopicSearchOpen = false;
+  }
+  activeLibTopicKey = topicKey;
+  isMobileLibTopicOpen = true;
+  document.body.classList.add("mobile-lib-topic-active");
+  renderTopicSets();
+  window.scrollTo({ top: 0, behavior: "instant" });
+  if (pushHistory) {
+    history.pushState({ page: "lib-topic", view: "viewLibrary", subView: "setsExplorer", subject: activeSubject, topic: topicKey }, "", "#topic_" + encodeURIComponent(topicKey));
+  }
+};
+
+window.closeMobileLibTopicStage = function(fromPopState = false) {
+  if (!fromPopState && history.state?.page === "lib-topic") {
+    return history.back();
+  }
+  isMobileLibTopicOpen = false;
+  libTopicSearchQuery = "";
+  isLibTopicSearchOpen = false;
+  document.body.classList.remove("mobile-lib-topic-active");
+  renderTopicSets();
+};
+
+window.setLibStageFilter = function(filterKey) {
+  libStageFilter = filterKey || "all";
+  renderTopicSets();
+};
+
+window.toggleLibTopicSearch = function(openState) {
+  isLibTopicSearchOpen = typeof openState === "boolean" ? openState : !isLibTopicSearchOpen;
+  if (!isLibTopicSearchOpen) libTopicSearchQuery = "";
+  const wrap = document.getElementById("ytLibTopicSearchWrap");
+  const triggerBtn = document.getElementById("btnYtLibTopicSearchOpen");
+  const inp = document.getElementById("ytLibTopicSearchInput");
+  if (wrap) wrap.classList.toggle("open", isLibTopicSearchOpen);
+  if (triggerBtn) triggerBtn.style.display = isLibTopicSearchOpen ? "none" : "inline-flex";
+  if (isLibTopicSearchOpen && inp) {
+    inp.value = libTopicSearchQuery;
+    setTimeout(() => inp.focus(), 40);
+  } else {
+    filterLibTopicStageSets("");
+  }
+};
+
+window.filterLibTopicStageSets = function(rawQuery) {
+  libTopicSearchQuery = String(rawQuery || "");
+  const q = libTopicSearchQuery.trim().toLowerCase();
+  const grid = document.querySelector("#ytLibStage .yt-stage-grid");
+  if (!grid) return;
+
+  let visible = 0;
+  grid.querySelectorAll(".set-tile").forEach(tile => {
+    const title = (tile.querySelector(".set-tile-title")?.innerText || "").toLowerCase();
+    const matched = !q || title.includes(q);
+    tile.style.display = matched ? "" : "none";
+    if (matched) visible++;
+  });
+
+  let emptyEl = document.getElementById("ytLibTopicSearchEmpty");
+  if (q && visible === 0) {
+    if (!emptyEl) {
+      emptyEl = document.createElement("div");
+      emptyEl.id = "ytLibTopicSearchEmpty";
+      emptyEl.style.cssText = "text-align:center; padding:26px 14px; color:var(--text-muted); font-size:12.5px; font-weight:600; grid-column:1 / -1;";
+      grid.appendChild(emptyEl);
+    }
+    emptyEl.innerText = `No sets found matching "${libTopicSearchQuery.trim()}"`;
+  } else if (emptyEl) {
+    emptyEl.remove();
+  }
+};
+
+window.startNextInLibTopic = function(topicKey) {
+  if (topicKey === "__vault__") {
+    return openMissionBriefingModal(-3, false, 0);
+  }
+  const sets = catalogData.filter(r =>
+    (r.subject || "General Studies").trim().toLowerCase() === (activeSubject || "").trim().toLowerCase() &&
+    (r.topic || "Core Practice").trim() === topicKey
+  ).sort((a, b) => String(a.test_title || "").localeCompare(String(b.test_title || ""), undefined, { numeric: true, sensitivity: "base" }));
+  if (!sets.length) return;
+  const filtered = sets.filter(s => libStageFilter === "all" || getSetScoreMeta(s.test_id).status === libStageFilter);
+  const pool = filtered.length ? filtered : sets;
+  const nextSet = pool.find(s => !getSetScoreMeta(s.test_id).isAtt) || pool[0];
+  openMissionBriefingModal(nextSet.test_id);
+};
+
+function renderLibrarySetRowHtml(setItem) {
+  const testId = setItem.test_id;
+  const meta = getSetScoreMeta(testId);
+  if (!meta.setCat) return "";
+
+  const subj = (meta.setCat.subject || activeSubject || "GEN").trim();
+  const subCode = subj.substring(0, 4).toUpperCase();
+
+  let badgeHtml = "";
+  let scoreLine = `<span style="color:var(--text-muted);">${meta.duration}m • Untested</span>`;
+  if (meta.isAtt && meta.attempts.length > 0) {
+    const latestScore = parseFloat(meta.attempts[0].score);
+    const latestPct = meta.maxMarks > 0 ? (latestScore / meta.maxMarks) * 100 : 0;
+    const fmtLatest = Number.isInteger(latestScore) ? latestScore : latestScore.toFixed(1);
+    const fmtBest = Number.isInteger(meta.bestScore) ? meta.bestScore : meta.bestScore.toFixed(1);
+    let badgeStyle = "background:var(--warning-bg-subtle); color:var(--warning-dark); border:1px solid var(--warning-border);";
+    if (latestPct >= 100) badgeStyle = "background:var(--success-bg-subtle); color:var(--success-dark); border:1px solid var(--success-border);";
+    else if (latestPct < 50) badgeStyle = "background:var(--danger-bg-subtle); color:var(--danger-dark); border:1px solid var(--danger-border);";
+    badgeHtml = `<div class="set-status-badge" style="${badgeStyle}">${fmtLatest}/${meta.maxMarks}</div>`;
+    scoreLine = `<span style="color:${meta.bestPct >= 100 ? 'var(--success-dark)' : 'var(--warning-dark)'}; font-weight:700;">★ ${fmtBest}/${meta.maxMarks} (${Math.round(meta.bestPct)}%)</span>`;
+  }
+
+  if (librarySelectionMode) {
+    const inTarget = targetPlaylistForSelection && userPlaylistItems.some(pi => String(pi.playlist_id) === String(targetPlaylistForSelection.id) && String(pi.test_id) === String(testId));
+    return `
+      <div class="set-tile yt-stage-card" data-test-id="${testId}" data-status="${meta.status}">
+        <div class="yt-media-thumb">
+          <span class="yt-media-sub-code">${subCode}</span>
+          <span class="yt-media-q-pill">${meta.qCount} Qs</span>
+        </div>
+        <div class="yt-stage-card-body">
+          <div class="set-tile-header">
+            <div class="set-tile-title-group"><div class="set-tile-title">${meta.title}</div></div>
+            <div style="display:flex; gap:4px; align-items:center; flex-shrink:0;">${badgeHtml}</div>
+          </div>
+          <div class="set-tile-meta"><span>${clockSvg} ${meta.duration}m</span><span>${docSvg} ${meta.qCount} Qs</span></div>
+          <button type="button" class="btn-bookmark-stage ${inTarget ? "saved" : ""}" id="btnStage_${testId}" onclick="toggleDirectStaging(${testId})">
+            ${inTarget ? bookmarkFilledSvg : bookmarkOutlineSvg}
+            <span class="stage-label">${inTarget ? "Saved to playlist" : "Save to playlist"}</span>
+          </button>
+        </div>
+      </div>
+    `;
+  }
+
+  const starredPl = userPlaylists.find(p => p.playlist_name === "Starred Sets");
+  const isStarred = starredPl && userPlaylistItems.some(pi => pi.playlist_id === starredPl.id && String(pi.test_id) === String(testId));
+
+  return `
+    <div class="set-tile yt-stage-card" data-test-id="${testId}" data-status="${meta.status}" onclick="if(!event.target.closest('button')) openMissionBriefingModal(${testId})">
+      <div class="yt-media-thumb">
+        <span class="yt-media-sub-code">${subCode}</span>
+        <span class="yt-media-q-pill">${meta.qCount} Qs</span>
+      </div>
+      <div class="yt-stage-card-body">
+        <div class="set-tile-header">
+          <div class="set-tile-title-group"><div class="set-tile-title">${meta.title}</div></div>
+          <div style="display:flex; gap:4px; align-items:center; flex-shrink:0;">
+            ${badgeHtml}
+            <button type="button" class="btn-star-set ${isStarred ? "starred" : ""}" data-test-id="${testId}" onclick="toggleStarSet(event, ${testId})" title="${isStarred ? "Unstar set" : "Star set"}">${starIconSvg}</button>
+            <button type="button" class="btn-three-dots" onclick="openThreeDotsMenu(event, ${testId}, null, null)" title="Options">⋮</button>
+          </div>
+        </div>
+        <div class="set-tile-meta"><span>${clockSvg} ${meta.duration}m</span><span>${docSvg} ${meta.qCount} Qs</span></div>
+        <div class="yt-quiet-footer">
+          <div class="set-score-info" style="margin:0;">${scoreLine}</div>
+          <span class="yt-quiet-cta">${meta.isAtt ? "Retake →" : "Start →"}</span>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 window.drillDownToSubject = function(subName, pushHistory = true) {
-  activeSubject = (subName || "General Studies").trim(); 
+  activeSubject = (subName || "General Studies").trim();
+  activeLibTopicKey = null;
+  isMobileLibTopicOpen = false;
+  libStageFilter = "all";
+  libTopicSearchQuery = "";
+  isLibTopicSearchOpen = false;
+  document.body.classList.remove("mobile-lib-topic-active");
+
   const hub = document.getElementById("subjectHubStage");
   const exp = document.getElementById("setsExplorerStage");
   const tEl = document.getElementById("explorerSubjectTitle");
   const sEl = document.getElementById("explorerSubjectStats");
 
   const stats = getSubjectMasteryStats(activeSubject);
-  if (tEl) tEl.innerText = activeSubject; 
+  if (tEl) tEl.innerText = activeSubject;
   if (sEl) sEl.innerText = `${stats.totalSets} Sets • ${stats.masteredCount} Mastered`;
 
-  toggleMastheadSearch(false); 
+  toggleMastheadSearch(false);
 
-  if (hub) hub.style.display = "none"; 
+  if (hub) hub.style.display = "none";
   if (exp) {
     exp.classList.remove("stage-enter-active");
-    void exp.offsetWidth; // Force Reflow
+    void exp.offsetWidth;
     exp.style.display = "block";
     exp.classList.add("stage-enter-active");
   }
 
-  currentFilter = "all"; 
-  document.querySelectorAll('.filter-chip-btn').forEach(b => b.classList.toggle('active', b.getAttribute('data-filter') === 'all'));
-  
-  renderTopicSets(); 
-  window.scrollTo({ top: 0, behavior: 'instant' });
+  renderTopicSets();
+  window.scrollTo({ top: 0, behavior: "instant" });
 
   if (pushHistory) {
-    history.pushState({ page: 'sets-explorer', view: 'viewLibrary', subView: 'setsExplorer', subject: activeSubject }, "", "#subject_" + encodeURIComponent(activeSubject));
+    history.pushState({ page: "sets-explorer", view: "viewLibrary", subView: "setsExplorer", subject: activeSubject }, "", "#subject_" + encodeURIComponent(activeSubject));
   }
 };
 
 window.returnToSubjectHub = function(fromPopState = false) {
-  if (!fromPopState && history.state?.subView === 'setsExplorer') return history.back();
+  if (!fromPopState && history.state?.subView === "setsExplorer") return history.back();
+
+  isMobileLibTopicOpen = false;
+  document.body.classList.remove("mobile-lib-topic-active");
 
   const hub = document.getElementById("subjectHubStage");
   const exp = document.getElementById("setsExplorerStage");
-  
-  toggleMastheadSearch(false); 
-  if (exp) exp.style.display = "none"; 
-  
+
+  toggleMastheadSearch(false);
+  if (exp) exp.style.display = "none";
+
   if (hub) {
     hub.classList.remove("stage-enter-active");
     void hub.offsetWidth;
-    hub.style.display = "block"; 
+    hub.style.display = "block";
     hub.classList.add("stage-enter-active");
   }
 
   const scroller = document.getElementById("stagingDomainScroller");
   if (scroller) scroller.style.display = librarySelectionMode ? "flex" : "none";
 
-  renderSubjectHubGrid(); 
+  renderSubjectHubGrid();
   if (librarySelectionMode) updateStagingDockUI();
 
-  window.scrollTo({ top: 0, behavior: 'instant' });
+  window.scrollTo({ top: 0, behavior: "instant" });
   if (!fromPopState) {
-    history.replaceState({ page: 'main-tab', view: 'viewLibrary', subView: 'hub' }, "", "#viewLibrary");
+    history.replaceState({ page: "main-tab", view: "viewLibrary", subView: "hub" }, "", "#viewLibrary");
   }
 };
 
 function renderTopicSets() {
-  const container = document.getElementById("topicsContainer"); 
-  if (!container) return; 
-  container.innerHTML = "";
-  
+  const container = document.getElementById("topicsContainer");
+  if (!container) return;
+
   updateStagingDockUI();
 
-  // 🎯 CYBER-VAULT ACCORDION (TOP LEITNER HUD + 25-Q CHUNK PARTITIONING)
-  const mbContainer = document.getElementById("subjectMistakeTileContainer") || document.getElementById("subjectMistakeBankContainer");
-  if (mbContainer) {
-    if (librarySelectionMode) {
-      mbContainer.innerHTML = "";
-    } else {
-      const tel = getSubjectMistakeTelemetry(activeSubject);
+  const subjectSearch = (document.getElementById("topicSearchInput")?.value || "").trim().toLowerCase();
+  const filtered = catalogData.filter(r => (r.subject || "General Studies").trim().toLowerCase() === (activeSubject || "").trim().toLowerCase());
 
-      // 🚀 VAULT ALWAYS EXPANDS IF MISTAKES EXIST OR WERE CLEARED
-      if (tel.inReviewCount > 0 || tel.clearedCount > 0) {
-        const isCaughtUp = (tel.dueCount === 0);
-        const CHUNK_SIZE = 25;
-        const totalChunks = Math.ceil(tel.dueCount / CHUNK_SIZE);
+  // 1. Group unique sets by Sub-Topic
+  const grouped = {};
+  filtered.forEach(item => {
+    const k = (item.topic || "Core Practice").trim();
+    if (!grouped[k]) grouped[k] = [];
+    if (!grouped[k].some(x => String(x.test_id) === String(item.test_id))) {
+      grouped[k].push(item);
+    }
+  });
 
-        // 🚀 25-Q Chunk Tiles: केवल और केवल तभी जनरेट होंगे जब आज सच में ड्यू प्रश्न पेंडिंग हों
-        let chunkTilesHtml = "";
-        if (tel.dueCount > 0) {
-          const pool = tel.dueMistakes;
-          for (let i = 0; i < totalChunks; i++) {
-            const startIdx = i * CHUNK_SIZE;
-            const chunkQs = pool.slice(startIdx, startIdx + CHUNK_SIZE);
-            const chunkQCount = chunkQs.length;
-            const chunkDuration = Math.max(3, Math.ceil(chunkQCount * 0.6));
-            const setNum = i + 1;
-            const setLabel = totalChunks > 1 ? `Mistake Drill - Set ${setNum}` : `Comprehensive Mistake Drill`;
-            const rangeStr = totalChunks > 1 ? `(Q.${startIdx + 1}–${startIdx + chunkQCount})` : `(4-Stage Loop)`;
-            const chunkFresh = chunkQs.filter(q => (q.mastery_streak || 0) === 0).length;
-            const chunkLoop = chunkQCount - chunkFresh;
+  const topicEntries = Object.entries(grouped)
+    .sort((a, b) => a[0].localeCompare(b[0], undefined, { numeric: true, sensitivity: "base" }))
+    .map(([topicName, sets]) => {
+      sets.sort((a, b) => String(a.test_title || "").trim().localeCompare(String(b.test_title || "").trim(), undefined, { numeric: true, sensitivity: "base" }));
+      let masteredCnt = 0, unattCnt = 0, revCnt = 0, totalQs = 0;
+      sets.forEach(s => {
+        const m = getSetScoreMeta(s.test_id);
+        totalQs += m.qCount;
+        if (!m.isAtt) unattCnt++;
+        else if (m.status === "mastered") masteredCnt++;
+        else revCnt++;
+      });
+      const pct = sets.length > 0 ? Math.round((masteredCnt / sets.length) * 100) : 0;
+      return { topicName, sets, masteredCnt, unattCnt, revCnt, totalQs, pct };
+    });
 
-            chunkTilesHtml += `
-              <div class="set-tile vault-set-tile" data-status="unattempted">
-                <div class="set-tile-header">
-                  <div class="set-tile-title-group">
-                    <div class="set-tile-title">${setLabel}</div>
-                  </div>
-                  <div class="set-status-badge status-progress" style="background:var(--danger-bg-subtle); color:var(--danger-dark); border:1px solid var(--danger-border);">
-                    ${chunkQCount} Due
-                  </div>
-                </div>
-                <div class="set-tile-meta">
-                  <span>${clockSvg} ${chunkDuration}m</span>
-                  <span>${docSvg} ${chunkQCount} Qs</span>
-                  <span style="font-size:10px; color:var(--danger-dark); font-weight:700;">${rangeStr}</span>
-                </div>
-                <div class="set-score-info">
-                  <span style="color:var(--danger-dark); font-weight:600;">⚠️ ${chunkFresh} Fresh • ${chunkLoop} In Review</span>
-                </div>
-                <div class="set-action-footer">
-                  <button type="button" class="btn-launch-set" onclick="openMissionBriefingModal(-3, false, ${i})">
-                    <span>▶</span> <span>Launch Session</span>
-                  </button>
-                </div>
-              </div>
-            `;
-          }
+  // 2. Subject-Wide Instant Search Mode (Matches both Sub-Topics & Sets)
+  if (subjectSearch) {
+    isMobileLibTopicOpen = false;
+    document.body.classList.remove("mobile-lib-topic-active");
+
+    const matchingTopics = topicEntries.filter(t => t.topicName.toLowerCase().includes(subjectSearch));
+    const matchingSets = [];
+    topicEntries.forEach(t => {
+      t.sets.forEach(s => {
+        if ((s.test_title || "").toLowerCase().includes(subjectSearch)) {
+          matchingSets.push(s);
         }
+      });
+    });
 
-        const telemetryPillText = tel.dueCount > 0
-          ? `${tel.dueCount} DUE (${totalChunks} ${totalChunks > 1 ? 'Sets' : 'Set'})`
-          : (tel.inReviewCount > 0 ? `0 DUE (${tel.inReviewCount} Pipe)` : `0 DUE • ALL MASTERED`);
+    const topicsHtml = matchingTopics.map(t => `
+      <div class="yt-folder-row ${t.pct >= 100 && t.sets.length > 0 ? "theme-topic-done" : "theme-topic"}" onclick="toggleMastheadSearch(false); selectLibTopic('${t.topicName.replace(/'/g, "\\'")}')">
+        <div class="yt-thumb-stack">
+          <div class="yt-stack-tab-1"></div>
+          <div class="yt-stack-tab-2"></div>
+          <div class="yt-thumb-cover">
+            <span>${t.pct >= 100 && t.sets.length > 0 ? "🏆" : "📁"}</span>
+            <span class="yt-thumb-badge">${t.sets.length} sets</span>
+          </div>
+        </div>
+        <div class="yt-folder-info">
+          <div class="yt-folder-name">${t.topicName}</div>
+          <div class="yt-folder-meta">${t.masteredCnt}/${t.sets.length} Mastered • ${t.pct}%</div>
+          <div class="yt-lib-topic-progress"><div class="yt-lib-topic-fill" style="width:${t.pct}%;"></div></div>
+        </div>
+      </div>
+    `).join("");
 
-        mbContainer.innerHTML = `
-          <div class="mistake-vault-card ${isCaughtUp ? 'state-clean' : ''}" id="subjectMistakeVault" data-status="${isCaughtUp ? 'mastered' : 'unattempted'}">
-            <div class="vault-header" onclick="this.parentElement.classList.toggle('open')">
-              <div class="vault-header-left">
-                <div class="vault-glyph-box" style="${isCaughtUp ? 'background: var(--success-bg-subtle); border-color: var(--success-border); color: var(--success-dark); box-shadow: none;' : ''}">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-                    ${isCaughtUp ? '<polyline points="9 12 11 14 15 10"></polyline>' : '<line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line>'}
-                  </svg>
-                </div>
-                <div class="vault-title-group">
-                  <span class="vault-title-text">${activeSubject} Mistake Vault</span>
-                  <span class="vault-tag-pill" style="${isCaughtUp ? 'background: var(--success-bg-subtle); color: var(--success-dark); border-color: var(--success-border);' : ''}">${isCaughtUp ? 'ALL CAUGHT UP' : 'QUARANTINE'}</span>
-                </div>
-              </div>
-              <div class="vault-header-right">
-                <div class="vault-telemetry-pill" style="${isCaughtUp ? 'border-color: var(--success-border); color: var(--success-dark);' : ''}">
-                  <span class="vault-radar-dot" style="${isCaughtUp ? 'background: var(--success); box-shadow: 0 0 8px var(--success);' : ''}"></span>
-                  <span>${telemetryPillText}</span>
-                </div>
-                <div class="vault-chevron-bubble">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="6 9 12 15 18 9"></polyline>
-                  </svg>
-                </div>
-              </div>
+    const setsHtml = matchingSets.map(s => renderLibrarySetRowHtml(s)).join("");
+
+    container.innerHTML = `
+      ${matchingTopics.length ? `<div class="yt-lib-search-group"><div class="yt-lib-search-group-title">Matching Sub-Topics (${matchingTopics.length})</div><div class="yt-folder-list">${topicsHtml}</div></div>` : ""}
+      ${matchingSets.length ? `<div class="yt-lib-search-group"><div class="yt-lib-search-group-title">Matching Question Sets (${matchingSets.length})</div><div class="sets-card-grid">${setsHtml}</div></div>` : ""}
+      ${(!matchingTopics.length && !matchingSets.length) ? `<div style="text-align:center; padding:36px 16px; color:var(--text-muted); font-size:13px; font-weight:600;">No sub-topics or sets found matching "${subjectSearch}"</div>` : ""}
+    `;
+    return;
+  }
+
+  // 3. Mistake Vault Entry Check
+  const tel = !librarySelectionMode ? getSubjectMistakeTelemetry(activeSubject) : { inReviewCount: 0, clearedCount: 0, dueCount: 0 };
+  const hasVault = !librarySelectionMode && (tel.inReviewCount > 0 || tel.clearedCount > 0);
+  const validKeys = [
+    ...(hasVault ? ["__vault__"] : []),
+    ...topicEntries.map(t => t.topicName)
+  ];
+
+  if (!validKeys.includes(activeLibTopicKey)) {
+    activeLibTopicKey = hasVault ? "__vault__" : (topicEntries[0]?.topicName || null);
+  }
+
+  // 4. Build Left Rail (Mistake Vault Folder + Sub-Topic Stacked Folder Rows)
+  let vaultRowHtml = "";
+  if (hasVault) {
+    const isClean = tel.dueCount === 0;
+    const isActive = activeLibTopicKey === "__vault__";
+    const totalChunks = Math.ceil(tel.dueCount / 25);
+    const metaText = isClean
+      ? `0 Due • ${tel.clearedCount} Mastered`
+      : `⚠️ ${tel.dueCount} Due (${totalChunks} ${totalChunks > 1 ? "Sets" : "Set"})`;
+    vaultRowHtml = `
+      <div class="yt-folder-row theme-vault vault-folder-row ${isClean ? "is-clean" : ""} ${isActive ? "active-yt-playlist" : ""}" onclick="selectLibTopic('__vault__')">
+        <div class="yt-thumb-stack">
+          <div class="yt-stack-tab-1"></div>
+          <div class="yt-stack-tab-2"></div>
+          <div class="yt-thumb-cover">
+            <span>🛡️</span>
+            <span class="yt-thumb-badge">${isClean ? "CLEAR" : `${tel.dueCount} DUE`}</span>
+          </div>
+        </div>
+        <div class="yt-folder-info">
+          <div class="yt-folder-name">${activeSubject} Mistake Vault</div>
+          <div class="yt-folder-meta">${metaText}</div>
+        </div>
+      </div>
+    `;
+  }
+
+  const topicRowsHtml = topicEntries.map(t => {
+    const isDone = t.sets.length > 0 && t.pct >= 100;
+    const isActive = activeLibTopicKey === t.topicName;
+    const safeName = t.topicName.replace(/'/g, "\\'");
+    return `
+      <div class="yt-folder-row ${isDone ? "theme-topic-done" : "theme-topic"} ${isActive ? "active-yt-playlist" : ""}" onclick="selectLibTopic('${safeName}')">
+        <div class="yt-thumb-stack">
+          <div class="yt-stack-tab-1"></div>
+          <div class="yt-stack-tab-2"></div>
+          <div class="yt-thumb-cover">
+            <span>${isDone ? "🏆" : "📁"}</span>
+            <span class="yt-thumb-badge">${t.sets.length} ${t.sets.length === 1 ? "set" : "sets"}</span>
+          </div>
+        </div>
+        <div class="yt-folder-info">
+          <div class="yt-folder-name">${t.topicName}</div>
+          <div class="yt-folder-meta">${t.masteredCnt}/${t.sets.length} Mastered • ${t.pct}%</div>
+          <div class="yt-lib-topic-progress"><div class="yt-lib-topic-fill" style="width:${t.pct}%;"></div></div>
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  // 5. Build Right / Mobile Full-Screen Stage
+  const searchSvg = `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>`;
+  const stageTopBarHtml = `
+    <div class="yt-stage-topbar">
+      <div class="yt-stage-topbar-left">
+        <button type="button" class="btn-yt-stage-back" onclick="closeMobileLibTopicStage()" title="Back to Sub-Topics">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+        </button>
+      </div>
+      <div class="yt-stage-search-wrap ${isLibTopicSearchOpen ? "open" : ""}" id="ytLibTopicSearchWrap">
+        ${searchSvg}
+        <input type="text" id="ytLibTopicSearchInput" class="yt-stage-search-input" placeholder="Search sets in this sub-topic..." value="${libTopicSearchQuery.replace(/"/g, "&quot;")}" oninput="filterLibTopicStageSets(this.value)" />
+        <button type="button" class="btn-yt-search-clear" onclick="toggleLibTopicSearch(false)" title="Close Search">✕</button>
+      </div>
+      <div class="yt-stage-topbar-right">
+        <button type="button" id="btnYtLibTopicSearchOpen" class="btn-yt-stage-icon" style="display:${isLibTopicSearchOpen ? "none" : "inline-flex"};" onclick="toggleLibTopicSearch(true)" title="Search Sets">${searchSvg}</button>
+      </div>
+    </div>
+  `;
+
+  let stageContentHtml = "";
+  if (activeLibTopicKey === "__vault__" && hasVault) {
+    const isCaughtUp = tel.dueCount === 0;
+    const CHUNK_SIZE = 25;
+    const totalChunks = Math.ceil(tel.dueCount / CHUNK_SIZE);
+    let chunkTilesHtml = "";
+    if (tel.dueCount > 0) {
+      const pool = tel.dueMistakes;
+      for (let i = 0; i < totalChunks; i++) {
+        const startIdx = i * CHUNK_SIZE;
+        const chunkQs = pool.slice(startIdx, startIdx + CHUNK_SIZE);
+        const chunkQCount = chunkQs.length;
+        const chunkDuration = Math.max(3, Math.ceil(chunkQCount * 0.6));
+        const setNum = i + 1;
+        const setLabel = totalChunks > 1 ? `Mistake Drill - Set ${setNum}` : `Comprehensive Mistake Drill`;
+        const rangeStr = totalChunks > 1 ? `(Q.${startIdx + 1}–${startIdx + chunkQCount})` : `(4-Stage Loop)`;
+        const chunkFresh = chunkQs.filter(q => (q.mastery_streak || 0) === 0).length;
+        const chunkLoop = chunkQCount - chunkFresh;
+
+        chunkTilesHtml += `
+          <div class="set-tile vault-set-tile yt-stage-card" data-status="unattempted" onclick="openMissionBriefingModal(-3, false, ${i})">
+            <div class="yt-media-thumb" style="border-color:var(--danger-border);">
+              <span class="yt-media-sub-code" style="color:var(--danger-dark);">VAULT</span>
+              <span class="yt-media-q-pill">${chunkQCount} Qs</span>
             </div>
-
-            <div class="vault-body">
-              <div class="vault-natural-grid">
-
-                <!-- 🔝 1. Retention Loops Leitner HUD Tile (Always Remains in Grid Slot #1) -->
-                <div class="vault-status-hud">
-                  <div class="hud-header">
-                    <span class="hud-title">Retention Loops</span>
-                    <span style="font-size:9.5px; font-weight:700; color:var(--text-muted); font-family:var(--font-mono);">LEITNER</span>
-                  </div>
-                  <div class="hud-grid">
-                    <div class="hud-cell cell-fresh">
-                      <div class="hud-label">Streak 0</div>
-                      <div class="hud-val" style="color:var(--danger-dark);">${tel.freshCount}</div>
-                    </div>
-                    <div class="hud-cell cell-loop">
-                      <div class="hud-label">Streak 1–3</div>
-                      <div class="hud-val" style="color:var(--warning-dark);">${tel.loopCount}</div>
-                    </div>
-                    <div class="hud-cell cell-cleared">
-                      <div class="hud-label">Mastered</div>
-                      <div class="hud-val" style="color:var(--success-dark);">${tel.clearedCount}</div>
-                    </div>
-                  </div>
-                  <div class="hud-note">
-                    🛡️ Clear 4 consecutive spaced intervals to permanently master weak questions into long-term recall.
-                  </div>
-                </div>
-
-                <!-- 📦 2. 25-Question Chunk Sets (Only Rendered When dueCount > 0) -->
-                ${chunkTilesHtml}
-
+            <div class="yt-stage-card-body">
+              <div class="set-tile-header">
+                <div class="set-tile-title-group"><div class="set-tile-title">${setLabel}</div></div>
+                <div class="set-status-badge status-progress" style="background:var(--danger-bg-subtle); color:var(--danger-dark); border:1px solid var(--danger-border);">${chunkQCount} Due</div>
+              </div>
+              <div class="set-tile-meta"><span>${clockSvg} ${chunkDuration}m</span><span>${docSvg} ${chunkQCount} Qs</span><span>${rangeStr}</span></div>
+              <div class="yt-quiet-footer">
+                <div class="set-score-info" style="margin:0;"><span style="color:var(--danger-dark); font-weight:700;">⚠️ ${chunkFresh} Fresh • ${chunkLoop} In Review</span></div>
+                <span class="yt-quiet-cta" style="color:var(--danger-dark);">Drill →</span>
               </div>
             </div>
           </div>
         `;
-      } else {
-        mbContainer.innerHTML = "";
       }
+    }
+
+    stageContentHtml = `
+      ${stageTopBarHtml}
+      <div class="yt-watchlater-hero hero-vault ${isCaughtUp ? "is-clean" : ""}">
+        <div class="yt-stage-hero-left">
+          <div class="yt-hero-artwork" style="background:${isCaughtUp ? "linear-gradient(135deg, #14532d, #16a34a)" : "linear-gradient(135deg, #881337, #e11d48)"};">🛡️</div>
+          <div class="yt-stage-title-stack">
+            <span class="yt-stage-eyebrow">${isCaughtUp ? "ALL CAUGHT UP" : "ERROR QUARANTINE"}</span>
+            <h3 class="yt-stage-title">${activeSubject} Mistake Vault</h3>
+            <span class="yt-stage-sub">${isCaughtUp ? `0 Due Today • ${tel.clearedCount} Mastered` : `${tel.dueCount} Due Today (${totalChunks} ${totalChunks > 1 ? "Sets" : "Set"})`}</span>
+          </div>
+        </div>
+        ${!isCaughtUp ? `<div class="yt-stage-actions"><button type="button" class="btn-yt-play-all" onclick="startNextInLibTopic('__vault__')">▶ Drill Mistakes</button></div>` : ""}
+      </div>
+      <div class="vault-status-hud">
+        <div class="hud-header">
+          <span class="hud-title">Retention Loops</span>
+          <span style="font-size:9.5px; font-weight:700; color:var(--text-muted); font-family:var(--font-mono);">LEITNER 4-STAGE</span>
+        </div>
+        <div class="hud-grid">
+          <div class="hud-cell cell-fresh"><div class="hud-label">Streak 0</div><div class="hud-val" style="color:var(--danger-dark);">${tel.freshCount}</div></div>
+          <div class="hud-cell cell-loop"><div class="hud-label">Streak 1–3</div><div class="hud-val" style="color:var(--warning-dark);">${tel.loopCount}</div></div>
+          <div class="hud-cell cell-cleared"><div class="hud-label">Mastered</div><div class="hud-val" style="color:var(--success-dark);">${tel.clearedCount}</div></div>
+        </div>
+        <div class="hud-note">🛡️ Clear 4 consecutive spaced intervals to permanently master weak questions into long-term recall.</div>
+      </div>
+      <div class="yt-stage-grid sets-card-grid">
+        ${chunkTilesHtml || `<div style="text-align:center; padding:24px 14px; color:var(--success-dark); font-size:12.5px; font-weight:700; grid-column:1 / -1;">✓ Zero reviews due today! Upcoming spaced intervals will appear automatically.</div>`}
+      </div>
+    `;
+  } else {
+    const activeTopic = topicEntries.find(t => t.topicName === activeLibTopicKey) || topicEntries[0];
+    if (activeTopic) {
+      const isDone = activeTopic.sets.length > 0 && activeTopic.pct >= 100;
+      const safeName = activeTopic.topicName.replace(/'/g, "\\'");
+      const visibleSets = activeTopic.sets.filter(s => libStageFilter === "all" || getSetScoreMeta(s.test_id).status === libStageFilter);
+      const setsHtml = visibleSets.length > 0
+        ? visibleSets.map(s => renderLibrarySetRowHtml(s)).join("")
+        : `<div style="text-align:center; padding:28px 16px; color:var(--text-muted); font-size:12.5px; font-weight:600; grid-column:1 / -1;">No sets match this filter.</div>`;
+
+      stageContentHtml = `
+        ${stageTopBarHtml}
+        <div class="yt-watchlater-hero ${isDone ? "hero-topic-done" : "hero-topic"}">
+          <div class="yt-stage-hero-left">
+            <div class="yt-hero-artwork" style="background:${isDone ? "linear-gradient(135deg, #14532d, #16a34a)" : "linear-gradient(135deg, #1e3a8a, #2563eb)"};">${isDone ? "🏆" : "📁"}</div>
+            <div class="yt-stage-title-stack">
+              <span class="yt-stage-eyebrow">${activeSubject.toUpperCase()}</span>
+              <h3 class="yt-stage-title">${activeTopic.topicName}</h3>
+              <span class="yt-stage-sub">${activeTopic.sets.length} Sets • ${activeTopic.totalQs} Questions</span>
+              <div class="yt-hero-telemetry-row">
+                <span class="yt-hero-status-pill ${isDone ? "pill-ready" : ""}">${activeTopic.masteredCnt}/${activeTopic.sets.length} Mastered (${activeTopic.pct}%)</span>
+                <div class="yt-hero-progress-track"><div class="yt-hero-progress-fill" style="width:${activeTopic.pct}%;"></div></div>
+              </div>
+            </div>
+          </div>
+          ${!librarySelectionMode ? `<div class="yt-stage-actions"><button type="button" class="btn-yt-play-all" onclick="startNextInLibTopic('${safeName}')">▶ Start Next</button></div>` : ""}
+        </div>
+        <div class="yt-stage-filter-bar">
+          <button type="button" class="yt-chip ${libStageFilter === "all" ? "active" : ""}" onclick="setLibStageFilter('all')">All (${activeTopic.sets.length})</button>
+          <button type="button" class="yt-chip ${libStageFilter === "unattempted" ? "active" : ""}" onclick="setLibStageFilter('unattempted')">Unattempted (${activeTopic.unattCnt})</button>
+          <button type="button" class="yt-chip ${libStageFilter === "revise" ? "active" : ""}" onclick="setLibStageFilter('revise')">Revise (${activeTopic.revCnt})</button>
+          <button type="button" class="yt-chip ${libStageFilter === "mastered" ? "active" : ""}" onclick="setLibStageFilter('mastered')">Mastered (${activeTopic.masteredCnt})</button>
+        </div>
+        <div class="yt-stage-grid sets-card-grid">
+          ${setsHtml}
+        </div>
+      `;
     }
   }
 
-  const filtered = catalogData.filter(r => (r.subject || "General Studies").trim().toLowerCase() === (activeSubject || "").trim().toLowerCase());
-  let totalSets = filtered.length, unattempted = 0, revise = 0, mastered = 0;
-  filtered.forEach(s => {
-    const meta = getSetScoreMeta(s.test_id);
-    if (!meta.isAtt) unattempted++;
-    else if (meta.status === 'mastered') mastered++;
-    else revise++;
-  });
+  const isMobileTopicNow = isMobileLibTopicOpen && window.innerWidth <= 768;
+  document.body.classList.toggle("mobile-lib-topic-active", isMobileTopicNow);
 
-  document.querySelectorAll('.filter-chip-btn').forEach(b => {
-    const f = b.getAttribute('data-filter');
-    if (f === 'all') b.innerText = `All (${totalSets})`;
-    else if (f === 'unattempted') b.innerText = `⚡ Unattempted (${unattempted})`;
-    else if (f === 'revise') b.innerText = `🔄 Revise (<70%) (${revise})`;
-    else if (f === 'mastered') b.innerText = `🏆 Mastered (${mastered})`;
-  });
+  container.innerHTML = `
+    <div class="yt-lib-deck ${isMobileTopicNow ? "mobile-topic-open" : ""}">
+      <aside class="yt-lib-rail">
+        <div class="yt-lib-rail-meta">
+          <span>Sub-Topics (${topicEntries.length})</span>
+          <span>${filtered.length} Sets</span>
+        </div>
+        <div class="yt-folder-list">
+          ${vaultRowHtml}
+          ${topicRowsHtml}
+        </div>
+      </aside>
+      <section class="yt-playlist-stage" id="ytLibStage">
+        ${stageContentHtml}
+      </section>
+    </div>
+  `;
 
-  const grouped = {}; 
-  filtered.forEach(item => { 
-    const k = (item.topic || "Core Practice").trim(); 
-    if (!grouped[k]) grouped[k] = []; 
-    grouped[k].push(item); 
-  });
-
-  Object.entries(grouped).sort((a, b) => a[0].localeCompare(b[0], undefined, { numeric: true, sensitivity: 'base' })).forEach(([topicName, sets]) => {
-    let topicMastered = 0; 
-    const uniqueSets = [], seenIds = new Set();
-    
-    sets.forEach(item => {
-      const idK = String(item.test_id);
-      if (!seenIds.has(idK)) { 
-        seenIds.add(idK); 
-        uniqueSets.push(item); 
-      }
-    });
-
-    const processed = [];
-    uniqueSets.forEach(setItem => {
-      const meta = getSetScoreMeta(setItem.test_id);
-      if (meta.status === 'mastered') topicMastered++;
-      processed.push(setItem);
-    });
-
-    if (processed.length === 0) return;
-    
-    processed.sort((a, b) => {
-      const titleA = String(a.test_title || "").trim();
-      const titleB = String(b.test_title || "").trim();
-      return titleA.localeCompare(titleB, undefined, { numeric: true, sensitivity: 'base' });
-    });
-
-    const progPct = uniqueSets.length > 0 ? (topicMastered / uniqueSets.length) * 100 : 0;
-    const groupCard = document.createElement("div"); 
-    groupCard.className = "topic-accordion-card"; 
-    
-    const header = document.createElement("div"); 
-    header.className = "topic-accordion-header";
-    header.innerHTML = `
-      <div class="header-left"><span class="icon-folder">📁</span><span class="topic-title" style="color: inherit; font-size: 14px; font-weight: 700;">${topicName}</span></div>
-      <div class="header-right"><span class="subtopic-tag">${topicMastered}/${uniqueSets.length} Mastered</span><svg class="toggle-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg></div>
-      <div class="acc-progress-track"><div class="acc-progress-fill" style="width: ${progPct}%;"></div></div>
-    `;
-
-    const body = document.createElement("div"); 
-    body.className = "topic-accordion-body"; 
-    const setsGrid = document.createElement("div"); 
-    setsGrid.className = "sets-card-grid";
-
-    // 🚀 UNIFIED STREAMLINED RENDER (ZERO REPETITIVE HTML)
-    setsGrid.innerHTML = processed.map(setItem => renderSetTileHtml(setItem, { isLibrary: true })).join("");
-
-    body.appendChild(setsGrid); 
-    groupCard.appendChild(header); 
-    groupCard.appendChild(body); 
-    container.appendChild(groupCard);
-    
-    header.onclick = () => {
-      const isOpen = groupCard.classList.contains("open");
-      container.querySelectorAll(".topic-accordion-card").forEach(c => {
-        if (c !== groupCard) c.classList.remove("open");
-      });
-      groupCard.classList.toggle("open", !isOpen);
-    };
-  });
-
-  applyTopicFilter(currentFilter);
+  if (libTopicSearchQuery) filterLibTopicStageSets(libTopicSearchQuery);
 }
 
 // 🚀 PRODUCTION-GRADE LEITNER SRS GATEKEEPER
