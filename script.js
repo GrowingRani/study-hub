@@ -1393,21 +1393,54 @@ window.handleEditPlaylistSubmit = async function(e) {
 
 window.openDeletePlaylistModal = function(pId, pName, isClearOnly) {
   pendingDeleteTarget = { id: pId, name: pName, isClearOnly };
+  const modal = document.getElementById("deletePlaylistConfirmModal");
   const tEl = document.getElementById("deleteModalTitle"); 
   const hEl = document.getElementById("deleteModalHeading"); 
   const msgEl = document.getElementById("deleteModalMessage"); 
   const btn = document.getElementById("btnConfirmDeletePlaylist");
+  const badge = modal?.querySelector(".notice-icon-badge");
+
+  if (modal) modal.classList.toggle("is-clear-mode", Boolean(isClearOnly));
+
+  // Calculate live set & question telemetry for the target playlist
+  const items = userPlaylistItems.filter(pi => String(pi.playlist_id) === String(pId));
+  let totalQs = 0;
+  items.forEach(i => {
+    const c = catalogMap.get(String(i.test_id));
+    totalQs += c ? (c.total_questions || 10) : 10;
+  });
+
+  if (hEl) {
+    let scopePill = document.getElementById("deleteModalScopePill");
+    if (!scopePill) {
+      scopePill = document.createElement("div");
+      scopePill.id = "deleteModalScopePill";
+      scopePill.className = "delete-scope-pill";
+      hEl.parentNode.insertBefore(scopePill, hEl);
+    }
+    scopePill.innerText = items.length > 0
+      ? `${items.length} ${items.length === 1 ? "SET" : "SETS"} • ${totalQs} QUESTIONS`
+      : "EMPTY PLAYLIST";
+  }
+
+  if (badge) {
+    badge.innerHTML = isClearOnly
+      ? `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"></path><line x1="18" y1="9" x2="12" y2="15"></line><line x1="12" y1="9" x2="18" y2="15"></line></svg>`
+      : `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>`;
+  }
+
+  if (btn) btn.disabled = false;
 
   if (isClearOnly) {
-    if (tEl) tEl.innerText = `Clear ${pName}`; 
-    if (hEl) hEl.innerText = `Clear all sets from ${pName}?`;
-    if (msgEl) msgEl.innerText = `This will remove all queued question sets from "${pName}". The playlist container itself will remain intact.`;
-    if (btn) { btn.innerText = "Yes, Clear Sets"; btn.onclick = confirmDeletePlaylist; }
+    if (tEl) tEl.innerText = "Queue Reset"; 
+    if (hEl) hEl.innerText = `Clear "${pName}"?`; 
+    if (msgEl) msgEl.innerText = `All queued sets will be removed from this playlist. Your playlist folder will remain intact.`; 
+    if (btn) { btn.innerText = "Clear Sets"; btn.onclick = confirmDeletePlaylist; }
   } else {
-    if (tEl) tEl.innerText = "Delete Playlist"; 
-    if (hEl) hEl.innerText = `Delete "${pName}"?`;
-    if (msgEl) msgEl.innerText = `This playlist and all its queued items will be permanently deleted.`;
-    if (btn) { btn.innerText = "Yes, Delete"; btn.onclick = confirmDeletePlaylist; }
+    if (tEl) tEl.innerText = "Permanent Removal"; 
+    if (hEl) hEl.innerText = `Delete "${pName}"?`; 
+    if (msgEl) msgEl.innerText = `This playlist and its queued references will be removed. You can undo immediately from the toast.`; 
+    if (btn) { btn.innerText = "Delete Playlist"; btn.onclick = confirmDeletePlaylist; }
   }
   toggleModalDOM("deletePlaylistConfirmModal", true);
 };

@@ -743,20 +743,34 @@ body.dark-theme .btn-star-set.starred svg { fill: #fbbf24 !important; stroke: #f
 .btn-confirm-abort { flex: 1.2; height: 44px; background: var(--danger-gradient) !important; border: none !important; color: #ffffff !important; border-radius: 8px; font-weight: 800; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 7px; box-shadow: 0 4px 14px var(--danger-bg-subtle); transition: all 0.2s ease; }
 .btn-confirm-abort:hover { transform: translateY(-1px); }
 
-/* 🚀 DELETE & CLEAR PLAYLIST CONFIRMATION MODAL */
-#deletePlaylistConfirmModal .notice-modal-box { background: var(--bg-panel) !important; border: 1.5px solid var(--danger-border) !important; box-shadow: var(--shadow-lg) !important; }
-#deletePlaylistConfirmModal .tcs-modal-header { background: var(--danger-gradient) !important; color: #ffffff !important; border-bottom: 1px solid var(--danger-border) !important; }
-#deletePlaylistConfirmModal .tcs-modal-header .btn-close-sheet, #deletePlaylistConfirmModal .tcs-modal-header button { color: #ffffff !important; opacity: 0.85; }
-#deletePlaylistConfirmModal .tcs-modal-header .btn-close-sheet:hover, #deletePlaylistConfirmModal .tcs-modal-header button:hover { opacity: 1; }
-#deletePlaylistConfirmModal .notice-icon-badge { background: var(--danger-bg-subtle) !important; border-color: var(--danger-border) !important; color: var(--danger-dark) !important; }
-#deletePlaylistConfirmModal .notice-heading { color: var(--text-main) !important; }
-#deletePlaylistConfirmModal .notice-message { color: var(--text-muted) !important; }
-#deletePlaylistConfirmModal .notice-modal-actions { display: flex !important; gap: 12px !important; width: 100% !important; justify-content: center !important; }
-#deletePlaylistConfirmModal .notice-modal-actions .btn-secondary, #deletePlaylistConfirmModal .notice-modal-actions .tcs-btn.btn-secondary { flex: 1 !important; height: 40px !important; border-radius: 8px !important; }
-#deletePlaylistConfirmModal #btnConfirmDeletePlaylist { flex: 1 !important; height: 40px !important; padding: 10px 16px !important; background: var(--danger-gradient) !important; color: #ffffff !important; border: none !important; outline: none !important; border-radius: 8px !important; font-family: var(--font-family) !important; font-size: 13px !important; font-weight: 700 !important; cursor: pointer !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; gap: 6px !important; box-shadow: 0 4px 14px var(--danger-bg-subtle) !important; transition: all 0.2s ease !important; }
-#deletePlaylistConfirmModal #btnConfirmDeletePlaylist:hover { background: linear-gradient(135deg, var(--danger-dark), var(--danger)) !important; transform: translateY(-1px) !important; box-shadow: 0 6px 20px var(--danger-bg-subtle) !important; }
-#deletePlaylistConfirmModal #btnConfirmDeletePlaylist:active { transform: translateY(0) !important; }
-#deletePlaylistConfirmModal #btnConfirmDeletePlaylist:disabled { opacity: 0.65 !important; cursor: not-allowed !important; transform: none !important; }
+/* 🚀 MINIMAL HIGH-TECH CONFIRMATION DIALOG (DELETE & CLEAR PLAYLIST) */
+#deletePlaylistConfirmModal .notice-modal-box { width: 410px !important; max-width: 92vw !important; background: var(--bg-panel) !important; border: 1px solid var(--border-color) !important; border-top: 2.5px solid #dc2626 !important; border-radius: 14px !important; box-shadow: var(--shadow-lg) !important; }
+#deletePlaylistConfirmModal.is-clear-mode .notice-modal-box { border-top-color: var(--text-secondary) !important; }
+
+#deletePlaylistConfirmModal .tcs-modal-header { background: var(--bg-surface-elevated) !important; color: var(--text-muted) !important; border-bottom: 1px solid var(--border-color) !important; padding: 11px 18px !important; font-family: var(--font-mono) !important; font-size: 11px !important; font-weight: 800 !important; letter-spacing: 0.7px !important; text-transform: uppercase !important; }
+#deletePlaylistConfirmModal .tcs-modal-header .btn-close-sheet, #deletePlaylistConfirmModal .tcs-modal-header button { color: var(--text-muted) !important; opacity: 0.8; font-size: 15px !important; }
+#deletePlaylistConfirmModal .tcs-modal-header .btn-close-sheet:hover, #deletePlaylistConfirmModal .tcs-modal-header button:hover { opacity: 1; color: var(--text-main) !important; }
+
+#deletePlaylistConfirmModal .notice-modal-body { padding: 24px 22px 20px 22px !important; }
+#deletePlaylistConfirmModal .notice-icon-badge { width: 48px !important; height: 48px !important; border-radius: 12px !important; background: rgba(220, 38, 38, 0.08) !important; border: 1px solid rgba(220, 38, 38, 0.22) !important; color: #dc2626 !important; margin-bottom: 14px !important; }
+body.dark-theme #deletePlaylistConfirmModal .notice-icon-badge { background: rgba(248, 113, 113, 0.1) !important; border-color: rgba(248, 113, 113, 0.25) !important; color: #f87171 !important; }
+#deletePlaylistConfirmModal.is-clear-mode .notice-icon-badge { background: var(--bg-surface-elevated) !important; border-color: var(--border-color) !important; color: var(--text-main) !important; }
+
+.delete-scope-pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 6px; background: var(--bg-surface-elevated); border: 1px solid var(--border-color); font-family: var(--font-mono); font-size: 10.5px; font-weight: 800; color: var(--text-secondary); letter-spacing: 0.4px; margin-bottom: 10px; }
+#deletePlaylistConfirmModal .notice-heading { font-size: 16.5px !important; font-weight: 800 !important; color: var(--text-main) !important; letter-spacing: -0.2px !important; margin-bottom: 6px !important; }
+#deletePlaylistConfirmModal .notice-message { font-size: 12.5px !important; color: var(--text-muted) !important; line-height: 1.5 !important; margin-bottom: 20px !important; max-width: 340px; }
+
+#deletePlaylistConfirmModal .notice-modal-actions { display: flex !important; gap: 10px !important; width: 100% !important; }
+#deletePlaylistConfirmModal .notice-modal-actions .btn-secondary, #deletePlaylistConfirmModal .notice-modal-actions .tcs-btn.btn-secondary { flex: 1 !important; height: 40px !important; border-radius: 9px !important; background: var(--bg-surface-elevated) !important; border: 1px solid var(--border-color) !important; color: var(--text-main) !important; font-size: 13px !important; font-weight: 700 !important; }
+#deletePlaylistConfirmModal .notice-modal-actions .btn-secondary:hover { background: var(--bg-surface-hover) !important; border-color: var(--border-hover) !important; color: var(--text-main) !important; }
+
+#deletePlaylistConfirmModal #btnConfirmDeletePlaylist { flex: 1.15 !important; height: 40px !important; padding: 0 16px !important; background: #dc2626 !important; color: #ffffff !important; border: 1px solid rgba(255, 255, 255, 0.1) !important; outline: none !important; border-radius: 9px !important; font-family: var(--font-family) !important; font-size: 13px !important; font-weight: 700 !important; cursor: pointer !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; gap: 6px !important; box-shadow: 0 2px 8px rgba(220, 38, 38, 0.22) !important; transition: background-color 0.16s ease, transform 0.12s ease !important; }
+#deletePlaylistConfirmModal #btnConfirmDeletePlaylist:hover { background: #b91c1c !important; }
+#deletePlaylistConfirmModal #btnConfirmDeletePlaylist:active { transform: scale(0.98) !important; }
+
+#deletePlaylistConfirmModal.is-clear-mode #btnConfirmDeletePlaylist { background: var(--text-main) !important; color: var(--bg-panel) !important; border-color: var(--text-main) !important; box-shadow: var(--shadow-sm) !important; }
+#deletePlaylistConfirmModal.is-clear-mode #btnConfirmDeletePlaylist:hover { opacity: 0.9; }
+#deletePlaylistConfirmModal #btnConfirmDeletePlaylist:disabled { opacity: 0.6 !important; cursor: not-allowed !important; transform: none !important; }
 
 .exit-modal-box { width: 400px; max-width: 90vw; background: var(--bg-panel); border: 1.5px solid var(--border-color); border-radius: 14px; padding: 24px; box-shadow: var(--shadow-lg); text-align: center; animation: modalFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1); }
 .exit-icon-wrap { width: 50px; height: 50px; border-radius: 50%; background: var(--danger-bg-subtle); color: var(--danger-dark); border: 1px solid var(--danger-border); display: flex; align-items: center; justify-content: center; margin: 0 auto 14px auto; }
