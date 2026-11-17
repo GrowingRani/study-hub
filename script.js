@@ -421,7 +421,7 @@ function initPlaylistSwipeGestures() {
       // 🚀 Threshold cross hone par card wahin ke wahin turant gayab ho jayega (No left sliding out)
       const pId = wrapper.getAttribute("data-playlist-id");
       const testId = wrapper.getAttribute("data-test-id");
-      const pName = wrapper.closest("[data-playlist-name]")?.getAttribute("data-playlist-name") || wrapper.closest(".mission-playlist-card")?.querySelector(".playlist-title")?.innerText || "Playlist";
+      const pName = wrapper.closest("[data-playlist-name]")?.getAttribute("data-playlist-name") || "Playlist";
 
       window.executeSwipeRemove(pId, testId, pName, wrapper);
 
@@ -567,12 +567,16 @@ function renderViewDOM(viewId) {
     if (el) el.style.display = (id === viewId) ? "flex" : "none";
   });
 
+  const isMobile = window.innerWidth <= 768;
+  document.body.classList.toggle("mobile-playlist-active", viewId === "viewDashboard" && isMobilePlaylistStageOpen && isMobile);
+  document.body.classList.toggle("mobile-lib-topic-active", viewId === "viewLibrary" && isMobileLibTopicOpen && isMobile);
+
   const bottomNav = document.getElementById('mobileBottomNav');
   if (bottomNav) { 
     if (librarySelectionMode || document.body.classList.contains("staging-active")) {
       bottomNav.style.setProperty("display", "none", "important");
       bottomNav.classList.add("nav-hidden");
-    } else if (window.innerWidth <= 768 && MAIN_TABS.includes(viewId)) {
+    } else if (isMobile && MAIN_TABS.includes(viewId)) {
       bottomNav.style.setProperty("display", "flex", "important");
       bottomNav.classList.remove("nav-hidden");
     } else {
@@ -589,15 +593,14 @@ function renderViewDOM(viewId) {
 window.switchView = function(viewId, pushHistory = true) {
   closeAllOverlaysAndPopups();
   const currentActiveView = Array.from(document.querySelectorAll('.view-screen')).find(v => v.style.display === 'flex')?.id;
-  if (currentActiveView === viewId) return;
-
-  if (viewId !== 'viewDashboard') {
-    isMobilePlaylistStageOpen = false;
-    document.body.classList.remove("mobile-playlist-active");
-  }
-  if (viewId !== 'viewLibrary') {
-    isMobileLibTopicOpen = false;
-    document.body.classList.remove("mobile-lib-topic-active");
+  if (currentActiveView === viewId) {
+    if (viewId === 'viewDashboard' && isMobilePlaylistStageOpen) {
+      closeMobilePlaylistStage(false);
+    } else if (viewId === 'viewLibrary') {
+      if (isMobileLibTopicOpen) closeMobileLibTopicStage(false);
+      else if (document.getElementById("setsExplorerStage")?.style.display === "block") returnToSubjectHub(false);
+    }
+    return;
   }
 
   // 🧹 DOCKED FILTER STRIP CLEANUP (Prevents ghost bars when switching away from Practice)
@@ -631,7 +634,11 @@ window.switchView = function(viewId, pushHistory = true) {
 
   if (pushHistory) {
     if (viewId === 'viewDashboard') {
-      history.pushState({ page: 'dashboard', view: 'viewDashboard' }, '', '#viewDashboard');
+      if (isMobilePlaylistStageOpen && window.innerWidth <= 768 && activeDashboardPlaylistId) {
+        history.pushState({ page: 'playlist-detail', view: 'viewDashboard', playlistId: String(activeDashboardPlaylistId) }, '', '#playlist_' + encodeURIComponent(String(activeDashboardPlaylistId)));
+      } else {
+        history.pushState({ page: 'dashboard', view: 'viewDashboard' }, '', '#viewDashboard');
+      }
     } else if (MAIN_TABS.includes(viewId)) {
       if (history.state?.page === 'main-tab') {
         history.replaceState({ page: 'main-tab', view: viewId }, '', '#' + viewId);
@@ -674,11 +681,23 @@ window.addEventListener("popstate", function(e) {
     isExamFinished = true;
     if (e.state && e.state.view) {
       renderViewDOM(e.state.view);
-      if (e.state.view === 'viewLibrary' && activeSubject) {
+      if (e.state.view === 'viewDashboard') {
+        const shouldShowPlaylist = Boolean(e.state.page === "playlist-detail" && window.innerWidth <= 768);
+        if (shouldShowPlaylist && e.state.playlistId) {
+          activeDashboardPlaylistId = String(e.state.playlistId);
+        }
+        isMobilePlaylistStageOpen = shouldShowPlaylist;
+        document.body.classList.toggle("mobile-playlist-active", shouldShowPlaylist);
+        renderRecentHistoryShelf();
+        renderHomePlaylists();
+      } else if (e.state.view === 'viewLibrary' && activeSubject) {
         const hub = document.getElementById("subjectHubStage");
         const exp = document.getElementById("setsExplorerStage");
         if (hub) hub.style.display = "none";
         if (exp) exp.style.display = "block";
+        isMobileLibTopicOpen = Boolean(e.state.page === "lib-topic" && window.innerWidth <= 768);
+        document.body.classList.toggle("mobile-lib-topic-active", isMobileLibTopicOpen);
+        renderTopicSets();
       }
       return;
     }
@@ -718,6 +737,16 @@ window.addEventListener("popstate", function(e) {
   }
 
   if (e.state && e.state.view) {
+    if (e.state.view === 'viewDashboard') {
+      isMobilePlaylistStageOpen = Boolean(e.state.page === 'playlist-detail' && window.innerWidth <= 768);
+      if (isMobilePlaylistStageOpen && e.state.playlistId) {
+        activeDashboardPlaylistId = String(e.state.playlistId);
+      }
+      renderHomePlaylists();
+    } else if (e.state.view === 'viewLibrary') {
+      isMobileLibTopicOpen = Boolean(e.state.page === 'lib-topic' && window.innerWidth <= 768);
+      if (document.getElementById("setsExplorerStage")?.style.display === "block") renderTopicSets();
+    }
     renderViewDOM(e.state.view);
     return;
   }
@@ -919,47 +948,6 @@ function showAuthNotice(msg, isError = true) {
 // ==========================================================================
 // 5. APPLICATION EVENTS & INTERACTIVE CONTROLLERS
 // ==========================================================================
-function applyTopicFilter(filter = currentFilter) {
-  currentFilter = filter;
-  if (document.getElementById("setsExplorerStage")?.style.display === "block") {
-    renderTopicSets();
-  }
-}
-
-function filterAccordionCards(query) {
-  if (document.getElementById("setsExplorerStage")?.style.display === "block") {
-    renderTopicSets();
-  }
-}
-
-window.toggleSecondaryPlaylist = function(headerElement) {
-  const card = headerElement.closest('.playlist-accordion-card');
-  if (!card) return;
-  const wasExpanded = card.classList.contains('expanded');
-
-  // सभी सेकेंडरी और कस्टम प्लेलिस्ट को पहले कोलैप्स करें
-  document.querySelectorAll('.playlist-accordion-card').forEach(c => {
-    // Today's Payload कार्ड को छोड़कर बाकी सभी को बंद रखें
-    if (c.id !== 'todayPayloadCard') {
-      c.classList.remove('expanded');
-      c.classList.add('collapsed');
-      const pill = c.querySelector('.playlist-count-pill');
-      if (pill && !pill.innerText.includes('▼')) {
-        pill.innerText = pill.innerText.replace('▲', '▼');
-      }
-    }
-  });
-
-  // अगर क्लिक किया गया कार्ड पहले से खुला नहीं था, तो उसे खोलें
-  if (!wasExpanded) {
-    card.classList.remove('collapsed');
-    card.classList.add('expanded');
-    const pill = card.querySelector('.playlist-count-pill');
-    if (pill) {
-      pill.innerText = pill.innerText.replace('▼', '▲');
-    }
-  }
-};
 
 function setupAppEvents() {
   document.addEventListener("click", (e) => {
@@ -970,13 +958,6 @@ function setupAppEvents() {
     const sMenu = document.getElementById("subjectActionMenu");
     if (sMenu && sMenu.style.display !== "none" && !sMenu.contains(e.target) && !e.target.closest(".btn-subject-dots")) closeSubjectActionMenu();
   });
-
-  const tomHeader = document.querySelector("#tomorrowPlaylistCard .playlist-header");
-  if (tomHeader) tomHeader.onclick = () => window.toggleSecondaryPlaylist(tomHeader);
-  const weekHeader = document.querySelector("#weekPlaylistCard .playlist-header");
-  if (weekHeader) weekHeader.onclick = () => window.toggleSecondaryPlaylist(weekHeader);
-  const starredHeader = document.querySelector("#starredPlaylistCard .playlist-header");
-  if (starredHeader) starredHeader.onclick = () => window.toggleSecondaryPlaylist(starredHeader);
 
   const tabIn = document.getElementById("tabSignIn"), 
         tabReg = document.getElementById("tabRegister"), 
@@ -1146,19 +1127,10 @@ function setupAppEvents() {
     };
   });
 
-  document.querySelectorAll('.filter-chip-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      document.querySelectorAll('.filter-chip-btn').forEach(b => b.classList.remove('active'));
-      const t = e.target.closest('.filter-chip-btn'); 
-      if (t) { 
-        t.classList.add('active'); 
-        currentFilter = t.getAttribute('data-filter') || "all"; 
-        applyTopicFilter(currentFilter); 
-      }
-    });
+  document.getElementById("topicSearchInput")?.addEventListener("input", () => {
+    if (document.getElementById("setsExplorerStage")?.style.display === "block") renderTopicSets();
   });
 
-  document.getElementById("topicSearchInput")?.addEventListener("input", (e) => filterAccordionCards(e.target.value.trim().toLowerCase()));
   document.getElementById("btnSaveNext")?.addEventListener("click", () => { if (!userResponses[currentIndex]) return; userResponses[currentIndex].status = (userResponses[currentIndex].selected !== null) ? 2 : 1; advanceNextQuestion(); });
   document.getElementById("btnMarkReview")?.addEventListener("click", () => { if (!userResponses[currentIndex]) return; userResponses[currentIndex].status = (userResponses[currentIndex].selected !== null) ? 4 : 3; advanceNextQuestion(); });
   document.getElementById("btnClear")?.addEventListener("click", () => { if (!userResponses[currentIndex]) return; userResponses[currentIndex].selected = null; userResponses[currentIndex].status = 1; renderQuestion(currentIndex); });
@@ -2172,12 +2144,6 @@ async function mountDashboard(isInitialLoad = false) {
   renderRecentHistoryShelf();
   await renderHomePlaylists();
 
-  const todayCard = document.getElementById("todayPayloadCard");
-  if (todayCard) {
-    todayCard.classList.remove("collapsed");
-    todayCard.classList.add("expanded");
-  }
-
   fetchStudentAnalytics(true);
   start5PMEngine();
 
@@ -2594,114 +2560,6 @@ function getSetScoreMeta(testId, defaultQuestions = 10) {
   const status = isAtt ? (bestPct >= 100 ? 'mastered' : 'revise') : 'unattempted';
 
   return { setCat: c, testId, title, qCount, maxMarks, duration, attempts, isAtt, bestScore, bestPct, status };
-}
-
-// 🚀 2. UNIVERSAL ATOMIC SET TILE BUILDER (DASHBOARD & LIBRARY UNIFIED)
-function renderSetTileHtml(setOrItem, options = {}) {
-  const testId = setOrItem.test_id;
-  const meta = getSetScoreMeta(testId);
-  const setCat = meta.setCat || setOrItem;
-  if (!setCat) return "";
-
-  const isRoll = (setOrItem.is_rollover || options.isRollover) ? `<span class="set-rollover-tag">⚠️ ROLLOVER</span>` : '';
-  
-  let badgeHtml = '';
-  let historyHtml = '<span style="color:var(--text-muted);">Not attempted yet</span>';
-
-  if (meta.isAtt && meta.attempts.length > 0) {
-    const latestScore = parseFloat(meta.attempts[0].score);
-    const latestPct = meta.maxMarks > 0 ? (latestScore / meta.maxMarks) * 100 : 0;
-    const formattedLatest = Number.isInteger(latestScore) ? latestScore : latestScore.toFixed(1);
-
-    let latestStyle = "background:var(--warning-bg-subtle); color:var(--warning-dark); border:1px solid var(--warning-border);";
-    if (latestPct >= 100) {
-      latestStyle = "background:var(--success-bg-subtle); color:var(--success-dark); border:1px solid var(--success-border);";
-    } else if (latestPct < 50) {
-      latestStyle = "background:var(--danger-bg-subtle); color:var(--danger-dark); border:1px solid var(--danger-border);";
-    }
-    badgeHtml = `<div class="set-status-badge" style="${latestStyle}">${formattedLatest}/${meta.maxMarks}</div>`;
-
-    const formattedBest = Number.isInteger(meta.bestScore) ? meta.bestScore : meta.bestScore.toFixed(1);
-    let bestColor = 'var(--warning-dark)';
-    if (meta.bestPct >= 100) bestColor = 'var(--success-dark)';
-    else if (meta.bestPct < 50) bestColor = 'var(--danger-dark)';
-
-    historyHtml = `<span style="color:${bestColor}; font-weight:700;">★ Best: ${formattedBest}/${meta.maxMarks} (${Math.round(meta.bestPct)}%) | Att: ${meta.attempts.length}</span>`;
-  }
-
-  const isStagingMode = options.isLibrary && librarySelectionMode;
-  let headerActions = '';
-  let footerAction = '';
-
-  if (isStagingMode) {
-    const inTarget = targetPlaylistForSelection && userPlaylistItems.some(pi => pi.playlist_id === targetPlaylistForSelection.id && String(pi.test_id) === String(testId));
-    headerActions = badgeHtml;
-    footerAction = `
-      <button type="button" class="btn-bookmark-stage ${inTarget ? 'saved' : ''}" id="btnStage_${testId}" onclick="toggleDirectStaging(${testId})">
-        ${inTarget ? bookmarkFilledSvg : bookmarkOutlineSvg}
-        <span class="stage-label">${inTarget ? 'Saved to playlist' : 'Save to playlist'}</span>
-      </button>
-    `;
-  } else {
-    const starredPl = userPlaylists.find(p => p.playlist_name === 'Starred Sets');
-    const isStarred = starredPl && userPlaylistItems.some(pi => pi.playlist_id === starredPl.id && String(pi.test_id) === String(testId));
-    const pIdArg = options.playlistId ? `'${options.playlistId}'` : 'null';
-    const pNameArg = options.playlistName ? `'${options.playlistName.replace(/'/g, "\\'")}'` : 'null';
-
-    headerActions = `
-      ${badgeHtml}
-      <button type="button" class="btn-star-set ${isStarred ? 'starred' : ''}" data-test-id="${testId}" onclick="toggleStarSet(event, ${testId})" title="${isStarred ? 'Unstar set' : 'Star set'}">
-        ${starIconSvg}
-      </button>
-      <button type="button" class="btn-three-dots" onclick="openThreeDotsMenu(event, ${testId}, ${pIdArg}, ${pNameArg})" title="Options">⋮</button>
-    `;
-    footerAction = `
-      <div class="set-action-footer">
-        <button type="button" class="btn-launch-set" onclick="openMissionBriefingModal(${testId})">
-          <span>▶</span> <span>${meta.isAtt ? 'Retake / Review' : 'Start Session'}</span>
-        </button>
-      </div>
-    `;
-  }
-
-  return `
-    <div class="set-tile" data-test-id="${testId}" data-status="${meta.status}">
-      <div class="set-tile-header">
-        <div class="set-tile-title-group">
-          ${isRoll}
-          <div class="set-tile-title">${meta.title}</div>
-        </div>
-        <div style="display:flex; gap: 6px; align-items: center; flex-shrink: 0;">
-          ${headerActions}
-        </div>
-      </div>
-      <div class="set-tile-meta"><span>${clockSvg} ${meta.duration}m</span><span>${docSvg} ${meta.qCount} Qs</span></div>
-      <div class="set-score-info">${historyHtml}</div>
-      ${footerAction}
-    </div>
-  `;
-}
-
-// 🔒 100% Backward-Compatible Wrapper for Dashboard/Playlists (YouTube-Style Swipe-to-Remove)
-function renderPlaylistSetTileHtml(item, pName) {
-  const tileHtml = renderSetTileHtml(item, { isRollover: item.is_rollover, isLibrary: false, playlistId: item.playlist_id, playlistName: pName });
-  const pId = item.playlist_id;
-  const tId = item.test_id;
-
-  return `
-    <div class="swipe-item-wrapper" data-test-id="${tId}" data-playlist-id="${pId}">
-      <div class="swipe-action-backdrop" onclick="executeSwipeRemove('${pId}', ${tId}, '${pName.replace(/'/g, "\\'")}', this)">
-        <span class="swipe-action-label">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"></circle>
-            <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
-          </svg>
-          <span>Remove</span>
-        </span>
-      </div>
-      ${tileHtml}
-    </div>
-  `;
 }
 
 // 🚀 REUSABLE FLIP REMOVE ENGINE (Instantly hides target & smoothly glides siblings up)
@@ -4188,8 +4046,24 @@ window.toggleMastheadSearch = function(isOpen) {
   } else { 
     if (bar) bar.style.display = "none"; 
     if (def) def.style.display = "flex"; 
-    if (inp) { inp.value = ""; filterAccordionCards(""); } 
+    if (inp) { inp.value = ""; if (document.getElementById("setsExplorerStage")?.style.display === "block") renderTopicSets(); } 
   }
+};
+
+function scrollLibraryViewportTop() {
+  const vp = document.querySelector("#viewLibrary .catalog-viewport");
+  if (vp) vp.scrollTop = 0;
+  window.scrollTo({ top: 0, behavior: "instant" });
+}
+
+window.handleLibFolderRowClick = function(el) {
+  const encoded = el?.getAttribute("data-topic-enc");
+  if (!encoded) return;
+  const topicKey = decodeURIComponent(encoded);
+  if (el.hasAttribute("data-from-search")) {
+    toggleMastheadSearch(false);
+  }
+  selectLibTopic(topicKey);
 };
 
 window.selectLibTopic = function(topicKey) {
@@ -4216,7 +4090,7 @@ window.openMobileLibTopicStage = function(topicKey, pushHistory = true) {
   isMobileLibTopicOpen = true;
   document.body.classList.add("mobile-lib-topic-active");
   renderTopicSets();
-  window.scrollTo({ top: 0, behavior: "instant" });
+  scrollLibraryViewportTop();
   if (pushHistory) {
     history.pushState({ page: "lib-topic", view: "viewLibrary", subView: "setsExplorer", subject: activeSubject, topic: topicKey }, "", "#topic_" + encodeURIComponent(topicKey));
   }
@@ -4231,6 +4105,7 @@ window.closeMobileLibTopicStage = function(fromPopState = false) {
   isLibTopicSearchOpen = false;
   document.body.classList.remove("mobile-lib-topic-active");
   renderTopicSets();
+  scrollLibraryViewportTop();
 };
 
 window.setLibStageFilter = function(filterKey) {
@@ -4322,7 +4197,7 @@ function renderLibrarySetRowHtml(setItem) {
   if (librarySelectionMode) {
     const inTarget = targetPlaylistForSelection && userPlaylistItems.some(pi => String(pi.playlist_id) === String(targetPlaylistForSelection.id) && String(pi.test_id) === String(testId));
     return `
-      <div class="set-tile yt-stage-card" data-test-id="${testId}" data-status="${meta.status}">
+      <div class="set-tile yt-stage-card is-staging-card" data-test-id="${testId}" data-status="${meta.status}">
         <div class="yt-media-thumb">
           <span class="yt-media-sub-code">${subCode}</span>
           <span class="yt-media-q-pill">${meta.qCount} Qs</span>
@@ -4399,7 +4274,7 @@ window.drillDownToSubject = function(subName, pushHistory = true) {
   }
 
   renderTopicSets();
-  window.scrollTo({ top: 0, behavior: "instant" });
+  scrollLibraryViewportTop();
 
   if (pushHistory) {
     history.pushState({ page: "sets-explorer", view: "viewLibrary", subView: "setsExplorer", subject: activeSubject }, "", "#subject_" + encodeURIComponent(activeSubject));
@@ -4431,7 +4306,7 @@ window.returnToSubjectHub = function(fromPopState = false) {
   renderSubjectHubGrid();
   if (librarySelectionMode) updateStagingDockUI();
 
-  window.scrollTo({ top: 0, behavior: "instant" });
+  scrollLibraryViewportTop();
   if (!fromPopState) {
     history.replaceState({ page: "main-tab", view: "viewLibrary", subView: "hub" }, "", "#viewLibrary");
   }
@@ -4446,7 +4321,6 @@ function renderTopicSets() {
   const subjectSearch = (document.getElementById("topicSearchInput")?.value || "").trim().toLowerCase();
   const filtered = catalogData.filter(r => (r.subject || "General Studies").trim().toLowerCase() === (activeSubject || "").trim().toLowerCase());
 
-  // 1. Group unique sets by Sub-Topic
   const grouped = {};
   filtered.forEach(item => {
     const k = (item.topic || "Core Practice").trim();
@@ -4472,7 +4346,8 @@ function renderTopicSets() {
       return { topicName, sets, masteredCnt, unattCnt, revCnt, totalQs, pct };
     });
 
-  // 2. Subject-Wide Instant Search Mode (Matches both Sub-Topics & Sets)
+  const chevronSvg = `<span class="yt-folder-chevron"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg></span>`;
+
   if (subjectSearch) {
     isMobileLibTopicOpen = false;
     document.body.classList.remove("mobile-lib-topic-active");
@@ -4488,7 +4363,7 @@ function renderTopicSets() {
     });
 
     const topicsHtml = matchingTopics.map(t => `
-      <div class="yt-folder-row ${t.pct >= 100 && t.sets.length > 0 ? "theme-topic-done" : "theme-topic"}" onclick="toggleMastheadSearch(false); selectLibTopic('${t.topicName.replace(/'/g, "\\'")}')">
+      <div class="yt-folder-row ${t.pct >= 100 && t.sets.length > 0 ? "theme-topic-done" : "theme-topic"}" data-topic-enc="${encodeURIComponent(t.topicName)}" data-from-search="1" onclick="handleLibFolderRowClick(this)">
         <div class="yt-thumb-stack">
           <div class="yt-stack-tab-1"></div>
           <div class="yt-stack-tab-2"></div>
@@ -4502,6 +4377,7 @@ function renderTopicSets() {
           <div class="yt-folder-meta">${t.masteredCnt}/${t.sets.length} Mastered • ${t.pct}%</div>
           <div class="yt-lib-topic-progress"><div class="yt-lib-topic-fill" style="width:${t.pct}%;"></div></div>
         </div>
+        ${chevronSvg}
       </div>
     `).join("");
 
@@ -4515,7 +4391,6 @@ function renderTopicSets() {
     return;
   }
 
-  // 3. Mistake Vault Entry Check
   const tel = !librarySelectionMode ? getSubjectMistakeTelemetry(activeSubject) : { inReviewCount: 0, clearedCount: 0, dueCount: 0 };
   const hasVault = !librarySelectionMode && (tel.inReviewCount > 0 || tel.clearedCount > 0);
   const validKeys = [
@@ -4527,7 +4402,6 @@ function renderTopicSets() {
     activeLibTopicKey = hasVault ? "__vault__" : (topicEntries[0]?.topicName || null);
   }
 
-  // 4. Build Left Rail (Mistake Vault Folder + Sub-Topic Stacked Folder Rows)
   let vaultRowHtml = "";
   if (hasVault) {
     const isClean = tel.dueCount === 0;
@@ -4537,7 +4411,7 @@ function renderTopicSets() {
       ? `0 Due • ${tel.clearedCount} Mastered`
       : `⚠️ ${tel.dueCount} Due (${totalChunks} ${totalChunks > 1 ? "Sets" : "Set"})`;
     vaultRowHtml = `
-      <div class="yt-folder-row theme-vault vault-folder-row ${isClean ? "is-clean" : ""} ${isActive ? "active-yt-playlist" : ""}" onclick="selectLibTopic('__vault__')">
+      <div class="yt-folder-row theme-vault vault-folder-row ${isClean ? "is-clean" : ""} ${isActive ? "active-yt-playlist" : ""}" data-topic-enc="__vault__" onclick="handleLibFolderRowClick(this)">
         <div class="yt-thumb-stack">
           <div class="yt-stack-tab-1"></div>
           <div class="yt-stack-tab-2"></div>
@@ -4550,6 +4424,7 @@ function renderTopicSets() {
           <div class="yt-folder-name">${activeSubject} Mistake Vault</div>
           <div class="yt-folder-meta">${metaText}</div>
         </div>
+        ${chevronSvg}
       </div>
     `;
   }
@@ -4557,9 +4432,8 @@ function renderTopicSets() {
   const topicRowsHtml = topicEntries.map(t => {
     const isDone = t.sets.length > 0 && t.pct >= 100;
     const isActive = activeLibTopicKey === t.topicName;
-    const safeName = t.topicName.replace(/'/g, "\\'");
     return `
-      <div class="yt-folder-row ${isDone ? "theme-topic-done" : "theme-topic"} ${isActive ? "active-yt-playlist" : ""}" onclick="selectLibTopic('${safeName}')">
+      <div class="yt-folder-row ${isDone ? "theme-topic-done" : "theme-topic"} ${isActive ? "active-yt-playlist" : ""}" data-topic-enc="${encodeURIComponent(t.topicName)}" onclick="handleLibFolderRowClick(this)">
         <div class="yt-thumb-stack">
           <div class="yt-stack-tab-1"></div>
           <div class="yt-stack-tab-2"></div>
@@ -4573,11 +4447,11 @@ function renderTopicSets() {
           <div class="yt-folder-meta">${t.masteredCnt}/${t.sets.length} Mastered • ${t.pct}%</div>
           <div class="yt-lib-topic-progress"><div class="yt-lib-topic-fill" style="width:${t.pct}%;"></div></div>
         </div>
+        ${chevronSvg}
       </div>
     `;
   }).join("");
 
-  // 5. Build Right / Mobile Full-Screen Stage
   const searchSvg = `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>`;
   const stageTopBarHtml = `
     <div class="yt-stage-topbar">
@@ -5339,13 +5213,19 @@ window.closeExamAndReload = function() {
   closeExamModal(); 
   isExamFinished = true; 
 
-  // 1. 0ms पर तुरंत डैशबोर्ड खोलें (User को कोई लैग फील नहीं होगा)
+  // 1. 0ms पर तुरंत डैशबोर्ड / खोली हुई प्लेलिस्ट पर लौटें
   updateHeaderBadges();
   renderRecentHistoryShelf();
   renderHomePlaylists(); 
   renderSubjectHubGrid();
   if (activeSubject) renderTopicSets(); 
-  switchView('viewDashboard'); 
+  if (isMobilePlaylistStageOpen && window.innerWidth <= 768 && activeDashboardPlaylistId) {
+    renderViewDOM('viewDashboard');
+    document.body.classList.add("mobile-playlist-active");
+    history.replaceState({ page: "playlist-detail", view: "viewDashboard", playlistId: String(activeDashboardPlaylistId) }, "", "#playlist_" + encodeURIComponent(String(activeDashboardPlaylistId)));
+  } else {
+    switchView('viewDashboard');
+  }
 
   // 2. बैकग्राउंड में फ्रेश डेटा सिंक करें (पहले पेंडिंग स्कोर राइट पूरा होने का इंतज़ार करें)
   (async () => {
