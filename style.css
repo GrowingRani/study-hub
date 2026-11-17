@@ -275,10 +275,19 @@ body.dark-theme .pill-tier-apex { background: rgba(251, 191, 36, 0.14) !importan
 .btn-yt-circle-add { width: 34px; height: 34px; border-radius: 50%; background: var(--bg-surface-elevated); color: var(--text-main); border: 1px solid var(--border-color); display: inline-flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 600; cursor: pointer; transition: all 0.15s ease; flex-shrink: 0; }
 .btn-yt-circle-add:hover { border-color: var(--tcs-blue-accent); color: var(--tcs-blue-accent); background: var(--tcs-blue-bg-subtle); }
 
-/* Category B: YouTube Watch Later / Starred Gradient Hero Banner */
+/* Unified YouTube Playlist Gradient Hero Banners (All 5 Categories) */
 .yt-watchlater-hero { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 18px; border-radius: 12px; margin-bottom: 14px; border: 1px solid var(--border-color); background: linear-gradient(135deg, rgba(124, 58, 237, 0.12) 0%, var(--bg-surface-elevated) 60%, var(--bg-panel) 100%); flex-wrap: wrap; }
-.yt-watchlater-hero.hero-starred { background: linear-gradient(135deg, rgba(245, 158, 11, 0.14) 0%, var(--bg-surface-elevated) 60%, var(--bg-panel) 100%); border-color: var(--warning-border); }
+.yt-watchlater-hero.hero-today { background: linear-gradient(135deg, rgba(37, 99, 235, 0.15) 0%, var(--bg-surface-elevated) 62%, var(--bg-panel) 100%); border-color: var(--tcs-blue-border-subtle); }
+.yt-watchlater-hero.hero-tomorrow { background: linear-gradient(135deg, rgba(2, 132, 199, 0.15) 0%, var(--bg-surface-elevated) 62%, var(--bg-panel) 100%); border-color: rgba(2, 132, 199, 0.3); }
+.yt-watchlater-hero.hero-week { background: linear-gradient(135deg, rgba(217, 119, 6, 0.14) 0%, rgba(225, 29, 72, 0.06) 45%, var(--bg-panel) 100%); border-color: var(--warning-border); }
+.yt-watchlater-hero.hero-starred { background: linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, var(--bg-surface-elevated) 60%, var(--bg-panel) 100%); border-color: var(--warning-border); }
 .yt-hero-artwork { width: 58px; height: 58px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 26px; flex-shrink: 0; box-shadow: var(--shadow-md); border: 1px solid rgba(255, 255, 255, 0.18); }
+.yt-hero-telemetry-row { display: flex; align-items: center; gap: 8px; margin-top: 4px; flex-wrap: wrap; }
+.yt-hero-status-pill { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 800; font-family: var(--font-mono); padding: 2px 8px; border-radius: 10px; background: var(--tcs-blue-bg-subtle); color: var(--tcs-blue-accent); border: 1px solid var(--tcs-blue-border-subtle); }
+.yt-hero-status-pill.pill-ready { background: var(--success-bg-subtle); color: var(--success-dark); border-color: var(--success-border); }
+.yt-hero-status-pill.pill-warn { background: var(--warning-bg-subtle); color: var(--warning-dark); border-color: var(--warning-border); }
+.yt-hero-progress-track { width: 110px; height: 5px; background: var(--bg-surface-hover); border-radius: 4px; overflow: hidden; border: 1px solid var(--border-color); }
+.yt-hero-progress-fill { height: 100%; background: linear-gradient(90deg, var(--tcs-blue-accent), var(--success)); border-radius: 4px; transition: width 0.35s ease; }
 .yt-stage-filter-bar { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding-bottom: 12px; margin-bottom: 14px; border-bottom: 1px solid var(--border-color); }
 .yt-stage-filter-bar::-webkit-scrollbar { display: none; }
 

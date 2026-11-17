@@ -2829,11 +2829,11 @@ function getPlaylistAddBtnHtml(pId, pName) {
 
 function getPlaylistVisualTheme(pName) {
   const n = (pName || "").trim().toLowerCase();
-  if (n === "today") return { theme: "theme-today", category: "execution", icon: "🔥", label: "Today's Payload", tag: "PRIMARY EXECUTION", artBg: "linear-gradient(135deg, #1e3a8a, #2563eb)" };
-  if (n === "tomorrow") return { theme: "theme-tomorrow", category: "staging", icon: "⏳", label: "Tomorrow's Queue", tag: "NEXT DAY STAGING", artBg: "linear-gradient(135deg, #0c4a6e, #0284c7)" };
-  if (n === "this week") return { theme: "theme-week", category: "staging", icon: "📅", label: "This Week Backlog", tag: "ROLLOVER & WEEKLY", artBg: "linear-gradient(135deg, #78350f, #d97706)" };
-  if (n === "starred sets") return { theme: "theme-starred", category: "curated", icon: "⭐", label: "Starred Sets", tag: "VIP BOOKMARKS", artBg: "linear-gradient(135deg, #92400e, #f59e0b)" };
-  return { theme: "theme-custom", category: "curated", icon: "📁", label: pName, tag: "CUSTOM COLLECTION", artBg: "linear-gradient(135deg, #4c1d95, #7c3aed)" };
+  if (n === "today") return { theme: "theme-today", heroClass: "hero-today", category: "execution", icon: "🔥", label: "Today's Payload", tag: "PRIMARY EXECUTION", artBg: "linear-gradient(135deg, #1e3a8a, #2563eb)" };
+  if (n === "tomorrow") return { theme: "theme-tomorrow", heroClass: "hero-tomorrow", category: "staging", icon: "⏳", label: "Tomorrow's Queue", tag: "NEXT DAY STAGING", artBg: "linear-gradient(135deg, #0c4a6e, #0284c7)" };
+  if (n === "this week") return { theme: "theme-week", heroClass: "hero-week", category: "staging", icon: "📅", label: "This Week Backlog", tag: "ROLLOVER & WEEKLY", artBg: "linear-gradient(135deg, #78350f, #d97706)" };
+  if (n === "starred sets") return { theme: "theme-starred", heroClass: "hero-starred", category: "curated", icon: "⭐", label: "Starred Sets", tag: "VIP BOOKMARKS", artBg: "linear-gradient(135deg, #92400e, #f59e0b)" };
+  return { theme: "theme-custom", heroClass: "", category: "curated", icon: "📁", label: pName, tag: "CUSTOM COLLECTION", artBg: "linear-gradient(135deg, #4c1d95, #7c3aed)" };
 }
 
 async function renderHomePlaylists() {
@@ -3011,47 +3011,58 @@ async function renderHomePlaylists() {
         </div>
       `;
 
-      let stageHeaderHtml = "";
-      if (isCurated) {
-        stageHeaderHtml = `
-          <div class="yt-watchlater-hero ${activePl.playlist_name === "Starred Sets" ? "hero-starred" : ""}">
-            <div class="yt-stage-hero-left">
-              <div class="yt-hero-artwork" style="background:${vis.artBg};">${vis.icon}</div>
-              <div class="yt-stage-title-stack">
-                <span class="yt-stage-eyebrow">${vis.tag}</span>
-                <h3 class="yt-stage-title">${vis.label}</h3>
-                <span class="yt-stage-sub">${items.length} Sets • ${stageQs} Questions</span>
-              </div>
-            </div>
-            <div class="yt-stage-actions">
-              <button type="button" class="btn-yt-play-all" onclick="startNextInPlaylist('${activePl.id}')">▶ Start Next</button>
-              <button type="button" class="btn-yt-circle-add" onclick="enableLibrarySelectionMode('${activePl.id}', '${pNameEsc}')" title="Add Sets">+</button>
-            </div>
+      let heroTelemetryHtml = "";
+      if (isToday && items.length > 0) {
+        const doneSets = items.filter(i => getSetScoreMeta(i.test_id).isAtt).length;
+        const donePct = Math.round((doneSets / items.length) * 100);
+        heroTelemetryHtml = `
+          <div class="yt-hero-telemetry-row">
+            <span class="yt-hero-status-pill ${doneSets === items.length ? "pill-ready" : ""}">${doneSets}/${items.length} Completed (${donePct}%)</span>
+            <div class="yt-hero-progress-track"><div class="yt-hero-progress-fill" style="width:${donePct}%;"></div></div>
           </div>
-          ${stageFilterBarHtml}
         `;
-      } else {
-        stageHeaderHtml = `
-          <div class="yt-stage-hero">
-            <div class="yt-stage-hero-left">
-              <div class="yt-stage-title-stack">
-                <span class="yt-stage-eyebrow">${vis.tag}</span>
-                <h3 class="yt-stage-title">${vis.icon} ${vis.label}</h3>
-                <span class="yt-stage-sub">${items.length} Sets • ${stageQs} Questions</span>
-              </div>
-            </div>
-            <div class="yt-stage-actions">
-              ${items.length > 0 ? `<button type="button" class="btn-yt-play-all" onclick="startNextInPlaylist('${activePl.id}')">▶ Continue Next</button>` : ""}
-              <button type="button" class="btn-yt-add-sets" onclick="enableLibrarySelectionMode('${activePl.id}', '${pNameEsc}')">+ Add Sets</button>
-            </div>
+      } else if (activePl.playlist_name === "Tomorrow") {
+        const isReady = stageQs >= 100;
+        const badgeText = isReady ? `🎯 100-Q Target Locked` : `⏳ ${Math.max(0, 100 - stageQs)} Qs needed for 100-Q target`;
+        heroTelemetryHtml = `
+          <div class="yt-hero-telemetry-row">
+            <span class="yt-hero-status-pill ${isReady ? "pill-ready" : "pill-warn"}">${badgeText}</span>
           </div>
-          ${stageFilterBarHtml}
         `;
+      } else if (activePl.playlist_name === "This Week") {
+        const rolloverCnt = items.filter(i => i.is_rollover).length;
+        if (rolloverCnt > 0) {
+          heroTelemetryHtml = `
+            <div class="yt-hero-telemetry-row">
+              <span class="yt-hero-status-pill pill-warn">⚠️ ${rolloverCnt} Rollover ${rolloverCnt === 1 ? "Set" : "Sets"}</span>
+            </div>
+          `;
+        }
       }
+
+      const primaryCtaLabel = isToday ? "▶ Continue Next" : "▶ Start Next";
+      const stageHeaderHtml = `
+        <div class="yt-watchlater-hero ${vis.heroClass}">
+          <div class="yt-stage-hero-left">
+            <div class="yt-hero-artwork" style="background:${vis.artBg};">${vis.icon}</div>
+            <div class="yt-stage-title-stack">
+              <span class="yt-stage-eyebrow">${vis.tag}</span>
+              <h3 class="yt-stage-title">${vis.label}</h3>
+              <span class="yt-stage-sub">${items.length} Sets • ${stageQs} Questions</span>
+              ${heroTelemetryHtml}
+            </div>
+          </div>
+          <div class="yt-stage-actions">
+            <button type="button" class="btn-yt-play-all" onclick="startNextInPlaylist('${activePl.id}')">${items.length > 0 ? primaryCtaLabel : "+ Stage Sets"}</button>
+            <button type="button" class="btn-yt-circle-add" onclick="enableLibrarySelectionMode('${activePl.id}', '${pNameEsc}')" title="Add Sets">+</button>
+          </div>
+        </div>
+        ${stageFilterBarHtml}
+      `;
 
       const setsHtml = filteredStageItems.length > 0
         ? filteredStageItems.map(i => renderStageSetCardHtml(i, activePl.playlist_name, isStaging)).join("")
-        : `<div style="text-align:center; padding:28px 16px; color:var(--text-muted); font-size:12.5px; font-weight:600; grid-column:1 / -1;">${items.length > 0 ? "No sets match this filter." : `No sets in "${vis.label}" yet. Tap <strong>+ Add Sets</strong> to stage sets from Library.`}</div>`;
+        : `<div style="text-align:center; padding:28px 16px; color:var(--text-muted); font-size:12.5px; font-weight:600; grid-column:1 / -1;">${items.length > 0 ? "No sets match this filter." : `No sets in "${vis.label}" yet. Tap <strong>+</strong> to stage sets from Library.`}</div>`;
 
       stageHtml = `
         ${stageTopBarHtml}
