@@ -207,6 +207,8 @@ let activeDashboardPlaylistId = null;
 let isMobilePlaylistStageOpen = false;
 let ytPlaylistFilter = "all";
 let ytStageFilter = "all";
+let ytStageSearchQuery = "";
+let isYtStageSearchOpen = false;
 
 // 🚀 PRE-FLIGHT MISSION BRIEFING & SHUFFLE STATE (DEFAULT: ON)
 let activeBriefingTestId = null;
@@ -684,6 +686,12 @@ window.addEventListener("popstate", function(e) {
   if (librarySelectionMode) {
     cancelLibrarySelectionMode();
     return; 
+  }
+
+  if (currentActiveView === 'viewDashboard' && isYtStageSearchOpen) {
+    toggleYtStageSearch(false);
+    history.pushState(e.state || { page: "playlist-detail", view: "viewDashboard" }, "", window.location.hash);
+    return;
   }
 
   if (currentActiveView === 'viewDashboard' && isMobilePlaylistStageOpen) {
@@ -2974,10 +2982,24 @@ async function renderHomePlaylists() {
       const filteredStageItems = items.filter(i => ytStageFilter === "all" || getSetScoreMeta(i.test_id).status === ytStageFilter);
 
       const pNameEsc = activePl.playlist_name.replace(/'/g, "\\'");
-      const backBtnHtml = `
-        <button type="button" class="btn-yt-stage-back" onclick="closeMobilePlaylistStage()" title="Back to Playlists">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
-        </button>
+      const searchSvg = `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>`;
+      const stageTopBarHtml = `
+        <div class="yt-stage-topbar">
+          <div class="yt-stage-topbar-left">
+            <button type="button" class="btn-yt-stage-back" onclick="closeMobilePlaylistStage()" title="Back to Playlists">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+            </button>
+          </div>
+          <div class="yt-stage-search-wrap ${isYtStageSearchOpen ? "open" : ""}" id="ytStageSearchWrap">
+            ${searchSvg}
+            <input type="text" id="ytStageSearchInput" class="yt-stage-search-input" placeholder="Search in ${vis.label}..." value="${ytStageSearchQuery.replace(/"/g, "&quot;")}" oninput="filterYtStageSets(this.value)" />
+            <button type="button" class="btn-yt-search-clear" onclick="toggleYtStageSearch(false)" title="Close Search">✕</button>
+          </div>
+          <div class="yt-stage-topbar-right">
+            <button type="button" id="btnYtStageSearchOpen" class="btn-yt-stage-icon" style="display:${isYtStageSearchOpen ? "none" : "inline-flex"};" onclick="toggleYtStageSearch(true)" title="Search Sets">${searchSvg}</button>
+            <button type="button" class="btn-playlist-dots" onclick="openPlaylistActionMenu(event, '${activePl.id}', '${pNameEsc}', ${isSys})" title="Playlist Options">⋮</button>
+          </div>
+        </div>
       `;
 
       const stageFilterBarHtml = `
@@ -2994,7 +3016,6 @@ async function renderHomePlaylists() {
         stageHeaderHtml = `
           <div class="yt-watchlater-hero ${activePl.playlist_name === "Starred Sets" ? "hero-starred" : ""}">
             <div class="yt-stage-hero-left">
-              ${backBtnHtml}
               <div class="yt-hero-artwork" style="background:${vis.artBg};">${vis.icon}</div>
               <div class="yt-stage-title-stack">
                 <span class="yt-stage-eyebrow">${vis.tag}</span>
@@ -3005,7 +3026,6 @@ async function renderHomePlaylists() {
             <div class="yt-stage-actions">
               <button type="button" class="btn-yt-play-all" onclick="startNextInPlaylist('${activePl.id}')">▶ Start Next</button>
               <button type="button" class="btn-yt-circle-add" onclick="enableLibrarySelectionMode('${activePl.id}', '${pNameEsc}')" title="Add Sets">+</button>
-              <button type="button" class="btn-playlist-dots" onclick="openPlaylistActionMenu(event, '${activePl.id}', '${pNameEsc}', ${isSys})" title="Playlist Options">⋮</button>
             </div>
           </div>
           ${stageFilterBarHtml}
@@ -3014,7 +3034,6 @@ async function renderHomePlaylists() {
         stageHeaderHtml = `
           <div class="yt-stage-hero">
             <div class="yt-stage-hero-left">
-              ${backBtnHtml}
               <div class="yt-stage-title-stack">
                 <span class="yt-stage-eyebrow">${vis.tag}</span>
                 <h3 class="yt-stage-title">${vis.icon} ${vis.label}</h3>
@@ -3024,7 +3043,6 @@ async function renderHomePlaylists() {
             <div class="yt-stage-actions">
               ${items.length > 0 ? `<button type="button" class="btn-yt-play-all" onclick="startNextInPlaylist('${activePl.id}')">▶ Continue Next</button>` : ""}
               <button type="button" class="btn-yt-add-sets" onclick="enableLibrarySelectionMode('${activePl.id}', '${pNameEsc}')">+ Add Sets</button>
-              <button type="button" class="btn-playlist-dots" onclick="openPlaylistActionMenu(event, '${activePl.id}', '${pNameEsc}', ${isSys})" title="Playlist Options">⋮</button>
             </div>
           </div>
           ${stageFilterBarHtml}
@@ -3036,6 +3054,7 @@ async function renderHomePlaylists() {
         : `<div style="text-align:center; padding:28px 16px; color:var(--text-muted); font-size:12.5px; font-weight:600; grid-column:1 / -1;">${items.length > 0 ? "No sets match this filter." : `No sets in "${vis.label}" yet. Tap <strong>+ Add Sets</strong> to stage sets from Library.`}</div>`;
 
       stageHtml = `
+        ${stageTopBarHtml}
         ${stageHeaderHtml}
         ${isToday ? boosterStripHtml : ""}
         <div class="yt-stage-grid sets-card-grid">
@@ -3417,8 +3436,60 @@ window.setYtStageFilter = function(filterKey) {
   renderHomePlaylists();
 };
 
+window.toggleYtStageSearch = function(openState) {
+  isYtStageSearchOpen = typeof openState === "boolean" ? openState : !isYtStageSearchOpen;
+  if (!isYtStageSearchOpen) ytStageSearchQuery = "";
+  const wrap = document.getElementById("ytStageSearchWrap");
+  const triggerBtn = document.getElementById("btnYtStageSearchOpen");
+  const inp = document.getElementById("ytStageSearchInput");
+  if (wrap) wrap.classList.toggle("open", isYtStageSearchOpen);
+  if (triggerBtn) triggerBtn.style.display = isYtStageSearchOpen ? "none" : "inline-flex";
+  if (isYtStageSearchOpen && inp) {
+    inp.value = ytStageSearchQuery;
+    setTimeout(() => inp.focus(), 40);
+  } else {
+    filterYtStageSets("");
+  }
+};
+
+window.filterYtStageSets = function(rawQuery) {
+  ytStageSearchQuery = String(rawQuery || "");
+  const q = ytStageSearchQuery.trim().toLowerCase();
+  const grid = document.querySelector(".yt-playlist-stage .yt-stage-grid");
+  if (!grid) return;
+
+  let visibleCards = 0;
+  grid.querySelectorAll(".swipe-item-wrapper").forEach(wrapper => {
+    const tid = wrapper.getAttribute("data-test-id");
+    const cat = catalogMap.get(String(tid));
+    const title = (wrapper.querySelector(".set-tile-title")?.innerText || cat?.test_title || "").toLowerCase();
+    const subj = (cat?.subject || "").toLowerCase();
+    const topic = (cat?.topic || "").toLowerCase();
+    const matched = !q || title.includes(q) || subj.includes(q) || topic.includes(q);
+    wrapper.style.display = matched ? "" : "none";
+    if (matched) visibleCards++;
+  });
+
+  let emptyEl = document.getElementById("ytStageSearchEmpty");
+  if (q && visibleCards === 0) {
+    if (!emptyEl) {
+      emptyEl = document.createElement("div");
+      emptyEl.id = "ytStageSearchEmpty";
+      emptyEl.style.cssText = "text-align:center; padding:26px 14px; color:var(--text-muted); font-size:12.5px; font-weight:600; grid-column:1 / -1;";
+      grid.insertBefore(emptyEl, grid.querySelector(".btn-create-playlist-trigger") || null);
+    }
+    emptyEl.innerText = `No sets found matching "${ytStageSearchQuery.trim()}"`;
+  } else if (emptyEl) {
+    emptyEl.remove();
+  }
+};
+
 window.selectDashboardPlaylist = function(pId) {
-  if (String(activeDashboardPlaylistId) !== String(pId)) ytStageFilter = "all";
+  if (String(activeDashboardPlaylistId) !== String(pId)) {
+    ytStageFilter = "all";
+    ytStageSearchQuery = "";
+    isYtStageSearchOpen = false;
+  }
   activeDashboardPlaylistId = String(pId);
   if (window.innerWidth <= 768) {
     openMobilePlaylistStage(pId, true);
@@ -3428,7 +3499,11 @@ window.selectDashboardPlaylist = function(pId) {
 };
 
 window.openMobilePlaylistStage = function(pId, pushHistory = true) {
-  if (String(activeDashboardPlaylistId) !== String(pId)) ytStageFilter = "all";
+  if (String(activeDashboardPlaylistId) !== String(pId)) {
+    ytStageFilter = "all";
+    ytStageSearchQuery = "";
+    isYtStageSearchOpen = false;
+  }
   activeDashboardPlaylistId = String(pId);
   isMobilePlaylistStageOpen = true;
   document.body.classList.add("mobile-playlist-active");
@@ -3446,6 +3521,8 @@ window.closeMobilePlaylistStage = function(fromPopState = false) {
     return history.back();
   }
   isMobilePlaylistStageOpen = false;
+  ytStageSearchQuery = "";
+  isYtStageSearchOpen = false;
   document.body.classList.remove("mobile-playlist-active");
   const deck = document.querySelector("#viewDashboard .mission-deck-container");
   if (deck) deck.classList.remove("mobile-stage-open");
