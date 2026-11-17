@@ -203,6 +203,9 @@ let subjectRadarChartInstance = null, alertEngineStarted = false;
 let isRenderingPlaylists = false;
 let pendingPlaylistRender = false;
 let isAuthSessionInitializing = false;
+let activeDashboardPlaylistId = null;
+let isMobilePlaylistStageOpen = false;
+let ytPlaylistFilter = "all";
 
 // 🚀 PRE-FLIGHT MISSION BRIEFING & SHUFFLE STATE (DEFAULT: ON)
 let activeBriefingTestId = null;
@@ -410,7 +413,7 @@ function initPlaylistSwipeGestures() {
       // 🚀 Threshold cross hone par card wahin ke wahin turant gayab ho jayega (No left sliding out)
       const pId = wrapper.getAttribute("data-playlist-id");
       const testId = wrapper.getAttribute("data-test-id");
-      const pName = wrapper.closest(".mission-playlist-card")?.querySelector(".playlist-title")?.innerText || "Playlist";
+      const pName = wrapper.closest("[data-playlist-name]")?.getAttribute("data-playlist-name") || wrapper.closest(".mission-playlist-card")?.querySelector(".playlist-title")?.innerText || "Playlist";
 
       window.executeSwipeRemove(pId, testId, pName, wrapper);
 
@@ -675,6 +678,11 @@ window.addEventListener("popstate", function(e) {
   if (librarySelectionMode) {
     cancelLibrarySelectionMode();
     return; 
+  }
+
+  if (currentActiveView === 'viewDashboard' && isMobilePlaylistStageOpen) {
+    closeMobilePlaylistStage(true);
+    return;
   }
 
   if (e.state && e.state.view) {
@@ -2805,30 +2813,14 @@ function getPlaylistAddBtnHtml(pId, pName) {
   return `<button type="button" class="btn-create-playlist-trigger" style="margin-top: 10px; grid-column: 1 / -1;" onclick="enableLibrarySelectionMode('${pId}', '${pName.replace(/'/g, "\\'")}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg><span>Add Sets to ${pName}</span></button>`;
 }
 
-// 🚀 ATOMIC SECONDARY PLAYLIST CONTAINER RENDERER (DRY ENGINE)
-function renderSecondaryPlaylistStream(playlistName, containerId, countPillId, cardId, emptyMessage, cachedScroll = 0) {
-  const container = document.getElementById(containerId);
-  const badge = document.getElementById(countPillId);
-  const playlist = userPlaylists.find(p => p.playlist_name === playlistName);
-  if (!playlist || !container) return;
-
-  const items = userPlaylistItems.filter(pi => pi.playlist_id === playlist.id);
-  const prevScroll = cachedScroll || container.scrollTop;
-
-  const setsHtml = items.length > 0
-    ? items.map(i => renderPlaylistSetTileHtml(i, playlistName)).join("")
-    : `<div style="text-align:center; padding:18px; color:var(--text-muted); font-size:12.5px; font-weight:600; grid-column:1 / -1;">${emptyMessage}</div>`;
-
-  container.innerHTML = setsHtml + getPlaylistAddBtnHtml(playlist.id, playlistName);
-  container.scrollTop = prevScroll;
-
-  if (badge) badge.innerText = `${items.length} Sets ▼`;
-
-  const header = document.querySelector(`#${cardId} .playlist-header`);
-  if (header) header.onclick = () => window.toggleSecondaryPlaylist(header);
+function getPlaylistVisualTheme(pName) {
+  const n = (pName || "").trim().toLowerCase();
+  if (n === "today") return { theme: "theme-today", icon: "🔥", label: "Today's Payload", tag: "PRIMARY EXECUTION" };
+  if (n === "tomorrow") return { theme: "theme-tomorrow", icon: "⏳", label: "Tomorrow's Queue", tag: "NEXT DAY TARGET" };
+  if (n === "this week") return { theme: "theme-week", icon: "📅", label: "This Week Backlog", tag: "ROLLOVER & WEEKLY" };
+  if (n === "starred sets") return { theme: "theme-starred", icon: "⭐", label: "Starred Sets", tag: "VIP BOOKMARKS" };
+  return { theme: "theme-custom", icon: "📁", label: pName, tag: "CUSTOM PLAYLIST" };
 }
-
-
 
 async function renderHomePlaylists() {
   if (isRenderingPlaylists) {
@@ -2838,19 +2830,10 @@ async function renderHomePlaylists() {
   isRenderingPlaylists = true;
 
   try {
-    const todayContainer = document.getElementById("todayPlaylistContainer"), 
-          tomorrowContainer = document.getElementById("tomorrowPlaylistContainer"), 
-          weekContainer = document.getElementById("weekPlaylistContainer"), 
-          starredContainer = document.getElementById("starredPlaylistContainer"),
-          customContainer = document.getElementById("customPlaylistsContainer");
+    const deckContainer = document.querySelector("#viewDashboard .mission-deck-container");
+    if (!deckContainer) return;
 
-    if (!todayContainer || !tomorrowContainer || !weekContainer) return;
-
-    // 🚀 1. CACHE SCROLL POSITIONS BEFORE WIPING TO PREVENT JUMPING
-    const todayScrollParent = todayContainer.closest('.playlist-sets-stream') || todayContainer;
-    const scrollMap = { today: todayScrollParent.scrollTop, tomorrow: tomorrowContainer.scrollTop, week: weekContainer.scrollTop, starred: starredContainer ? starredContainer.scrollTop : 0 };
-
-    // 🚀 2. COMPILE BOOSTER TILE HTML (बिना खाली किए सीधे डेटा फेच होगा)
+    // 🚀 1. COMPILE BOOSTER TILE HTML
     let boosterTileHtml = "";
     const isSun = isSunday();
     const todayStr = getLocalDateString();
@@ -2875,151 +2858,166 @@ async function renderHomePlaylists() {
       boosterTileHtml = `
         <div class="set-tile dynamic-revision-tile ${tileThemeClass} state-clean">
           <div class="set-tile-header">
-            <div class="set-tile-title-group">
-              <div class="set-tile-title">${tileTitle}</div>
-            </div>
+            <div class="set-tile-title-group"><div class="set-tile-title">${tileTitle}</div></div>
             <div style="display:flex; gap: 6px; align-items: center; flex-shrink: 0;">
               <span class="set-status-badge status-mastered" style="background:var(--success-bg-subtle); color:var(--success-dark); border:1px solid var(--success-border); font-weight:800;">${isSun ? 'Crucible Done 👑' : 'Quota Met ✓'}</span>
             </div>
           </div>
-          <div class="set-tile-meta">
-            <span>${clockSvg} Done</span>
-            <span>${docSvg} ${qCount} Qs</span>
-            <span style="font-size:10px; color:var(--success); font-weight:700;">(Spaced Recall)</span>
-          </div>
-          <div class="set-score-info" style="display: block !important; overflow: visible !important; white-space: normal !important; line-height: 1.55 !important; padding-top: 4px !important; margin-bottom: 12px !important; min-height: auto !important;">
-            <span style="color:var(--success); font-weight:600; display: inline-block;">✓ Today's quota completed!</span>
-          </div>
-          <div class="set-action-footer">
-            <button type="button" class="btn-launch-set btn-booster-review" style="background: linear-gradient(135deg, #15803d, #16a34a) !important; color: #ffffff !important; box-shadow: 0 2px 8px rgba(22, 163, 74, 0.3) !important;" onclick="openMissionBriefingModal(-1)">
-              <span>📖</span> <span style="color:#ffffff !important; font-weight:700;">Review & Practice</span>
-            </button>
-          </div>
+          <div class="set-tile-meta"><span>${clockSvg} Done</span><span>${docSvg} ${qCount} Qs</span><span style="font-size:10px; color:var(--success); font-weight:700;">(Spaced Recall)</span></div>
+          <div class="set-score-info" style="display: block !important; overflow: visible !important; white-space: normal !important; line-height: 1.55 !important; padding-top: 4px !important; margin-bottom: 12px !important; min-height: auto !important;"><span style="color:var(--success); font-weight:600; display: inline-block;">✓ Today's quota completed!</span></div>
+          <div class="set-action-footer"><button type="button" class="btn-launch-set btn-booster-review" style="background: linear-gradient(135deg, #15803d, #16a34a) !important; color: #ffffff !important; box-shadow: 0 2px 8px rgba(22, 163, 74, 0.3) !important;" onclick="openMissionBriefingModal(-1)"><span>📖</span> <span style="color:#ffffff !important; font-weight:700;">Review & Practice</span></button></div>
         </div>
       `;
     } else if (qCount === 0) {
       boosterTileHtml = `
         <div class="set-tile dynamic-revision-tile ${tileThemeClass} state-clean">
           <div class="set-tile-header">
-            <div class="set-tile-title-group">
-              <div class="set-tile-title">${tileTitle}</div>
-            </div>
-            <div style="display:flex; gap: 6px; align-items: center; flex-shrink: 0;">
-              <span class="clean-slate-pill">0 Due • All Clear</span>
-            </div>
+            <div class="set-tile-title-group"><div class="set-tile-title">${tileTitle}</div></div>
+            <div style="display:flex; gap: 6px; align-items: center; flex-shrink: 0;"><span class="clean-slate-pill">0 Due • All Clear</span></div>
           </div>
-          <div class="set-tile-meta">
-            <span>${clockSvg} 0m</span>
-            <span>${docSvg} 0 Qs</span>
-            <span style="font-size:10px; color:var(--success-dark); font-weight:700;">(100% Spaced Review Sync)</span>
-          </div>
-          <div class="set-score-info" style="display: block !important; overflow: visible !important; white-space: normal !important; line-height: 1.55 !important; padding-top: 4px !important; margin-bottom: 12px !important;">
-            <span style="color:var(--success-dark); font-weight:600; display: inline-block;">✓ Mistake Bank Cleared • Zero Reviews Due</span>
-          </div>
-          <div class="set-action-footer">
-            <button type="button" class="btn-launch-set" disabled title="All reviews optimal. Attempt new questions from Library.">
-              <span>🛡️</span> <span>System Optimal</span>
-            </button>
-          </div>
+          <div class="set-tile-meta"><span>${clockSvg} 0m</span><span>${docSvg} 0 Qs</span><span style="font-size:10px; color:var(--success-dark); font-weight:700;">(100% Spaced Review Sync)</span></div>
+          <div class="set-score-info" style="display: block !important; overflow: visible !important; white-space: normal !important; line-height: 1.55 !important; padding-top: 4px !important; margin-bottom: 12px !important;"><span style="color:var(--success-dark); font-weight:600; display: inline-block;">✓ Mistake Bank Cleared • Zero Reviews Due</span></div>
+          <div class="set-action-footer"><button type="button" class="btn-launch-set" disabled title="All reviews optimal. Attempt new questions from Library."><span>🛡️</span> <span>System Optimal</span></button></div>
         </div>
       `;
     } else {
       const durationMins = Math.max(3, Math.ceil(qCount * 0.6));
       const mistakeCount = boosterQuestions.filter(q => q.isMistake).length;
       const recallCount = qCount - mistakeCount;
-      const poolDetail = mistakeCount > 0 && recallCount > 0 
-        ? `${mistakeCount} Mistakes • ${recallCount} Active Recall` 
-        : (mistakeCount > 0 ? `${mistakeCount} Mistakes for Review` : `${recallCount} Active Recall Questions`);
-
+      const poolDetail = mistakeCount > 0 && recallCount > 0 ? `${mistakeCount} Mistakes • ${recallCount} Active Recall` : (mistakeCount > 0 ? `${mistakeCount} Mistakes for Review` : `${recallCount} Active Recall Questions`);
       boosterTileHtml = `
         <div class="set-tile dynamic-revision-tile ${tileThemeClass} state-active">
           <div class="set-tile-header">
-            <div class="set-tile-title-group">
-              <div class="set-tile-title">${tileTitle}</div>
-            </div>
-            <div style="display:flex; gap: 6px; align-items: center; flex-shrink: 0;">
-              <div class="set-status-badge status-progress" style="background:var(--warning-bg-subtle); color:var(--warning-dark); border:1px solid var(--warning-border);">
-                ${qCount} Due
-              </div>
-            </div>
+            <div class="set-tile-title-group"><div class="set-tile-title">${tileTitle}</div></div>
+            <div style="display:flex; gap: 6px; align-items: center; flex-shrink: 0;"><div class="set-status-badge status-progress" style="background:var(--warning-bg-subtle); color:var(--warning-dark); border:1px solid var(--warning-border);">${qCount} Due</div></div>
           </div>
-          <div class="set-tile-meta">
-            <span>${clockSvg} ${durationMins}m</span>
-            <span>${docSvg} ${qCount} Qs</span>
-            <span style="font-size:10px; color:var(--warning); font-weight:700;">(${isSun ? 'Comprehensive Weekly Review' : 'Bonus • Excluded from 100-Q Target'})</span>
-          </div>
-          <div class="set-score-info" style="display: block !important; overflow: visible !important; white-space: normal !important; line-height: 1.55 !important; padding-top: 4px !important; margin-bottom: 12px !important;">
-            <span style="color:var(--warning-dark); font-weight:700; display: inline-block;">⚡ ${(isSun && sunBestPre > 0) ? `Target Incomplete (${sunBestPre}/${sunTargetPre} Qs solved)` : poolDetail}</span>
-          </div>
-          <div class="set-action-footer">
-            <button type="button" class="btn-launch-set" onclick="openMissionBriefingModal(-1)">
-              <span>${isSun ? '⚔️' : '▶'}</span> <span>${isSun ? (sunBestPre > 0 ? 'Retry Sunday Crucible' : 'Launch Sunday Crucible') : 'Start Booster Session'}</span>
-            </button>
-          </div>
+          <div class="set-tile-meta"><span>${clockSvg} ${durationMins}m</span><span>${docSvg} ${qCount} Qs</span><span style="font-size:10px; color:var(--warning); font-weight:700;">(${isSun ? 'Comprehensive Weekly Review' : 'Bonus • Excluded from 100-Q Target'})</span></div>
+          <div class="set-score-info" style="display: block !important; overflow: visible !important; white-space: normal !important; line-height: 1.55 !important; padding-top: 4px !important; margin-bottom: 12px !important;"><span style="color:var(--warning-dark); font-weight:700; display: inline-block;">⚡ ${(isSun && sunBestPre > 0) ? `Target Incomplete (${sunBestPre}/${sunTargetPre} Qs solved)` : poolDetail}</span></div>
+          <div class="set-action-footer"><button type="button" class="btn-launch-set" onclick="openMissionBriefingModal(-1)"><span>${isSun ? '⚔️' : '▶'}</span> <span>${isSun ? (sunBestPre > 0 ? 'Retry Sunday Crucible' : 'Launch Sunday Crucible') : 'Start Booster Session'}</span></button></div>
         </div>
       `;
     }
 
-    // 🚀 3. RENDER TODAY'S PAYLOAD DIRECTLY
+    // 🚀 2. CALCULATE TOMORROW LOAD & RESOLVE ACTIVE PLAYLIST
     let tomorrowLoad = 0;
-    const todayList = userPlaylists.find(p => p.playlist_name === 'Today'), 
-          tomorrowList = userPlaylists.find(p => p.playlist_name === 'Tomorrow'), 
-          weekList = userPlaylists.find(p => p.playlist_name === 'This Week'),
-          starredList = userPlaylists.find(p => p.playlist_name === 'Starred Sets');
-
-    if (todayList) {
-      const items = userPlaylistItems.filter(pi => pi.playlist_id === todayList.id);
-      const setsHtml = items.length > 0 
-        ? items.map(i => renderPlaylistSetTileHtml(i, 'Today')).join("") 
-        : `<div style="text-align:center; padding:18px; color:var(--text-muted); font-size:12.5px; font-weight:600; grid-column:1 / -1;">No sets queued for today yet.</div>`;
-      
-      todayContainer.innerHTML = boosterTileHtml + setsHtml + getPlaylistAddBtnHtml(todayList.id, 'Today');
-      todayScrollParent.scrollTop = scrollMap.today;
-      const pill = document.getElementById("todayCountPill"); 
-      if (pill) pill.innerText = `${items.length} Sets ▼`;
-    }
-
-    // 🚀 4. ATOMIC SECONDARY PLAYLIST RENDERING VIA HELPER
+    const tomorrowList = userPlaylists.find(p => p.playlist_name === "Tomorrow");
     if (tomorrowList) {
-      const items = userPlaylistItems.filter(pi => pi.playlist_id === tomorrowList.id);
-      items.forEach(i => {
+      userPlaylistItems.filter(pi => pi.playlist_id === tomorrowList.id).forEach(i => {
         const c = catalogMap.get(String(i.test_id));
         tomorrowLoad += c ? (c.total_questions || 10) : 10;
       });
-      renderSecondaryPlaylistStream('Tomorrow', 'tomorrowPlaylistContainer', 'tomorrowCountPill', 'tomorrowPlaylistCard', 'Queue is empty.', scrollMap.tomorrow);
     }
 
-    if (weekList) {
-      renderSecondaryPlaylistStream('This Week', 'weekPlaylistContainer', 'weekCountPill', 'weekPlaylistCard', 'Backlog is empty.', scrollMap.week);
+    const orderedPlaylists = [
+      ...["Today", "Tomorrow", "This Week", "Starred Sets"].map(n => userPlaylists.find(p => p.playlist_name === n)).filter(Boolean),
+      ...userPlaylists.filter(p => !["Today", "Tomorrow", "This Week", "Starred Sets"].includes(p.playlist_name))
+    ];
+
+    if (!orderedPlaylists.some(p => String(p.id) === String(activeDashboardPlaylistId))) {
+      activeDashboardPlaylistId = orderedPlaylists[0] ? String(orderedPlaylists[0].id) : null;
     }
 
-    if (starredList && starredContainer) {
-      renderSecondaryPlaylistStream('Starred Sets', 'starredPlaylistContainer', 'starredCountPill', 'starredPlaylistCard', 'No starred sets yet. Click ☆ on any set to save here.', scrollMap.starred);
-    }
-    
-    // 🚀 5. ATOMIC BATCHED RENDER FOR CUSTOM PLAYLISTS
-    if (customContainer) {
-      const customLists = userPlaylists.filter(p => !['Today', 'Tomorrow', 'This Week', 'Starred Sets'].includes(p.playlist_name));
-      customContainer.innerHTML = customLists.map(playlist => {
-        const items = userPlaylistItems.filter(pi => pi.playlist_id === playlist.id);
-        return `
-          <div class="mission-playlist-card collapsed playlist-accordion-card">
-            <div class="playlist-header" onclick="window.toggleSecondaryPlaylist(this)">
-              <div class="playlist-header-left"><h3 class="playlist-title">${playlist.playlist_name}</h3></div>
-              <div class="playlist-header-right">
-                <span class="playlist-count-pill">${items.length} Sets ▼</span>
-                <button type="button" class="btn-playlist-dots" onclick="event.stopPropagation(); openPlaylistActionMenu(event, '${playlist.id}', '${playlist.playlist_name.replace(/'/g, "\\'")}', false)" title="Playlist Options">⋮</button>
-              </div>
-            </div>
-            <div class="playlist-body">
-              <div class="playlist-sets-stream sets-card-grid">${items.length > 0 ? items.map(i => renderPlaylistSetTileHtml(i, playlist.playlist_name)).join("") : `<div style="text-align:center; padding:18px; color:var(--text-muted); font-size:12.5px; font-weight:600; grid-column:1 / -1;">No sets in ${playlist.playlist_name}.</div>`}</div>
-              ${getPlaylistAddBtnHtml(playlist.id, playlist.playlist_name)}
+    const visibleRailPlaylists = orderedPlaylists.filter(p => {
+      const isSys = ["Today", "Tomorrow", "This Week", "Starred Sets"].includes(p.playlist_name);
+      if (ytPlaylistFilter === "queues") return isSys;
+      if (ytPlaylistFilter === "custom") return !isSys;
+      return true;
+    });
+
+    // 🚀 3. RENDER YOUTUBE STACKED FOLDER RAIL (LEFT / MOBILE OVERVIEW)
+    const folderRowsHtml = visibleRailPlaylists.map(pl => {
+      const items = userPlaylistItems.filter(pi => String(pi.playlist_id) === String(pl.id));
+      let totalQs = 0;
+      items.forEach(i => {
+        const c = catalogMap.get(String(i.test_id));
+        totalQs += c ? (c.total_questions || 10) : 10;
+      });
+      const vis = getPlaylistVisualTheme(pl.playlist_name);
+      const isActive = String(pl.id) === String(activeDashboardPlaylistId);
+      const isSys = Boolean(pl.is_system_playlist || ["Today", "Tomorrow", "This Week", "Starred Sets"].includes(pl.playlist_name));
+      const isToday = pl.playlist_name === "Today";
+      const boosterBadge = (isToday && !isTileCompleted && qCount > 0) ? ` • <span class="yt-folder-alert">⚡ ${qCount} Due</span>` : "";
+
+      return `
+        <div class="yt-folder-row ${vis.theme} ${isActive ? "active-yt-playlist" : ""}" onclick="selectDashboardPlaylist('${pl.id}')">
+          <div class="yt-thumb-stack">
+            <div class="yt-stack-tab-1"></div>
+            <div class="yt-stack-tab-2"></div>
+            <div class="yt-thumb-cover">
+              <span>${vis.icon}</span>
+              <span class="yt-thumb-badge">${items.length} ${items.length === 1 ? "set" : "sets"}</span>
             </div>
           </div>
-        `;
-      }).join("");
+          <div class="yt-folder-info">
+            <div class="yt-folder-name">${vis.label}</div>
+            <div class="yt-folder-meta">${items.length} Sets • ${totalQs} Qs${boosterBadge}</div>
+          </div>
+          <button type="button" class="btn-playlist-dots" onclick="event.stopPropagation(); openPlaylistActionMenu(event, '${pl.id}', '${pl.playlist_name.replace(/'/g, "\\'")}', ${isSys})" title="Playlist Options">⋮</button>
+        </div>
+      `;
+    }).join("");
+
+    // 🚀 4. RENDER SELECTED PLAYLIST STAGE (RIGHT / MOBILE FULL-SCREEN)
+    const activePl = orderedPlaylists.find(p => String(p.id) === String(activeDashboardPlaylistId)) || orderedPlaylists[0];
+    let stageHtml = "";
+    if (activePl) {
+      const vis = getPlaylistVisualTheme(activePl.playlist_name);
+      const isSys = Boolean(activePl.is_system_playlist || ["Today", "Tomorrow", "This Week", "Starred Sets"].includes(activePl.playlist_name));
+      const isToday = activePl.playlist_name === "Today";
+      const items = userPlaylistItems.filter(pi => String(pi.playlist_id) === String(activePl.id));
+      let stageQs = 0;
+      items.forEach(i => {
+        const c = catalogMap.get(String(i.test_id));
+        stageQs += c ? (c.total_questions || 10) : 10;
+      });
+
+      const setsHtml = items.length > 0
+        ? items.map(i => renderPlaylistSetTileHtml(i, activePl.playlist_name)).join("")
+        : `<div style="text-align:center; padding:28px 16px; color:var(--text-muted); font-size:12.5px; font-weight:600; grid-column:1 / -1;">No sets in "${vis.label}" yet. Tap <strong>+ Add Sets</strong> to stage sets from Library.</div>`;
+
+      stageHtml = `
+        <div class="yt-stage-hero">
+          <div class="yt-stage-hero-left">
+            <button type="button" class="btn-yt-stage-back" onclick="closeMobilePlaylistStage()" title="Back to Playlists">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+            </button>
+            <div class="yt-stage-title-stack">
+              <span class="yt-stage-eyebrow">${vis.tag}</span>
+              <h3 class="yt-stage-title">${vis.icon} ${vis.label}</h3>
+              <span class="yt-stage-sub">${items.length} Sets • ${stageQs} Questions</span>
+            </div>
+          </div>
+          <div class="yt-stage-actions">
+            <button type="button" class="btn-yt-add-sets" onclick="enableLibrarySelectionMode('${activePl.id}', '${activePl.playlist_name.replace(/'/g, "\\'")}')">+ Add Sets</button>
+            <button type="button" class="btn-playlist-dots" onclick="openPlaylistActionMenu(event, '${activePl.id}', '${activePl.playlist_name.replace(/'/g, "\\'")}', ${isSys})" title="Playlist Options">⋮</button>
+          </div>
+        </div>
+        <div class="yt-stage-grid sets-card-grid">
+          ${isToday ? boosterTileHtml : ""}
+          ${setsHtml}
+          ${getPlaylistAddBtnHtml(activePl.id, activePl.playlist_name)}
+        </div>
+      `;
     }
 
+    deckContainer.classList.toggle("mobile-stage-open", isMobilePlaylistStageOpen && window.innerWidth <= 768);
+    deckContainer.innerHTML = `
+      <aside class="yt-playlists-rail">
+        <div class="yt-rail-header">
+          <h4 class="yt-rail-title">Playlists</h4>
+          <button type="button" class="btn-yt-new-playlist" onclick="openCreatePlaylistModal(false)">+ New</button>
+        </div>
+        <div class="yt-filter-chips">
+          <button type="button" class="yt-chip ${ytPlaylistFilter === "all" ? "active" : ""}" onclick="setYtPlaylistFilter('all')">All (${orderedPlaylists.length})</button>
+          <button type="button" class="yt-chip ${ytPlaylistFilter === "queues" ? "active" : ""}" onclick="setYtPlaylistFilter('queues')">Queues</button>
+          <button type="button" class="yt-chip ${ytPlaylistFilter === "custom" ? "active" : ""}" onclick="setYtPlaylistFilter('custom')">Custom</button>
+        </div>
+        <div class="yt-folder-list">${folderRowsHtml}</div>
+      </aside>
+      <section class="yt-playlist-stage" data-playlist-name="${activePl ? activePl.playlist_name.replace(/"/g, "&quot;") : "Playlist"}">
+        ${stageHtml}
+      </section>
+    `;
     // 🎯 6. DECOUPLED CENTURY BAROMETER TELEMETRY (PURE UNIQUE ATTEMPTS & HONEST MASTERY)
     const actualAttemptedCount = dailyPerf?.total_questions_attempted || 0;
     const todayAttempts = userAttemptHistory.filter(a => getAttemptLocalDate(a.attempt_date) === todayStr && (Number(a.test_id) > 0 || (Number(a.test_id) === -1 && isSun)));
@@ -3352,35 +3350,50 @@ window.enableLibrarySelectionMode = function(pId, pName) {
 function autoExpandPlaylistCard(pName) {
   if (!pName) return;
   const nameClean = pName.trim().toLowerCase();
-  if (nameClean === 'today') {
-    const c = document.getElementById('todayPayloadCard');
-    if (c && c.classList.contains('collapsed')) { c.classList.remove('collapsed'); c.classList.add('expanded'); }
+  const matched = userPlaylists.find(p => (p.playlist_name || "").trim().toLowerCase() === nameClean);
+  if (!matched) return;
+  activeDashboardPlaylistId = String(matched.id);
+  if (window.innerWidth <= 768) {
+    openMobilePlaylistStage(matched.id, true);
   } else {
-    document.querySelectorAll('.mission-column-secondary .playlist-accordion-card').forEach(c => {
-      c.classList.remove('expanded');
-      c.classList.add('collapsed');
-    });
-
-    if (nameClean === 'tomorrow') {
-      const c = document.getElementById('tomorrowPlaylistCard');
-      if (c) { c.classList.remove('collapsed'); c.classList.add('expanded'); }
-    } else if (nameClean === 'this week') {
-      const c = document.getElementById('weekPlaylistCard');
-      if (c) { c.classList.remove('collapsed'); c.classList.add('expanded'); }
-    } else if (nameClean === 'starred sets' || nameClean === 'starred') {
-      const c = document.getElementById('starredPlaylistCard');
-      if (c) { c.classList.remove('collapsed'); c.classList.add('expanded'); }
-    } else {
-      document.querySelectorAll('#customPlaylistsContainer .playlist-accordion-card').forEach(card => {
-        const titleEl = card.querySelector('.playlist-title');
-        if (titleEl && titleEl.innerText.trim().toLowerCase() === nameClean) {
-          card.classList.remove('collapsed');
-          card.classList.add('expanded');
-        }
-      });
-    }
+    renderHomePlaylists();
   }
 }
+
+window.setYtPlaylistFilter = function(filterKey) {
+  ytPlaylistFilter = filterKey || "all";
+  renderHomePlaylists();
+};
+
+window.selectDashboardPlaylist = function(pId) {
+  activeDashboardPlaylistId = String(pId);
+  if (window.innerWidth <= 768) {
+    openMobilePlaylistStage(pId, true);
+  } else {
+    renderHomePlaylists();
+  }
+};
+
+window.openMobilePlaylistStage = function(pId, pushHistory = true) {
+  activeDashboardPlaylistId = String(pId);
+  isMobilePlaylistStageOpen = true;
+  renderHomePlaylists();
+  const deck = document.querySelector("#viewDashboard .mission-deck-container");
+  if (deck) deck.classList.add("mobile-stage-open");
+  if (pushHistory) {
+    history.pushState({ page: "playlist-detail", view: "viewDashboard", playlistId: String(pId) }, "", "#playlist_" + encodeURIComponent(String(pId)));
+  }
+};
+
+window.closeMobilePlaylistStage = function(fromPopState = false) {
+  if (!fromPopState && history.state?.page === "playlist-detail") {
+    return history.back();
+  }
+  isMobilePlaylistStageOpen = false;
+  const deck = document.querySelector("#viewDashboard .mission-deck-container");
+  if (deck) deck.classList.remove("mobile-stage-open");
+  renderHomePlaylists();
+};
 
 window.cancelLibrarySelectionMode = async function() { 
   const targetName = targetPlaylistForSelection?.name || "Playlist";
