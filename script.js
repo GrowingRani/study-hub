@@ -186,6 +186,7 @@ const bookmarkFilledSvg = `<svg width="15" height="15" viewBox="0 0 24 24" fill=
 const starIconSvg = `<svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>`;
 const checkIconSvg = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
 const crossIconSvg = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
+const threeDotsSvg = `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="2.35"></circle><circle cx="12" cy="12" r="2.35"></circle><circle cx="12" cy="19" r="2.35"></circle></svg>`;
 
 // ==========================================================================
 // 3. GLOBAL STATE & APPLICATION ROUTING (LOOP-FREE ROUTING & EXIT ENGINE)
@@ -452,6 +453,7 @@ window.addEventListener("DOMContentLoaded", () => {
   setupMobileExamGestures();
   initAnalyticsCarousels();
   initPlaylistSwipeGestures();
+  syncCanonicalModeIcons();
   window.addEventListener('resize', () => {
     const bottomNav = document.getElementById('mobileBottomNav');
     if (bottomNav) {
@@ -1524,8 +1526,13 @@ const isSun = typeof isSunday === 'function' ? isSunday() : (new Date().getDay()
   const modal = document.getElementById("missionBriefingModal");
   if (!modal) return;
 
+  syncCanonicalModeIcons();
   const shufToggle = document.getElementById("toggleShuffleMode");
   if (shufToggle) shufToggle.checked = isShuffleEnabled;
+  const examTagEl = modal.querySelector(".briefing-mode-card.mode-exam .briefing-mode-tag");
+  if (examTagEl && testId !== -1) {
+    examTagEl.innerText = isSun ? "SUNDAY PROTOCOL" : "TCS SIMULATION";
+  }
 
   // 🎯 Distinct Theme Toggler for Mistake Bank Modal
   const sheet = modal.querySelector(".mission-briefing-sheet");
@@ -1949,10 +1956,10 @@ function renderRecentHistoryShelf() {
   }
 
   const modeLabels = {
-    read: "📖 Read",
-    quiz: "⚡ Quiz",
-    flashcards: "🗂️ Cards",
-    exam: "🎯 Exam"
+    read: `${getModeSvg("read", 12)}<span>Read</span>`,
+    quiz: `${getModeSvg("quiz", 12)}<span>Quiz</span>`,
+    flashcards: `${getModeSvg("flashcards", 12)}<span>Cards</span>`,
+    exam: `${getModeSvg("exam", 12)}<span>Exam</span>`
   };
 
   const cardsHtml = list.map(item => {
@@ -2785,7 +2792,7 @@ async function renderHomePlaylists() {
             <div class="yt-folder-name">${vis.label}</div>
             <div class="yt-folder-meta">${items.length} Sets • ${totalQs} Qs${boosterBadge}</div>
           </div>
-          <button type="button" class="btn-playlist-dots" onclick="event.stopPropagation(); openPlaylistActionMenu(event, '${pl.id}', '${pl.playlist_name.replace(/'/g, "\\'")}', ${isSys})" title="Playlist Options">⋮</button>
+          <button type="button" class="btn-playlist-dots" onclick="event.stopPropagation(); openPlaylistActionMenu(event, '${pl.id}', '${pl.playlist_name.replace(/'/g, "\\'")}', ${isSys})" title="Playlist Options">${threeDotsSvg}</button>
         </div>
       `;
     }).join("");
@@ -2828,7 +2835,7 @@ async function renderHomePlaylists() {
           </div>
           <div class="yt-stage-topbar-right">
             <button type="button" id="btnYtStageSearchOpen" class="btn-yt-stage-icon" style="display:${isYtStageSearchOpen ? "none" : "inline-flex"};" onclick="toggleYtStageSearch(true)" title="Search Sets">${searchSvg}</button>
-            <button type="button" class="btn-playlist-dots" onclick="openPlaylistActionMenu(event, '${activePl.id}', '${pNameEsc}', ${isSys})" title="Playlist Options">⋮</button>
+            <button type="button" class="btn-playlist-dots" onclick="openPlaylistActionMenu(event, '${activePl.id}', '${pNameEsc}', ${isSys})" title="Playlist Options">${threeDotsSvg}</button>
           </div>
         </div>
       `;
@@ -3434,17 +3441,9 @@ function renderStageSetCardHtml(item, pName, isStagingQueue = false) {
   const subCode = subj.substring(0, 4).toUpperCase();
   const isRoll = item.is_rollover ? `<span class="set-rollover-tag">⚠️ ROLLOVER</span>` : "";
 
-  let badgeHtml = "";
   let scoreLine = `<span style="color:var(--text-muted);">${meta.duration}m • Untested</span>`;
   if (meta.isAtt && meta.attempts.length > 0) {
-    const latestScore = parseFloat(meta.attempts[0].score);
-    const latestPct = meta.maxMarks > 0 ? (latestScore / meta.maxMarks) * 100 : 0;
-    const fmtLatest = Number.isInteger(latestScore) ? latestScore : latestScore.toFixed(1);
     const fmtBest = Number.isInteger(meta.bestScore) ? meta.bestScore : meta.bestScore.toFixed(1);
-    let badgeStyle = "background:var(--warning-bg-subtle); color:var(--warning-dark); border:1px solid var(--warning-border);";
-    if (latestPct >= 100) badgeStyle = "background:var(--success-bg-subtle); color:var(--success-dark); border:1px solid var(--success-border);";
-    else if (latestPct < 50) badgeStyle = "background:var(--danger-bg-subtle); color:var(--danger-dark); border:1px solid var(--danger-border);";
-    badgeHtml = `<div class="set-status-badge" style="${badgeStyle}">${fmtLatest}/${meta.maxMarks}</div>`;
     scoreLine = `<span style="color:${meta.bestPct >= 100 ? 'var(--success-dark)' : 'var(--warning-dark)'}; font-weight:700;">★ ${fmtBest}/${meta.maxMarks} (${Math.round(meta.bestPct)}%)</span>`;
   }
 
@@ -3476,9 +3475,8 @@ function renderStageSetCardHtml(item, pName, isStagingQueue = false) {
               <div class="set-tile-title">${meta.title}</div>
             </div>
             <div style="display:flex; gap:4px; align-items:center; flex-shrink:0;">
-              ${badgeHtml}
               <button type="button" class="btn-star-set ${isStarred ? "starred" : ""}" data-test-id="${testId}" onclick="toggleStarSet(event, ${testId})" title="${isStarred ? "Unstar set" : "Star set"}">${starIconSvg}</button>
-              <button type="button" class="btn-three-dots" onclick="openThreeDotsMenu(event, ${testId}, '${item.playlist_id}', '${pNameSafe}')" title="Options">⋮</button>
+              <button type="button" class="btn-three-dots" onclick="openThreeDotsMenu(event, ${testId}, '${item.playlist_id}', '${pNameSafe}')" title="Options">${threeDotsSvg}</button>
             </div>
           </div>
           <div class="set-tile-meta"><span>${clockSvg} ${meta.duration}m</span><span>${docSvg} ${meta.qCount} Qs</span></div>
@@ -4096,7 +4094,7 @@ function renderSubjectHubGrid() {
         </div>
         <div class="tile-top-actions">
           <span class="tile-status-pill ${sClass}">${sText}</span>
-          <button type="button" class="btn-three-dots btn-subject-dots" onclick="openSubjectActionMenu(event, '${subName.replace(/'/g, "\\'")}')" title="Subject Options">⋮</button>
+          <button type="button" class="btn-three-dots btn-subject-dots" onclick="openSubjectActionMenu(event, '${subName.replace(/'/g, "\\'")}')" title="Subject Options">${threeDotsSvg}</button>
         </div>
       </div>
       <div class="tile-progress-container"><div class="tile-progress-labels"><span>Mastery Progress</span><span>${stats.progPct}%</span></div><div class="tile-progress-track"><div class="tile-progress-fill" style="width: ${stats.progPct}%;"></div></div></div>
@@ -4264,17 +4262,9 @@ function renderLibrarySetRowHtml(setItem) {
   const subj = (meta.setCat.subject || activeSubject || "GEN").trim();
   const subCode = subj.substring(0, 4).toUpperCase();
 
-  let badgeHtml = "";
   let scoreLine = `<span style="color:var(--text-muted);">${meta.duration}m • Untested</span>`;
   if (meta.isAtt && meta.attempts.length > 0) {
-    const latestScore = parseFloat(meta.attempts[0].score);
-    const latestPct = meta.maxMarks > 0 ? (latestScore / meta.maxMarks) * 100 : 0;
-    const fmtLatest = Number.isInteger(latestScore) ? latestScore : latestScore.toFixed(1);
     const fmtBest = Number.isInteger(meta.bestScore) ? meta.bestScore : meta.bestScore.toFixed(1);
-    let badgeStyle = "background:var(--warning-bg-subtle); color:var(--warning-dark); border:1px solid var(--warning-border);";
-    if (latestPct >= 100) badgeStyle = "background:var(--success-bg-subtle); color:var(--success-dark); border:1px solid var(--success-border);";
-    else if (latestPct < 50) badgeStyle = "background:var(--danger-bg-subtle); color:var(--danger-dark); border:1px solid var(--danger-border);";
-    badgeHtml = `<div class="set-status-badge" style="${badgeStyle}">${fmtLatest}/${meta.maxMarks}</div>`;
     scoreLine = `<span style="color:${meta.bestPct >= 100 ? 'var(--success-dark)' : 'var(--warning-dark)'}; font-weight:700;">★ ${fmtBest}/${meta.maxMarks} (${Math.round(meta.bestPct)}%)</span>`;
   }
 
@@ -4289,7 +4279,6 @@ function renderLibrarySetRowHtml(setItem) {
         <div class="yt-stage-card-body">
           <div class="set-tile-header">
             <div class="set-tile-title-group"><div class="set-tile-title">${meta.title}</div></div>
-            <div style="display:flex; gap:4px; align-items:center; flex-shrink:0;">${badgeHtml}</div>
           </div>
           <div class="set-tile-meta"><span>${clockSvg} ${meta.duration}m</span><span>${docSvg} ${meta.qCount} Qs</span></div>
           <button type="button" class="btn-bookmark-stage ${inTarget ? "saved" : ""}" id="btnStage_${testId}" onclick="toggleDirectStaging(${testId})">
@@ -4314,9 +4303,8 @@ function renderLibrarySetRowHtml(setItem) {
         <div class="set-tile-header">
           <div class="set-tile-title-group"><div class="set-tile-title">${meta.title}</div></div>
           <div style="display:flex; gap:4px; align-items:center; flex-shrink:0;">
-            ${badgeHtml}
             <button type="button" class="btn-star-set ${isStarred ? "starred" : ""}" data-test-id="${testId}" onclick="toggleStarSet(event, ${testId})" title="${isStarred ? "Unstar set" : "Star set"}">${starIconSvg}</button>
-            <button type="button" class="btn-three-dots" onclick="openThreeDotsMenu(event, ${testId}, null, null)" title="Options">⋮</button>
+            <button type="button" class="btn-three-dots" onclick="openThreeDotsMenu(event, ${testId}, null, null)" title="Options">${threeDotsSvg}</button>
           </div>
         </div>
         <div class="set-tile-meta"><span>${clockSvg} ${meta.duration}m</span><span>${docSvg} ${meta.qCount} Qs</span></div>
@@ -7051,14 +7039,45 @@ function setupFlashcardTouchGestures() {
 }
 
 
-// 🚀 SEMANTIC VECTOR GLYPHS (CHECK-SQUARE FOR QUIZ)
-const MODE_ICONS = {
-  read: `<svg class="mode-glyph glyph-read" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>`,
-  quiz: `<svg class="mode-glyph glyph-quiz" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>`,
-  flashcards: `<svg class="mode-glyph glyph-fc" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="14" height="14" rx="2" ry="2"></rect><path d="M21 7v12a2 2 0 0 1-2 2H7"></path></svg>`
+// 🚀 CANONICAL 4-MODE VECTOR GLYPHS (SINGLE SOURCE OF TRUTH ACROSS ENTIRE APP)
+const MODE_SVG_PATHS = {
+  read: `<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>`,
+  quiz: `<polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>`,
+  flashcards: `<rect x="3" y="3" width="14" height="14" rx="2" ry="2"></rect><path d="M21 7v12a2 2 0 0 1-2 2H7"></path>`,
+  exam: `<rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line>`
 };
 
-// 🎛️ MICRO-MODE SWITCHER CONTROLLER (AUTO SCROLL-ORB TOGGLE)
+function getModeSvg(modeKey, size = 16) {
+  const norm = (modeKey === "flashcard" || modeKey === "flashcards") ? "flashcards" : (MODE_SVG_PATHS[modeKey] ? modeKey : "read");
+  const clsMap = { read: "glyph-read", quiz: "glyph-quiz", flashcards: "glyph-fc", exam: "glyph-exam" };
+  return `<svg class="mode-glyph ${clsMap[norm]}" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">${MODE_SVG_PATHS[norm]}</svg>`;
+}
+
+const MODE_ICONS = {
+  read: getModeSvg("read", 16),
+  quiz: getModeSvg("quiz", 16),
+  flashcards: getModeSvg("flashcards", 16),
+  exam: getModeSvg("exam", 16)
+};
+
+function syncCanonicalModeIcons() {
+  const mappings = [
+    ["#missionBriefingModal .mode-icon-exam", "exam", 19],
+    ["#missionBriefingModal .mode-icon-quiz", "quiz", 19],
+    ["#missionBriefingModal .mode-icon-flashcard", "flashcards", 19],
+    ["#missionBriefingModal .mode-icon-read", "read", 19],
+    ["#practiceModeSwitcherSheet .box-read", "read", 18],
+    ["#practiceModeSwitcherSheet .box-quiz", "quiz", 18],
+    ["#practiceModeSwitcherSheet .box-fc", "flashcards", 18],
+    ["#practiceModeSwitcherSheet .box-exam", "exam", 18]
+  ];
+  mappings.forEach(([sel, key, sz]) => {
+    const el = document.querySelector(sel);
+    if (el) el.innerHTML = getModeSvg(key, sz);
+  });
+}
+
+// 🎛️ MICRO-MODE SWITCHER CONTROLLER (AUTO SCROLL-ORB TOGGLE & ACTIVE MODE TINT)
 function updatePracticeModeHeader(titleText, modeKey) {
   activePracticeMode = modeKey;
   const iconWrap = document.getElementById("practiceModeIconWrap");
@@ -7067,6 +7086,7 @@ function updatePracticeModeHeader(titleText, modeKey) {
   }
   const btn = document.getElementById("btnPracticeModeSwitcher");
   if (btn) {
+    btn.setAttribute("data-mode", modeKey);
     btn.title = `Current Mode: ${titleText} (Tap to Switch)`;
   }
 
