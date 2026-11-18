@@ -193,7 +193,7 @@ const threeDotsSvg = `<svg width="18" height="18" viewBox="0 0 24 24" fill="curr
 // ==========================================================================
 const MAIN_TABS = ['viewDashboard', 'viewLibrary', 'viewAnalytics', 'viewProfile'];
 
-let currentCandidate = null, catalogData = [], activeSubject = null, userAttemptHistory = [], userWeakQuestions = [], currentLang = "en", currentFilter = "all";
+let currentCandidate = null, catalogData = [], activeSubject = null, userAttemptHistory = [], userWeakQuestions = [], currentLang = "en";
 let userPlaylists = [], userPlaylistItems = [], dailyPerf = { total_questions_attempted: 0, is_century_hit: false, streak_count: 0, id: null };
 let selectedTestForPlaylist = null, currentThreeDotsTestId = null, activePlaylistMenuTarget = null, pendingDeleteTarget = null, activeSubjectMenuTarget = null;
 let librarySelectionMode = false, targetPlaylistForSelection = null;
@@ -208,13 +208,16 @@ let activeDashboardPlaylistId = null;
 let isMobilePlaylistStageOpen = false;
 let ytPlaylistFilter = "all";
 let ytStageFilter = "all";
+let ytStageSort = "default";
 let ytStageSearchQuery = "";
 let isYtStageSearchOpen = false;
 let activeLibTopicKey = null;
 let isMobileLibTopicOpen = false;
 let libStageFilter = "all";
+let libStageSort = "default";
 let libTopicSearchQuery = "";
 let isLibTopicSearchOpen = false;
+let activeSortSheetScope = "dashboard";
 
 // 🚀 PRE-FLIGHT MISSION BRIEFING & SHUFFLE STATE (DEFAULT: ON)
 let activeBriefingTestId = null;
@@ -540,7 +543,8 @@ const OVERLAYS = [
     { id: 'editPlaylistModal', action: closeEditPlaylistModal },
     { id: 'deletePlaylistConfirmModal', action: closeDeletePlaylistModal },
     { id: 'abortExamModal', action: closeAbortExamModal },
-    { id: 'practiceModeSwitcherSheet', action: closePracticeModeSwitcher }
+    { id: 'practiceModeSwitcherSheet', action: closePracticeModeSwitcher },
+    { id: 'stageSortBottomSheetOverlay', action: closeStageSortSheet }
   ];
   for (const item of OVERLAYS) {
     if (isVisible(item.id)) {
@@ -641,6 +645,8 @@ window.switchView = function(viewId, pushHistory = true) {
       } else {
         history.pushState({ page: 'dashboard', view: 'viewDashboard' }, '', '#viewDashboard');
       }
+    } else if (viewId === 'viewLibrary' && isMobileLibTopicOpen && window.innerWidth <= 768 && activeLibTopicKey) {
+      history.pushState({ page: 'lib-topic', view: 'viewLibrary', subView: 'setsExplorer', subject: activeSubject, topic: activeLibTopicKey }, '', '#topic_' + encodeURIComponent(activeLibTopicKey));
     } else if (MAIN_TABS.includes(viewId)) {
       if (history.state?.page === 'main-tab') {
         history.replaceState({ page: 'main-tab', view: viewId }, '', '#' + viewId);
@@ -2850,7 +2856,11 @@ async function renderHomePlaylists() {
         else revCnt++;
       });
 
-      const filteredStageItems = items.filter(i => ytStageFilter === "all" || getSetScoreMeta(i.test_id).status === ytStageFilter);
+      const filteredStageItems = sortStageSetEntries(
+        items.filter(i => ytStageFilter === "all" || getSetScoreMeta(i.test_id).status === ytStageFilter),
+        ytStageSort,
+        i => i.test_id
+      );
 
       const pNameEsc = activePl.playlist_name.replace(/'/g, "\\'");
       const searchSvg = `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>`;
@@ -2876,6 +2886,7 @@ async function renderHomePlaylists() {
       const stageFilterBarHtml = `
         <div class="yt-stage-filter-bar">
           <div class="yt-stage-filter-chips">
+            <button type="button" class="yt-chip btn-yt-sort-pill ${ytStageSort !== "default" ? "has-active-sort" : ""}" onclick="openStageSortSheet('dashboard')" title="Sort Sets">${sortArrowsSvg}<span>${getSortPillLabel(ytStageSort)}</span></button>
             <button type="button" class="yt-chip ${ytStageFilter === "all" ? "active" : ""}" onclick="setYtStageFilter('all')">All (${items.length})</button>
             <button type="button" class="yt-chip ${ytStageFilter === "unattempted" ? "active" : ""}" onclick="setYtStageFilter('unattempted')">Unattempted (${unattCnt})</button>
             <button type="button" class="yt-chip ${ytStageFilter === "revise" ? "active" : ""}" onclick="setYtStageFilter('revise')">Revise (${revCnt})</button>
@@ -3317,6 +3328,192 @@ function autoExpandPlaylistCard(pName) {
   }
 }
 
+const STAGE_SORT_OPTIONS = [
+  {
+    key: "default",
+    shortLabel: "Sort",
+    title: "Default Order",
+    sub: "Original queue or set sequence",
+    icon: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>`
+  },
+  {
+    key: "weakest",
+    shortLabel: "Weakest",
+    title: "Weakest Score First",
+    sub: "Lowest accuracy sets on top for priority revision",
+    icon: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"></polyline><polyline points="17 18 23 18 23 12"></polyline></svg>`
+  },
+  {
+    key: "unattempted",
+    shortLabel: "Unattempted",
+    title: "Unattempted First",
+    sub: "Fresh sets first, attempted sets below",
+    icon: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>`
+  },
+  {
+    key: "name",
+    shortLabel: "Name A–Z",
+    title: "Name (A → Z • Numeric)",
+    sub: "Natural alphabetical & set number order",
+    icon: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5h10"></path><path d="M11 9h7"></path><path d="M11 13h4"></path><path d="M3 17l3 3 3-3"></path><path d="M6 18V4"></path></svg>`
+  },
+  {
+    key: "subject",
+    shortLabel: "Subject",
+    title: "Subject-Wise (A → Z)",
+    sub: "Group sets cleanly by subject domain",
+    icon: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>`
+  },
+  {
+    key: "quickest",
+    shortLabel: "Quickest",
+    title: "Quickest First",
+    sub: "Shortest duration & fewest questions first",
+    icon: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>`
+  }
+];
+
+const sortArrowsSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M7 15l5 5 5-5"></path><path d="M7 9l5-5 5 5"></path></svg>`;
+
+function getSortPillLabel(sortKey) {
+  const found = STAGE_SORT_OPTIONS.find(o => o.key === sortKey);
+  return found && found.key !== "default" ? found.shortLabel : "Sort";
+}
+
+function sortStageSetEntries(entries, sortKey, getTestIdFn) {
+  const list = [...(entries || [])];
+  if (!sortKey || sortKey === "default") return list;
+
+  const numCmp = (a, b) => String(a || "").localeCompare(String(b || ""), undefined, { numeric: true, sensitivity: "base" });
+
+  return list.sort((itemA, itemB) => {
+    const mA = getSetScoreMeta(getTestIdFn(itemA));
+    const mB = getSetScoreMeta(getTestIdFn(itemB));
+
+    if (sortKey === "weakest") {
+      if (mA.isAtt !== mB.isAtt) return mA.isAtt ? -1 : 1;
+      if (mA.isAtt && mB.isAtt && Math.abs(mA.bestPct - mB.bestPct) > 0.01) {
+        return mA.bestPct - mB.bestPct;
+      }
+      return numCmp(mA.title, mB.title);
+    }
+
+    if (sortKey === "unattempted") {
+      if (mA.isAtt !== mB.isAtt) return mA.isAtt ? 1 : -1;
+      return numCmp(mA.title, mB.title);
+    }
+
+    if (sortKey === "name") {
+      return numCmp(mA.title, mB.title);
+    }
+
+    if (sortKey === "subject") {
+      const sA = (mA.setCat?.subject || "General Studies").trim();
+      const sB = (mB.setCat?.subject || "General Studies").trim();
+      const subDiff = numCmp(sA, sB);
+      return subDiff !== 0 ? subDiff : numCmp(mA.title, mB.title);
+    }
+
+    if (sortKey === "quickest") {
+      if (mA.duration !== mB.duration) return mA.duration - mB.duration;
+      if (mA.qCount !== mB.qCount) return mA.qCount - mB.qCount;
+      return numCmp(mA.title, mB.title);
+    }
+
+    return 0;
+  });
+}
+
+window.openStageSortSheet = function(scope = "dashboard") {
+  activeSortSheetScope = scope;
+  const activeKey = scope === "library" ? libStageSort : ytStageSort;
+
+  let overlay = document.getElementById("stageSortBottomSheetOverlay");
+  let sheet = document.getElementById("stageSortBottomSheet");
+
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.id = "stageSortBottomSheetOverlay";
+    overlay.className = "drawer-overlay";
+    overlay.onclick = closeStageSortSheet;
+    document.body.appendChild(overlay);
+  }
+
+  if (!sheet) {
+    sheet = document.createElement("div");
+    sheet.id = "stageSortBottomSheet";
+    sheet.className = "playlist-bottom-sheet";
+    document.body.appendChild(sheet);
+  }
+
+  const checkSvg = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+
+  sheet.innerHTML = `
+    <div class="bottom-sheet-drag-handle" onclick="closeStageSortSheet()"></div>
+    <div class="bottom-sheet-header">
+      <div class="bottom-sheet-title-group">
+        <span class="bottom-sheet-badge">SEQUENCE ENGINE</span>
+        <h4 class="bottom-sheet-title">Sort Question Sets</h4>
+      </div>
+      <button type="button" class="btn-close-sheet" onclick="closeStageSortSheet()" title="Close">✕</button>
+    </div>
+    <div class="sort-options-stream">
+      ${STAGE_SORT_OPTIONS.map(opt => {
+        const isSelected = opt.key === activeKey;
+        return `
+          <button type="button" class="sort-option-row ${isSelected ? "active-sort" : ""}" onclick="applyStageSortOption('${opt.key}')">
+            <div class="sort-option-left">
+              <div class="sort-option-icon">${opt.icon}</div>
+              <div class="sort-option-text">
+                <span class="sort-option-title">${opt.title}</span>
+                <span class="sort-option-sub">${opt.sub}</span>
+              </div>
+            </div>
+            <span class="sort-option-check">${isSelected ? checkSvg : ""}</span>
+          </button>
+        `;
+      }).join("")}
+    </div>
+  `;
+
+  overlay.style.display = "block";
+  overlay.style.pointerEvents = "auto";
+  overlay.classList.add("open");
+  sheet.style.visibility = "visible";
+  requestAnimationFrame(() => {
+    sheet.style.bottom = "0";
+  });
+};
+
+window.closeStageSortSheet = function() {
+  const overlay = document.getElementById("stageSortBottomSheetOverlay");
+  const sheet = document.getElementById("stageSortBottomSheet");
+  if (sheet) {
+    sheet.style.bottom = "-100%";
+    setTimeout(() => {
+      if (sheet.style.bottom === "-100%") sheet.style.visibility = "hidden";
+    }, 300);
+  }
+  if (overlay) {
+    overlay.classList.remove("open");
+    overlay.style.pointerEvents = "none";
+    setTimeout(() => {
+      if (!overlay.classList.contains("open")) overlay.style.display = "none";
+    }, 250);
+  }
+};
+
+window.applyStageSortOption = function(sortKey) {
+  closeStageSortSheet();
+  if (activeSortSheetScope === "library") {
+    libStageSort = sortKey || "default";
+    renderTopicSets();
+  } else {
+    ytStageSort = sortKey || "default";
+    renderHomePlaylists();
+  }
+};
+
 window.setYtPlaylistFilter = function(filterKey) {
   ytPlaylistFilter = filterKey || "all";
   renderHomePlaylists();
@@ -3389,6 +3586,7 @@ window.filterYtStageSets = function(rawQuery) {
 window.selectDashboardPlaylist = function(pId) {
   if (String(activeDashboardPlaylistId) !== String(pId)) {
     ytStageFilter = "all";
+    ytStageSort = "default";
     ytStageSearchQuery = "";
     isYtStageSearchOpen = false;
   }
@@ -3403,6 +3601,7 @@ window.selectDashboardPlaylist = function(pId) {
 window.openMobilePlaylistStage = function(pId, pushHistory = true) {
   if (String(activeDashboardPlaylistId) !== String(pId)) {
     ytStageFilter = "all";
+    ytStageSort = "default";
     ytStageSearchQuery = "";
     isYtStageSearchOpen = false;
   }
@@ -3439,8 +3638,10 @@ window.startNextInPlaylist = function(pId) {
     return enableLibrarySelectionMode(pl.id, pl.playlist_name);
   }
   const filtered = items.filter(it => ytStageFilter === "all" || getSetScoreMeta(it.test_id).status === ytStageFilter);
-  const pool = filtered.length ? filtered : items;
-  const nextItem = pool.find(it => !getSetScoreMeta(it.test_id).isAtt) || pool[0];
+  const pool = sortStageSetEntries(filtered.length ? filtered : items, ytStageSort, it => it.test_id);
+  const nextItem = ytStageSort === "default"
+    ? (pool.find(it => !getSetScoreMeta(it.test_id).isAtt) || pool[0])
+    : pool[0];
   openMissionBriefingModal(nextItem.test_id);
 };
 
@@ -3714,12 +3915,18 @@ window.openPlaylistBottomSheet = function(testId) {
   overlay.style.display = "block"; 
   overlay.style.pointerEvents = "auto"; 
   overlay.classList.add("open"); 
+  bs.style.visibility = "visible";
   bs.style.bottom = "0";
 };
 
 window.closePlaylistBottomSheet = function() {
   const bs = document.getElementById("playlistBottomSheet"), overlay = document.getElementById("playlistBottomSheetOverlay");
-  if (bs) bs.style.bottom = "-500px";
+  if (bs) {
+    bs.style.bottom = "-100%";
+    setTimeout(() => {
+      if (bs.style.bottom === "-100%") bs.style.visibility = "hidden";
+    }, 300);
+  }
   if (overlay) { 
     overlay.classList.remove("open"); 
     overlay.style.pointerEvents = "none"; 
@@ -4204,6 +4411,7 @@ window.handleLibFolderRowClick = function(el) {
 window.selectLibTopic = function(topicKey) {
   if (activeLibTopicKey !== topicKey) {
     libStageFilter = "all";
+    libStageSort = "default";
     libTopicSearchQuery = "";
     isLibTopicSearchOpen = false;
   }
@@ -4218,6 +4426,7 @@ window.selectLibTopic = function(topicKey) {
 window.openMobileLibTopicStage = function(topicKey, pushHistory = true) {
   if (activeLibTopicKey !== topicKey) {
     libStageFilter = "all";
+    libStageSort = "default";
     libTopicSearchQuery = "";
     isLibTopicSearchOpen = false;
   }
@@ -4313,8 +4522,10 @@ window.startNextInLibTopic = function(topicKey) {
   ).sort((a, b) => String(a.test_title || "").localeCompare(String(b.test_title || ""), undefined, { numeric: true, sensitivity: "base" }));
   if (!sets.length) return;
   const filtered = sets.filter(s => libStageFilter === "all" || getSetScoreMeta(s.test_id).status === libStageFilter);
-  const pool = filtered.length ? filtered : sets;
-  const nextSet = pool.find(s => !getSetScoreMeta(s.test_id).isAtt) || pool[0];
+  const pool = sortStageSetEntries(filtered.length ? filtered : sets, libStageSort, s => s.test_id);
+  const nextSet = libStageSort === "default"
+    ? (pool.find(s => !getSetScoreMeta(s.test_id).isAtt) || pool[0])
+    : pool[0];
   openMissionBriefingModal(nextSet.test_id);
 };
 
@@ -4386,6 +4597,7 @@ window.drillDownToSubject = function(subName, pushHistory = true) {
   activeLibTopicKey = null;
   isMobileLibTopicOpen = false;
   libStageFilter = "all";
+  libStageSort = "default";
   libTopicSearchQuery = "";
   isLibTopicSearchOpen = false;
   document.body.classList.remove("mobile-lib-topic-active");
@@ -4682,7 +4894,11 @@ function renderTopicSets() {
     if (activeTopic) {
       const isDone = activeTopic.sets.length > 0 && activeTopic.pct >= 100;
       const safeName = activeTopic.topicName.replace(/'/g, "\\'");
-      const visibleSets = activeTopic.sets.filter(s => libStageFilter === "all" || getSetScoreMeta(s.test_id).status === libStageFilter);
+      const visibleSets = sortStageSetEntries(
+        activeTopic.sets.filter(s => libStageFilter === "all" || getSetScoreMeta(s.test_id).status === libStageFilter),
+        libStageSort,
+        s => s.test_id
+      );
       const setsHtml = visibleSets.length > 0
         ? visibleSets.map(s => renderLibrarySetRowHtml(s)).join("")
         : `<div style="text-align:center; padding:28px 16px; color:var(--text-muted); font-size:12.5px; font-weight:600; grid-column:1 / -1;">No sets match this filter.</div>`;
@@ -4706,6 +4922,7 @@ function renderTopicSets() {
         </div>
         <div class="yt-stage-filter-bar">
           <div class="yt-stage-filter-chips">
+            <button type="button" class="yt-chip btn-yt-sort-pill ${libStageSort !== "default" ? "has-active-sort" : ""}" onclick="openStageSortSheet('library')" title="Sort Sets">${sortArrowsSvg}<span>${getSortPillLabel(libStageSort)}</span></button>
             <button type="button" class="yt-chip ${libStageFilter === "all" ? "active" : ""}" onclick="setLibStageFilter('all')">All (${activeTopic.sets.length})</button>
             <button type="button" class="yt-chip ${libStageFilter === "unattempted" ? "active" : ""}" onclick="setLibStageFilter('unattempted')">Unattempted (${activeTopic.unattCnt})</button>
             <button type="button" class="yt-chip ${libStageFilter === "revise" ? "active" : ""}" onclick="setLibStageFilter('revise')">Revise (${activeTopic.revCnt})</button>
