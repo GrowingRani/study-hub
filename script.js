@@ -2875,10 +2875,17 @@ async function renderHomePlaylists() {
 
       const stageFilterBarHtml = `
         <div class="yt-stage-filter-bar">
-          <button type="button" class="yt-chip ${ytStageFilter === "all" ? "active" : ""}" onclick="setYtStageFilter('all')">All (${items.length})</button>
-          <button type="button" class="yt-chip ${ytStageFilter === "unattempted" ? "active" : ""}" onclick="setYtStageFilter('unattempted')">Unattempted (${unattCnt})</button>
-          <button type="button" class="yt-chip ${ytStageFilter === "revise" ? "active" : ""}" onclick="setYtStageFilter('revise')">Revise (${revCnt})</button>
-          <button type="button" class="yt-chip ${ytStageFilter === "mastered" ? "active" : ""}" onclick="setYtStageFilter('mastered')">Mastered (${mastCnt})</button>
+          <div class="yt-stage-filter-chips">
+            <button type="button" class="yt-chip ${ytStageFilter === "all" ? "active" : ""}" onclick="setYtStageFilter('all')">All (${items.length})</button>
+            <button type="button" class="yt-chip ${ytStageFilter === "unattempted" ? "active" : ""}" onclick="setYtStageFilter('unattempted')">Unattempted (${unattCnt})</button>
+            <button type="button" class="yt-chip ${ytStageFilter === "revise" ? "active" : ""}" onclick="setYtStageFilter('revise')">Revise (${revCnt})</button>
+            <button type="button" class="yt-chip ${ytStageFilter === "mastered" ? "active" : ""}" onclick="setYtStageFilter('mastered')">Mastered (${mastCnt})</button>
+          </div>
+          <div class="yt-filter-search-pill">
+            ${searchSvg}
+            <input type="text" id="ytDeskStageSearchInput" class="yt-filter-search-input" placeholder="Search sets..." value="${ytStageSearchQuery.replace(/"/g, "&quot;")}" oninput="filterYtStageSets(this.value)" />
+            <button type="button" class="btn-yt-filter-clear" id="btnYtDeskSearchClear" style="display:${ytStageSearchQuery ? "inline-flex" : "none"};" onclick="clearDeskYtStageSearch()" title="Clear Search">✕</button>
+          </div>
         </div>
       `;
 
@@ -2926,6 +2933,7 @@ async function renderHomePlaylists() {
           <div class="yt-stage-actions">
             <button type="button" class="btn-yt-play-all" onclick="startNextInPlaylist('${activePl.id}')">${items.length > 0 ? primaryCtaLabel : "+ Stage Sets"}</button>
             <button type="button" class="btn-yt-circle-add" onclick="enableLibrarySelectionMode('${activePl.id}', '${pNameEsc}')" title="Add Sets">+</button>
+            <button type="button" class="btn-playlist-dots yt-hero-dots-desk" onclick="openPlaylistActionMenu(event, '${activePl.id}', '${pNameEsc}', ${isSys})" title="Playlist Options">${threeDotsSvg}</button>
           </div>
         </div>
         ${stageFilterBarHtml}
@@ -2966,6 +2974,7 @@ async function renderHomePlaylists() {
         ${stageHtml}
       </section>
     `;
+    if (ytStageSearchQuery) filterYtStageSets(ytStageSearchQuery);
     // 🎯 6. DECOUPLED CENTURY BAROMETER TELEMETRY (PURE UNIQUE ATTEMPTS & HONEST MASTERY)
     const actualAttemptedCount = dailyPerf?.total_questions_attempted || 0;
     const todayAttempts = userAttemptHistory.filter(a => getAttemptLocalDate(a.attempt_date) === todayStr && (Number(a.test_id) > 0 || (Number(a.test_id) === -1 && isSun)));
@@ -3334,9 +3343,20 @@ window.toggleYtStageSearch = function(openState) {
   }
 };
 
+window.clearDeskYtStageSearch = function() {
+  const deskInp = document.getElementById("ytDeskStageSearchInput");
+  if (deskInp) {
+    deskInp.value = "";
+    deskInp.focus();
+  }
+  filterYtStageSets("");
+};
+
 window.filterYtStageSets = function(rawQuery) {
   ytStageSearchQuery = String(rawQuery || "");
   const q = ytStageSearchQuery.trim().toLowerCase();
+  const deskClear = document.getElementById("btnYtDeskSearchClear");
+  if (deskClear) deskClear.style.display = q ? "inline-flex" : "none";
   const grid = document.querySelector(".yt-playlist-stage .yt-stage-grid");
   if (!grid) return;
 
@@ -4244,9 +4264,20 @@ window.toggleLibTopicSearch = function(openState) {
   }
 };
 
+window.clearDeskLibTopicSearch = function() {
+  const deskInp = document.getElementById("ytLibDeskSearchInput");
+  if (deskInp) {
+    deskInp.value = "";
+    deskInp.focus();
+  }
+  filterLibTopicStageSets("");
+};
+
 window.filterLibTopicStageSets = function(rawQuery) {
   libTopicSearchQuery = String(rawQuery || "");
   const q = libTopicSearchQuery.trim().toLowerCase();
+  const deskClear = document.getElementById("btnLibDeskSearchClear");
+  if (deskClear) deskClear.style.display = q ? "inline-flex" : "none";
   const grid = document.querySelector("#ytLibStage .yt-stage-grid");
   if (!grid) return;
 
@@ -4674,10 +4705,17 @@ function renderTopicSets() {
           ${!librarySelectionMode ? `<div class="yt-stage-actions"><button type="button" class="btn-yt-play-all" onclick="startNextInLibTopic('${safeName}')">▶ Start Next</button></div>` : ""}
         </div>
         <div class="yt-stage-filter-bar">
-          <button type="button" class="yt-chip ${libStageFilter === "all" ? "active" : ""}" onclick="setLibStageFilter('all')">All (${activeTopic.sets.length})</button>
-          <button type="button" class="yt-chip ${libStageFilter === "unattempted" ? "active" : ""}" onclick="setLibStageFilter('unattempted')">Unattempted (${activeTopic.unattCnt})</button>
-          <button type="button" class="yt-chip ${libStageFilter === "revise" ? "active" : ""}" onclick="setLibStageFilter('revise')">Revise (${activeTopic.revCnt})</button>
-          <button type="button" class="yt-chip ${libStageFilter === "mastered" ? "active" : ""}" onclick="setLibStageFilter('mastered')">Mastered (${activeTopic.masteredCnt})</button>
+          <div class="yt-stage-filter-chips">
+            <button type="button" class="yt-chip ${libStageFilter === "all" ? "active" : ""}" onclick="setLibStageFilter('all')">All (${activeTopic.sets.length})</button>
+            <button type="button" class="yt-chip ${libStageFilter === "unattempted" ? "active" : ""}" onclick="setLibStageFilter('unattempted')">Unattempted (${activeTopic.unattCnt})</button>
+            <button type="button" class="yt-chip ${libStageFilter === "revise" ? "active" : ""}" onclick="setLibStageFilter('revise')">Revise (${activeTopic.revCnt})</button>
+            <button type="button" class="yt-chip ${libStageFilter === "mastered" ? "active" : ""}" onclick="setLibStageFilter('mastered')">Mastered (${activeTopic.masteredCnt})</button>
+          </div>
+          <div class="yt-filter-search-pill">
+            ${searchSvg}
+            <input type="text" id="ytLibDeskSearchInput" class="yt-filter-search-input" placeholder="Search sets..." value="${libTopicSearchQuery.replace(/"/g, "&quot;")}" oninput="filterLibTopicStageSets(this.value)" />
+            <button type="button" class="btn-yt-filter-clear" id="btnLibDeskSearchClear" style="display:${libTopicSearchQuery ? "inline-flex" : "none"};" onclick="clearDeskLibTopicSearch()" title="Clear Search">✕</button>
+          </div>
         </div>
         <div class="yt-stage-grid sets-card-grid">
           ${setsHtml}
