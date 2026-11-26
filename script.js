@@ -218,6 +218,10 @@ let libStageSort = "default";
 let libTopicSearchQuery = "";
 let isLibTopicSearchOpen = false;
 let activeSortSheetScope = "dashboard";
+let userFlaggedQuestions = [];
+let activeFlagTarget = null;
+let hubSubjectFilter = "all";
+let hubSubjectSearchQuery = "";
 
 // 🚀 PRE-FLIGHT MISSION BRIEFING & SHUFFLE STATE (DEFAULT: ON)
 let activeBriefingTestId = null;
@@ -4309,32 +4313,147 @@ window.togglePinSubjectFromMenu = function() {
   renderSubjectHubGrid();
 };
 
-function renderSubjectHubGrid() {
+function getSubjectHubViewMode() {
+  const saved = appStorage.get("subject_hub_view_mode");
+  if (saved === "compact" || saved === "grid") return saved;
+  return window.innerWidth <= 768 ? "compact" : "grid";
+}
+
+window.setSubjectHubViewMode = function(mode) {
+  const next = mode === "compact" ? "compact" : "grid";
+  appStorage.set("subject_hub_view_mode", next);
+  renderSubjectHubGrid(true);
+};
+
+window.setHubSubjectFilter = function(filterKey) {
+  hubSubjectFilter = filterKey || "all";
+  renderSubjectHubGrid(true);
+};
+
+window.filterHubSubjects = function(rawQuery) {
+  hubSubjectSearchQuery = String(rawQuery || "");
+  const clearBtn = document.getElementById("btnHubSearchClear");
+  if (clearBtn) clearBtn.style.display = hubSubjectSearchQuery.trim() ? "inline-flex" : "none";
+  renderSubjectHubGrid(true);
+};
+
+window.clearHubSubjectSearch = function() {
+  const inp = document.getElementById("hubSubjectSearchInput");
+  if (inp) {
+    inp.value = "";
+    inp.focus();
+  }
+  filterHubSubjects("");
+};
+
+function renderSubjectHubGrid(preserveSearchFocus = false) {
   const container = document.getElementById("subjectHubContainer"); 
-  if (!container) return; 
-  container.innerHTML = "";
-  
+  if (!container) return;
+  if (!catalogData.length) return;
+
   const roll = currentCandidate?.roll_number || "default";
   const pinnedList = appStorage.getJSON("pinned_subjects_" + roll, []);
   const pinnedSet = new Set(pinnedList);
+  const viewMode = getSubjectHubViewMode();
 
   const subjects = Array.from(new Set(catalogData.map(r => (r.subject || "General Studies").trim())));
-  
-  // 🚀 PIN-FIRST DUAL-SORT ENGINE: Pinned subjects on top (alphabetical), then unpinned (alphabetical)
   subjects.sort((a, b) => {
     const aPin = pinnedSet.has(a);
     const bPin = pinnedSet.has(b);
     if (aPin && !bPin) return -1;
     if (!aPin && bPin) return 1;
     return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
-  }).forEach(subName => {
+  });
+
+  // 1. Pre-compute status & metrics for accurate filter chip counts
+  let inProgCnt = 0, untestedCnt = 0, masteredCnt = 0;
+  const enriched = subjects.map(subName => {
     const stats = getSubjectMasteryStats(subName);
     const isPinned = pinnedSet.has(subName);
-    
+    let statusKey = "untested";
     let sClass = "pill-untested", sText = "Untested";
-    if (stats.masteredCount === stats.totalSets && stats.totalSets > 0) { sClass = "pill-mastered"; sText = "Mastered"; }
-    else if (stats.totalAtt > 0) { sClass = "pill-progress"; sText = `${stats.progPct}% Complete`; }
+    if (stats.masteredCount === stats.totalSets && stats.totalSets > 0) {
+      statusKey = "mastered";
+      sClass = "pill-mastered";
+      sText = "Mastered";
+      masteredCnt++;
+    } else if (stats.totalAtt > 0) {
+      statusKey = "progress";
+      sClass = "pill-progress";
+      sText = `${stats.progPct}% Complete`;
+      inProgCnt++;
+    } else {
+      untestedCnt++;
+    }
+    return { subName, stats, isPinned, statusKey, sClass, sText };
+  });
 
+  // 2. Mount or update Subject Hub Control Bar (Search + Compact/Grid Toggle + Filter Chips)
+  let controlBar = document.getElementById("subjectHubControlBar");
+  if (!controlBar && container.parentNode) {
+    controlBar = document.createElement("div");
+    controlBar.id = "subjectHubControlBar";
+    controlBar.className = "hub-control-bar";
+    container.parentNode.insertBefore(controlBar, container);
+  }
+
+  if (controlBar) {
+    const listIconSvg = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>`;
+    const gridIconSvg = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect></svg>`;
+    const searchIconSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>`;
+
+    if (!preserveSearchFocus || !document.getElementById("hubSubjectSearchInput")) {
+      controlBar.innerHTML = `
+        <div class="hub-control-top">
+          <div class="hub-search-pill">
+            ${searchIconSvg}
+            <input type="text" id="hubSubjectSearchInput" class="hub-search-input" placeholder="Search subjects..." value="${hubSubjectSearchQuery.replace(/"/g, "&quot;")}" oninput="filterHubSubjects(this.value)" />
+            <button type="button" class="btn-hub-search-clear" id="btnHubSearchClear" style="display:${hubSubjectSearchQuery.trim() ? "inline-flex" : "none"};" onclick="clearHubSubjectSearch()" title="Clear">✕</button>
+          </div>
+          <div class="hub-view-switcher" role="group" aria-label="Subject View Mode">
+            <button type="button" id="btnHubViewCompact" class="btn-hub-view ${viewMode === "compact" ? "active" : ""}" onclick="setSubjectHubViewMode('compact')" title="Compact List View">${listIconSvg}</button>
+            <button type="button" id="btnHubViewGrid" class="btn-hub-view ${viewMode === "grid" ? "active" : ""}" onclick="setSubjectHubViewMode('grid')" title="Detailed Grid View">${gridIconSvg}</button>
+          </div>
+        </div>
+        <div class="hub-filter-chips" id="hubFilterChipsRow">
+          <button type="button" class="yt-chip ${hubSubjectFilter === "all" ? "active" : ""}" onclick="setHubSubjectFilter('all')">All (${subjects.length})</button>
+          <button type="button" class="yt-chip ${hubSubjectFilter === "progress" ? "active" : ""}" onclick="setHubSubjectFilter('progress')">In Progress (${inProgCnt})</button>
+          <button type="button" class="yt-chip ${hubSubjectFilter === "untested" ? "active" : ""}" onclick="setHubSubjectFilter('untested')">Untested (${untestedCnt})</button>
+          <button type="button" class="yt-chip ${hubSubjectFilter === "mastered" ? "active" : ""}" onclick="setHubSubjectFilter('mastered')">Mastered (${masteredCnt})</button>
+        </div>
+      `;
+    } else {
+      document.getElementById("btnHubViewCompact")?.classList.toggle("active", viewMode === "compact");
+      document.getElementById("btnHubViewGrid")?.classList.toggle("active", viewMode === "grid");
+      const chipsRow = document.getElementById("hubFilterChipsRow");
+      if (chipsRow) {
+        chipsRow.innerHTML = `
+          <button type="button" class="yt-chip ${hubSubjectFilter === "all" ? "active" : ""}" onclick="setHubSubjectFilter('all')">All (${subjects.length})</button>
+          <button type="button" class="yt-chip ${hubSubjectFilter === "progress" ? "active" : ""}" onclick="setHubSubjectFilter('progress')">In Progress (${inProgCnt})</button>
+          <button type="button" class="yt-chip ${hubSubjectFilter === "untested" ? "active" : ""}" onclick="setHubSubjectFilter('untested')">Untested (${untestedCnt})</button>
+          <button type="button" class="yt-chip ${hubSubjectFilter === "mastered" ? "active" : ""}" onclick="setHubSubjectFilter('mastered')">Mastered (${masteredCnt})</button>
+        `;
+      }
+    }
+  }
+
+  // 3. Filter subjects by active status chip & search query
+  const q = hubSubjectSearchQuery.trim().toLowerCase();
+  const visibleSubjects = enriched.filter(item => {
+    const matchesStatus = hubSubjectFilter === "all" || item.statusKey === hubSubjectFilter;
+    const matchesQuery = !q || item.subName.toLowerCase().includes(q);
+    return matchesStatus && matchesQuery;
+  });
+
+  container.innerHTML = "";
+  container.classList.toggle("is-compact-view", viewMode === "compact");
+
+  if (visibleSubjects.length === 0) {
+    container.innerHTML = `<div style="text-align:center; padding:32px 16px; color:var(--text-muted); font-size:13px; font-weight:600; grid-column:1 / -1;">No subjects match this filter.</div>`;
+    return;
+  }
+
+  visibleSubjects.forEach(({ subName, stats, isPinned, statusKey, sClass, sText }) => {
     const pinIndicatorHtml = isPinned
       ? `<span class="subject-pin-indicator" title="Pinned to top">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="#ef4444" stroke="#b91c1c" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
@@ -4344,39 +4463,60 @@ function renderSubjectHubGrid() {
         </span>`
       : '';
 
-    const tile = document.createElement("div"); 
-    tile.className = `subject-mastery-tile ${isPinned ? 'is-pinned-subject' : ''}`;
-    tile.innerHTML = `
-      <div class="tile-top-row">
-        <div class="tile-title-group">
-          ${pinIndicatorHtml}
-          <span class="tile-subject-title" title="${subName}">${subName}</span>
+    const el = document.createElement("div");
+
+    if (viewMode === "compact") {
+      const monoCode = subName.replace(/[^a-zA-Z0-9]/g, "").substring(0, 2).toUpperCase() || "GS";
+      const monoStatusCls = statusKey === "mastered" ? "st-mastered" : (statusKey === "progress" ? "st-progress" : "");
+      el.className = `subject-compact-row ${isPinned ? 'is-pinned-subject' : ''}`;
+      el.innerHTML = `
+        <span class="compact-sub-monogram ${monoStatusCls}">${monoCode}</span>
+        <div class="compact-sub-left">
+          <div class="compact-sub-title-row">
+            ${pinIndicatorHtml}
+            <span class="compact-sub-name" title="${subName}">${subName}</span>
+          </div>
+          <div class="compact-sub-track"><div class="compact-sub-fill ${statusKey === 'mastered' ? 'is-done' : ''}" style="width: ${stats.progPct}%;"></div></div>
         </div>
-        <div class="tile-top-actions">
-          <span class="tile-status-pill ${sClass}">${sText}</span>
+        <div class="compact-sub-right">
+          <span class="compact-sets-pill ${sClass}">${stats.masteredCount}/${stats.totalSets}</span>
+          <span class="compact-acc-tag">${stats.avgAcc > 0 ? stats.avgAcc + '%' : '--'}</span>
           <button type="button" class="btn-three-dots btn-subject-dots" onclick="openSubjectActionMenu(event, '${subName.replace(/'/g, "\\'")}')" title="Subject Options">${threeDotsSvg}</button>
         </div>
-      </div>
-      <div class="tile-progress-container"><div class="tile-progress-labels"><span>Mastery Progress</span><span>${stats.progPct}%</span></div><div class="tile-progress-track"><div class="tile-progress-fill" style="width: ${stats.progPct}%;"></div></div></div>
-      <div class="tile-metrics-grid">
-        <div class="tile-metric-item"><span class="tile-metric-label">Mastered</span><span class="tile-metric-value" style="color:var(--success-dark);">${stats.masteredCount} <small style="font-size:10px; color:var(--text-muted);">/${stats.totalSets}</small></span></div>
-        <div class="tile-metric-item"><span class="tile-metric-label">Remaining</span><span class="tile-metric-value" style="color:var(--warning-dark);">${stats.remaining} Sets</span></div>
-        <div class="tile-metric-item"><span class="tile-metric-label">Avg Accuracy</span><span class="tile-metric-value">${stats.avgAcc > 0 ? stats.avgAcc + '%' : '--'}</span></div>
-      </div>
-      <div class="tile-action-footer"><span style="color:var(--text-muted); font-size:11px; font-weight:600;">${stats.totalAtt} Attempts Logged</span><span>Explore Sets ➔</span></div>
-    `;
+      `;
+    } else {
+      el.className = `subject-mastery-tile ${isPinned ? 'is-pinned-subject' : ''}`;
+      el.innerHTML = `
+        <div class="tile-top-row">
+          <div class="tile-title-group">
+            ${pinIndicatorHtml}
+            <span class="tile-subject-title" title="${subName}">${subName}</span>
+          </div>
+          <div class="tile-top-actions">
+            <span class="tile-status-pill ${sClass}">${sText}</span>
+            <button type="button" class="btn-three-dots btn-subject-dots" onclick="openSubjectActionMenu(event, '${subName.replace(/'/g, "\\'")}')" title="Subject Options">${threeDotsSvg}</button>
+          </div>
+        </div>
+        <div class="tile-progress-container"><div class="tile-progress-labels"><span>Mastery Progress</span><span>${stats.progPct}%</span></div><div class="tile-progress-track"><div class="tile-progress-fill" style="width: ${stats.progPct}%;"></div></div></div>
+        <div class="tile-metrics-grid">
+          <div class="tile-metric-item"><span class="tile-metric-label">Mastered</span><span class="tile-metric-value" style="color:var(--success-dark);">${stats.masteredCount} <small style="font-size:10px; color:var(--text-muted);">/${stats.totalSets}</small></span></div>
+          <div class="tile-metric-item"><span class="tile-metric-label">Remaining</span><span class="tile-metric-value" style="color:var(--warning-dark);">${stats.remaining} Sets</span></div>
+          <div class="tile-metric-item"><span class="tile-metric-label">Avg Accuracy</span><span class="tile-metric-value">${stats.avgAcc > 0 ? stats.avgAcc + '%' : '--'}</span></div>
+        </div>
+        <div class="tile-action-footer"><span style="color:var(--text-muted); font-size:11px; font-weight:600;">${stats.totalAtt} Attempts Logged</span><span>Explore Sets ➔</span></div>
+      `;
+    }
 
-    // 🚀 TACTILE EVENT (3-dots क्लिक होने पर एक्सप्लोरर नहीं खुलेगा)
-    tile.onclick = (e) => {
+    el.onclick = (e) => {
       if (e.target.closest('.btn-subject-dots')) return;
-      tile.classList.add("tile-touch-active");
+      el.classList.add("tile-touch-active");
       setTimeout(() => {
-        tile.classList.remove("tile-touch-active");
+        el.classList.remove("tile-touch-active");
         drillDownToSubject(subName);
       }, 35);
     };
 
-    container.appendChild(tile);
+    container.appendChild(el);
   });
 }
 
