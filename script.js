@@ -4221,10 +4221,11 @@ function getSubjectMasteryStats(subName) {
 
   const totalSets = subSets.length;
   const remaining = totalSets - masteredCount;
+  const attemptedPct = totalSets > 0 ? Math.round((attemptedSets / totalSets) * 100) : 0;
   const progPct = totalSets > 0 ? Math.round((masteredCount / totalSets) * 100) : 0;
   const avgAcc = attemptedSets > 0 ? Math.round(sumPct / attemptedSets) : 0;
 
-  return { subSets, totalSets, masteredCount, remaining, progPct, avgAcc, totalAtt };
+  return { subSets, totalSets, attemptedSets, attemptedPct, masteredCount, remaining, progPct, avgAcc, totalAtt };
 }
 
 // 🚀 SUBJECT 3-DOTS ACTION MENU CONTROLLER (PIN / UNPIN)
@@ -4380,7 +4381,7 @@ function renderSubjectHubGrid(preserveSearchFocus = false) {
     } else if (stats.totalAtt > 0) {
       statusKey = "progress";
       sClass = "pill-progress";
-      sText = `${stats.progPct}% Complete`;
+      sText = `${stats.attemptedSets}/${stats.totalSets} Done`;
       inProgCnt++;
     } else {
       untestedCnt++;
@@ -4476,11 +4477,15 @@ function renderSubjectHubGrid(preserveSearchFocus = false) {
             ${pinIndicatorHtml}
             <span class="compact-sub-name" title="${subName}">${subName}</span>
           </div>
-          <div class="compact-sub-track"><div class="compact-sub-fill ${statusKey === 'mastered' ? 'is-done' : ''}" style="width: ${stats.progPct}%;"></div></div>
+          <div class="compact-sub-track">
+            <div class="compact-sub-attempted" style="width: ${stats.attemptedPct}%;"></div>
+            <div class="compact-sub-fill" style="width: ${stats.progPct}%;"></div>
+          </div>
         </div>
         <div class="compact-sub-right">
-          <span class="compact-sets-pill ${sClass}">${stats.masteredCount}/${stats.totalSets}</span>
-          <span class="compact-acc-tag">${stats.avgAcc > 0 ? stats.avgAcc + '%' : '--'}</span>
+          <span class="compact-sets-pill ${sClass}" title="Attempted Sets">${stats.attemptedSets}/${stats.totalSets}</span>
+          <span class="compact-mast-tag ${stats.masteredCount === 0 ? 'is-zero' : ''}" title="Mastered Sets">🏆${stats.masteredCount}</span>
+          <span class="compact-acc-tag" title="Avg Accuracy">${stats.avgAcc > 0 ? stats.avgAcc + '%' : '--'}</span>
           <button type="button" class="btn-three-dots btn-subject-dots" onclick="openSubjectActionMenu(event, '${subName.replace(/'/g, "\\'")}')" title="Subject Options">${threeDotsSvg}</button>
         </div>
       `;
@@ -4497,11 +4502,27 @@ function renderSubjectHubGrid(preserveSearchFocus = false) {
             <button type="button" class="btn-three-dots btn-subject-dots" onclick="openSubjectActionMenu(event, '${subName.replace(/'/g, "\\'")}')" title="Subject Options">${threeDotsSvg}</button>
           </div>
         </div>
-        <div class="tile-progress-container"><div class="tile-progress-labels"><span>Mastery Progress</span><span>${stats.progPct}%</span></div><div class="tile-progress-track"><div class="tile-progress-fill" style="width: ${stats.progPct}%;"></div></div></div>
+        <div class="tile-progress-container">
+          <div class="tile-progress-labels">
+            <span>Attempted ${stats.attemptedPct}%</span>
+            <span style="color:var(--success-dark);">Mastered ${stats.progPct}%</span>
+          </div>
+          <div class="tile-progress-track">
+            <div class="tile-progress-attempted" style="width: ${stats.attemptedPct}%;"></div>
+            <div class="tile-progress-fill" style="width: ${stats.progPct}%;"></div>
+          </div>
+        </div>
         <div class="tile-metrics-grid">
-          <div class="tile-metric-item"><span class="tile-metric-label">Mastered</span><span class="tile-metric-value" style="color:var(--success-dark);">${stats.masteredCount} <small style="font-size:10px; color:var(--text-muted);">/${stats.totalSets}</small></span></div>
-          <div class="tile-metric-item"><span class="tile-metric-label">Remaining</span><span class="tile-metric-value" style="color:var(--warning-dark);">${stats.remaining} Sets</span></div>
-          <div class="tile-metric-item"><span class="tile-metric-label">Avg Accuracy</span><span class="tile-metric-value">${stats.avgAcc > 0 ? stats.avgAcc + '%' : '--'}</span></div>
+          <div class="tile-metric-item"><span class="tile-metric-label">Attempted</span><span class="tile-metric-value" style="color:var(--tcs-blue-accent);">${stats.attemptedSets} <small style="font-size:10px; color:var(--text-muted);">/${stats.totalSets}</small></span></div>
+          <div class="tile-metric-item"><span class="tile-metric-label">Mastered</span><span class="tile-metric-value" style="color:var(--success-dark);">${stats.masteredCount} Sets</span></div>
+          <div class="tile-metric-item"><span class="tile-metric-label">Accuracy</span><span class="tile-metric-value">${stats.avgAcc > 0 ? stats.avgAcc + '%' : '--'}</span></div>
+        </div>
+        <div class="mobile-bento-stats-row">
+          <div class="bento-stat-group">
+            <span>✓ ${stats.attemptedSets}/${stats.totalSets}</span>
+            <span class="bento-mast-chip ${stats.masteredCount === 0 ? 'is-zero' : ''}">🏆${stats.masteredCount}</span>
+          </div>
+          <span class="bento-acc-val">${stats.avgAcc > 0 ? stats.avgAcc + '%' : '--'}</span>
         </div>
         <div class="tile-action-footer"><span style="color:var(--text-muted); font-size:11px; font-weight:600;">${stats.totalAtt} Attempts Logged</span><span>Explore Sets ➔</span></div>
       `;
