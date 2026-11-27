@@ -187,6 +187,7 @@ const starIconSvg = `<svg width="16" height="16" viewBox="0 0 24 24" stroke="cur
 const checkIconSvg = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
 const crossIconSvg = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
 const threeDotsSvg = `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="2.35"></circle><circle cx="12" cy="12" r="2.35"></circle><circle cx="12" cy="19" r="2.35"></circle></svg>`;
+const flagIconSvg = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line></svg>`;
 
 // ==========================================================================
 // 3. GLOBAL STATE & APPLICATION ROUTING (LOOP-FREE ROUTING & EXIT ENGINE)
@@ -548,7 +549,8 @@ const OVERLAYS = [
     { id: 'deletePlaylistConfirmModal', action: closeDeletePlaylistModal },
     { id: 'abortExamModal', action: closeAbortExamModal },
     { id: 'practiceModeSwitcherSheet', action: closePracticeModeSwitcher },
-    { id: 'stageSortBottomSheetOverlay', action: closeStageSortSheet }
+    { id: 'stageSortBottomSheetOverlay', action: closeStageSortSheet },
+    { id: 'questionFlagBottomSheetOverlay', action: closeQuestionFlagSheet }
   ];
   for (const item of OVERLAYS) {
     if (isVisible(item.id)) {
@@ -640,6 +642,9 @@ window.switchView = function(viewId, pushHistory = true) {
   // 🚀 0ms LIVE ANALYTICS SYNC: Fetch and render metrics immediately on tab entry
   if (viewId === 'viewAnalytics') {
     fetchStudentAnalytics(false);
+  }
+  if (viewId === 'viewProfile') {
+    renderProfileFlaggedQueue();
   }
 
   if (pushHistory) {
@@ -758,6 +763,8 @@ window.addEventListener("popstate", function(e) {
     } else if (e.state.view === 'viewLibrary') {
       isMobileLibTopicOpen = Boolean(e.state.page === 'lib-topic' && window.innerWidth <= 768);
       if (document.getElementById("setsExplorerStage")?.style.display === "block") renderTopicSets();
+    } else if (e.state.view === 'viewProfile') {
+      renderProfileFlaggedQueue();
     }
     renderViewDOM(e.state.view);
     return;
@@ -2188,7 +2195,8 @@ async function mountDashboard(isInitialLoad = false) {
   await Promise.allSettled([
     fetchPlaylistsAndCheckRollover(),
     fetchWeakQuestions(),
-    fetchTestCatalog()
+    fetchTestCatalog(),
+    fetchUserQuestionFlags()
   ]);
 
   renderRecentHistoryShelf();
@@ -7345,9 +7353,12 @@ function renderFlashcardCardDOM() {
       <div class="flashcard-3d-card" id="flashcardBox" onclick="toggleFlashcard3DFlip()">
         <!-- FRONT FACE -->
         <div class="flashcard-face flashcard-front">
-          <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
             <span class="briefing-badge">QUESTION • Q${q.qNum}</span>
-            <span style="font-size:11px; font-weight:700; color:var(--text-muted);">Tap to Reveal ↺</span>
+            <div style="display:flex; align-items:center; gap:6px;">
+              <button type="button" class="btn-flag-q ${isQuestionFlagged(q.id) ? 'flagged' : ''}" data-flag-qid="${q.id}" onclick="event.stopPropagation(); openQuestionFlagSheet('flashcards', 0)" title="Flag Question for Backend Fix">${flagIconSvg}</button>
+              <span style="font-size:11px; font-weight:700; color:var(--text-muted);">Tap to Reveal ↺</span>
+            </div>
           </div>
           <div class="flashcard-content-scroll">
             <h3 style="font-size:17.5px; line-height:1.6; color:var(--text-main); font-weight:600; text-align:center;">
@@ -7770,6 +7781,12 @@ function buildQuestionCardDOM(q, idx, mode, stateObj, isMB = false) {
   card.id = `${mode}Card_${idx}`;
   card.style.marginBottom = isRead ? "16px" : "20px";
 
+  const isFlagged = isQuestionFlagged(q.id);
+  const flagBtnHtml = `
+    <button type="button" class="btn-flag-q ${isFlagged ? 'flagged' : ''}" data-flag-qid="${q.id}" onclick="openQuestionFlagSheet('${mode}', ${idx})" title="${isFlagged ? 'Flagged (Tap to Edit or Remove)' : 'Flag Question for Backend Fix'}">
+      ${flagIconSvg}
+    </button>
+  `;
   const starBtnHtml = isReview ? '' : `
     <button type="button" class="btn-star-q ${isSt ? 'starred' : ''}" onclick="${isRead ? 'toggleReadStar' : 'toggleQuizStar'}(${idx})" title="${isSt ? 'Remove Star' : 'Star for Revision'}">
       ${starIconSvg}
@@ -7782,7 +7799,10 @@ function buildQuestionCardDOM(q, idx, mode, stateObj, isMB = false) {
         <span class="sol-q-title">Question ${q.qNum}</span>
         ${badgeHtml}
       </div>
-      ${starBtnHtml}
+      <div class="sol-q-actions">
+        ${flagBtnHtml}
+        ${starBtnHtml}
+      </div>
     </div>
     <div class="sol-content">${getLocalizedText(q.content)}</div>
     <div id="${mode}Opts_${idx}">${oHtml}</div>
@@ -7879,6 +7899,291 @@ function executeExamLaunchFromPractice() {
   } else if (currentPracticeContext.type === 'mistake_bank') {
     launchSubjectMistakeMode('exam');
   }
+}
+
+// ==========================================================================
+// 🚩 BACKEND QUESTION FLAGGING & PROFILE AUDIT QUEUE ENGINE
+// ==========================================================================
+const FLAG_REASONS = [
+  "Wrong Answer Key",
+  "Statement / Typo Error",
+  "Missing / Broken Options",
+  "Delete / Duplicate"
+];
+
+function isQuestionFlagged(qId) {
+  if (!qId) return false;
+  return (userFlaggedQuestions || []).some(f => String(f.question_id) === String(qId));
+}
+
+function syncFlagButtonsVisual(qId, flagged) {
+  document.querySelectorAll(`.btn-flag-q[data-flag-qid="${qId}"]`).forEach(btn => {
+    btn.classList.toggle("flagged", flagged);
+    btn.title = flagged ? "Flagged (Tap to Edit or Remove)" : "Flag Question for Backend Fix";
+  });
+}
+
+async function fetchUserQuestionFlags() {
+  if (!currentCandidate?.roll_number) return [];
+  const roll = currentCandidate.roll_number;
+  userFlaggedQuestions = appStorage.getJSON("cache_question_flags_" + roll, userFlaggedQuestions);
+  renderProfileFlaggedQueue();
+
+  try {
+    const { data, error } = await supabaseClient
+      .from("question_flags")
+      .select("*")
+      .eq("student_roll", roll)
+      .order("created_at", { ascending: false });
+    if (!error && Array.isArray(data)) {
+      userFlaggedQuestions = data;
+      appStorage.setJSON("cache_question_flags_" + roll, userFlaggedQuestions);
+      renderProfileFlaggedQueue();
+    }
+  } catch (err) {
+    console.warn("Question flags sync skipped:", err.message);
+  }
+  return userFlaggedQuestions;
+}
+
+window.openQuestionFlagSheet = function(mode, idx) {
+  let q = null;
+  if (mode === "flashcards") q = flashcardDeck[idx];
+  else if (mode === "review") q = testQuestions[idx];
+  else q = practiceQuestions[idx];
+
+  if (!q || !q.id) return;
+
+  const existing = (userFlaggedQuestions || []).find(f => String(f.question_id) === String(q.id));
+  const rawText = getLocalizedText(q.content).replace(/\s+/g, " ").trim();
+  const snippet = rawText.length > 115 ? rawText.substring(0, 112) + "..." : rawText;
+
+  const resolvedSubject = (q.subject || activeTest?.subject || activeSubject || "General Studies").trim();
+  const resolvedTopic = (q.topic || (currentPracticeContext?.type === "booster" ? "Mastery Booster" : (currentPracticeContext?.type === "mistake_bank" ? "Mistake Vault" : "Core Practice"))).trim();
+  const resolvedTestId = q.testId || activeTest?.id || (currentPracticeContext?.type === "test" ? currentPracticeContext.id : "");
+  const resolvedTestTitle = (q.testTitle || activeTest?.title || document.getElementById("practiceSetTitle")?.innerText || "Practice Set").trim();
+
+  activeFlagTarget = {
+    question_id: String(q.id),
+    subject: resolvedSubject,
+    topic: resolvedTopic,
+    test_id: String(resolvedTestId || ""),
+    test_title: resolvedTestTitle,
+    question_number: Number(q.qNum) || (idx + 1),
+    question_preview: snippet,
+    reason: existing?.reason || FLAG_REASONS[0],
+    note: existing?.note || "",
+    isExisting: Boolean(existing)
+  };
+
+  let overlay = document.getElementById("questionFlagBottomSheetOverlay");
+  let sheet = document.getElementById("questionFlagBottomSheet");
+
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.id = "questionFlagBottomSheetOverlay";
+    overlay.className = "drawer-overlay";
+    overlay.onclick = closeQuestionFlagSheet;
+    document.body.appendChild(overlay);
+  }
+
+  if (!sheet) {
+    sheet = document.createElement("div");
+    sheet.id = "questionFlagBottomSheet";
+    sheet.className = "playlist-bottom-sheet";
+    document.body.appendChild(sheet);
+  }
+
+  sheet.innerHTML = `
+    <div class="bottom-sheet-drag-handle" onclick="closeQuestionFlagSheet()"></div>
+    <div class="bottom-sheet-header">
+      <div class="bottom-sheet-title-group">
+        <span class="bottom-sheet-badge" style="color:var(--danger-dark);">BACKEND AUDIT GPS</span>
+        <h4 class="bottom-sheet-title">${existing ? "Edit or Remove Flag" : "Flag Question for Fix"}</h4>
+      </div>
+      <button type="button" class="btn-close-sheet" onclick="closeQuestionFlagSheet()">✕</button>
+    </div>
+    <div class="flag-sheet-body">
+      <div class="flag-gps-preview" title="${resolvedSubject} › ${resolvedTopic} › ${resolvedTestTitle} (Q.${activeFlagTarget.question_number})">
+        📍 ${resolvedSubject} › ${resolvedTopic} › ${resolvedTestTitle} • Q.${activeFlagTarget.question_number}
+      </div>
+      <div class="flag-reasons-grid">
+        ${FLAG_REASONS.map(r => `
+          <button type="button" class="flag-reason-chip ${activeFlagTarget.reason === r ? "selected" : ""}" onclick="selectFlagReasonChip(this, '${r.replace(/'/g, "\\'")}')">
+            <span>🚩</span><span>${r}</span>
+          </button>
+        `).join("")}
+      </div>
+      <input type="text" id="inputFlagCustomNote" class="flag-note-input" placeholder="Optional note (e.g. Correct ans is B, or DROP)..." value="${(activeFlagTarget.note || "").replace(/"/g, "&quot;")}" onkeydown="if(event.key==='Enter'){event.preventDefault();submitQuestionFlag();}" />
+      <div class="flag-sheet-actions">
+        ${existing ? `<button type="button" class="btn-flag-remove" onclick="removeQuestionFlag('${String(q.id)}')">Remove Flag</button>` : ""}
+        <button type="button" class="btn-flag-save" onclick="submitQuestionFlag()">${existing ? "Update Flag" : "Save Flag to Profile"}</button>
+      </div>
+    </div>
+  `;
+
+  overlay.style.display = "block";
+  overlay.style.pointerEvents = "auto";
+  overlay.classList.add("open");
+  sheet.style.visibility = "visible";
+  requestAnimationFrame(() => {
+    sheet.style.bottom = "0";
+  });
+};
+
+window.selectFlagReasonChip = function(btnEl, reasonText) {
+  if (!activeFlagTarget) return;
+  activeFlagTarget.reason = reasonText;
+  document.querySelectorAll("#questionFlagBottomSheet .flag-reason-chip").forEach(c => c.classList.remove("selected"));
+  if (btnEl) btnEl.classList.add("selected");
+};
+
+window.closeQuestionFlagSheet = function() {
+  const overlay = document.getElementById("questionFlagBottomSheetOverlay");
+  const sheet = document.getElementById("questionFlagBottomSheet");
+  if (sheet) {
+    sheet.style.bottom = "-100%";
+    setTimeout(() => {
+      if (sheet.style.bottom === "-100%") sheet.style.visibility = "hidden";
+    }, 300);
+  }
+  if (overlay) {
+    overlay.classList.remove("open");
+    overlay.style.pointerEvents = "none";
+    setTimeout(() => {
+      if (!overlay.classList.contains("open")) overlay.style.display = "none";
+    }, 250);
+  }
+  activeFlagTarget = null;
+};
+
+window.submitQuestionFlag = async function() {
+  if (!activeFlagTarget || !currentCandidate?.roll_number) return;
+  const roll = currentCandidate.roll_number;
+  const noteVal = (document.getElementById("inputFlagCustomNote")?.value || "").trim();
+
+  const record = {
+    student_roll: roll,
+    question_id: activeFlagTarget.question_id,
+    subject: activeFlagTarget.subject,
+    topic: activeFlagTarget.topic,
+    test_id: activeFlagTarget.test_id,
+    test_title: activeFlagTarget.test_title,
+    question_number: activeFlagTarget.question_number,
+    question_preview: activeFlagTarget.question_preview,
+    reason: activeFlagTarget.reason,
+    note: noteVal,
+    created_at: new Date().toISOString()
+  };
+
+  userFlaggedQuestions = [
+    record,
+    ...(userFlaggedQuestions || []).filter(f => String(f.question_id) !== String(record.question_id))
+  ];
+  appStorage.setJSON("cache_question_flags_" + roll, userFlaggedQuestions);
+  syncFlagButtonsVisual(record.question_id, true);
+  renderProfileFlaggedQueue();
+  closeQuestionFlagSheet();
+  showSelectionToast("🚩 Flagged & saved to Profile Audit Queue");
+
+  try {
+    const { error } = await supabaseClient
+      .from("question_flags")
+      .upsert(record, { onConflict: "student_roll,question_id" });
+    if (error) throw error;
+  } catch (err) {
+    console.error("Flag cloud sync failed:", err);
+    showSelectionToast("Saved locally (Cloud sync pending)");
+  }
+};
+
+window.removeQuestionFlag = async function(questionId) {
+  if (!currentCandidate?.roll_number || !questionId) return;
+  const roll = currentCandidate.roll_number;
+  const qIdStr = String(questionId);
+
+  closeQuestionFlagSheet();
+  userFlaggedQuestions = (userFlaggedQuestions || []).filter(f => String(f.question_id) !== qIdStr);
+  appStorage.setJSON("cache_question_flags_" + roll, userFlaggedQuestions);
+  syncFlagButtonsVisual(qIdStr, false);
+  renderProfileFlaggedQueue();
+  showSelectionToast("✓ Flag removed");
+
+  try {
+    await supabaseClient
+      .from("question_flags")
+      .delete()
+      .eq("student_roll", roll)
+      .eq("question_id", qIdStr);
+  } catch (err) {
+    console.error("Flag delete failed:", err);
+  }
+};
+
+window.copyFlaggedGpsText = function(questionId) {
+  const item = (userFlaggedQuestions || []).find(f => String(f.question_id) === String(questionId));
+  if (!item) return;
+  const cleanSearchText = String(item.question_preview || "").replace(/\.\.\.$/, "").trim();
+  if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(cleanSearchText).then(() => showSelectionToast("📋 Copied question text for Ctrl+F"));
+  }
+};
+
+window.copyAllFlaggedQueue = function() {
+  if (!userFlaggedQuestions?.length) return;
+  const lines = userFlaggedQuestions.map((item, i) =>
+    `${i + 1}. ${item.subject} > ${item.topic} > ${item.test_title} (Q.${item.question_number}) | ${item.reason}${item.note ? " (" + item.note + ")" : ""} | ${item.question_preview}`
+  ).join("\n");
+  if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(lines).then(() => showSelectionToast(`📋 Copied all ${userFlaggedQuestions.length} flagged items`));
+  }
+};
+
+function renderProfileFlaggedQueue() {
+  const viewport = document.querySelector("#viewProfile .profile-page-viewport");
+  if (!viewport) return;
+
+  let auditCard = document.getElementById("profileFlaggedAuditCard");
+  if (!auditCard) {
+    auditCard = document.createElement("div");
+    auditCard.id = "profileFlaggedAuditCard";
+    auditCard.className = "profile-audit-card";
+    viewport.appendChild(auditCard);
+  }
+
+  const list = userFlaggedQuestions || [];
+  const count = list.length;
+
+  const listHtml = count === 0
+    ? `<div style="text-align:center; padding:18px 12px; color:var(--text-muted); font-size:12px; font-weight:600;">✓ Zero pending flags. Tap 🚩 on any question while studying to queue it here for backend correction.</div>`
+    : `<div class="audit-flags-list">
+        ${list.map(item => `
+          <div class="audit-flag-item">
+            <div class="audit-flag-top">
+              <span class="audit-reason-tag">🚩 ${item.reason}</span>
+              <span style="font-family:var(--font-mono); font-size:10px; color:var(--text-muted); font-weight:700;">ID: ${item.question_id}</span>
+            </div>
+            <div class="audit-gps-path">${item.subject} › ${item.topic} › ${item.test_title} • Q.${item.question_number}</div>
+            <div class="audit-q-snippet">${item.question_preview}</div>
+            ${item.note ? `<div class="audit-user-note">Note: ${item.note}</div>` : ""}
+            <div class="audit-item-actions">
+              <button type="button" class="btn-audit-copy" onclick="copyFlaggedGpsText('${item.question_id}')">📋 Copy Text</button>
+              <button type="button" class="btn-audit-resolve" onclick="removeQuestionFlag('${item.question_id}')">✓ Resolved</button>
+            </div>
+          </div>
+        `).join("")}
+      </div>`;
+
+  auditCard.innerHTML = `
+    <div class="audit-card-header">
+      <div class="audit-title-group">
+        <h4 class="audit-card-title">🚩 Backend Audit Queue</h4>
+        <span class="audit-count-pill ${count === 0 ? "is-zero" : ""}">${count} OPEN</span>
+      </div>
+      ${count > 0 ? `<button type="button" class="btn-copy-all-flags" onclick="copyAllFlaggedQueue()">Copy All</button>` : ""}
+    </div>
+    ${listHtml}
+  `;
 }
 
 // ==========================================================================
