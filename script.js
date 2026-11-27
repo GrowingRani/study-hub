@@ -4197,7 +4197,8 @@ async function fetchTestCatalog() {
     if (!seen.has(id)) { 
       seen.add(id); 
       r.subject = (r.subject || "General Studies").trim(); 
-      r.topic = (r.topic || "Core Practice").trim(); 
+      r.topic = (r.topic || r.subject_topic || r.topic_name || r.category || r.module || "").trim(); 
+      r.subtopic = (r.subtopic || r.sub_topic || "").trim();
       unique.push(r); 
     } 
   });
@@ -5309,32 +5310,52 @@ window.launchSubjectMistakeMode = function(mode = 'quiz') {
 // 🚀 UNIFIED QUESTION SET LOADER (SHARED BY EXAM & PRACTICE ENGINES)
 async function fetchTestQuestionsPayload(testId) {
   const setCat = catalogMap.get(String(testId)) || catalogData.find(c => String(c.test_id) === String(testId));
-  let tInfo = setCat ? { id: testId, title: setCat.test_title, total_duration_minutes: setCat.total_duration_minutes } : null;
-  if (!tInfo) {
-    const { data: fetchedTest, error: tErr } = await supabaseClient.from("tests").select("id, title, total_duration_minutes").eq("id", testId).maybeSingle();
-    if (tErr || !fetchedTest) throw new Error("Test details missing.");
-    tInfo = fetchedTest;
-  }
+  const { data: fetchedTest } = await supabaseClient.from("tests").select("*").eq("id", testId).maybeSingle();
+  const tInfo = fetchedTest || (setCat ? { id: testId, title: setCat.test_title, total_duration_minutes: setCat.total_duration_minutes } : null);
+  if (!tInfo) throw new Error("Test details missing.");
 
-  const testSubject = (setCat?.subject || activeSubject || "General Studies").trim();
-  const { data: sections, error: sErr } = await supabaseClient.from("test_sections").select("id, section_name").eq("test_id", testId).limit(1);
+  const { data: sections, error: sErr } = await supabaseClient.from("test_sections").select("*").eq("test_id", testId).limit(1);
   if (sErr || !sections?.length) throw new Error("Sections not configured.");
 
   const { data: qData, error: qErr } = await supabaseClient
     .from("test_section_questions")
-    .select(`question_number, questions (id, content, options, correct_answer, explanation)`)
+    .select(`question_number, questions (*)`)
     .eq("section_id", sections[0].id)
     .order("question_number", { ascending: true });
   if (qErr || !qData?.length) throw new Error("Questions payload empty.");
+
+  const secName = (sections[0].section_name || "").trim();
+  const validSecTopic = (secName && !["general", "general studies"].includes(secName.toLowerCase())) ? secName : "";
+
+  const testSubject = (fetchedTest?.subject || setCat?.subject || activeSubject || "General Studies").trim();
+  const baseTopic = (
+    fetchedTest?.topic ||
+    fetchedTest?.subject_topic ||
+    fetchedTest?.category ||
+    setCat?.topic ||
+    setCat?.subject_topic ||
+    validSecTopic ||
+    (activeLibTopicKey && activeLibTopicKey !== "__vault__" ? activeLibTopicKey : "") ||
+    ""
+  ).trim();
+  const baseSubtopic = (fetchedTest?.subtopic || fetchedTest?.sub_topic || setCat?.subtopic || "").trim();
+  const testTitleResolved = (fetchedTest?.title || tInfo.title || setCat?.test_title || "Question Set").trim();
 
   let questions = qData.map(item => {
     const q = Array.isArray(item.questions) ? item.questions[0] : item.questions;
     if (!q) return null;
     const opts = parseQuestionOptions(q.options);
+    const qTopicRaw = (q.topic || q.subject_topic || q.main_topic || q.category || baseTopic || "").trim();
+    const qTopic = qTopicRaw === "Core Practice" ? "" : qTopicRaw;
+    const qSubtopic = (q.subtopic || q.sub_topic || baseSubtopic || "").trim();
     return {
       qNum: item.question_number,
       id: q.id,
-      subject: testSubject,
+      subject: (q.subject || testSubject).trim(),
+      topic: qTopic,
+      subtopic: qSubtopic,
+      testId: String(testId),
+      testTitle: testTitleResolved,
       content: q.content,
       options: opts,
       correctAnswer: getNormalizedCorrectAnswerId(q.correct_answer, opts),
@@ -7955,18 +7976,38 @@ window.openQuestionFlagSheet = function(mode, idx) {
   if (!q || !q.id) return;
 
   const existing = (userFlaggedQuestions || []).find(f => String(f.question_id) === String(q.id));
-  const rawText = getLocalizedText(q.content).replace(/\s+/g, " ").trim();
-  const snippet = rawText.length > 115 ? rawText.substring(0, 112) + "..." : rawText;
-
-  const resolvedSubject = (q.subject || activeTest?.subject || activeSubject || "General Studies").trim();
-  const resolvedTopic = (q.topic || (currentPracticeContext?.type === "booster" ? "Mastery Booster" : (currentPracticeContext?.type === "mistake_bank" ? "Mistake Vault" : "Core Practice"))).trim();
+  const pureQuestionText = getLocalizedText(q.content)
+    .split(/\r?\n/)
+    .map(line => line.trim())
+    .filter(Boolean)[0] || "";
+  const snippet = pureQuestionText;
   const resolvedTestId = q.testId || activeTest?.id || (currentPracticeContext?.type === "test" ? currentPracticeContext.id : "");
-  const resolvedTestTitle = (q.testTitle || activeTest?.title || document.getElementById("practiceSetTitle")?.innerText || "Practice Set").trim();
+  const catMeta = resolvedTestId ? (catalogMap.get(String(resolvedTestId)) || catalogData.find(c => String(c.test_id) === String(resolvedTestId))) : null;
+  const resolvedSubject = (q.subject || catMeta?.subject || activeTest?.subject || activeSubject || "General Studies").trim();
+  const rawResolvedTopic = (
+    q.topic ||
+    catMeta?.topic ||
+    catMeta?.subject_topic ||
+    (currentPracticeContext?.type === "booster" ? "Mastery Booster" : (currentPracticeContext?.type === "mistake_bank" ? "Mistake Vault" : "")) ||
+    (activeLibTopicKey && activeLibTopicKey !== "__vault__" ? activeLibTopicKey : "")
+  ).trim();
+  const resolvedTopic = rawResolvedTopic === "Core Practice" ? "" : rawResolvedTopic;
+  const resolvedSubtopic = (q.subtopic || catMeta?.subtopic || "").trim();
+  const rawTitle = (q.testTitle || catMeta?.test_title || activeTest?.title || document.getElementById("practiceSetTitle")?.innerText || "Practice Set").trim();
+  const resolvedTestTitle = (
+    resolvedSubtopic &&
+    !rawTitle.toLowerCase().includes(resolvedSubtopic.toLowerCase()) &&
+    resolvedTopic.toLowerCase() !== resolvedSubtopic.toLowerCase()
+  )
+    ? `${resolvedSubtopic} › ${rawTitle}`
+    : rawTitle;
+  const gpsBreadcrumbs = [resolvedSubject, resolvedTopic, resolvedTestTitle].filter(Boolean).join(" › ");
 
   activeFlagTarget = {
     question_id: String(q.id),
     subject: resolvedSubject,
     topic: resolvedTopic,
+    subtopic: resolvedSubtopic,
     test_id: String(resolvedTestId || ""),
     test_title: resolvedTestTitle,
     question_number: Number(q.qNum) || (idx + 1),
@@ -8004,8 +8045,8 @@ window.openQuestionFlagSheet = function(mode, idx) {
       <button type="button" class="btn-close-sheet" onclick="closeQuestionFlagSheet()">✕</button>
     </div>
     <div class="flag-sheet-body">
-      <div class="flag-gps-preview" title="${resolvedSubject} › ${resolvedTopic} › ${resolvedTestTitle} (Q.${activeFlagTarget.question_number})">
-        📍 ${resolvedSubject} › ${resolvedTopic} › ${resolvedTestTitle} • Q.${activeFlagTarget.question_number}
+      <div class="flag-gps-preview" title="${gpsBreadcrumbs} (Q.${activeFlagTarget.question_number})">
+        📍 ${gpsBreadcrumbs} • Q.${activeFlagTarget.question_number}
       </div>
       <div class="flag-reasons-grid">
         ${FLAG_REASONS.map(r => `
@@ -8131,9 +8172,11 @@ window.copyFlaggedGpsText = function(questionId) {
 
 window.copyAllFlaggedQueue = function() {
   if (!userFlaggedQuestions?.length) return;
-  const lines = userFlaggedQuestions.map((item, i) =>
-    `${i + 1}. ${item.subject} > ${item.topic} > ${item.test_title} (Q.${item.question_number}) | ${item.reason}${item.note ? " (" + item.note + ")" : ""} | ${item.question_preview}`
-  ).join("\n");
+  const lines = userFlaggedQuestions.map((item, i) => {
+    const cleanTopic = item.topic && item.topic !== "Core Practice" ? item.topic : "";
+    const pathStr = [item.subject, cleanTopic, item.test_title].filter(Boolean).join(" > ");
+    return `${i + 1}. ${pathStr} (Q.${item.question_number}) | ${item.reason}${item.note ? " (" + item.note + ")" : ""} | ${item.question_preview}`;
+  }).join("\n");
   if (navigator.clipboard?.writeText) {
     navigator.clipboard.writeText(lines).then(() => showSelectionToast(`📋 Copied all ${userFlaggedQuestions.length} flagged items`));
   }
@@ -8157,13 +8200,16 @@ function renderProfileFlaggedQueue() {
   const listHtml = count === 0
     ? `<div style="text-align:center; padding:18px 12px; color:var(--text-muted); font-size:12px; font-weight:600;">✓ Zero pending flags. Tap 🚩 on any question while studying to queue it here for backend correction.</div>`
     : `<div class="audit-flags-list">
-        ${list.map(item => `
+        ${list.map(item => {
+          const cleanTopic = item.topic && item.topic !== "Core Practice" ? item.topic : "";
+          const pathStr = [item.subject, cleanTopic, item.test_title].filter(Boolean).join(" › ");
+          return `
           <div class="audit-flag-item">
             <div class="audit-flag-top">
               <span class="audit-reason-tag">🚩 ${item.reason}</span>
               <span style="font-family:var(--font-mono); font-size:10px; color:var(--text-muted); font-weight:700;">ID: ${item.question_id}</span>
             </div>
-            <div class="audit-gps-path">${item.subject} › ${item.topic} › ${item.test_title} • Q.${item.question_number}</div>
+            <div class="audit-gps-path">${pathStr} • Q.${item.question_number}</div>
             <div class="audit-q-snippet">${item.question_preview}</div>
             ${item.note ? `<div class="audit-user-note">Note: ${item.note}</div>` : ""}
             <div class="audit-item-actions">
@@ -8171,7 +8217,8 @@ function renderProfileFlaggedQueue() {
               <button type="button" class="btn-audit-resolve" onclick="removeQuestionFlag('${item.question_id}')">✓ Resolved</button>
             </div>
           </div>
-        `).join("")}
+        `;
+        }).join("")}
       </div>`;
 
   auditCard.innerHTML = `
