@@ -2127,6 +2127,8 @@ async function mountDashboard(isInitialLoad = false) {
     }
     userPlaylists = appStorage.getJSON("cache_playlists_" + roll, userPlaylists);
     userPlaylistItems = appStorage.getJSON("cache_playlist_items_" + roll, userPlaylistItems);
+    userStarredQuestions = appStorage.getJSON("cache_starred_questions_" + roll, userStarredQuestions);
+    userStarredQuestionIdSet = new Set((userStarredQuestions || []).map(s => String(s.question_id)));
     catalogData = appStorage.getJSON("cache_catalog_data", catalogData);
     rebuildDataIndexes();
   }
@@ -7490,7 +7492,10 @@ window.toggleQuestionStar = async function(mode, idx, showBurst = false) {
   }
 
   // 4. Background Supabase Persistence
-  if (!currentCandidate?.roll_number) return;
+  if (!currentCandidate?.roll_number) {
+    showSelectionToast("⚠️ Candidate session not ready");
+    return;
+  }
   const roll = currentCandidate.roll_number;
   try {
     if (nowStarred) {
@@ -7511,6 +7516,7 @@ window.toggleQuestionStar = async function(mode, idx, showBurst = false) {
     }
   } catch (err) {
     console.error("Starred question cloud sync failed:", err);
+    showSelectionToast("⚠️ Sync failed: " + (err.message || "Check Supabase RLS"));
   }
 };
 // 🔒 100% Backward-Compatible Wrappers (Taaki HTML ya Card Builder ka koi bhi onclick na toote)
