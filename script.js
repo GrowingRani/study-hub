@@ -222,6 +222,11 @@ let isLibTopicSearchOpen = false;
 let activeSortSheetScope = "dashboard";
 let userFlaggedQuestions = [];
 let activeFlagTarget = null;
+let userStarredQuestions = [];
+let userStarredQuestionIdSet = new Set();
+let activeStarredChunkIndex = 0;
+let activeStarredTopicFilter = "all";
+const _questionHydrationCache = new Map();
 let hubSubjectFilter = "all";
 let hubSubjectSearchQuery = "";
 
@@ -1550,9 +1555,12 @@ window.confirmDeletePlaylist = async function() {
 // 7. PRE-FLIGHT MISSION BRIEFING CONTROLLER (SUNDAY CRUCIBLE & SPEEDBUMP INTEGRATED)
 // ==========================================================================
 
-window.openMissionBriefingModal = async function(testId, bypassSundayCheck = false, chunkIndex = 0) {
+window.openMissionBriefingModal = async function(testId, bypassSundayCheck = false, chunkIndex = 0, topicFilter = "all") {
   if (testId === -3) {
     activeMistakeChunkIndex = typeof chunkIndex === 'number' ? chunkIndex : 0;
+  } else if (testId === -4 || testId === -5) {
+    activeStarredChunkIndex = typeof chunkIndex === 'number' ? chunkIndex : 0;
+    activeStarredTopicFilter = topicFilter || "all";
   }
 const isSun = typeof isSunday === 'function' ? isSunday() : (new Date().getDay() === 0);
 
@@ -1712,6 +1720,34 @@ const isSun = typeof isSunday === 'function' ? isSunday() : (new Date().getDay()
 
     document.getElementById("briefingSetTitle").innerText = chunkTitle;
     document.getElementById("briefingDurationMeta").innerText = `⏱️ ${durationMins}m`;
+  } else if (testId === -4 || testId === -5) {
+    const isTopicScoped = testId === -5;
+    const starTel = getStarredTelemetry(activeSubject, activeStarredTopicFilter);
+    const pool = starTel.filteredStarred;
+    if (!pool.length) {
+      return showAppNoticeModal("No Starred Questions", "Empty Starred Deck", "Tap ☆ on any question while studying to save it here.", "⭐", "Dismiss");
+    }
+
+    const CHUNK_SIZE = 25;
+    const totalChunks = Math.max(1, Math.ceil(pool.length / CHUNK_SIZE));
+    const safeChunkIdx = Math.min(activeStarredChunkIndex, totalChunks - 1);
+    const chunkQs = pool.slice(safeChunkIdx * CHUNK_SIZE, (safeChunkIdx + 1) * CHUNK_SIZE);
+    const qCount = chunkQs.length;
+    const durationMins = Math.max(3, Math.ceil(qCount * 0.6));
+    const setNum = safeChunkIdx + 1;
+    const scopeLabel = isTopicScoped ? activeStarredTopicFilter : (activeStarredTopicFilter !== "all" ? activeStarredTopicFilter : activeSubject);
+    const chunkTitle = totalChunks > 1
+      ? `${scopeLabel} Starred - Set ${setNum}`
+      : `${scopeLabel} Starred Questions`;
+
+    document.getElementById("briefingSubjectBadge").innerText = isTopicScoped ? "TOPIC STARRED BANK" : `${activeSubject.toUpperCase()} STARRED VAULT`;
+    const statusBadge = document.getElementById("briefingStatusBadge");
+    statusBadge.className = "briefing-status-tag status-progress";
+    statusBadge.innerText = `${qCount} STARRED`;
+    document.getElementById("briefingQuestionsMeta").innerText = `📄 ${qCount} Questions (Set ${setNum} of ${totalChunks})`;
+    document.getElementById("briefingScoreMeta").innerText = `High-Yield Revision • Zero Vault Conflict`;
+    document.getElementById("briefingSetTitle").innerText = chunkTitle;
+    document.getElementById("briefingDurationMeta").innerText = `⏱️ ${durationMins}m`;
   } else {
     // 📁 REGULAR CATALOG QUESTION SET
     const meta = getSetScoreMeta(testId);
@@ -1778,6 +1814,8 @@ window.executeBriefingMode = function(mode) {
     launchBoosterMode(normalizedMode);
   } else if (tId === -3) {
     launchSubjectMistakeMode(normalizedMode);
+  } else if (tId === -4 || tId === -5) {
+    launchStarredBankMode(normalizedMode, tId === -5);
   } else {
     if (normalizedMode === 'exam') {
       launchAssessment(tId);
@@ -2197,7 +2235,8 @@ async function mountDashboard(isInitialLoad = false) {
     fetchPlaylistsAndCheckRollover(),
     fetchWeakQuestions(),
     fetchTestCatalog(),
-    fetchUserQuestionFlags()
+    fetchUserQuestionFlags(),
+    fetchUserStarredQuestions()
   ]);
 
   renderRecentHistoryShelf();
@@ -4765,6 +4804,7 @@ function renderLibrarySetRowHtml(setItem) {
 window.drillDownToSubject = function(subName, pushHistory = true) {
   activeSubject = (subName || "General Studies").trim();
   activeLibTopicKey = null;
+  activeStarredTopicFilter = "all";
   isMobileLibTopicOpen = false;
   libStageFilter = "all";
   libStageSort = "default";
@@ -4911,13 +4951,16 @@ function renderTopicSets() {
 
   const tel = !librarySelectionMode ? getSubjectMistakeTelemetry(activeSubject) : { inReviewCount: 0, clearedCount: 0, dueCount: 0 };
   const hasVault = !librarySelectionMode && (tel.inReviewCount > 0 || tel.clearedCount > 0);
+  const starTel = !librarySelectionMode ? getStarredTelemetry(activeSubject, activeStarredTopicFilter) : { totalCount: 0, filteredCount: 0, topicCounts: [] };
+  const hasStarredVault = !librarySelectionMode && starTel.totalCount > 0;
   const validKeys = [
     ...(hasVault ? ["__vault__"] : []),
+    ...(hasStarredVault ? ["__starred__"] : []),
     ...topicEntries.map(t => t.topicName)
   ];
 
   if (!validKeys.includes(activeLibTopicKey)) {
-    activeLibTopicKey = hasVault ? "__vault__" : (topicEntries[0]?.topicName || null);
+    activeLibTopicKey = hasVault ? "__vault__" : (hasStarredVault ? "__starred__" : (topicEntries[0]?.topicName || null));
   }
 
   let vaultRowHtml = "";
@@ -4947,9 +4990,34 @@ function renderTopicSets() {
     `;
   }
 
+  let starredVaultRowHtml = "";
+  if (hasStarredVault) {
+    const isActive = activeLibTopicKey === "__starred__";
+    const totalStarChunks = Math.max(1, Math.ceil(starTel.totalCount / 25));
+    starredVaultRowHtml = `
+      <div class="yt-folder-row theme-starred starred-folder-row ${isActive ? "active-yt-playlist" : ""}" data-topic-enc="__starred__" onclick="handleLibFolderRowClick(this)">
+        <div class="yt-thumb-stack">
+          <div class="yt-stack-tab-1"></div>
+          <div class="yt-stack-tab-2"></div>
+          <div class="yt-thumb-cover">
+            <span>⭐</span>
+            <span class="yt-thumb-badge">${starTel.totalCount} Qs</span>
+          </div>
+        </div>
+        <div class="yt-folder-info">
+          <div class="yt-folder-name">${activeSubject} Starred Vault</div>
+          <div class="yt-folder-meta">${starTel.totalCount} Starred (${totalStarChunks} ${totalStarChunks > 1 ? "Sets" : "Set"})</div>
+        </div>
+        ${chevronSvg}
+      </div>
+    `;
+  }
+
   const topicRowsHtml = topicEntries.map(t => {
     const isDone = t.sets.length > 0 && t.pct >= 100;
     const isActive = activeLibTopicKey === t.topicName;
+    const topicStarCnt = starTel.topicCounts.find(tc => tc.topic.toLowerCase() === t.topicName.toLowerCase())?.count || 0;
+    const starMetaTag = topicStarCnt > 0 ? ` • ⭐ ${topicStarCnt}` : "";
     return `
       <div class="yt-folder-row ${isDone ? "theme-topic-done" : "theme-topic"} ${isActive ? "active-yt-playlist" : ""}" data-topic-enc="${encodeURIComponent(t.topicName)}" onclick="handleLibFolderRowClick(this)">
         <div class="yt-thumb-stack">
@@ -4962,7 +5030,7 @@ function renderTopicSets() {
         </div>
         <div class="yt-folder-info">
           <div class="yt-folder-name">${t.topicName}</div>
-          <div class="yt-folder-meta">${t.masteredCnt}/${t.sets.length} Mastered • ${t.pct}%</div>
+          <div class="yt-folder-meta">${t.masteredCnt}/${t.sets.length} Mastered • ${t.pct}%${starMetaTag}</div>
           <div class="yt-lib-topic-progress"><div class="yt-lib-topic-fill" style="width:${t.pct}%;"></div></div>
         </div>
         ${chevronSvg}
@@ -5059,18 +5127,116 @@ function renderTopicSets() {
         ${chunkTilesHtml || `<div style="text-align:center; padding:24px 14px; color:var(--success-dark); font-size:12.5px; font-weight:700; grid-column:1 / -1;">✓ Zero reviews due today! Upcoming spaced intervals will appear automatically.</div>`}
       </div>
     `;
+  } else if (activeLibTopicKey === "__starred__" && hasStarredVault) {
+    const CHUNK_SIZE = 25;
+    const pool = starTel.filteredStarred;
+    const totalChunks = Math.max(1, Math.ceil(pool.length / CHUNK_SIZE));
+    const safeFilterEsc = activeStarredTopicFilter.replace(/'/g, "\\'");
+    let starTilesHtml = "";
+
+    for (let i = 0; i < totalChunks; i++) {
+      const startIdx = i * CHUNK_SIZE;
+      const chunkQs = pool.slice(startIdx, startIdx + CHUNK_SIZE);
+      const qCnt = chunkQs.length;
+      const dur = Math.max(3, Math.ceil(qCnt * 0.6));
+      const setLabel = totalChunks > 1 ? `Starred Drill - Set ${i + 1}` : `Starred High-Yield Drill`;
+      const rangeStr = totalChunks > 1 ? `(Q.${startIdx + 1}–${startIdx + qCnt})` : `(All Starred)`;
+
+      starTilesHtml += `
+        <div class="set-tile starred-set-tile yt-stage-card" onclick="openMissionBriefingModal(-4, false, ${i}, '${safeFilterEsc}')">
+          <div class="yt-media-thumb" style="border-color:var(--warning-border);">
+            <span class="yt-media-sub-code" style="color:var(--warning-dark);">STAR</span>
+            <span class="yt-media-q-pill">${qCnt} Qs</span>
+          </div>
+          <div class="yt-stage-card-body">
+            <div class="set-tile-header">
+              <div class="set-tile-title-group"><div class="set-tile-title">${setLabel}</div></div>
+              <div class="set-status-badge status-progress">⭐ ${qCnt} Qs</div>
+            </div>
+            <div class="set-tile-meta"><span>${clockSvg} ${dur}m</span><span>${docSvg} ${qCnt} Qs</span><span>${rangeStr}</span></div>
+            <div class="yt-quiet-footer">
+              <div class="set-score-info" style="margin:0;"><span style="color:var(--warning-dark); font-weight:700;">⭐ ${activeStarredTopicFilter === "all" ? "All Topics" : activeStarredTopicFilter}</span></div>
+              <span class="yt-quiet-cta" style="color:var(--warning-dark);">Practice →</span>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    const topicChipsHtml = starTel.topicCounts.map(tc => {
+      const isChipActive = activeStarredTopicFilter.toLowerCase() === tc.topic.toLowerCase();
+      return `<button type="button" class="yt-chip ${isChipActive ? "active" : ""}" onclick="setStarredVaultTopicFilter('${tc.topic.replace(/'/g, "\\'")}')">${tc.topic} (${tc.count})</button>`;
+    }).join("");
+
+    stageContentHtml = `
+      ${stageTopBarHtml}
+      <div class="yt-watchlater-hero hero-starred">
+        <div class="yt-stage-hero-left">
+          <div class="yt-hero-artwork" style="background:linear-gradient(135deg, #92400e, #f59e0b);">⭐</div>
+          <div class="yt-stage-title-stack">
+            <span class="yt-stage-eyebrow">CURATED BOOKMARKS</span>
+            <h3 class="yt-stage-title">${activeSubject} Starred Vault</h3>
+            <span class="yt-stage-sub">${starTel.filteredCount} Starred Questions • ${totalChunks} ${totalChunks > 1 ? "Sets" : "Set"}</span>
+          </div>
+        </div>
+        <div class="yt-stage-actions">
+          <button type="button" class="btn-yt-play-all" onclick="openMissionBriefingModal(-4, false, 0, '${safeFilterEsc}')">▶ Drill Starred</button>
+        </div>
+      </div>
+      <div class="yt-stage-filter-bar">
+        <div class="yt-stage-filter-chips">
+          <button type="button" class="yt-chip ${activeStarredTopicFilter === "all" ? "active" : ""}" onclick="setStarredVaultTopicFilter('all')">All (${starTel.totalCount})</button>
+          ${topicChipsHtml}
+        </div>
+      </div>
+      <div class="yt-stage-grid sets-card-grid">
+        ${starTilesHtml}
+      </div>
+    `;
   } else {
     const activeTopic = topicEntries.find(t => t.topicName === activeLibTopicKey) || topicEntries[0];
     if (activeTopic) {
       const isDone = activeTopic.sets.length > 0 && activeTopic.pct >= 100;
       const safeName = activeTopic.topicName.replace(/'/g, "\\'");
+      const topicStarPool = !librarySelectionMode ? getStarredTelemetry(activeSubject, activeTopic.topicName).filteredStarred : [];
+      let topicStarCardHtml = "";
+      if (topicStarPool.length > 0) {
+        const CHUNK_SIZE = 25;
+        const tChunks = Math.max(1, Math.ceil(topicStarPool.length / CHUNK_SIZE));
+        for (let i = 0; i < tChunks; i++) {
+          const sliceQs = topicStarPool.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE);
+          const qCnt = sliceQs.length;
+          const dur = Math.max(3, Math.ceil(qCnt * 0.6));
+          const cardTitle = tChunks > 1 ? `${activeTopic.topicName} Starred - Set ${i + 1}` : `${activeTopic.topicName} Starred Questions`;
+          topicStarCardHtml += `
+            <div class="set-tile starred-set-tile yt-stage-card" onclick="openMissionBriefingModal(-5, false, ${i}, '${safeName}')">
+              <div class="yt-media-thumb" style="border-color:var(--warning-border);">
+                <span class="yt-media-sub-code" style="color:var(--warning-dark);">STAR</span>
+                <span class="yt-media-q-pill">${qCnt} Qs</span>
+              </div>
+              <div class="yt-stage-card-body">
+                <div class="set-tile-header">
+                  <div class="set-tile-title-group"><div class="set-tile-title">${cardTitle}</div></div>
+                  <div class="set-status-badge status-progress">⭐ ${qCnt} Qs</div>
+                </div>
+                <div class="set-tile-meta"><span>${clockSvg} ${dur}m</span><span>${docSvg} ${qCnt} Qs</span></div>
+                <div class="yt-quiet-footer">
+                  <div class="set-score-info" style="margin:0;"><span style="color:var(--warning-dark); font-weight:700;">⭐ Topic Bookmarks</span></div>
+                  <span class="yt-quiet-cta" style="color:var(--warning-dark);">Drill →</span>
+                </div>
+              </div>
+            </div>
+          `;
+        }
+      }
+
       const visibleSets = sortStageSetEntries(
         activeTopic.sets.filter(s => libStageFilter === "all" || getSetScoreMeta(s.test_id).status === libStageFilter),
         libStageSort,
         s => s.test_id
       );
-      const setsHtml = visibleSets.length > 0
-        ? visibleSets.map(s => renderLibrarySetRowHtml(s)).join("")
+      const setsHtml = (topicStarCardHtml || visibleSets.length > 0)
+        ? `${topicStarCardHtml}${visibleSets.map(s => renderLibrarySetRowHtml(s)).join("")}`
         : `<div style="text-align:center; padding:28px 16px; color:var(--text-muted); font-size:12.5px; font-weight:600; grid-column:1 / -1;">No sets match this filter.</div>`;
 
       stageContentHtml = `
@@ -5123,6 +5289,7 @@ function renderTopicSets() {
         </div>
         <div class="yt-folder-list">
           ${vaultRowHtml}
+          ${starredVaultRowHtml}
           ${topicRowsHtml}
         </div>
       </aside>
@@ -5305,7 +5472,81 @@ window.launchSubjectMistakeMode = function(mode = 'quiz') {
   }
 };
 
+window.launchStarredBankMode = async function(mode = "read", isTopicScoped = false) {
+  const starTel = getStarredTelemetry(activeSubject, activeStarredTopicFilter);
+  const pool = starTel.filteredStarred;
+  if (!pool.length) {
+    return showAppNoticeModal("No Starred Questions", "Empty Starred Deck", "Tap ☆ on any question while studying to add it here.", "⭐", "Dismiss");
+  }
 
+  const CHUNK_SIZE = 25;
+  const totalChunks = Math.max(1, Math.ceil(pool.length / CHUNK_SIZE));
+  const safeChunkIdx = Math.min(activeStarredChunkIndex, totalChunks - 1);
+  const targetMetaList = pool.slice(safeChunkIdx * CHUNK_SIZE, (safeChunkIdx + 1) * CHUNK_SIZE);
+  const setNum = safeChunkIdx + 1;
+  const scopeLabel = isTopicScoped ? activeStarredTopicFilter : (activeStarredTopicFilter !== "all" ? activeStarredTopicFilter : activeSubject);
+  const deckTitle = totalChunks > 1 ? `${scopeLabel} Starred - Set ${setNum}` : `${scopeLabel} Starred Questions`;
+  const virtualTestId = isTopicScoped ? -5 : -4;
+
+  const missingIds = targetMetaList.map(m => String(m.question_id)).filter(id => !_questionHydrationCache.has(id));
+  if (missingIds.length > 0) {
+    const { data: freshRows, error } = await supabaseClient
+      .from("questions")
+      .select("id, content, options, correct_answer, explanation")
+      .in("id", missingIds);
+    if (error) {
+      return showAppNoticeModal("Sync Error", "Could Not Load Starred Questions", error.message, "⚠️", "Dismiss");
+    }
+    (freshRows || []).forEach(row => _questionHydrationCache.set(String(row.id), row));
+  }
+
+  let qList = targetMetaList.map((meta, i) => {
+    const qData = _questionHydrationCache.get(String(meta.question_id));
+    if (!qData) return null;
+    const opts = parseQuestionOptions(qData.options);
+    return {
+      qNum: i + 1,
+      id: String(qData.id),
+      subject: meta.subject || activeSubject,
+      topic: meta.topic || activeStarredTopicFilter,
+      testId: meta.test_id || "",
+      testTitle: meta.test_title || "",
+      content: qData.content,
+      options: opts,
+      correctAnswer: getNormalizedCorrectAnswerId(qData.correct_answer, opts),
+      explanation: qData.explanation
+    };
+  }).filter(Boolean);
+
+  if (!qList.length) {
+    return showAppNoticeModal("Notice", "Questions Unavailable", "These starred questions were removed or updated in the master bank.", "⚠️", "Dismiss");
+  }
+
+  if (isShuffleEnabled) {
+    qList = shuffleArray(qList);
+    qList.forEach((q, idx) => { q.qNum = idx + 1; });
+  }
+
+  const qCount = qList.length;
+  if (mode === "exam") {
+    mountExamSession({
+      id: virtualTestId,
+      title: deckTitle,
+      subject: activeSubject,
+      topic: isTopicScoped ? activeStarredTopicFilter : "",
+      total_duration_minutes: Math.max(3, Math.ceil(qCount * 0.6))
+    }, qList, "Starred Revision");
+  } else {
+    currentPracticeContext = { type: "starred_bank", isTopicScoped };
+    practiceQuestions = qList;
+    const tEl = document.getElementById("practiceSetTitle");
+    const subEl = document.getElementById("practiceMetaSub");
+    if (tEl) { tEl.innerText = deckTitle; tEl.title = deckTitle; }
+    if (subEl) { subEl.innerText = `${activeSubject} • ${qCount} Starred (Set ${setNum} of ${totalChunks})`; }
+    switchView("viewPractice", true);
+    window.setPracticeMode(mode);
+  }
+};
 
 // 🚀 UNIFIED QUESTION SET LOADER (SHARED BY EXAM & PRACTICE ENGINES)
 async function fetchTestQuestionsPayload(testId) {
@@ -5731,7 +5972,7 @@ function renderScorecard() {
       if (att) await supabaseClient.from("daily_attendance").update({ total_minutes_spent: att.total_minutes_spent + tMins }).eq("id", att.id);
       else await supabaseClient.from("daily_attendance").insert({ student_roll: currentCandidate.roll_number, study_date: today, total_minutes_spent: tMins });
 
-      if (statsPayload.length) await syncMistakeBank(statsPayload);
+      if (activeTest.id !== -4 && activeTest.id !== -5 && statsPayload.length) await syncMistakeBank(statsPayload);
     } catch (e) { 
       console.error("Score Sync Error:", e); 
       const sMsg = document.getElementById("syncStatusMsg"); 
@@ -6960,7 +7201,7 @@ function renderReadUI() {
   container.innerHTML = "";
 
   const totalQ = practiceQuestions.length;
-  const stCount = localReadState.starred.size;
+  const stCount = practiceQuestions.filter(q => isQuestionStarred(q.id)).length;
 
   // 🚀 FIXED SUB-HEADER DOCK (Sirf tabhi dikhega jab .show-dock class lagegi)
   let filterToolbar = document.getElementById("readFixedFilterBar");
@@ -6986,7 +7227,7 @@ function renderReadUI() {
   let renderedCount = 0;
   const frag = document.createDocumentFragment();
   practiceQuestions.forEach((q, idx) => {
-    if (localReadState.filter === 'starred' && !localReadState.starred.has(idx)) return;
+    if (localReadState.filter === 'starred' && !isQuestionStarred(q.id)) return;
     renderedCount++;
     frag.appendChild(buildQuestionCardDOM(q, idx, 'read', localReadState, false));
   });
@@ -7029,13 +7270,13 @@ function renderQuizUI() {
     const score = (corrCount * 2.00) - (wrCount * 0.50);
     const acc = attCount > 0 ? Math.round((corrCount / attCount) * 100) : 0;
     const attRate = totalQ > 0 ? Math.round((attCount / totalQ) * 100) : 0;
-    const stCount = localQuizState.starred.size;
+    const stCount = practiceQuestions.filter(q => isQuestionStarred(q.id)).length;
 
     let priorityCount = 0;
     practiceQuestions.forEach((q, idx) => {
       const isAns = localQuizState.answers[idx] !== undefined;
       const isWr = isAns && !localQuizState.answers[idx].isCorrect;
-      const isSt = localQuizState.starred.has(idx);
+      const isSt = isQuestionStarred(q.id);
       const isUnatt = !isAns;
       if (isWr || isSt || isUnatt) priorityCount++;
     });
@@ -7122,7 +7363,7 @@ function renderQuizUI() {
   practiceQuestions.forEach((q, idx) => {
     const isAns = localQuizState.answers[idx] !== undefined;
     const isWr = isAns && !localQuizState.answers[idx].isCorrect;
-    const isSt = localQuizState.starred.has(idx);
+    const isSt = isQuestionStarred(q.id);
     const isUnatt = !isAns;
 
     if (localQuizState.isFinished) {
@@ -7152,38 +7393,62 @@ function renderQuizUI() {
   }
 }
 
-// 🚀 UNIFIED QUESTION STAR CONTROLLER (READ & QUIZ MODES + DOUBLE-TAP BURST)
-window.toggleQuestionStar = function(mode, idx, showBurst = false) {
-  const isRead = mode === 'read';
-  const stateObj = isRead ? localReadState : localQuizState;
-  
-  // 1. Common Memory State Toggle
-  if (stateObj.starred.has(idx)) {
-    stateObj.starred.delete(idx);
-  } else {
-    stateObj.starred.add(idx);
-  }
-  const nowStarred = stateObj.starred.has(idx);
+// 🚀 UNIFIED PERSISTENT QUESTION STAR CONTROLLER (ALL 4 MODES + DOUBLE-TAP BURST)
+window.toggleQuestionStar = async function(mode, idx, showBurst = false) {
+  let q = null;
+  if (mode === "flashcards") q = flashcardDeck[idx];
+  else if (mode === "review") q = testQuestions[idx];
+  else q = practiceQuestions[idx];
+
+  if (!q || !q.id) return;
+  const qIdStr = String(q.id);
+  const wasStarred = userStarredQuestionIdSet.has(qIdStr);
+  const nowStarred = !wasStarred;
 
   if (typeof navigator !== "undefined" && navigator.vibrate) {
     try { navigator.vibrate(12); } catch (e) {}
   }
 
-  // 2. Common DOM Sync (Card & Star Button)
+  // 1. Instant 0ms Local State & Storage Update
+  if (nowStarred) {
+    userStarredQuestionIdSet.add(qIdStr);
+    const meta = resolveQuestionOriginMeta(q, idx);
+    const record = {
+      student_roll: currentCandidate?.roll_number || "",
+      question_id: qIdStr,
+      subject: meta.subject,
+      topic: meta.topic,
+      test_id: meta.test_id,
+      test_title: meta.test_title,
+      created_at: new Date().toISOString()
+    };
+    userStarredQuestions = [
+      record,
+      ...(userStarredQuestions || []).filter(s => String(s.question_id) !== qIdStr)
+    ];
+  } else {
+    userStarredQuestionIdSet.delete(qIdStr);
+    userStarredQuestions = (userStarredQuestions || []).filter(s => String(s.question_id) !== qIdStr);
+  }
+
+  if (currentCandidate?.roll_number) {
+    appStorage.setJSON("cache_starred_questions_" + currentCandidate.roll_number, userStarredQuestions);
+  }
+
+  // 2. Sync All Star Buttons & Burst Animation
+  document.querySelectorAll(`.btn-star-q[data-star-qid="${qIdStr}"]`).forEach(btn => {
+    btn.classList.toggle("starred", nowStarred);
+    btn.title = nowStarred ? "Unstar Question" : "Star for Revision";
+    btn.classList.remove("star-just-toggled");
+    void btn.offsetWidth;
+    btn.classList.add("star-just-toggled");
+    setTimeout(() => btn.classList.remove("star-just-toggled"), 460);
+    btn.blur();
+  });
+
   const card = document.getElementById(`${mode}Card_${idx}`);
   if (card) {
     card.classList.toggle("card-starred", nowStarred);
-    const btn = card.querySelector(".btn-star-q");
-    if (btn) {
-      btn.classList.toggle("starred", nowStarred);
-      btn.title = nowStarred ? "Unstar Question" : "Star for Revision";
-      btn.classList.remove("star-just-toggled");
-      void btn.offsetWidth;
-      btn.classList.add("star-just-toggled");
-      setTimeout(() => btn.classList.remove("star-just-toggled"), 460);
-      btn.blur(); // 📱 Mobile tap focus turant clear karega
-    }
-
     if (showBurst) {
       card.querySelector(".star-doubletap-burst")?.remove();
       const burst = document.createElement("div");
@@ -7194,47 +7459,60 @@ window.toggleQuestionStar = function(mode, idx, showBurst = false) {
     }
   }
 
-  // 3. Mode-Specific Counter & Telemetry Updates
-  if (isRead) {
-    // 📖 Read Mode: Instant zero-lag badge counter update (Hamesha active)
+  // 3. Mode-Specific Counter & Live Filter Updates
+  const currentSetStarCount = (practiceQuestions || []).filter(item => isQuestionStarred(item.id)).length;
+  if (mode === "read") {
     const starBadge = document.getElementById("readStarredBadge");
-    if (starBadge) starBadge.innerText = `${stateObj.starred.size}`;
-
-    // Read Mode Live Filter Visibility
-    if (stateObj.filter === 'starred' && card) {
+    if (starBadge) starBadge.innerText = `${currentSetStarCount}`;
+    if (localReadState.filter === "starred" && card) {
       card.style.display = nowStarred ? "block" : "none";
     }
-  } else {
-    // 🎯 Quiz Mode: Sirf tab update hoga jab session finish ho chuka ho
-    if (stateObj.isFinished) {
-      // (A) Scorecard Star Stat Update
-      const starStat = document.querySelector(".quiz-score-item.stat-item-starred .value");
-      if (starStat) starStat.innerText = `${stateObj.starred.size} ⭐`;
-
-      // (B) Dynamic Priority Count Recalculation (Mistakes + Starred + Unattempted)
-      let priorityCount = 0;
-      practiceQuestions.forEach((q, i) => {
-        const isAns = stateObj.answers[i] !== undefined;
-        const isWr = isAns && !stateObj.answers[i].isCorrect;
-        const isSt = stateObj.starred.has(i);
-        const isUnatt = !isAns;
-        if (isWr || isSt || isUnatt) priorityCount++;
-      });
-
-      // (C) Filter Chips Update
-      const prioBtn = document.querySelector(".quiz-chip-btn.chip-priority");
-      if (prioBtn) prioBtn.innerHTML = `<span>⚡</span> Priority (${priorityCount})`;
-      const starBtn = document.querySelector(".quiz-chip-btn.chip-starred");
-      if (starBtn) starBtn.innerHTML = `<span>⭐</span> Starred (${stateObj.starred.size})`;
-
-      // (D) Quiz Mode Live Filter Visibility
-      if (stateObj.filter === 'starred' && card) {
-        card.style.display = nowStarred ? "block" : "none";
-      }
+  } else if (mode === "quiz" && localQuizState.isFinished) {
+    let priorityCount = 0;
+    practiceQuestions.forEach((item, i) => {
+      const isAns = localQuizState.answers[i] !== undefined;
+      const isWr = isAns && !localQuizState.answers[i].isCorrect;
+      const isSt = isQuestionStarred(item.id);
+      if (isWr || isSt || !isAns) priorityCount++;
+    });
+    const prioBtn = document.querySelector(".quiz-chip-btn.chip-priority");
+    if (prioBtn) prioBtn.innerHTML = `<span>⚡</span> Priority (${priorityCount})`;
+    const starBtn = document.querySelector(".quiz-chip-btn.chip-starred");
+    if (starBtn) starBtn.innerHTML = `<span>⭐</span> Starred (${currentSetStarCount})`;
+    if (localQuizState.filter === "starred" && card) {
+      card.style.display = nowStarred ? "block" : "none";
     }
   }
-};
 
+  // Keep Library Starred Vault / Topic Starred cards fresh in background
+  if (activeSubject && document.getElementById("setsExplorerStage")?.style.display === "block") {
+    renderTopicSets();
+  }
+
+  // 4. Background Supabase Persistence
+  if (!currentCandidate?.roll_number) return;
+  const roll = currentCandidate.roll_number;
+  try {
+    if (nowStarred) {
+      const latest = userStarredQuestions.find(s => String(s.question_id) === qIdStr);
+      if (latest) {
+        const { error } = await supabaseClient
+          .from("starred_questions")
+          .upsert({ ...latest, student_roll: roll }, { onConflict: "student_roll,question_id" });
+        if (error) throw error;
+      }
+    } else {
+      const { error } = await supabaseClient
+        .from("starred_questions")
+        .delete()
+        .eq("student_roll", roll)
+        .eq("question_id", qIdStr);
+      if (error) throw error;
+    }
+  } catch (err) {
+    console.error("Starred question cloud sync failed:", err);
+  }
+};
 // 🔒 100% Backward-Compatible Wrappers (Taaki HTML ya Card Builder ka koi bhi onclick na toote)
 window.toggleReadStar = function(idx) {
   window.toggleQuestionStar('read', idx);
@@ -7363,6 +7641,7 @@ function renderFlashcardCardDOM() {
             <span class="briefing-badge">QUESTION • Q${q.qNum}</span>
             <div style="display:flex; align-items:center; gap:6px;">
               <button type="button" class="btn-flag-q ${isQuestionFlagged(q.id) ? 'flagged' : ''}" data-flag-qid="${q.id}" onclick="event.stopPropagation(); openQuestionFlagSheet('flashcards', 0)" title="Flag Question for Backend Fix">${flagIconSvg}</button>
+              <button type="button" class="btn-star-q ${isQuestionStarred(q.id) ? 'starred' : ''}" data-star-qid="${q.id}" onclick="event.stopPropagation(); toggleQuestionStar('flashcards', 0)" title="${isQuestionStarred(q.id) ? 'Unstar Question' : 'Star for Revision'}">${starIconSvg}</button>
               <span style="font-size:11px; font-weight:700; color:var(--text-muted);">Tap to Reveal ↺</span>
             </div>
           </div>
@@ -7684,7 +7963,7 @@ window.switchActivePracticeMode = function(targetMode) {
 
 // 🚀 UNIVERSAL QUESTION CARD BUILDER (ZERO-REDUNDANCY & REVIEW-SAFE)
 function buildQuestionCardDOM(q, idx, mode, stateObj, isMB = false) {
-  const isSt = stateObj.starred ? stateObj.starred.has(idx) : false;
+  const isSt = isQuestionStarred(q.id);
   let badgeHtml = '';
   let oHtml = '';
   let showExp = false;
@@ -7793,12 +8072,11 @@ function buildQuestionCardDOM(q, idx, mode, stateObj, isMB = false) {
       ${flagIconSvg}
     </button>
   `;
-  const starBtnHtml = isReview ? '' : `
-    <button type="button" class="btn-star-q ${isSt ? 'starred' : ''}" onclick="${isRead ? 'toggleReadStar' : 'toggleQuizStar'}(${idx})" title="${isSt ? 'Remove Star' : 'Star for Revision'}">
+  const starBtnHtml = `
+    <button type="button" class="btn-star-q ${isSt ? 'starred' : ''}" data-star-qid="${q.id}" onclick="toggleQuestionStar('${mode}', ${idx})" title="${isSt ? 'Remove Star' : 'Star for Revision'}">
       ${starIconSvg}
     </button>
   `;
-
   card.innerHTML = `
     <div class="sol-q-header">
       <div style="display:flex; align-items:center; gap:10px;">
@@ -7904,6 +8182,8 @@ function executeExamLaunchFromPractice() {
     launchBoosterMode('exam');
   } else if (currentPracticeContext.type === 'mistake_bank') {
     launchSubjectMistakeMode('exam');
+  } else if (currentPracticeContext.type === 'starred_bank') {
+    launchStarredBankMode('exam', Boolean(currentPracticeContext.isTopicScoped));
   }
 }
 
@@ -7916,6 +8196,97 @@ const FLAG_REASONS = [
   "Missing / Broken Options",
   "Delete / Duplicate"
 ];
+
+function isQuestionStarred(qId) {
+  if (!qId) return false;
+  return userStarredQuestionIdSet.has(String(qId));
+}
+
+function resolveQuestionOriginMeta(q, idx = 0) {
+  const resolvedTestId = q.testId || activeTest?.id || (currentPracticeContext?.type === "test" ? currentPracticeContext.id : "");
+  const catEntry = resolvedTestId && Number(resolvedTestId) > 0 ? catalogMap.get(String(resolvedTestId)) : null;
+  const resolvedSubject = (q.subject || activeTest?.subject || catEntry?.subject || activeSubject || "General Studies").trim();
+  const resolvedTopic = (
+    q.topic ||
+    activeTest?.topic ||
+    catEntry?.topic ||
+    ((currentPracticeContext?.type === "booster" || Number(resolvedTestId) === -1)
+      ? "Mastery Booster"
+      : ((currentPracticeContext?.type === "mistake_bank" || Number(resolvedTestId) === -3)
+          ? "Mistake Vault"
+          : "General Topic"))
+  ).trim();
+  const resolvedTestTitle = (q.testTitle || activeTest?.title || catEntry?.test_title || document.getElementById("practiceSetTitle")?.innerText || "Practice Set").trim();
+
+  return {
+    subject: resolvedSubject,
+    topic: resolvedTopic,
+    test_id: String(resolvedTestId || ""),
+    test_title: resolvedTestTitle,
+    question_number: Number(q.qNum) || (idx + 1)
+  };
+}
+
+async function fetchUserStarredQuestions() {
+  if (!currentCandidate?.roll_number) return [];
+  const roll = currentCandidate.roll_number;
+  userStarredQuestions = appStorage.getJSON("cache_starred_questions_" + roll, userStarredQuestions);
+  userStarredQuestionIdSet = new Set((userStarredQuestions || []).map(s => String(s.question_id)));
+
+  try {
+    const { data, error } = await supabaseClient
+      .from("starred_questions")
+      .select("*")
+      .eq("student_roll", roll)
+      .order("created_at", { ascending: false });
+    if (!error && Array.isArray(data)) {
+      userStarredQuestions = data;
+      userStarredQuestionIdSet = new Set(data.map(s => String(s.question_id)));
+      appStorage.setJSON("cache_starred_questions_" + roll, userStarredQuestions);
+      if (activeSubject && document.getElementById("setsExplorerStage")?.style.display === "block") {
+        renderTopicSets();
+      }
+    }
+  } catch (err) {
+    console.warn("Starred questions sync skipped:", err.message);
+  }
+  return userStarredQuestions;
+}
+
+function getStarredTelemetry(subName, topicFilter = "all") {
+  const subClean = (subName || activeSubject || "").trim().toLowerCase();
+  const allSubjectStarred = (userStarredQuestions || []).filter(
+    s => (s.subject || "").trim().toLowerCase() === subClean
+  );
+
+  const topicMap = new Map();
+  allSubjectStarred.forEach(s => {
+    const tName = (s.topic || "General Topic").trim();
+    topicMap.set(tName, (topicMap.get(tName) || 0) + 1);
+  });
+
+  const topicCounts = Array.from(topicMap.entries())
+    .sort((a, b) => a[0].localeCompare(b[0], undefined, { numeric: true, sensitivity: "base" }))
+    .map(([topic, count]) => ({ topic, count }));
+
+  const filterClean = (topicFilter || "all").trim().toLowerCase();
+  const filteredStarred = filterClean === "all"
+    ? allSubjectStarred
+    : allSubjectStarred.filter(s => (s.topic || "").trim().toLowerCase() === filterClean);
+
+  return {
+    allSubjectStarred,
+    filteredStarred,
+    totalCount: allSubjectStarred.length,
+    filteredCount: filteredStarred.length,
+    topicCounts
+  };
+}
+
+window.setStarredVaultTopicFilter = function(topicName) {
+  activeStarredTopicFilter = topicName || "all";
+  renderTopicSets();
+};
 
 function isQuestionFlagged(qId) {
   if (!qId) return false;
@@ -7964,28 +8335,19 @@ window.openQuestionFlagSheet = function(mode, idx) {
   const rawText = getLocalizedText(q.content).replace(/\s+/g, " ").trim();
   const snippet = rawText.length > 115 ? rawText.substring(0, 112) + "..." : rawText;
 
-  const resolvedTestId = q.testId || activeTest?.id || (currentPracticeContext?.type === "test" ? currentPracticeContext.id : "");
-  const catEntry = resolvedTestId && Number(resolvedTestId) > 0 ? catalogMap.get(String(resolvedTestId)) : null;
-  const resolvedSubject = (q.subject || activeTest?.subject || catEntry?.subject || activeSubject || "General Studies").trim();
-  const resolvedTopic = (
-    q.topic ||
-    activeTest?.topic ||
-    catEntry?.topic ||
-    ((currentPracticeContext?.type === "booster" || Number(resolvedTestId) === -1)
-      ? "Mastery Booster"
-      : ((currentPracticeContext?.type === "mistake_bank" || Number(resolvedTestId) === -3)
-          ? "Mistake Vault"
-          : "General Topic"))
-  ).trim();
-  const resolvedTestTitle = (q.testTitle || activeTest?.title || catEntry?.test_title || document.getElementById("practiceSetTitle")?.innerText || "Practice Set").trim();
+  const meta = resolveQuestionOriginMeta(q, idx);
+  const resolvedSubject = meta.subject;
+  const resolvedTopic = meta.topic;
+  const resolvedTestId = meta.test_id;
+  const resolvedTestTitle = meta.test_title;
 
   activeFlagTarget = {
     question_id: String(q.id),
     subject: resolvedSubject,
     topic: resolvedTopic,
-    test_id: String(resolvedTestId || ""),
+    test_id: resolvedTestId,
     test_title: resolvedTestTitle,
-    question_number: Number(q.qNum) || (idx + 1),
+    question_number: meta.question_number,
     question_preview: snippet,
     reason: existing?.reason || FLAG_REASONS[0],
     note: existing?.note || "",
