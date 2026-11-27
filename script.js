@@ -222,6 +222,9 @@ let isLibTopicSearchOpen = false;
 let activeSortSheetScope = "dashboard";
 let userFlaggedQuestions = [];
 let activeFlagTarget = null;
+let auditQueueFilter = "all";
+let auditQueueSearchQuery = "";
+let pendingVerifyQuestionId = null;
 let userStarredQuestions = [];
 let userStarredQuestionIdSet = new Set();
 let activeStarredChunkIndex = 0;
@@ -556,7 +559,8 @@ const OVERLAYS = [
     { id: 'abortExamModal', action: closeAbortExamModal },
     { id: 'practiceModeSwitcherSheet', action: closePracticeModeSwitcher },
     { id: 'stageSortBottomSheetOverlay', action: closeStageSortSheet },
-    { id: 'questionFlagBottomSheetOverlay', action: closeQuestionFlagSheet }
+    { id: 'questionFlagBottomSheetOverlay', action: closeQuestionFlagSheet },
+    { id: 'auditQueueModal', action: closeAuditQueueModal }
   ];
   for (const item of OVERLAYS) {
     if (isVisible(item.id)) {
@@ -7131,7 +7135,8 @@ if (document.readyState === "loading") {
   initPracticeScrollTracker();
 }
 
-window.launchPracticeMode = async function(testId, mode) {
+window.launchPracticeMode = async function(testId, mode, focusQuestionId = null) {
+  pendingVerifyQuestionId = focusQuestionId ? String(focusQuestionId) : null;
   recordSetHistory(testId, mode);
   // 🚀 Record active context for one-way exam switcher routing
   currentPracticeContext = { type: 'test', id: testId };
@@ -7246,7 +7251,19 @@ function renderReadUI() {
     container.appendChild(emptyNotice);
   }
 
+  if (pendingVerifyQuestionId) {
+    const targetQid = pendingVerifyQuestionId;
+    pendingVerifyQuestionId = null;
+    requestAnimationFrame(() => {
+      const targetCard = container.querySelector(`.btn-flag-q[data-flag-qid="${targetQid}"]`)?.closest(".solution-card");
+      if (targetCard) {
+        targetCard.scrollIntoView({ behavior: "smooth", block: "center" });
+        targetCard.classList.add("verify-target-highlight");
+        setTimeout(() => targetCard.classList.remove("verify-target-highlight"), 2200);
+      }
+    });
   }
+}
 
 
 
@@ -8523,6 +8540,172 @@ window.copyAllFlaggedQueue = function() {
   }
 };
 
+window.verifyFlaggedQuestion = async function(questionId) {
+  const item = (userFlaggedQuestions || []).find(f => String(f.question_id) === String(questionId));
+  if (!item) return;
+
+  closeAuditQueueModal();
+  const numericTestId = Number(item.test_id);
+
+  if (numericTestId > 0) {
+    return launchPracticeMode(numericTestId, "read", item.question_id);
+  }
+
+  switchView("viewPractice", true);
+  const tEl = document.getElementById("practiceSetTitle");
+  const subEl = document.getElementById("practiceMetaSub");
+  const container = document.getElementById("practiceContainer");
+  if (tEl) tEl.innerText = item.test_title || "Flag Verification";
+  if (subEl) subEl.innerText = `${item.subject || "General"} • Live Database Check`;
+  if (container) container.innerHTML = `<div style="text-align:center; padding:48px 16px; color:var(--text-muted); font-size:13px; font-weight:700;">Fetching live question from Supabase...</div>`;
+
+  try {
+    const { data: row, error } = await supabaseClient
+      .from("questions")
+      .select("id, content, options, correct_answer, explanation")
+      .eq("id", item.question_id)
+      .maybeSingle();
+    if (error || !row) throw new Error("Question not found in master bank.");
+
+    const opts = parseQuestionOptions(row.options);
+    currentPracticeContext = { type: "verify_flag", question_id: String(row.id) };
+    practiceQuestions = [{
+      qNum: Number(item.question_number) || 1,
+      id: String(row.id),
+      subject: item.subject || "General Studies",
+      topic: item.topic || "",
+      testId: item.test_id || "",
+      testTitle: item.test_title || "",
+      content: row.content,
+      options: opts,
+      correctAnswer: getNormalizedCorrectAnswerId(row.correct_answer, opts),
+      explanation: row.explanation
+    }];
+    pendingVerifyQuestionId = String(row.id);
+    window.setPracticeMode("read");
+  } catch (err) {
+    if (container) container.innerHTML = `<div style="text-align:center; padding:48px 16px; color:var(--danger-dark); font-size:13px; font-weight:700;">⚠️ ${err.message}</div>`;
+  }
+};
+
+window.setAuditQueueFilter = function(reasonKey) {
+  auditQueueFilter = reasonKey || "all";
+  renderAuditQueueModalBody();
+};
+
+window.filterAuditQueueSearch = function(queryVal) {
+  auditQueueSearchQuery = String(queryVal || "");
+  renderAuditQueueModalBody();
+};
+
+window.openAuditQueueModal = function() {
+  auditQueueFilter = "all";
+  auditQueueSearchQuery = "";
+
+  let modal = document.getElementById("auditQueueModal");
+  if (!modal) {
+    modal = document.createElement("div");
+    modal.id = "auditQueueModal";
+    modal.className = "tcs-modal-overlay";
+    modal.style.zIndex = "3250";
+    modal.onclick = (e) => { if (e.target === modal) closeAuditQueueModal(); };
+    document.body.appendChild(modal);
+  }
+
+  modal.style.setProperty("display", "flex", "important");
+  modal.style.pointerEvents = "auto";
+  renderAuditQueueModalBody();
+};
+
+window.closeAuditQueueModal = function() {
+  const modal = document.getElementById("auditQueueModal");
+  if (modal) {
+    modal.style.setProperty("display", "none", "important");
+    modal.style.pointerEvents = "none";
+  }
+};
+
+function renderAuditQueueModalBody() {
+  const modal = document.getElementById("auditQueueModal");
+  if (!modal || modal.style.display === "none") return;
+
+  const allList = userFlaggedQuestions || [];
+  const q = auditQueueSearchQuery.trim().toLowerCase();
+  const filtered = allList.filter(item => {
+    const matchesReason = auditQueueFilter === "all" || item.reason === auditQueueFilter;
+    const hay = `${item.subject} ${item.topic} ${item.test_title} ${item.question_preview} ${item.note || ""}`.toLowerCase();
+    return matchesReason && (!q || hay.includes(q));
+  });
+
+  const reasonChipsHtml = FLAG_REASONS.map(r => {
+    const cnt = allList.filter(item => item.reason === r).length;
+    if (cnt === 0) return "";
+    const shortName = r.split("/")[0].trim();
+    return `<button type="button" class="yt-chip ${auditQueueFilter === r ? "active" : ""}" onclick="setAuditQueueFilter('${r.replace(/'/g, "\\'")}')">${shortName} (${cnt})</button>`;
+  }).join("");
+
+  const listHtml = filtered.length === 0
+    ? `<div style="text-align:center; padding:32px 16px; color:var(--text-muted); font-size:12.5px; font-weight:600;">${allList.length === 0 ? "✓ Zero pending flags. All questions clean!" : "No flagged questions match this filter."}</div>`
+    : filtered.map(item => `
+        <div class="audit-flag-item">
+          <div class="audit-flag-top">
+            <span class="audit-reason-tag">🚩 ${item.reason}</span>
+            <span style="font-family:var(--font-mono); font-size:10px; color:var(--text-muted); font-weight:700;">ID: ${item.question_id}</span>
+          </div>
+          <div class="audit-gps-path">${item.subject} › ${item.topic} › ${item.test_title} • Q.${item.question_number}</div>
+          <div class="audit-q-snippet">${item.question_preview}</div>
+          ${item.note ? `<div class="audit-user-note">Note: ${item.note}</div>` : ""}
+          <div class="audit-item-actions">
+            <button type="button" class="btn-audit-verify" onclick="verifyFlaggedQuestion('${item.question_id}')">↗ Verify</button>
+            <button type="button" class="btn-audit-copy" onclick="copyFlaggedGpsText('${item.question_id}')">📋 Copy</button>
+            <button type="button" class="btn-audit-resolve" onclick="removeQuestionFlag('${item.question_id}')">✓ Resolved</button>
+          </div>
+        </div>
+      `).join("");
+
+  let sheet = modal.querySelector(".audit-queue-sheet");
+  if (!sheet) {
+    modal.innerHTML = `<div class="audit-queue-sheet"></div>`;
+    sheet = modal.querySelector(".audit-queue-sheet");
+  }
+
+  const existingInput = document.getElementById("inputAuditQueueSearch");
+  const hadFocus = document.activeElement === existingInput;
+  const cursorPos = existingInput ? existingInput.selectionStart : 0;
+
+  sheet.innerHTML = `
+    <div class="bottom-sheet-drag-handle hide-on-desktop" onclick="closeAuditQueueModal()"></div>
+    <div class="audit-queue-header">
+      <div class="audit-title-group">
+        <h4 class="audit-card-title">🚩 Backend Audit Queue</h4>
+        <span class="audit-count-pill ${allList.length === 0 ? "is-zero" : ""}">${allList.length} OPEN</span>
+      </div>
+      <div style="display:flex; align-items:center; gap:8px;">
+        ${allList.length > 0 ? `<button type="button" class="btn-copy-all-flags" onclick="copyAllFlaggedQueue()">Copy All</button>` : ""}
+        <button type="button" class="btn-close-sheet" onclick="closeAuditQueueModal()">✕</button>
+      </div>
+    </div>
+    ${allList.length > 0 ? `
+      <div class="audit-queue-controls">
+        <input type="text" id="inputAuditQueueSearch" class="audit-search-input" placeholder="Search subject, topic, set or question..." value="${auditQueueSearchQuery.replace(/"/g, "&quot;")}" oninput="filterAuditQueueSearch(this.value)" />
+        <div class="audit-filter-chips">
+          <button type="button" class="yt-chip ${auditQueueFilter === "all" ? "active" : ""}" onclick="setAuditQueueFilter('all')">All (${allList.length})</button>
+          ${reasonChipsHtml}
+        </div>
+      </div>
+    ` : ""}
+    <div class="audit-flags-list">${listHtml}</div>
+  `;
+
+  if (hadFocus) {
+    const newInp = document.getElementById("inputAuditQueueSearch");
+    if (newInp) {
+      newInp.focus();
+      newInp.setSelectionRange(cursorPos, cursorPos);
+    }
+  }
+}
+
 function renderProfileFlaggedQueue() {
   const viewport = document.querySelector("#viewProfile .profile-page-viewport");
   if (!viewport) return;
@@ -8532,42 +8715,39 @@ function renderProfileFlaggedQueue() {
     auditCard = document.createElement("div");
     auditCard.id = "profileFlaggedAuditCard";
     auditCard.className = "profile-audit-card";
+    auditCard.onclick = () => openAuditQueueModal();
     viewport.appendChild(auditCard);
   }
 
   const list = userFlaggedQuestions || [];
   const count = list.length;
 
-  const listHtml = count === 0
-    ? `<div style="text-align:center; padding:18px 12px; color:var(--text-muted); font-size:12px; font-weight:600;">✓ Zero pending flags. Tap 🚩 on any question while studying to queue it here for backend correction.</div>`
-    : `<div class="audit-flags-list">
-        ${list.map(item => `
-          <div class="audit-flag-item">
-            <div class="audit-flag-top">
-              <span class="audit-reason-tag">🚩 ${item.reason}</span>
-              <span style="font-family:var(--font-mono); font-size:10px; color:var(--text-muted); font-weight:700;">ID: ${item.question_id}</span>
-            </div>
-            <div class="audit-gps-path">${item.subject} › ${item.topic} › ${item.test_title} • Q.${item.question_number}</div>
-            <div class="audit-q-snippet">${item.question_preview}</div>
-            ${item.note ? `<div class="audit-user-note">Note: ${item.note}</div>` : ""}
-            <div class="audit-item-actions">
-              <button type="button" class="btn-audit-copy" onclick="copyFlaggedGpsText('${item.question_id}')">📋 Copy Text</button>
-              <button type="button" class="btn-audit-resolve" onclick="removeQuestionFlag('${item.question_id}')">✓ Resolved</button>
-            </div>
-          </div>
-        `).join("")}
-      </div>`;
+  const topReasons = FLAG_REASONS
+    .map(r => ({ label: r.split("/")[0].trim(), cnt: list.filter(item => item.reason === r).length }))
+    .filter(x => x.cnt > 0)
+    .map(x => `${x.label} (${x.cnt})`)
+    .join(" • ");
+
+  const subText = count === 0
+    ? "Zero pending flags • Tap 🚩 on any question to report"
+    : (topReasons || `${count} flagged items awaiting verification`);
 
   auditCard.innerHTML = `
-    <div class="audit-card-header">
-      <div class="audit-title-group">
-        <h4 class="audit-card-title">🚩 Backend Audit Queue</h4>
-        <span class="audit-count-pill ${count === 0 ? "is-zero" : ""}">${count} OPEN</span>
+    <div class="audit-launcher-row">
+      <div class="audit-launcher-left">
+        <div class="audit-title-group">
+          <h4 class="audit-card-title">🚩 Backend Audit Queue</h4>
+          <span class="audit-count-pill ${count === 0 ? "is-zero" : ""}">${count} OPEN</span>
+        </div>
+        <span class="audit-launcher-sub">${subText}</span>
       </div>
-      ${count > 0 ? `<button type="button" class="btn-copy-all-flags" onclick="copyAllFlaggedQueue()">Copy All</button>` : ""}
+      <button type="button" class="btn-open-audit-queue" onclick="event.stopPropagation(); openAuditQueueModal()">
+        ${count > 0 ? "Review ➔" : "Open ➔"}
+      </button>
     </div>
-    ${listHtml}
   `;
+
+  renderAuditQueueModalBody();
 }
 
 // ==========================================================================
