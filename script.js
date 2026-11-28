@@ -232,6 +232,11 @@ let activeStarredTopicFilter = "all";
 const _questionHydrationCache = new Map();
 let hubSubjectFilter = "all";
 let hubSubjectSearchQuery = "";
+let customMockConfig = {
+  selectedSubjects: {},
+  poolFilter: "all",
+  orderMode: "mixed"
+};
 
 // 🚀 PRE-FLIGHT MISSION BRIEFING & SHUFFLE STATE (DEFAULT: ON)
 let activeBriefingTestId = null;
@@ -560,7 +565,8 @@ const OVERLAYS = [
     { id: 'practiceModeSwitcherSheet', action: closePracticeModeSwitcher },
     { id: 'stageSortBottomSheetOverlay', action: closeStageSortSheet },
     { id: 'questionFlagBottomSheetOverlay', action: closeQuestionFlagSheet },
-    { id: 'auditQueueModal', action: closeAuditQueueModal }
+    { id: 'auditQueueModal', action: closeAuditQueueModal },
+    { id: 'customMockModal', action: closeCustomMockModal }
   ];
   for (const item of OVERLAYS) {
     if (isVisible(item.id)) {
@@ -4401,6 +4407,176 @@ window.clearHubSubjectSearch = function() {
   filterHubSubjects("");
 };
 
+function getCustomMockPoolStats(subName, poolFilter = "all") {
+  const clean = (subName || "General Studies").trim().toLowerCase();
+  const allSets = catalogData.filter(r => (r.subject || "General Studies").trim().toLowerCase() === clean);
+  const matchingSets = allSets.filter(s => {
+    const isAtt = getSetScoreMeta(s.test_id).isAtt;
+    if (poolFilter === "unattempted") return !isAtt;
+    if (poolFilter === "attempted") return isAtt;
+    return true;
+  });
+  const totalQuestions = matchingSets.reduce((sum, s) => sum + (s.total_questions || 10), 0);
+  return { matchingSets, setCount: matchingSets.length, totalQuestions };
+}
+
+window.openCustomMockModal = function() {
+  if (!catalogData.length) {
+    return showAppNoticeModal("Catalog Loading", "Please Wait", "Subject catalog is still loading. Try again in a moment.", "⏳", "Dismiss");
+  }
+
+  const subjects = Array.from(new Set(catalogData.map(r => (r.subject || "General Studies").trim())))
+    .sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }));
+
+  const existingKeys = Object.keys(customMockConfig.selectedSubjects).filter(k => subjects.includes(k));
+  if (existingKeys.length === 0) {
+    subjects.slice(0, 4).forEach(sub => {
+      customMockConfig.selectedSubjects[sub] = 25;
+    });
+  }
+
+  let modal = document.getElementById("customMockModal");
+  if (!modal) {
+    modal = document.createElement("div");
+    modal.id = "customMockModal";
+    modal.className = "tcs-modal-overlay";
+    modal.style.zIndex = "3250";
+    modal.onclick = (e) => { if (e.target === modal) closeCustomMockModal(); };
+    document.body.appendChild(modal);
+  }
+
+  modal.style.setProperty("display", "flex", "important");
+  modal.style.pointerEvents = "auto";
+  renderCustomMockModalBody();
+};
+
+window.closeCustomMockModal = function() {
+  const modal = document.getElementById("customMockModal");
+  if (modal) {
+    modal.style.setProperty("display", "none", "important");
+    modal.style.pointerEvents = "none";
+  }
+};
+
+window.setCustomMockPoolFilter = function(poolKey) {
+  customMockConfig.poolFilter = poolKey || "all";
+  renderCustomMockModalBody();
+};
+
+window.setCustomMockOrderMode = function(orderKey) {
+  customMockConfig.orderMode = orderKey || "mixed";
+  renderCustomMockModalBody();
+};
+
+window.toggleCustomMockSubject = function(subName) {
+  if (customMockConfig.selectedSubjects[subName]) {
+    delete customMockConfig.selectedSubjects[subName];
+  } else {
+    const activeCount = Object.keys(customMockConfig.selectedSubjects).length;
+    if (activeCount >= 6) {
+      return showSelectionToast("⚠️ Maximum 6 subjects allowed per mock");
+    }
+    customMockConfig.selectedSubjects[subName] = 25;
+  }
+  renderCustomMockModalBody();
+};
+
+window.updateCustomMockSubjectCount = function(subName, countVal) {
+  const num = parseInt(countVal, 10) || 25;
+  customMockConfig.selectedSubjects[subName] = num;
+  renderCustomMockModalBody();
+};
+
+function renderCustomMockModalBody() {
+  const modal = document.getElementById("customMockModal");
+  if (!modal || modal.style.display === "none") return;
+
+  const subjects = Array.from(new Set(catalogData.map(r => (r.subject || "General Studies").trim())))
+    .sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }));
+
+  let selectedSubCount = 0;
+  let totalTargetQs = 0;
+
+  const rowsHtml = subjects.map(subName => {
+    const safeSub = subName.replace(/'/g, "\\'");
+    const poolStats = getCustomMockPoolStats(subName, customMockConfig.poolFilter);
+    const isSelected = Boolean(customMockConfig.selectedSubjects[subName]);
+    const chosenCount = customMockConfig.selectedSubjects[subName] || 25;
+    const effectiveQs = Math.min(chosenCount, poolStats.totalQuestions);
+
+    if (isSelected && effectiveQs > 0) {
+      selectedSubCount++;
+      totalTargetQs += effectiveQs;
+    }
+
+    const countOptions = [10, 15, 20, 25, 30].map(val =>
+      `<option value="${val}" ${chosenCount === val ? "selected" : ""}>${val} Qs</option>`
+    ).join("");
+
+    return `
+      <div class="custom-mock-sub-row ${isSelected ? "is-selected" : ""}">
+        <div class="custom-mock-sub-left" onclick="toggleCustomMockSubject('${safeSub}')">
+          <span class="custom-mock-check">${isSelected ? "✓" : ""}</span>
+          <div class="custom-mock-sub-info">
+            <span class="custom-mock-sub-title">${subName}</span>
+            <span class="custom-mock-sub-meta">${poolStats.setCount} Sets • ${poolStats.totalQuestions} Qs available</span>
+          </div>
+        </div>
+        <select class="custom-mock-q-select" ${!isSelected || poolStats.totalQuestions === 0 ? "disabled" : ""} onchange="updateCustomMockSubjectCount('${safeSub}', this.value)">
+          ${countOptions}
+        </select>
+      </div>
+    `;
+  }).join("");
+
+  const durationMins = Math.max(5, Math.ceil(totalTargetQs * 0.6));
+  const canLaunch = selectedSubCount >= 2 && totalTargetQs >= 10;
+
+  let sheet = modal.querySelector(".custom-mock-sheet");
+  if (!sheet) {
+    modal.innerHTML = `<div class="custom-mock-sheet"></div>`;
+    sheet = modal.querySelector(".custom-mock-sheet");
+  }
+
+  sheet.innerHTML = `
+    <div class="bottom-sheet-drag-handle hide-on-desktop" onclick="closeCustomMockModal()"></div>
+    <div class="custom-mock-header">
+      <div class="bottom-sheet-title-group">
+        <span class="bottom-sheet-badge">FULL-PAPER SIMULATOR</span>
+        <h4 class="bottom-sheet-title">⚡ Custom Multi-Subject Mock</h4>
+      </div>
+      <button type="button" class="btn-close-sheet" onclick="closeCustomMockModal()">✕</button>
+    </div>
+    <div class="custom-mock-controls">
+      <div class="custom-mock-control-row">
+        <span class="custom-mock-control-label">Question Pool:</span>
+        <div class="audit-filter-chips">
+          <button type="button" class="yt-chip ${customMockConfig.poolFilter === "all" ? "active" : ""}" onclick="setCustomMockPoolFilter('all')">All Sets</button>
+          <button type="button" class="yt-chip ${customMockConfig.poolFilter === "unattempted" ? "active" : ""}" onclick="setCustomMockPoolFilter('unattempted')">⚡ Unattempted</button>
+          <button type="button" class="yt-chip ${customMockConfig.poolFilter === "attempted" ? "active" : ""}" onclick="setCustomMockPoolFilter('attempted')">🔄 Attempted</button>
+        </div>
+      </div>
+      <div class="custom-mock-control-row">
+        <span class="custom-mock-control-label">Paper Order:</span>
+        <div class="audit-filter-chips">
+          <button type="button" class="yt-chip ${customMockConfig.orderMode === "mixed" ? "active" : ""}" onclick="setCustomMockOrderMode('mixed')">🔀 Mixed Shuffle</button>
+          <button type="button" class="yt-chip ${customMockConfig.orderMode === "sections" ? "active" : ""}" onclick="setCustomMockOrderMode('sections')">📑 Subject Sections</button>
+        </div>
+      </div>
+    </div>
+    <div class="custom-mock-subjects-list">${rowsHtml}</div>
+    <div class="custom-mock-footer">
+      <div class="custom-mock-summary-stack">
+        <span class="custom-mock-total-val">${selectedSubCount} Subjects • ${totalTargetQs} Qs</span>
+        <span class="custom-mock-total-sub">⏱️ ${durationMins}m Duration • Select at least 2 subjects</span>
+      </div>
+      <button type="button" class="btn-primary" id="btnLaunchCustomMock" ${!canLaunch ? "disabled style='opacity:0.5; cursor:not-allowed;'" : ""} onclick="launchCustomMultiSubjectMock()">
+        Launch Mock ➔
+      </button>
+    </div>
+  `;
+}
+
 function renderSubjectHubGrid(preserveSearchFocus = false) {
   const container = document.getElementById("subjectHubContainer"); 
   if (!container) return;
@@ -4465,6 +4641,7 @@ function renderSubjectHubGrid(preserveSearchFocus = false) {
             <input type="text" id="hubSubjectSearchInput" class="hub-search-input" placeholder="Search subjects..." value="${hubSubjectSearchQuery.replace(/"/g, "&quot;")}" oninput="filterHubSubjects(this.value)" />
             <button type="button" class="btn-hub-search-clear" id="btnHubSearchClear" style="display:${hubSubjectSearchQuery.trim() ? "inline-flex" : "none"};" onclick="clearHubSubjectSearch()" title="Clear">✕</button>
           </div>
+          <button type="button" class="btn-custom-mock-trigger" onclick="openCustomMockModal()" title="Build Multi-Subject Mock Paper">⚡ Custom Mock</button>
           <div class="hub-view-switcher" role="group" aria-label="Subject View Mode">
             <button type="button" id="btnHubViewCompact" class="btn-hub-view ${viewMode === "compact" ? "active" : ""}" onclick="setSubjectHubViewMode('compact')" title="Compact List View">${listIconSvg}</button>
             <button type="button" id="btnHubViewGrid" class="btn-hub-view ${viewMode === "grid" ? "active" : ""}" onclick="setSubjectHubViewMode('grid')" title="Detailed Grid View">${gridIconSvg}</button>
