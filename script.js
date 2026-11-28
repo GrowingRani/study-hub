@@ -109,6 +109,7 @@ function mountExamSession(testMeta, questionsList, sectionName = "General") {
     title: testMeta.title || "Assessment",
     subject: testMeta.subject || activeSubject || "General Studies",
     topic: testMeta.topic || "",
+    sections: Array.isArray(testMeta.sections) ? testMeta.sections : null,
     total_duration_minutes: testMeta.total_duration_minutes || 15
   };
 
@@ -127,7 +128,13 @@ function mountExamSession(testMeta, questionsList, sectionName = "General") {
 
   const sectionTabsEl = document.getElementById("sectionTabs");
   if (sectionTabsEl) {
-    sectionTabsEl.innerHTML = `<button type="button" class="section-tab">Section 1: ${sectionName} (${questionsList.length} Qs)</button>`;
+    if (activeTest.sections && activeTest.sections.length > 1) {
+      sectionTabsEl.innerHTML = activeTest.sections.map((sec, sIdx) =>
+        `<button type="button" class="section-tab ${sIdx === 0 ? "active-section-tab" : ""}" data-sec-start="${sec.startIndex}" onclick="renderQuestion(${sec.startIndex})">${sec.name} (${sec.count})</button>`
+      ).join("");
+    } else {
+      sectionTabsEl.innerHTML = `<button type="button" class="section-tab active-section-tab">Section 1: ${sectionName} (${questionsList.length} Qs)</button>`;
+    }
   }
 
   // Timer & State Teardown
@@ -2364,19 +2371,24 @@ async function fetchPlaylistsAndCheckRollover() {
 
     // 🚀 FIX: getAttemptLocalDate ensures local date match (No timezone drop)
     const uniqueSetsAttemptedToday = new Map();
+    let customMockAttemptedToday = 0;
     (todayAttRows || []).forEach(a => {
       const attDate = getAttemptLocalDate(a.attempt_date);
       const tid = Number(a.test_id);
-      if (attDate === todayStr && (tid > 0 || (tid === -1 && isSunday()))) {
+      if (attDate === todayStr && (tid > 0 || tid === -6 || (tid === -1 && isSunday()))) {
         const attemptedInRun = (a.total_correct || 0) + (a.total_incorrect || 0);
-        const prevAttempted = uniqueSetsAttemptedToday.get(tid) || 0;
-        if (attemptedInRun > prevAttempted) {
-          uniqueSetsAttemptedToday.set(tid, attemptedInRun);
+        if (tid === -6) {
+          customMockAttemptedToday += attemptedInRun;
+        } else {
+          const prevAttempted = uniqueSetsAttemptedToday.get(tid) || 0;
+          if (attemptedInRun > prevAttempted) {
+            uniqueSetsAttemptedToday.set(tid, attemptedInRun);
+          }
         }
       }
     });
 
-    const actualExamAttemptedToday = Array.from(uniqueSetsAttemptedToday.values()).reduce((sum, q) => sum + q, 0);
+    const actualExamAttemptedToday = Array.from(uniqueSetsAttemptedToday.values()).reduce((sum, q) => sum + q, 0) + customMockAttemptedToday;
 
     let { data: dpData } = await supabaseClient
       .from("daily_performance")
@@ -3052,7 +3064,7 @@ async function renderHomePlaylists() {
     if (ytStageSearchQuery) filterYtStageSets(ytStageSearchQuery);
     // 🎯 6. DECOUPLED CENTURY BAROMETER TELEMETRY (PURE UNIQUE ATTEMPTS & HONEST MASTERY)
     const actualAttemptedCount = dailyPerf?.total_questions_attempted || 0;
-    const todayAttempts = userAttemptHistory.filter(a => getAttemptLocalDate(a.attempt_date) === todayStr && (Number(a.test_id) > 0 || (Number(a.test_id) === -1 && isSun)));
+    const todayAttempts = userAttemptHistory.filter(a => getAttemptLocalDate(a.attempt_date) === todayStr && (Number(a.test_id) > 0 || Number(a.test_id) === -6 || (Number(a.test_id) === -1 && isSun)));
 
     // Unique test_id ke hisab se best mastered count calculate karein (No Double Counting)
     const uniqueMasteredSets = new Map();
@@ -4538,12 +4550,15 @@ function renderCustomMockModalBody() {
     sheet = modal.querySelector(".custom-mock-sheet");
   }
 
+  const prevScrollTop = sheet.querySelector(".custom-mock-subjects-list")?.scrollTop || 0;
+  const mockLayersSvg = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>`;
+
   sheet.innerHTML = `
     <div class="bottom-sheet-drag-handle hide-on-desktop" onclick="closeCustomMockModal()"></div>
     <div class="custom-mock-header">
       <div class="bottom-sheet-title-group">
         <span class="bottom-sheet-badge">FULL-PAPER SIMULATOR</span>
-        <h4 class="bottom-sheet-title">⚡ Custom Multi-Subject Mock</h4>
+        <h4 class="bottom-sheet-title" style="display:flex; align-items:center; gap:7px;">${mockLayersSvg}<span>Custom Multi-Subject Mock</span></h4>
       </div>
       <button type="button" class="btn-close-sheet" onclick="closeCustomMockModal()">✕</button>
     </div>
@@ -4575,7 +4590,155 @@ function renderCustomMockModalBody() {
       </button>
     </div>
   `;
+
+  const updatedListEl = sheet.querySelector(".custom-mock-subjects-list");
+  if (updatedListEl && prevScrollTop > 0) {
+    updatedListEl.scrollTop = prevScrollTop;
+  }
 }
+
+window.launchCustomMultiSubjectMock = async function() {
+  const launchBtn = document.getElementById("btnLaunchCustomMock");
+  if (launchBtn) {
+    launchBtn.innerText = "Compiling Paper...";
+    launchBtn.disabled = true;
+  }
+
+  try {
+    const subjects = Array.from(new Set(catalogData.map(r => (r.subject || "General Studies").trim())))
+      .sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }));
+
+    const plan = [];
+    const pickedTestMetaMap = new Map();
+
+    subjects.forEach(subName => {
+      if (!customMockConfig.selectedSubjects[subName]) return;
+      const targetCount = customMockConfig.selectedSubjects[subName] || 25;
+      const poolStats = getCustomMockPoolStats(subName, customMockConfig.poolFilter);
+      if (!poolStats.matchingSets.length) return;
+
+      const shuffledSets = shuffleArray(poolStats.matchingSets);
+      const chosenSets = [];
+      let accumulated = 0;
+      for (const s of shuffledSets) {
+        chosenSets.push(s);
+        pickedTestMetaMap.set(String(s.test_id), s);
+        accumulated += (s.total_questions || 10);
+        if (accumulated >= targetCount + 10) break;
+      }
+      plan.push({ subName, targetCount, chosenSets });
+    });
+
+    if (plan.length < 2) {
+      throw new Error("Please select at least 2 subjects with available questions.");
+    }
+
+    const allTestIds = Array.from(pickedTestMetaMap.keys());
+    const { data: sectionsData, error: secErr } = await supabaseClient
+      .from("test_sections")
+      .select("id, test_id")
+      .in("test_id", allTestIds);
+    if (secErr || !sectionsData?.length) {
+      throw new Error("Could not load test sections for selected subjects.");
+    }
+
+    const sectionToTestId = new Map();
+    sectionsData.forEach(sec => {
+      if (!Array.from(sectionToTestId.values()).includes(String(sec.test_id))) {
+        sectionToTestId.set(String(sec.id), String(sec.test_id));
+      }
+    });
+
+    const sectionIds = Array.from(sectionToTestId.keys());
+    const { data: qRows, error: qErr } = await supabaseClient
+      .from("test_section_questions")
+      .select(`section_id, question_number, questions (id, content, options, correct_answer, explanation)`)
+      .in("section_id", sectionIds);
+    if (qErr || !qRows?.length) {
+      throw new Error("Could not load questions from selected sets.");
+    }
+
+    const questionsByTestId = new Map();
+    qRows.forEach(row => {
+      const tid = sectionToTestId.get(String(row.section_id));
+      if (!tid) return;
+      const q = Array.isArray(row.questions) ? row.questions[0] : row.questions;
+      if (!q) return;
+      if (!questionsByTestId.has(tid)) questionsByTestId.set(tid, []);
+      questionsByTestId.get(tid).push({ qNumRaw: row.question_number, q });
+    });
+
+    let compiledQuestions = [];
+    const sectionsMeta = [];
+    const seenQIds = new Set();
+
+    plan.forEach(({ subName, targetCount, chosenSets }) => {
+      const subPool = [];
+      chosenSets.forEach(catSet => {
+        const tid = String(catSet.test_id);
+        const rows = questionsByTestId.get(tid) || [];
+        rows.forEach(({ qNumRaw, q }) => {
+          const qIdStr = String(q.id);
+          if (seenQIds.has(qIdStr)) return;
+          seenQIds.add(qIdStr);
+          const opts = parseQuestionOptions(q.options);
+          subPool.push({
+            qNum: qNumRaw,
+            id: q.id,
+            subject: subName,
+            topic: (catSet.topic || "").trim(),
+            testId: tid,
+            testTitle: catSet.test_title || "",
+            content: q.content,
+            options: opts,
+            correctAnswer: getNormalizedCorrectAnswerId(q.correct_answer, opts),
+            explanation: q.explanation
+          });
+        });
+      });
+
+      const pickedForSubject = shuffleArray(subPool).slice(0, targetCount);
+      if (pickedForSubject.length > 0) {
+        sectionsMeta.push({
+          name: subName,
+          startIndex: compiledQuestions.length,
+          count: pickedForSubject.length
+        });
+        compiledQuestions = compiledQuestions.concat(pickedForSubject);
+      }
+    });
+
+    if (compiledQuestions.length < 5) {
+      throw new Error("Not enough unique questions found for this combination.");
+    }
+
+    const isSectionsOrder = customMockConfig.orderMode === "sections";
+    if (!isSectionsOrder) {
+      compiledQuestions = shuffleArray(compiledQuestions);
+    }
+    compiledQuestions.forEach((q, idx) => { q.qNum = idx + 1; });
+
+    const totalQs = compiledQuestions.length;
+    const durationMins = Math.max(5, Math.ceil(totalQs * 0.6));
+    const subSummary = sectionsMeta.map(s => s.name).join(" • ");
+
+    closeCustomMockModal();
+    mountExamSession({
+      id: -6,
+      title: `Custom Mock (${sectionsMeta.length} Subjects)`,
+      subject: subSummary,
+      sections: isSectionsOrder ? sectionsMeta : null,
+      total_duration_minutes: durationMins
+    }, compiledQuestions, isSectionsOrder ? sectionsMeta[0].name : "Mixed Multi-Subject");
+  } catch (err) {
+    showAppNoticeModal("Custom Mock Error", "Could Not Build Paper", err.message, "⚠️", "Dismiss");
+  } finally {
+    if (launchBtn) {
+      launchBtn.innerText = "Launch Mock ➔";
+      launchBtn.disabled = false;
+    }
+  }
+};
 
 function renderSubjectHubGrid(preserveSearchFocus = false) {
   const container = document.getElementById("subjectHubContainer"); 
@@ -4641,7 +4804,7 @@ function renderSubjectHubGrid(preserveSearchFocus = false) {
             <input type="text" id="hubSubjectSearchInput" class="hub-search-input" placeholder="Search subjects..." value="${hubSubjectSearchQuery.replace(/"/g, "&quot;")}" oninput="filterHubSubjects(this.value)" />
             <button type="button" class="btn-hub-search-clear" id="btnHubSearchClear" style="display:${hubSubjectSearchQuery.trim() ? "inline-flex" : "none"};" onclick="clearHubSubjectSearch()" title="Clear">✕</button>
           </div>
-          <button type="button" class="btn-custom-mock-trigger" onclick="openCustomMockModal()" title="Build Multi-Subject Mock Paper">⚡ Custom Mock</button>
+          <button type="button" class="btn-custom-mock-trigger" onclick="openCustomMockModal()" title="Build Multi-Subject Mock Paper"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg><span>Custom Mock</span></button>
           <div class="hub-view-switcher" role="group" aria-label="Subject View Mode">
             <button type="button" id="btnHubViewCompact" class="btn-hub-view ${viewMode === "compact" ? "active" : ""}" onclick="setSubjectHubViewMode('compact')" title="Compact List View">${listIconSvg}</button>
             <button type="button" id="btnHubViewGrid" class="btn-hub-view ${viewMode === "grid" ? "active" : ""}" onclick="setSubjectHubViewMode('grid')" title="Detailed Grid View">${gridIconSvg}</button>
@@ -5821,6 +5984,18 @@ function renderQuestion(index) {
   if (st.status === 0) st.status = 1;
   const pLine = document.getElementById("examProgressLine"); 
   if (pLine) pLine.style.width = `${((index + 1) / testQuestions.length) * 100}%`;
+  if (activeTest?.id === -6 && q.subject) {
+    const bc = document.getElementById("subjectLabelBreadcrumb");
+    if (bc) bc.innerText = q.subject;
+    if (activeTest.sections && activeTest.sections.length > 1) {
+      const tabs = document.querySelectorAll("#sectionTabs .section-tab");
+      tabs.forEach((tab, sIdx) => {
+        const sec = activeTest.sections[sIdx];
+        const isCurrent = sec && index >= sec.startIndex && index < (sec.startIndex + sec.count);
+        tab.classList.toggle("active-section-tab", Boolean(isCurrent));
+      });
+    }
+  }
   document.getElementById("qDisplayNumber").innerText = q.qNum; 
   document.getElementById("questionContent").innerText = getLocalizedText(q.content);
   const optBox = document.getElementById("optionsContainer"); 
@@ -5991,20 +6166,20 @@ function renderScorecard() {
 
   const isSun = isSunday();
   const isCrucible = (activeTest.id === -1);
-  const isRegular = (activeTest.id > 0);
+  const isRegular = (activeTest.id > 0 || activeTest.id === -6);
 
   let hit = false;
   let shouldIncrementStreak = false;
   let requiredSundayAttempts = 0;
 
   // 🚀 0ms SYNCHRONOUS UNIQUE TELEMETRY UPDATE
-  if (activeTest.id > 0 || (activeTest.id === -1 && isSun)) {
+  if (activeTest.id > 0 || activeTest.id === -6 || (activeTest.id === -1 && isSun)) {
     const todayStr = getLocalDateString();
     const prevAttemptsOfThisSetToday = userAttemptHistory.filter(a => 
       String(a.test_id) === String(activeTest.id) && 
       getAttemptLocalDate(a.attempt_date) === todayStr
     );
-    const isRetakeToday = prevAttemptsOfThisSetToday.length > 1;
+    const isRetakeToday = activeTest.id > 0 && prevAttemptsOfThisSetToday.length > 1;
 
     let incrementalAttempted = actuallyAttemptedThisExam;
     let incrementalCorrect = correct;
@@ -6099,7 +6274,7 @@ function renderScorecard() {
         sMsg.innerText = "✔ Progress & Metrics Synced Successfully"; 
       }
 
-      if (activeTest.id > 0 || (activeTest.id === -1 && isSun)) {
+      if (activeTest.id > 0 || activeTest.id === -6 || (activeTest.id === -1 && isSun)) {
         if (shouldIncrementStreak) {
           if (isSun) {
             showAppNoticeModal(
@@ -7076,7 +7251,7 @@ window.fetchStudentAnalytics = async function(isSilent = false) {
       }
 
       const dStr = getAttemptLocalDate(a.attempt_date);
-      if (dStr && (Number(a.test_id) > 0 || Number(a.test_id) === -1)) {
+      if (dStr && (Number(a.test_id) > 0 || Number(a.test_id) === -1 || Number(a.test_id) === -6)) {
         dailyQuestionsMap[dStr] = (dailyQuestionsMap[dStr] || 0) + qInAttempt;
       }
 

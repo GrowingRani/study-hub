@@ -440,7 +440,8 @@ body.dark-theme .btn-history-resume:hover, body.dark-theme .mode-quiz .btn-histo
 .hub-filter-chips::-webkit-scrollbar { display: none; }
 
 /* ⚡ Custom Multi-Subject Mock Trigger & Builder Modal */
-.btn-custom-mock-trigger { height: 36px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--tcs-blue-border-subtle); background: var(--tcs-blue-bg-subtle); color: var(--tcs-blue-accent); font-family: var(--font-family); font-size: 12px; font-weight: 800; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; white-space: nowrap; flex-shrink: 0; transition: all 0.16s ease; }
+.btn-custom-mock-trigger { height: 36px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--tcs-blue-border-subtle); background: var(--tcs-blue-bg-subtle); color: var(--tcs-blue-accent); font-family: var(--font-family); font-size: 12px; font-weight: 800; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; white-space: nowrap; flex-shrink: 0; transition: all 0.16s ease; }
+.btn-custom-mock-trigger svg { flex-shrink: 0; }
 .btn-custom-mock-trigger:hover { background: var(--tcs-blue-accent); color: #ffffff; }
 @media screen and (max-width: 768px) { .btn-custom-mock-trigger { padding: 0 9px; font-size: 11px; } }
 
@@ -920,8 +921,11 @@ body.dark-theme #deletePlaylistConfirmModal .notice-icon-badge { background: rgb
 .tcs-sub-bar { background-color: var(--tcs-sub-bar-bg); color: #ffffff; display: flex; justify-content: space-between; align-items: center; padding: 0 16px; height: 36px; }
 .tcs-sub-left { display: flex; align-items: center; min-width: 0; flex: 1; }
 .mobile-exam-title { font-size: 12.5px; font-weight: 700; color: #ffffff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 8px; }
-.section-tabs-wrap { display: flex; gap: 4px; align-items: center; }
-.section-tab { background: transparent; color: #ffffff; border: none; font-size: 13px; font-weight: 600; padding: 8px 14px; border-bottom: 3px solid var(--tcs-blue-accent); cursor: pointer; }
+.section-tabs-wrap { display: flex; gap: 4px; align-items: center; overflow-x: auto; scrollbar-width: none; }
+.section-tabs-wrap::-webkit-scrollbar { display: none; }
+.section-tab { background: transparent; color: rgba(255, 255, 255, 0.72); border: none; font-size: 12.5px; font-weight: 700; padding: 8px 13px; border-bottom: 3px solid transparent; cursor: pointer; white-space: nowrap; transition: all 0.15s ease; }
+.section-tab:hover { color: #ffffff; }
+.section-tab.active-section-tab { color: #ffffff; border-bottom-color: var(--tcs-blue-accent); }
 .exam-candidate-roll-badge { font-size: 12px; font-family: var(--font-mono); color: #94a3b8; }
 .exam-candidate-roll-badge span { color: #ffffff; font-weight: 700; }
 .btn-abort-exam { background: transparent; color: #fca5a5; border: 1px solid #ef4444; padding: 4px 10px; font-size: 11px; font-weight: 700; border-radius: 4px; cursor: pointer; transition: all 0.2s ease; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; line-height: 1; }
