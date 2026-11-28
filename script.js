@@ -971,6 +971,9 @@ async function initCandidateSession(user) {
     const nameEl = document.getElementById("editProfileName"); if (nameEl) nameEl.value = currentCandidate.full_name || "";
     const rollEl = document.getElementById("editProfileRoll"); if (rollEl) rollEl.value = currentCandidate.roll_number || "";
     const targetEl = document.getElementById("editProfileTarget"); if (targetEl) targetEl.value = currentCandidate.target_exam || "";
+    const savedExamDate = currentCandidate.target_exam_date || appStorage.get("target_exam_date_" + currentCandidate.roll_number, "");
+    currentCandidate.target_exam_date = savedExamDate || "";
+    const targetDateEl = document.getElementById("editProfileTargetDate"); if (targetDateEl) targetDateEl.value = currentCandidate.target_exam_date || "";
     const pName = document.getElementById("dashCandidateName"); if (pName) pName.innerText = currentCandidate.full_name || "Candidate";
     const pRoll = document.getElementById("dashCandidateRoll"); if (pRoll) pRoll.innerText = "ROLL: " + (currentCandidate.roll_number || "---");
     mountDashboard(true);
@@ -1135,17 +1138,33 @@ function setupAppEvents() {
   });
 
   document.getElementById("btnSaveProfile")?.addEventListener("click", async () => {
-    const newName = document.getElementById("editProfileName")?.value.trim(), newTarget = document.getElementById("editProfileTarget")?.value.trim();
-    try { 
-      const { error } = await supabaseClient.from("students").update({ full_name: newName, target_exam: newTarget }).eq("roll_number", currentCandidate.roll_number); 
-      if (error) throw error; 
-      currentCandidate.full_name = newName; 
-      currentCandidate.target_exam = newTarget; 
-      const dName = document.getElementById("dashCandidateName"); 
-      if (dName) dName.innerText = newName; 
-      showAppNoticeModal("Profile Updated", "Changes Saved Successfully", "Your profile details and target exam specifications have been updated.", "👤", "Return to Home", () => switchView('viewDashboard')); 
-    } catch (err) { 
-      showAppNoticeModal("Profile Error", "Update Failed", err.message, "⚠️", "Dismiss"); 
+    const newName = document.getElementById("editProfileName")?.value.trim();
+    const newTarget = document.getElementById("editProfileTarget")?.value.trim();
+    const newExamDate = (document.getElementById("editProfileTargetDate")?.value || "").trim();
+    try {
+      const payload = { full_name: newName, target_exam: newTarget };
+      if (newExamDate) payload.target_exam_date = newExamDate;
+      else payload.target_exam_date = null;
+
+      const { error } = await supabaseClient.from("students").update(payload).eq("roll_number", currentCandidate.roll_number);
+      if (error) {
+        const { error: fallbackErr } = await supabaseClient.from("students").update({ full_name: newName, target_exam: newTarget }).eq("roll_number", currentCandidate.roll_number);
+        if (fallbackErr) throw fallbackErr;
+      }
+
+      currentCandidate.full_name = newName;
+      currentCandidate.target_exam = newTarget;
+      currentCandidate.target_exam_date = newExamDate;
+      if (currentCandidate.roll_number) {
+        if (newExamDate) appStorage.set("target_exam_date_" + currentCandidate.roll_number, newExamDate);
+        else appStorage.remove("target_exam_date_" + currentCandidate.roll_number);
+      }
+
+      const dName = document.getElementById("dashCandidateName");
+      if (dName) dName.innerText = newName;
+      showAppNoticeModal("Profile Updated", "Changes Saved Successfully", "Your profile details and target exam specifications have been updated.", "👤", "Return to Home", () => switchView('viewDashboard'));
+    } catch (err) {
+      showAppNoticeModal("Profile Error", "Update Failed", err.message, "⚠️", "Dismiss");
     }
   });
 
@@ -6882,6 +6901,38 @@ function renderDomainCompetencyMatrix(matrixData) {
   const sMasCount = document.getElementById("sylMasteredCount");
   if (sMasCount) sMasCount.innerText = `${masteredTests.size}/${totalCatalogCount}`;
 
+  const meterBox = document.querySelector("#actionableInsightsCard .linear-meter-box");
+  if (meterBox) {
+    let paceStrip = document.getElementById("syllabusPaceStrip");
+    if (!paceStrip) {
+      paceStrip = document.createElement("div");
+      paceStrip.id = "syllabusPaceStrip";
+      paceStrip.className = "syllabus-pace-strip";
+      meterBox.appendChild(paceStrip);
+    }
+
+    const rawExamDate = currentCandidate?.target_exam_date || (currentCandidate?.roll_number ? appStorage.get("target_exam_date_" + currentCandidate.roll_number, "") : "");
+    const unattemptedSetsCount = Math.max(0, totalCatalogCount - attemptedTests.size);
+
+    if (!rawExamDate) {
+      paceStrip.innerHTML = `<span>📅 Set a <strong>Target Exam Date</strong> in Profile to track daily set pace (${unattemptedSetsCount} unattempted sets left).</span>`;
+    } else {
+      const todayMidnight = new Date(`${getLocalDateString()}T00:00:00`);
+      const examMidnight = new Date(`${rawExamDate}T00:00:00`);
+      const daysLeft = isNaN(examMidnight.getTime()) ? null : Math.ceil((examMidnight - todayMidnight) / 86400000);
+
+      if (daysLeft === null) {
+        paceStrip.innerHTML = `<span>📅 Invalid exam date format.</span>`;
+      } else if (daysLeft <= 0) {
+        paceStrip.innerHTML = `<span>🏁 <strong>Exam Window Reached</strong> • ${unattemptedSetsCount} unattempted sets remaining</span><span class="syllabus-pace-badge">${daysLeft === 0 ? "TODAY" : "PASSED"}</span>`;
+      } else {
+        const setsPerDay = unattemptedSetsCount > 0 ? Math.max(1, Math.ceil(unattemptedSetsCount / daysLeft)) : 0;
+        const examLabel = (currentCandidate?.target_exam || "Target Exam").trim();
+        paceStrip.innerHTML = `<span>🎯 <strong>${examLabel}:</strong> ${daysLeft}d left • ${unattemptedSetsCount} sets left → <strong>${setsPerDay} set${setsPerDay === 1 ? "" : "s"}/day</strong></span><span class="syllabus-pace-badge">${daysLeft} DAYS LEFT</span>`;
+      }
+    }
+  }
+
   // 2. Strongest & Weakest Domain Insights
   let bestSub = null, worstSub = null;
   Object.entries(subStats).forEach(([name, data]) => {
@@ -7098,6 +7149,30 @@ function renderAuditAndRetentionEngines(totals = {}, subStats = {}) {
   if (bNetVal) bNetVal.innerText = `${formatScore(netRealized)}`;
   const bNetSub = document.getElementById("bleedNetSub");
   if (bNetSub) bNetSub.innerText = `${scoreEfficiency}% Retained`;
+
+  let regularQuestionsTotal = 0;
+  let regularQuestionsAttempted = 0;
+  Object.values(subStats || {}).forEach(st => {
+    regularQuestionsTotal += (st.max || 0) / 2;
+    regularQuestionsAttempted += (st.correct || 0) + (st.incorrect || 0);
+  });
+  const skippedQuestionsCount = Math.max(0, regularQuestionsTotal - regularQuestionsAttempted);
+  const skipRatePct = regularQuestionsTotal > 0 ? ((skippedQuestionsCount / regularQuestionsTotal) * 100).toFixed(1) : "0.0";
+  const skipDisciplineLabel = regularQuestionsTotal === 0
+    ? "No Data"
+    : (parseFloat(skipRatePct) <= 15 ? "High Commitment" : (parseFloat(skipRatePct) <= 35 ? "Selective Skip" : "Heavy Skipping"));
+
+  const bleedMetricsGrid = document.querySelector("#negativeBleedCard .bleed-metrics-grid");
+  if (bleedMetricsGrid) {
+    let skipStrip = document.getElementById("bleedSkipRateRow");
+    if (!skipStrip) {
+      skipStrip = document.createElement("div");
+      skipStrip.id = "bleedSkipRateRow";
+      skipStrip.className = "bleed-skip-strip";
+      bleedMetricsGrid.insertAdjacentElement("afterend", skipStrip);
+    }
+    skipStrip.innerHTML = `<span>⏭️ Skip Discipline: <span class="bleed-skip-val">${skipRatePct}%</span> (${skippedQuestionsCount} skipped)</span><span class="bleed-skip-val">${skipDisciplineLabel}</span>`;
+  }
 
   // 🎯 3. SUBJECT-WISE LEAK MATRIX COMPILER (Multi-Factor Risk & Precision Locked)
   const matrixContainer = document.getElementById("subjectLeakMatrixContainer");
