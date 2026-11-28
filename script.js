@@ -6581,26 +6581,37 @@ function getTacticalStatsForDate(d, atts = [], attMap = {}) {
   let dCorr = 0;
   let dIncorr = 0;
   let dSecs = 0;
+  let dSpecialSessions = 0;
+  const dAttemptedTests = new Set();
   const dMasteredTests = new Set();
 
-  (atts || []).forEach(a => {
+  (atts || []).forEach((a, idx) => {
     const attDate = getAttemptLocalDate(a.attempt_date);
     if (attDate === d) {
-      dCorr += (a.total_correct || 0);
-      dIncorr += (a.total_incorrect || 0);
+      const c = a.total_correct || 0;
+      const ic = a.total_incorrect || 0;
+      dCorr += c;
+      dIncorr += ic;
       dSecs += (a.time_spent_seconds || 0);
 
-      if (Number(a.test_id) > 0) {
-        const cat = catalogMap.get(String(a.test_id));
-        const tQs = cat ? (cat.total_questions || 10) : ((a.total_correct || 0) + (a.total_incorrect || 0) || 10);
+      const tidNum = Number(a.test_id);
+      if (tidNum > 0) {
+        dAttemptedTests.add(String(tidNum));
+        const cat = catalogMap.get(String(tidNum));
+        const tQs = cat ? (cat.total_questions || 10) : ((c + ic) || 10);
         const maxM = tQs * 2;
         const pct = maxM > 0 ? (parseFloat(a.score || 0) / maxM) * 100 : 0;
-        if (pct >= 100) dMasteredTests.add(String(a.test_id));
+        if (pct >= 100) dMasteredTests.add(String(tidNum));
+      } else if (tidNum < 0 && (c + ic) > 0) {
+        dSpecialSessions++;
+        if (ic === 0 && c > 0) dMasteredTests.add(`sp_${tidNum}_${idx}`);
       }
     }
   });
 
+  const dSetsAttempted = dAttemptedTests.size + dSpecialSessions;
   const dQAttempted = dCorr + dIncorr;
+  const dAvgQsPerSet = dSetsAttempted > 0 ? Math.round(dQAttempted / dSetsAttempted) : 0;
   const dGross = dCorr * 2.0;
   const dBleed = Math.round(dIncorr * 0.5 * 100) / 100;
   const dNet = Math.round((dGross - dBleed) * 100) / 100;
@@ -6624,6 +6635,8 @@ function getTacticalStatsForDate(d, atts = [], attMap = {}) {
     dCorr,
     dIncorr,
     dQAttempted,
+    dSetsAttempted,
+    dAvgQsPerSet,
     dGross,
     dBleed,
     dNet,
@@ -6768,27 +6781,39 @@ function renderWeeklyConsistencyTrack(context) {
 
       <div class="today-bento-grid tactical-sheet-body">
         <div class="today-bento-cell">
+          <span class="today-bento-label">Sets Attempted</span>
+          <strong class="today-bento-value" style="color:var(--tcs-blue-accent);">${dStats.dSetsAttempted} ${dStats.dSetsAttempted === 1 ? 'Set' : 'Sets'}</strong>
+          <span class="today-bento-sub">${dStats.dMasteredCount} Mastered • ${dStats.dSetsAttempted > 0 ? `Avg ${dStats.dAvgQsPerSet} Qs/Set` : '0 Avg'}</span>
+        </div>
+
+        <div class="today-bento-cell">
+          <span class="today-bento-label">Questions Solved</span>
+          <strong class="today-bento-value" style="color:var(--text-main);">${dStats.dQAttempted} Qs</strong>
+          <span class="today-bento-sub">${dStats.dCorr} Correct • ${dStats.dIncorr} Wrong</span>
+        </div>
+
+        <div class="today-bento-cell">
+          <span class="today-bento-label">Daily Strike-Rate</span>
+          <strong class="today-bento-value" style="${accColorStyle}">${dStats.dAcc}%</strong>
+          <span class="today-bento-sub">${dStats.dQAttempted > 0 ? `${dStats.dCorr}/${dStats.dQAttempted} Hit Ratio` : 'No attempts'}</span>
+        </div>
+
+        <div class="today-bento-cell">
           <span class="today-bento-label">Net Realized P&L</span>
           <strong class="today-bento-value" style="${netColorStyle}">${formatNetVal}</strong>
           <span class="today-bento-sub">+${dStats.dGross.toFixed(1)} Earned • -${dStats.dBleed.toFixed(1)} Bleed</span>
         </div>
 
         <div class="today-bento-cell">
-          <span class="today-bento-label">Daily Strike-Rate</span>
-          <strong class="today-bento-value" style="${accColorStyle}">${dStats.dAcc}%</strong>
-          <span class="today-bento-sub">${dStats.dCorr} Correct • ${dStats.dIncorr} Wrong</span>
+          <span class="today-bento-label">Time & Solving Pace</span>
+          <strong class="today-bento-value" style="color:var(--tcs-blue-accent);">${dStats.dMins >= 60 ? `${Math.floor(dStats.dMins / 60)}h ${dStats.dMins % 60}m` : `${dStats.dMins}m`}</strong>
+          <span class="today-bento-sub">${dStats.dAvgPace > 0 ? `Avg ${dStats.dAvgPace}s/Q` : 'No timer logged'}</span>
         </div>
 
         <div class="today-bento-cell">
           <span class="today-bento-label">Vault Recovery Delta</span>
           <strong class="today-bento-value" style="color:var(--success-dark);">${dStats.dPromoted > 0 ? `+${dStats.dPromoted}` : '0'} Promoted</strong>
           <span class="today-bento-sub">vs ${dStats.dFreshErrors} New Leaks Flagged</span>
-        </div>
-
-        <div class="today-bento-cell">
-          <span class="today-bento-label">Time & Solving Pace</span>
-          <strong class="today-bento-value" style="color:var(--tcs-blue-accent);">${dStats.dMins >= 60 ? `${Math.floor(dStats.dMins / 60)}h ${dStats.dMins % 60}m` : `${dStats.dMins}m`}</strong>
-          <span class="today-bento-sub">${dStats.dMasteredCount} Mastered Sets • ${dStats.dAvgPace > 0 ? `Avg ${dStats.dAvgPace}s/Q` : '--'}</span>
         </div>
       </div>
 

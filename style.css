@@ -1448,7 +1448,7 @@ body.dark-theme .star-doubletap-burst.is-unstarred svg { stroke: #94a3b8; }
 
 @media screen and (max-width: 768px) {
   .today-bento-grid { gap: 6px !important; }
-  .today-bento-cell { padding: 7px 8px !important; min-height: 72px !important; }
+  .today-bento-cell { padding: 6px 8px !important; min-height: 60px !important; }
   .today-bento-value { font-size: 13.5px !important; }
   .today-bento-sub { white-space: normal !important; overflow: visible !important; text-overflow: clip !important; font-size: 9px !important; line-height: 1.25 !important; }
   .today-tactical-footer { font-size: 10px !important; padding: 6px 8px !important; }
