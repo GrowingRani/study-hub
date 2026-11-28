@@ -142,6 +142,9 @@ function mountExamSession(testMeta, questionsList, sectionName = "General") {
   testQuestions = questionsList;
   userResponses = {};
 
+  const qTotalInitEl = document.getElementById("qTotalNumber");
+  if (qTotalInitEl) qTotalInitEl.innerText = ` / ${questionsList.length}`;
+
   testQuestions.forEach((q, idx) => {
     userResponses[idx] = { selected: null, status: idx === 0 ? 1 : 0, timeSpent: 0 };
   });
@@ -5996,7 +5999,9 @@ function renderQuestion(index) {
       });
     }
   }
-  document.getElementById("qDisplayNumber").innerText = q.qNum; 
+  document.getElementById("qDisplayNumber").innerText = q.qNum;
+  const qTotalEl = document.getElementById("qTotalNumber");
+  if (qTotalEl) qTotalEl.innerText = `/${testQuestions.length}`;
   document.getElementById("questionContent").innerText = getLocalizedText(q.content);
   const optBox = document.getElementById("optionsContainer"); 
   if (!optBox) return; 
